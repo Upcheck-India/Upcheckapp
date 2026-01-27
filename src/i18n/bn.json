@@ -1,0 +1,13 @@
+{
+    "common": {
+        "welcome": "Upcheck এ স্বাগতম",
+        "login": "লগইন",
+        "register": "নিবন্ধন করুন",
+        "email": "ইমেল",
+        "password": "পাসওয়ার্ড",
+        "welcome_back": "স্বাগতম!"
+    },
+    "dashboard": {
+        "title": "হোম"
+    }
+}
