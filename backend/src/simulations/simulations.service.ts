@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Crop } from '../crops/crop.entity';
@@ -34,19 +34,29 @@ export class SimulationsService {
         private pondsRepository: Repository<Pond>,
     ) { }
 
-    async runSimulation(dto: RunSimulationDto) {
+    async runSimulation(dto: RunSimulationDto, userId: string) {
+        // FIXED: Load crop first to fail early if no crop? 
+        // Actually, let's load Pond first to secure it.
+        const pond = await this.pondsRepository.findOne({
+            where: { id: dto.pondId },
+            relations: ['farm'], // Need farm to check owner
+        });
+
+        if (!pond) {
+            throw new NotFoundException('Pond not found');
+        }
+
+        // FIXED: Check ownership
+        if (pond.farm.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to run simulations for this pond');
+        }
+
         const crop = await this.cropsRepository.findOne({
             where: { pondId: dto.pondId, status: 'active' },
         });
 
         if (!crop) {
             throw new NotFoundException('Active crop not found for pond');
-        }
-
-        const pond = await this.pondsRepository.findOne({ where: { id: dto.pondId } });
-
-        if (!pond) {
-            throw new NotFoundException('Pond not found');
         }
 
         const baselineBiomass = Number(crop.harvestWeightKg || 0);
@@ -114,6 +124,7 @@ export class SimulationsService {
         const profitDifference = simulatedNetProfit - baselineNetProfit;
 
         const simulation = this.simulationsRepository.create({
+            userId,
             pondId: dto.pondId,
             scenarioType: dto.scenarioType,
             inputFeedPrice: variables.feedPrice,

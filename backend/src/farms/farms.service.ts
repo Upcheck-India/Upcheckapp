@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Farm } from './farm.entity';
@@ -12,28 +12,39 @@ export class FarmsService {
         private farmsRepository: Repository<Farm>,
     ) { }
 
-    create(createFarmDto: CreateFarmDto) {
-        const farm = this.farmsRepository.create(createFarmDto);
+    create(createFarmDto: CreateFarmDto, userId: string) {
+        // Ensure the farm is created for the authenticated user
+        const farm = this.farmsRepository.create({
+            ...createFarmDto,
+            userId,
+        });
         return this.farmsRepository.save(farm);
     }
 
-    findAll(userId?: string) {
-        if (userId) {
-            return this.farmsRepository.find({ where: { userId } });
+    findAll(userId: string) {
+        // Only return farms belonging to the user
+        return this.farmsRepository.find({ where: { userId } });
+    }
+
+    async findOne(id: string, userId: string) {
+        const farm = await this.farmsRepository.findOneBy({ id });
+        if (!farm) {
+            throw new NotFoundException(`Farm with ID ${id} not found`);
         }
-        return this.farmsRepository.find();
+        if (farm.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to access this farm');
+        }
+        return farm;
     }
 
-    findOne(id: string) {
-        return this.farmsRepository.findOneBy({ id });
-    }
-
-    async update(id: string, updateFarmDto: UpdateFarmDto) {
+    async update(id: string, updateFarmDto: UpdateFarmDto, userId: string) {
+        const farm = await this.findOne(id, userId); // Verifies ownership
         await this.farmsRepository.update(id, updateFarmDto);
-        return this.findOne(id);
+        return this.findOne(id, userId);
     }
 
-    remove(id: string) {
+    async remove(id: string, userId: string) {
+        await this.findOne(id, userId); // Verifies ownership
         return this.farmsRepository.delete(id);
     }
 }

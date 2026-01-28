@@ -13,6 +13,9 @@ export class Crop {
     @JoinColumn({ name: 'pond_id' })
     pond: Pond;
 
+    @Column({ name: 'farm_id', type: 'uuid', nullable: true })
+    farmId: string;
+
     @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
     createdAt: Date;
 
@@ -25,6 +28,35 @@ export class Crop {
     @Column({ name: 'crop_code', type: 'text', nullable: true })
     cropCode: string;
 
+    // Stocking Info
+    @Column({ name: 'total_seed', type: 'int', nullable: true })
+    totalSeed: number;
+
+    @Column({ name: 'seed_type', type: 'text', nullable: true })
+    seedType: string; // 'net' | 'gross' | 'actual'
+
+    @Column({ name: 'stocking_date', type: 'date', nullable: true })
+    stockingDate: Date;
+
+    @Column({ name: 'initial_age_days', type: 'int', default: 0 })
+    initialAgeDays: number;
+
+    @Column({ name: 'preparation_days', type: 'int', default: 0 })
+    preparationDays: number;
+
+    @Column({ name: 'total_feeding_trays', type: 'int', default: 4 })
+    totalFeedingTrays: number;
+
+    // Reference FKs
+    @Column({ name: 'hatchery_id', type: 'uuid', nullable: true })
+    hatcheryId: string;
+
+    @Column({ name: 'species_id', type: 'uuid', nullable: true })
+    speciesId: string;
+
+    @Column({ name: 'broodstock_id', type: 'uuid', nullable: true })
+    broodstockId: string;
+
     @Column({ name: 'species_type', type: 'text', nullable: true })
     speciesType: string;
 
@@ -34,8 +66,30 @@ export class Crop {
     @Column({ name: 'stocking_count', type: 'integer', nullable: true })
     stockingCount: number;
 
-    @Column({ name: 'stocking_date', type: 'timestamp with time zone', nullable: true })
-    stockingDate: Date;
+    @Column({ name: 'feed_price_rp_per_kg', type: 'int', nullable: true })
+    feedPriceRpPerKg: number;
+
+    // Cycle Targets
+    @Column({ name: 'carrying_capacity_kg_m2', type: 'numeric', default: 1.25 })
+    carryingCapacityKgM2: number;
+
+    @Column({ name: 'target_cultivation_days', type: 'int', default: 120 })
+    targetCultivationDays: number;
+
+    @Column({ name: 'target_size', type: 'int', nullable: true })
+    targetSize: number; // pieces/kg
+
+    @Column({ name: 'target_sr_percent', type: 'numeric', default: 75.0 })
+    targetSrPercent: number;
+
+    @Column({ name: 'sr_prediction_method', type: 'text', default: 'feed_ratio' })
+    srPredictionMethod: string; // 'feed_ratio' | 'fixed' | 'measurements' | 'stp_table' | 'custom_table'
+
+    @Column({ type: 'int', default: 0 })
+    doc: number; // Day of Culture
+
+    @Column({ name: 'is_active', type: 'boolean', default: true })
+    isActive: boolean;
 
     @Column({ name: 'expected_harvest_date', type: 'timestamp with time zone', nullable: true })
     expectedHarvestDate: Date;
@@ -47,5 +101,5 @@ export class Crop {
     harvestWeightKg: number;
 
     @Column({ type: 'text', default: 'active' })
-    status: string; // active, harvested, cancelled
+    status: string; // 'active' | 'completed' | 'cancelled'
 }

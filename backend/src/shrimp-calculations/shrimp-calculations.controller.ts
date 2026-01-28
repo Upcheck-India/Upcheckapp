@@ -1,5 +1,6 @@
-import { Controller, Post, Body, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, UseGuards } from '@nestjs/common';
 import { ShrimpCalculationsService } from './shrimp-calculations.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
     CalculateFcrDto,
     CalculateAdgDto,
@@ -8,8 +9,10 @@ import {
     CalculateExpectedHarvestDto,
     GrowthProjectionDto,
 } from './dto/calculation.dto';
+import { CultivationPerformanceDto, FreeAmmoniaDto, ProductDosageDto } from './dto/advanced-calculations.dto';
 
 @Controller('shrimp-calculations')
+@UseGuards(JwtAuthGuard)
 export class ShrimpCalculationsController {
     constructor(private readonly calculationsService: ShrimpCalculationsService) { }
 
@@ -53,6 +56,35 @@ export class ShrimpCalculationsController {
     @Post('growth-projection')
     projectGrowth(@Body() dto: GrowthProjectionDto) {
         return this.calculationsService.projectGrowth(dto.currentWeightG, dto.adgG, dto.daysToProject);
+    }
+
+    @Post('cultivation-performance')
+    calculatePerformance(@Body() dto: CultivationPerformanceDto) {
+        return this.calculationsService.calculateCultivationPerformance(
+            dto.dailyFeed,
+            dto.fr,
+            dto.abw,
+            dto.cumulativeFeed,
+            dto.initialStocking
+        );
+    }
+
+    @Post('free-ammonia')
+    calculateFreeAmmonia(@Body() dto: FreeAmmoniaDto) {
+        return this.calculationsService.calculateFreeAmmonia(
+            dto.tan,
+            dto.ph,
+            dto.temperature
+        );
+    }
+
+    @Post('product-amount')
+    calculateProductAmount(@Body() dto: ProductDosageDto) {
+        return this.calculationsService.calculateProductDosage(
+            dto.pondArea,
+            dto.waterLevel,
+            dto.dosage
+        );
     }
 
     @Get('biomass')

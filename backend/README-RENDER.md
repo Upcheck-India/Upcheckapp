@@ -27,6 +27,7 @@ Add these in Render → Service → Environment:
 ```
 NODE_ENV=production
 PORT=10000
+DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
 SUPABASE_URL=your_supabase_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
 BREVO_API_KEY=your_brevo_api_key

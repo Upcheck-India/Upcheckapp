@@ -3,9 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { WaterQualityService } from './water-quality.service';
 import { WaterQualityController } from './water-quality.controller';
 import { WaterQualityRecord } from './water-quality-record.entity';
+import { PondsModule } from '../ponds/ponds.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([WaterQualityRecord])],
+  imports: [TypeOrmModule.forFeature([WaterQualityRecord]), PondsModule],
   controllers: [WaterQualityController],
   providers: [WaterQualityService],
   exports: [WaterQualityService],

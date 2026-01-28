@@ -18,18 +18,43 @@ import { AlertsModule } from './alerts/alerts.module';
 import { ProductsModule } from './products/products.module';
 import { SimulationsModule } from './simulations/simulations.module';
 import { HarvestPlansModule } from './harvest-plans/harvest-plans.module';
+import { ChemicalModule } from './chemical/chemical.module';
+import { PlanktonModule } from './plankton/plankton.module';
+import { MicrobiologyModule } from './microbiology/microbiology.module';
+import { MortalityModule } from './mortality/mortality.module';
+import { DiseaseModule } from './disease/disease.module';
+import { ReferenceModule } from './reference/reference.module';
+import { SamplingModule } from './sampling/sampling.module';
+import { TreatmentsModule } from './treatments/treatments.module';
+import { HarvestsModule } from './harvests/harvests.module';
+import { FeedProductsModule } from './feed-products/feed-products.module';
+import { FeedingTrayChecksModule } from './feeding-tray-checks/feeding-tray-checks.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        url: configService.get<string>('DATABASE_URL'),
-        autoLoadEntities: true,
-        synchronize: true, // TODO: Disable in production
-      }),
+      useFactory: (configService: ConfigService) => {
+        const type = configService.get('DB_TYPE') || 'postgres';
+        const common = {
+          autoLoadEntities: true,
+          synchronize: true,
+        };
+        if (type === 'sqlite') {
+          return {
+            ...common,
+            type: 'sqlite',
+            database: configService.get('DB_NAME') || ':memory:',
+            dropSchema: true,
+          };
+        }
+        return {
+          ...common,
+          type: 'postgres',
+          url: configService.get<string>('DATABASE_URL'),
+        };
+      },
       inject: [ConfigService],
     }),
     ProfilesModule,
@@ -47,6 +72,17 @@ import { HarvestPlansModule } from './harvest-plans/harvest-plans.module';
     ProductsModule,
     SimulationsModule,
     HarvestPlansModule,
+    ChemicalModule,
+    PlanktonModule,
+    MicrobiologyModule,
+    MortalityModule,
+    DiseaseModule,
+    ReferenceModule,
+    SamplingModule,
+    TreatmentsModule,
+    HarvestsModule,
+    FeedProductsModule,
+    FeedingTrayChecksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

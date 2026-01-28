@@ -22,14 +22,32 @@ export class Pond {
     @Column({ type: 'text' })
     name: string;
 
+    @Column({ name: 'name_prefix', type: 'text', nullable: true })
+    namePrefix: string;
+
+    @Column({ name: 'auto_number', type: 'int', nullable: true })
+    autoNumber: number;
+
     @Column({ name: 'pond_code', type: 'text', nullable: true })
     pondCode: string;
+
+    @Column({ type: 'text', nullable: true })
+    type: string; // 'square' | 'circle'
+
+    @Column({ name: 'length_m', type: 'numeric', nullable: true })
+    lengthM: number;
+
+    @Column({ name: 'width_m', type: 'numeric', nullable: true })
+    widthM: number;
 
     @Column({ name: 'area_m2', type: 'numeric', nullable: true })
     areaM2: number;
 
     @Column({ name: 'depth_m', type: 'numeric', nullable: true })
     depthM: number;
+
+    @Column({ name: 'rfid_tag', type: 'text', nullable: true })
+    rfidTag: string;
 
     @Column({ name: 'species_type', type: 'text', nullable: true })
     speciesType: string;
@@ -38,5 +56,5 @@ export class Pond {
     stockingDate: Date;
 
     @Column({ type: 'text', default: 'active' })
-    status: string;
+    status: string; // 'active' | 'inactive' | 'empty'
 }
