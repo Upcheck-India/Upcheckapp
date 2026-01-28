@@ -4,9 +4,10 @@ services:
     name: upcheck-backend
     env: node
     plan: free
+    rootDir: backend
     buildCommand: npm ci && npm run build
     startCommand: npm run start:prod
-    healthCheckPath: /auth/health
+    healthCheckPath: /api/auth/health
     autoDeploy: true
     envVars:
       - key: NODE_ENV
@@ -32,6 +33,7 @@ services:
     name: otp-cleanup
     env: node
     plan: free
+    rootDir: backend
     schedule: "0 * * * *"
     buildCommand: npm ci
     startCommand: npm run otp-cleanup

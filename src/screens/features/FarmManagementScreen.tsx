@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { FarmService } from '../../services/farmService';
 import { Farm } from '../../types/database';
+import { AppCard } from '../../components/AppCard';
 
 const FarmManagementScreen = () => {
     const navigation = useNavigation<any>();
@@ -58,13 +59,13 @@ const FarmManagementScreen = () => {
     };
 
     const renderItem = ({ item }: { item: Farm }) => (
-        <Card style={styles.card} onPress={() => navigation.navigate('PondManagement', { farmId: item.id, farmName: item.name })}>
+        <AppCard style={styles.card} onPress={() => navigation.navigate('PondManagement', { farmId: item.id, farmName: item.name })}>
             <Card.Title title={item.name} subtitle={item.address || 'No address'} />
             <Card.Content>
                 <Text>Code: {item.farm_code}</Text>
                 <Text>Area: {item.area_hectares} hectares</Text>
             </Card.Content>
-        </Card>
+        </AppCard>
     );
 
     return (

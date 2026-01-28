@@ -9,9 +9,9 @@ interface AppCardProps extends CardProps {
     children: React.ReactNode;
 }
 
-export const AppCard: React.FC<AppCardProps> = ({ style, children, elevation, ...props }) => {
+export const AppCard: React.FC<AppCardProps> = ({ style, children, elevation = 2, ...props }) => {
     return (
-        <Card mode="elevated" elevation={elevation || (Layout.cardElevation as any)} style={[styles.card, style]} {...props}>
+        <Card mode="elevated" elevation={elevation as any} style={[styles.card, style]} {...props}>
             {children}
         </Card>
     );
@@ -20,9 +20,13 @@ export const AppCard: React.FC<AppCardProps> = ({ style, children, elevation, ..
 const styles = StyleSheet.create({
     card: {
         marginBottom: Layout.margin,
-        borderRadius: Layout.borderRadius,
+        borderRadius: 16,
         backgroundColor: Colors.surface,
-        borderWidth: 1,
-        borderColor: Colors.lightGrey,
+        // Removed border, relying on shadow/elevation
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4, // Android elevation
     }
 });

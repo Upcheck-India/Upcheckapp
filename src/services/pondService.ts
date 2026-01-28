@@ -17,6 +17,20 @@ export const PondService = {
         return data || [];
     },
 
+    async fetchAllUserPonds(): Promise<(Pond & { farm: { name: string } })[]> {
+        const { data, error } = await supabase
+            .from('ponds')
+            .select('*, farm:farms(name)')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching all user ponds:', error);
+            throw error;
+        }
+
+        return (data as any) || [];
+    },
+
     async createPond(pondData: Partial<Pond>): Promise<Pond | null> {
         const { data, error } = await supabase
             .from('ponds')

@@ -1,3 +1,5 @@
+import { supabase } from './supabase';
+
 const API_BASE_URL = 'http://localhost:3000'; // TODO: replace with deployed backend URL
 
 export const AuthService = {
@@ -41,5 +43,14 @@ export const AuthService = {
         }
 
         return response.json();
+    },
+
+    async getUser() {
+        const { data: { user } } = await supabase.auth.getUser();
+        return user;
+    },
+
+    async signOut() {
+        await supabase.auth.signOut();
     },
 };

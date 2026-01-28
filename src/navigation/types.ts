@@ -12,4 +12,17 @@ export type RootStackParamList = {
     Simulation: undefined;
     HarvestPlanning: undefined;
     ProductDetail: { product: Product };
+    // New Feature Routes
+    CalculatorsMenu: undefined;
+    CultivationPerformance: undefined;
+    FreeAmmonia: undefined;
+    ProductDosage: undefined;
+    DataEntryMenu: undefined;
+    ChemicalEntry: undefined;
+    PlanktonEntry: undefined;
+    MicrobiologyEntry: undefined;
+    MortalityEntry: undefined;
+    DiseaseLibrary: undefined;
+    DiseaseDetail: { disease: any };
+    DiseaseRecord: undefined;
 };

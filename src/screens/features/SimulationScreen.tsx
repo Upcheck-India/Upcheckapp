@@ -1,20 +1,25 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Card, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Button, SegmentedButtons, Text, Menu, useTheme } from 'react-native-paper';
 import Slider from '@react-native-community/slider';
 import { BarChart } from 'react-native-chart-kit';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
+import { AppCard } from '../../components/AppCard';
 import { SimulationService } from '../../services/simulationService';
+import { PondService } from '../../services/pondService';
 import { SimulationScenarioType } from '../../types/simulation';
 
 const chartConfig = {
     backgroundGradientFrom: Colors.surface,
     backgroundGradientTo: Colors.surface,
-    color: (opacity = 1) => `rgba(0, 180, 216, ${opacity})`,
-    labelColor: () => Colors.text,
+    fillShadowGradientFrom: Colors.accent,
+    fillShadowGradientTo: Colors.primary,
+    color: (opacity = 1) => Colors.primary,
+    labelColor: () => Colors.textSecondary,
     decimalPlaces: 0,
+    barPercentage: 0.7,
 };
 
 const scenarioOptions = [
@@ -24,7 +29,12 @@ const scenarioOptions = [
 ];
 
 const SimulationScreen = () => {
+    const theme = useTheme();
     const [pondId, setPondId] = useState('');
+    const [selectedPondName, setSelectedPondName] = useState('');
+    const [ponds, setPonds] = useState<any[]>([]);
+    const [menuVisible, setMenuVisible] = useState(false);
+
     const [scenarioType, setScenarioType] = useState<SimulationScenarioType>('feed_change');
     const [feedPrice, setFeedPrice] = useState(0);
     const [growthImprovement, setGrowthImprovement] = useState(0);
@@ -41,6 +51,23 @@ const SimulationScreen = () => {
         totalCost: number;
         riskWarning?: string;
     }>(null);
+
+    useEffect(() => {
+        loadPonds();
+    }, []);
+
+    const loadPonds = async () => {
+        try {
+            const data = await PondService.fetchAllUserPonds();
+            setPonds(data);
+            if (data.length > 0) {
+                setPondId(data[0].id);
+                setSelectedPondName(`${data[0].name} (${data[0].farm?.name})`);
+            }
+        } catch (error) {
+            console.error('Failed to load ponds', error);
+        }
+    };
 
     const profitBarColor = result?.profitDifference && result.profitDifference < 0 ? Colors.error : Colors.success;
 
@@ -59,7 +86,7 @@ const SimulationScreen = () => {
 
     const handleSimulate = async () => {
         if (!pondId) {
-            alert('Please enter a pond ID');
+            alert('Please select a pond');
             return;
         }
 
@@ -86,31 +113,61 @@ const SimulationScreen = () => {
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView contentContainerStyle={styles.content}>
-                <Text variant="headlineSmall" style={styles.title}>Farm Simulation</Text>
+                <View style={styles.header}>
+                    <Text variant="headlineMedium" style={styles.title}>Farm Simulation</Text>
+                    <Text variant="bodyMedium" style={{ color: Colors.textSecondary }}>
+                        Project future outcomes based on variables
+                    </Text>
+                </View>
 
-                <Card style={styles.card}>
-                    <Card.Title title="Baseline" subtitle="Select a pond to simulate" />
-                    <Card.Content>
-                        <TextInput
-                            label="Pond ID"
-                            value={pondId}
-                            onChangeText={setPondId}
-                            mode="outlined"
-                            style={styles.input}
-                        />
+                <AppCard style={styles.card} elevation={2}>
+                    <View style={styles.cardHeader}>
+                        <Text variant="titleMedium" style={styles.sectionTitle}>Baseline Pond</Text>
+                    </View>
+                    <View style={styles.cardContent}>
+                        <Menu
+                            visible={menuVisible}
+                            onDismiss={() => setMenuVisible(false)}
+                            anchor={
+                                <Button
+                                    mode="outlined"
+                                    onPress={() => setMenuVisible(true)}
+                                    style={styles.dropdown}
+                                    textColor={Colors.primary}
+                                >
+                                    {selectedPondName || 'Select Pond'}
+                                </Button>
+                            }
+                        >
+                            {ponds.map((pond) => (
+                                <Menu.Item
+                                    key={pond.id}
+                                    onPress={() => {
+                                        setPondId(pond.id);
+                                        setSelectedPondName(`${pond.name} (${pond.farm?.name})`);
+                                        setMenuVisible(false);
+                                    }}
+                                    title={`${pond.name} - ${pond.farm?.name}`}
+                                />
+                            ))}
+                        </Menu>
                         <SegmentedButtons
                             value={scenarioType}
                             onValueChange={(value) => setScenarioType(value as SimulationScenarioType)}
                             buttons={scenarioOptions}
+                            style={styles.segmentedButton}
+                            theme={{ colors: { secondaryContainer: Colors.primary + '20' } }}
                         />
-                    </Card.Content>
-                </Card>
+                    </View>
+                </AppCard>
 
                 {scenarioType === 'feed_change' && (
-                    <Card style={styles.card}>
-                        <Card.Title title="Feed Switch" subtitle="Adjust feed cost and growth" />
-                        <Card.Content>
-                            <Text style={styles.sliderLabel}>Feed price (₹/kg): {feedPrice.toFixed(0)}</Text>
+                    <AppCard style={styles.card} elevation={2}>
+                        <View style={styles.cardHeader}>
+                            <Text variant="titleMedium" style={styles.sectionTitle}>Feed Switch Variables</Text>
+                        </View>
+                        <View style={styles.cardContent}>
+                            <Text style={styles.sliderLabel}>Feed price (₹/kg): <Text style={{ fontWeight: 'bold' }}>{feedPrice.toFixed(0)}</Text></Text>
                             <Slider
                                 minimumValue={20}
                                 maximumValue={120}
@@ -119,28 +176,30 @@ const SimulationScreen = () => {
                                 onValueChange={setFeedPrice}
                                 minimumTrackTintColor={Colors.primary}
                                 maximumTrackTintColor={Colors.lightGrey}
-                                thumbTintColor={Colors.primaryDark}
+                                thumbTintColor={Colors.primary}
                             />
-                            <Text style={styles.sliderLabel}>Growth improvement (%): {growthImprovement.toFixed(0)}</Text>
+                            <Text style={styles.sliderLabel}>Growth improvement (%): <Text style={{ fontWeight: 'bold' }}>{growthImprovement.toFixed(0)}%</Text></Text>
                             <Slider
                                 minimumValue={-10}
                                 maximumValue={20}
                                 step={1}
                                 value={growthImprovement}
                                 onValueChange={setGrowthImprovement}
-                                minimumTrackTintColor={Colors.primary}
+                                minimumTrackTintColor={Colors.accent}
                                 maximumTrackTintColor={Colors.lightGrey}
-                                thumbTintColor={Colors.primaryDark}
+                                thumbTintColor={Colors.accent}
                             />
-                        </Card.Content>
-                    </Card>
+                        </View>
+                    </AppCard>
                 )}
 
                 {scenarioType === 'price_change' && (
-                    <Card style={styles.card}>
-                        <Card.Title title="Market Price" subtitle="Adjust expected selling price" />
-                        <Card.Content>
-                            <Text style={styles.sliderLabel}>Selling price (₹/kg): {sellingPrice.toFixed(0)}</Text>
+                    <AppCard style={styles.card} elevation={2}>
+                        <View style={styles.cardHeader}>
+                            <Text variant="titleMedium" style={styles.sectionTitle}>Market Price Variables</Text>
+                        </View>
+                        <View style={styles.cardContent}>
+                            <Text style={styles.sliderLabel}>Selling price (₹/kg): <Text style={{ fontWeight: 'bold' }}>{sellingPrice.toFixed(0)}</Text></Text>
                             <Slider
                                 minimumValue={200}
                                 maximumValue={700}
@@ -149,17 +208,19 @@ const SimulationScreen = () => {
                                 onValueChange={setSellingPrice}
                                 minimumTrackTintColor={Colors.primary}
                                 maximumTrackTintColor={Colors.lightGrey}
-                                thumbTintColor={Colors.primaryDark}
+                                thumbTintColor={Colors.primary}
                             />
-                        </Card.Content>
-                    </Card>
+                        </View>
+                    </AppCard>
                 )}
 
                 {scenarioType === 'stocking_density' && (
-                    <Card style={styles.card}>
-                        <Card.Title title="Stocking Density" subtitle="Assess density risk" />
-                        <Card.Content>
-                            <Text style={styles.sliderLabel}>Density (shrimp/m²): {stockingDensity.toFixed(0)}</Text>
+                    <AppCard style={styles.card} elevation={2}>
+                        <View style={styles.cardHeader}>
+                            <Text variant="titleMedium" style={styles.sectionTitle}>Stocking Density Variables</Text>
+                        </View>
+                        <View style={styles.cardContent}>
+                            <Text style={styles.sliderLabel}>Density (shrimp/m²): <Text style={{ fontWeight: 'bold' }}>{stockingDensity.toFixed(0)}</Text></Text>
                             <Slider
                                 minimumValue={10}
                                 maximumValue={200}
@@ -168,53 +229,68 @@ const SimulationScreen = () => {
                                 onValueChange={setStockingDensity}
                                 minimumTrackTintColor={Colors.primary}
                                 maximumTrackTintColor={Colors.lightGrey}
-                                thumbTintColor={Colors.primaryDark}
+                                thumbTintColor={Colors.primary}
                             />
-                        </Card.Content>
-                    </Card>
+                        </View>
+                    </AppCard>
                 )}
 
-                <Button mode="contained" onPress={handleSimulate} loading={loading} style={styles.simulateButton}>
-                    Simulate
+                <Button
+                    mode="contained"
+                    onPress={handleSimulate}
+                    loading={loading}
+                    style={styles.simulateButton}
+                    contentStyle={{ height: 50 }}
+                >
+                    Run Simulation
                 </Button>
 
                 {result && (
-                    <Card style={styles.resultCard}>
-                        <Card.Title title="Comparison" subtitle="Projected profitability" />
-                        <Card.Content>
+                    <AppCard style={styles.resultCard} elevation={4}>
+                        <View style={styles.cardHeader}>
+                            <Text variant="titleMedium" style={styles.sectionTitle}>Projected Profitability</Text>
+                        </View>
+                        <View style={styles.cardContent}>
                             <View style={styles.summaryRow}>
                                 <View style={styles.summaryItem}>
-                                    <Text variant="titleSmall">Current Profit</Text>
-                                    <Text style={styles.summaryValue}>₹{result.baselineNetProfit.toFixed(0)}</Text>
+                                    <Text variant="labelMedium" style={{ color: Colors.textSecondary }}>Current</Text>
+                                    <Text variant="titleLarge" style={styles.summaryValue}>₹{result.baselineNetProfit.toFixed(0)}</Text>
                                 </View>
                                 <View style={styles.summaryItem}>
-                                    <Text variant="titleSmall">Simulated Profit</Text>
-                                    <Text style={[styles.summaryValue, { color: profitBarColor }]}>₹{result.simulatedNetProfit.toFixed(0)}</Text>
+                                    <Text variant="labelMedium" style={{ color: Colors.textSecondary }}>Simulated</Text>
+                                    <Text variant="titleLarge" style={[styles.summaryValue, { color: profitBarColor }]}>₹{result.simulatedNetProfit.toFixed(0)}</Text>
                                 </View>
-                                <View style={styles.summaryItem}>
-                                    <Text variant="titleSmall">Difference</Text>
-                                    <Text style={[styles.summaryValue, { color: profitBarColor }]}>₹{result.profitDifference.toFixed(0)}</Text>
-                                </View>
+                            </View>
+
+                            <View style={styles.diffContainer}>
+                                <Text variant="bodyMedium">Net Difference: </Text>
+                                <Text variant="titleMedium" style={{ color: profitBarColor, fontWeight: 'bold' }}>
+                                    {result.profitDifference > 0 ? '+' : ''}₹{result.profitDifference.toFixed(0)}
+                                </Text>
                             </View>
 
                             {data && (
                                 <BarChart
                                     data={data}
-                                    width={Layout.window.width - Layout.padding * 2}
+                                    width={Layout.window.width - Layout.padding * 4}
                                     height={220}
                                     fromZero
                                     withCustomBarColorFromData
                                     flatColor
+                                    yAxisLabel=""
+                                    yAxisSuffix=""
                                     chartConfig={chartConfig}
                                     style={styles.chart}
                                 />
                             )}
 
                             {result.riskWarning && (
-                                <Text style={styles.warningText}>{result.riskWarning}</Text>
+                                <View style={styles.warningContainer}>
+                                    <Text style={styles.warningText}>⚠️ {result.riskWarning}</Text>
+                                </View>
                             )}
-                        </Card.Content>
-                    </Card>
+                        </View>
+                    </AppCard>
                 )}
             </ScrollView>
         </SafeAreaView>
@@ -230,51 +306,92 @@ const styles = StyleSheet.create({
         padding: Layout.padding,
         paddingBottom: 32,
     },
+    header: {
+        alignItems: 'center',
+        marginBottom: 24,
+    },
     title: {
-        textAlign: 'center',
-        marginBottom: 16,
         color: Colors.primaryDark,
-        fontWeight: '600',
+        fontWeight: 'bold',
     },
     card: {
         marginBottom: 16,
+        padding: 0, // AppCard handles padding? No, AppCard wraps Card which has content.
+        // Actually AppCard just styles the container. We need to manage padding inside title/content
+        overflow: 'hidden',
+    },
+    cardHeader: {
+        paddingHorizontal: 16,
+        paddingTop: 16,
+        paddingBottom: 8,
+    },
+    cardContent: {
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+    },
+    sectionTitle: {
+        fontWeight: '600',
+        color: Colors.text,
+    },
+    dropdown: {
+        borderColor: Colors.primary,
+        marginBottom: 12,
+    },
+    segmentedButton: {
+        marginTop: 8,
     },
     input: {
         marginBottom: 12,
     },
     sliderLabel: {
-        marginTop: 8,
+        marginTop: 12,
         marginBottom: 4,
         color: Colors.textSecondary,
     },
     simulateButton: {
-        marginVertical: 8,
+        marginVertical: 16,
+        borderRadius: 25, // Pill shape
     },
     resultCard: {
-        marginTop: 16,
-        borderTopWidth: 4,
-        borderTopColor: Colors.primary,
+        marginTop: 8,
+        borderLeftWidth: 6,
+        borderLeftColor: Colors.accent,
     },
     chart: {
-        marginTop: 16,
-        borderRadius: Layout.borderRadius,
+        marginTop: 24,
+        borderRadius: 16,
+        alignSelf: 'center',
     },
     summaryRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 12,
+        justifyContent: 'space-around',
+        marginBottom: 16,
+        backgroundColor: Colors.background,
+        padding: 16,
+        borderRadius: 12,
     },
     summaryItem: {
-        flex: 1,
+        alignItems: 'center',
     },
     summaryValue: {
-        fontWeight: '700',
-        marginTop: 4,
+        fontWeight: 'bold',
+    },
+    diffContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    warningContainer: {
+        marginTop: 16,
+        backgroundColor: '#FFEBEE',
+        padding: 12,
+        borderRadius: 8,
     },
     warningText: {
-        marginTop: 12,
         color: Colors.error,
         fontWeight: '600',
+        textAlign: 'center',
     },
 });
 

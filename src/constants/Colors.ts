@@ -1,29 +1,32 @@
 export const Colors = {
-    // Primary: Matches icon gradient (vibrant cyan)
-    primary: '#00B4D8',
-    primaryLight: '#48CAE4',
-    primaryDark: '#0077B6',
+    // Primary: Deep Ocean Blue & Vibrant Teal
+    primary: '#006064',       // Deep Cyan/Teal
+    primaryLight: '#4DD0E1',  // Light Cyan
+    primaryDark: '#00363A',   // Darker Cyan
+    accent: '#1DE9B6',        // Vibrant Teal Accent
 
-    // Secondary: Complementary aquatic tones
-    secondary: '#90E0EF',
-    secondaryDark: '#00A896',
+    // Secondary: Complementary
+    secondary: '#00BCD4',     // Cyan
+    secondaryDark: '#00838F', // Cyan 800
+    secondaryContainer: '#E0F7FA',
 
     // Backgrounds
-    background: '#F0F9FF',
-    surface: '#FFFFFF',
+    background: '#F5F7FA',    // Soft Mist
+    surface: '#FFFFFF',       // Pure White
 
     // Text
-    text: '#1A365D',
-    textSecondary: '#4A5568',
+    text: '#263238',          // Dark Slate
+    textSecondary: '#546E7A', // Blue Grey
+    textLight: '#FFFFFF',
 
     // Status colors
-    error: '#E53E3E',
-    success: '#38A169',
-    warning: '#D69E2E',
-    info: '#00B4D8',
+    error: '#D32F2F',
+    success: '#388E3C',
+    warning: '#FBC02D',
+    info: '#0288D1',
 
     // Neutrals
-    grey: '#718096',
-    lightGrey: '#E2E8F0',
-    border: '#CBD5E0',
+    grey: '#9E9E9E',
+    lightGrey: '#ECEFF1',
+    border: '#CFD8DC',
 };
