@@ -5,19 +5,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { AppInput } from '../../components/AppInput';
 import { Colors } from '../../constants/Colors';
+import { AuthService } from '../../services/auth';
 
 const RegisterScreen = () => {
     const navigation = useNavigation<any>();
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [secureTextEntry, setSecureTextEntry] = useState(true);
 
-    const handleRegister = () => {
-        // TODO: Implement registration logic
-        console.log('Register pressed');
-        navigation.navigate('OtpVerification', { email });
+    const handleRegister = async () => {
+        try {
+            await AuthService.sendOtp({ email: email || undefined, phone: phone || undefined });
+            navigation.navigate('OtpVerification', { email, phone });
+        } catch (error) {
+            alert('Failed to send OTP');
+        }
     };
 
     const handleLoginNavigate = () => {
@@ -48,6 +53,14 @@ const RegisterScreen = () => {
                         autoCapitalize="none"
                         keyboardType="email-address"
                         left={<TextInput.Icon icon="email" />}
+                    />
+
+                    <AppInput
+                        label="Phone Number"
+                        value={phone}
+                        onChangeText={setPhone}
+                        keyboardType="phone-pad"
+                        left={<TextInput.Icon icon="phone" />}
                     />
 
                     <AppInput

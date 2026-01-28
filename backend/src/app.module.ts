@@ -16,6 +16,8 @@ import { InventoryModule } from './inventory/inventory.module';
 import { NewsModule } from './news/news.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { ProductsModule } from './products/products.module';
+import { SimulationsModule } from './simulations/simulations.module';
+import { HarvestPlansModule } from './harvest-plans/harvest-plans.module';
 
 @Module({
   imports: [
@@ -43,6 +45,8 @@ import { ProductsModule } from './products/products.module';
     NewsModule,
     AlertsModule,
     ProductsModule,
+    SimulationsModule,
+    HarvestPlansModule,
   ],
   controllers: [AppController],
   providers: [AppService],

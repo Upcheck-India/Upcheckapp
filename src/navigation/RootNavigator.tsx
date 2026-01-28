@@ -9,6 +9,8 @@ import BottomTabNavigator from './BottomTabNavigator';
 
 import MineralCalculatorScreen from '../screens/features/MineralCalculatorScreen';
 import ShrimpCalculatorScreen from '../screens/features/ShrimpCalculatorScreen';
+import SimulationScreen from '../screens/features/SimulationScreen';
+import HarvestPlanningScreen from '../screens/features/HarvestPlanningScreen';
 
 import FarmManagementScreen from '../screens/features/FarmManagementScreen';
 import PondManagementScreen from '../screens/features/PondManagementScreen';
@@ -25,6 +27,8 @@ const RootNavigator = () => {
             <Stack.Screen name="Main" component={BottomTabNavigator} />
             <Stack.Screen name="MineralCalculator" component={MineralCalculatorScreen} options={{ headerShown: true, title: 'Minerals' }} />
             <Stack.Screen name="ShrimpCalculator" component={ShrimpCalculatorScreen} options={{ headerShown: true, title: 'Shrimp Calculator' }} />
+            <Stack.Screen name="Simulation" component={SimulationScreen} options={{ headerShown: true, title: 'Farm Simulation' }} />
+            <Stack.Screen name="HarvestPlanning" component={HarvestPlanningScreen} options={{ headerShown: true, title: 'Harvest Planning' }} />
             <Stack.Screen name="FarmManagement" component={FarmManagementScreen} options={{ headerShown: true, title: 'Farms' }} />
             <Stack.Screen name="PondManagement" component={PondManagementScreen} options={{ headerShown: true, title: 'Ponds' }} />
             <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: true, title: 'Product Details' }} />

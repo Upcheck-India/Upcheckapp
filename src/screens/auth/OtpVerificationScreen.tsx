@@ -3,12 +3,13 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, TextInput, Button, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { AuthService } from '../../services/auth';
 
 const OtpVerificationScreen = () => {
     const theme = useTheme();
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
-    const { email } = route.params || { email: 'user@example.com' };
+    const { email, phone } = route.params || { email: 'user@example.com' };
 
     const [otp, setOtp] = useState('');
     const [timer, setTimer] = useState(56);
@@ -26,17 +27,29 @@ const OtpVerificationScreen = () => {
         return () => clearInterval(interval);
     }, [timer]);
 
-    const handleVerify = () => {
-        // TODO: Implement OTP verification
-        console.log('Verifying OTP:', otp);
-        // On success -> Navigate to Main App
-        // navigation.reset(...)
+    const handleVerify = async () => {
+        try {
+            const result = await AuthService.verifyOtp({ email, phone, token: otp });
+            if (result.verified) {
+                alert('OTP verified!');
+                navigation.replace('Main');
+            } else {
+                alert('Invalid OTP');
+            }
+        } catch (error) {
+            alert('Verification failed');
+        }
     };
 
-    const handleResend = () => {
-        setTimer(56);
-        setCanResend(false);
-        console.log('Resending OTP');
+    const handleResend = async () => {
+        try {
+            await AuthService.sendOtp({ email: email || undefined, phone: phone || undefined });
+            alert('OTP resent!');
+            setTimer(56);
+            setCanResend(false);
+        } catch (error) {
+            alert('Failed to resend OTP');
+        }
     };
 
     return (
@@ -44,7 +57,7 @@ const OtpVerificationScreen = () => {
             <View style={styles.content}>
                 <Text variant="headlineSmall" style={styles.title}>Enter Verification Code</Text>
                 <Text style={styles.subtitle}>
-                    We have sent the verification code to {email}
+                    We have sent the verification code to {email || phone}
                 </Text>
 
                 <TextInput
@@ -67,14 +80,18 @@ const OtpVerificationScreen = () => {
                     Verify
                 </Button>
 
-                <View style={styles.resendContainer}>
-                    {canResend ? (
-                        <TouchableOpacity onPress={handleResend}>
-                            <Text style={{ color: theme.colors.primary, fontWeight: 'bold' }}>Resend Code</Text>
-                        </TouchableOpacity>
-                    ) : (
-                        <Text style={styles.timerText}>Resend code in {timer}s</Text>
-                    )}
+                {canResend ? (
+                    <Button mode="outlined" onPress={handleResend} style={styles.button}>
+                        Resend OTP
+                    </Button>
+                ) : (
+                    <Text style={styles.resendText}>
+                        Resend OTP in {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}
+                    </Text>
+                )}
+
+                <View style={styles.note}>
+                    <Text variant="bodySmall">Enter the 6-digit code sent to {email || phone}</Text>
                 </View>
 
                 <Text style={styles.note}>
@@ -112,19 +129,15 @@ const styles = StyleSheet.create({
     button: {
         paddingVertical: 6,
     },
-    resendContainer: {
-        marginTop: 24,
-        alignItems: 'center',
-    },
-    timerText: {
-        color: '#888',
+    resendText: {
+        marginTop: 12,
+        textAlign: 'center',
+        color: '#666',
     },
     note: {
-        marginTop: 40,
-        textAlign: 'center',
-        fontSize: 12,
-        color: '#999'
-    }
+        marginTop: 16,
+        alignItems: 'center',
+    },
 });
 
 export default OtpVerificationScreen;

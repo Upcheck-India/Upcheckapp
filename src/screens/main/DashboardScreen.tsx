@@ -111,6 +111,12 @@ const DashboardScreen = () => {
                         onPress={() => navigation.navigate('ShrimpCalculator')}
                     />
                     <QuickActionCard
+                        title="Simulation"
+                        icon="chart-bar"
+                        color={Colors.secondaryDark}
+                        onPress={() => navigation.navigate('Simulation')}
+                    />
+                    <QuickActionCard
                         title="Farms"
                         icon="barn"
                         color={Colors.secondaryDark}

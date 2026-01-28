@@ -5,10 +5,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { AppInput } from '../../components/AppInput';
 import { Colors } from '../../constants/Colors';
+import { AuthService } from '../../services/auth';
 
 const LoginScreen = () => {
     const navigation = useNavigation<any>();
     const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
     const [secureTextEntry, setSecureTextEntry] = useState(true);
 
@@ -16,6 +18,15 @@ const LoginScreen = () => {
         // TODO: Implement login logic
         console.log('Login pressed');
         navigation.replace('Main');
+    };
+
+    const handleLoginWithOtp = async () => {
+        try {
+            await AuthService.sendOtp({ email: email || undefined, phone: phone || undefined });
+            navigation.navigate('OtpVerification', { email, phone });
+        } catch (error) {
+            alert('Failed to send OTP');
+        }
     };
 
     const handleRegisterNavigate = () => {
@@ -47,6 +58,14 @@ const LoginScreen = () => {
                     />
 
                     <AppInput
+                        label="Phone Number (optional)"
+                        value={phone}
+                        onChangeText={setPhone}
+                        keyboardType="phone-pad"
+                        left={<TextInput.Icon icon="phone" />}
+                    />
+
+                    <AppInput
                         label="Password"
                         value={password}
                         onChangeText={setPassword}
@@ -72,6 +91,10 @@ const LoginScreen = () => {
 
                 <Button mode="outlined" onPress={() => console.log('Login with Email')} style={[styles.button, { borderColor: Colors.primary }]} textColor={Colors.primary}>
                     Login with Email
+                </Button>
+
+                <Button mode="contained-tonal" onPress={handleLoginWithOtp} style={[styles.button, { borderColor: Colors.primary }]} textColor={Colors.primary}>
+                    Login with OTP
                 </Button>
 
                 <View style={styles.footer}>

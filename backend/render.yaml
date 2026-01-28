@@ -1,0 +1,42 @@
+services:
+  # Web Service
+  - type: web
+    name: upcheck-backend
+    env: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:prod
+    healthCheckPath: /auth/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_EMAIL_SENDER_NAME
+        value: Upcheck
+      - key: BREVO_EMAIL_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SMS_SENDER
+        value: Upcheck
+  # Cron Job for OTP Cleanup (hourly)
+  - type: cron
+    name: otp-cleanup
+    env: node
+    plan: free
+    schedule: "0 * * * *"
+    buildCommand: npm ci
+    startCommand: npm run otp-cleanup
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false

@@ -1,34 +1,45 @@
-import { supabase } from './supabase';
+const API_BASE_URL = 'http://localhost:3000'; // TODO: replace with deployed backend URL
 
 export const AuthService = {
-    async signInWithEmail(email: string) {
-        return await supabase.auth.signInWithOtp({ email });
-    },
-
-    async verifyOtp(email: string, token: string) {
-        return await supabase.auth.verifyOtp({ email, token, type: 'email' });
-    },
-
-    async signInWithPassword(email: string, password: string) {
-        return await supabase.auth.signInWithPassword({ email, password });
-    },
-
-    async signUp(email: string, password: string, data: any) {
-        return await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: data // first_name, last_name, etc.
-            }
+    async sendOtp(payload: { email?: string; phone?: string }) {
+        const response = await fetch(`${API_BASE_URL}/auth/login/otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
         });
+
+        if (!response.ok) {
+            throw new Error('Failed to send OTP');
+        }
+
+        return response.json();
     },
 
-    async signOut() {
-        return await supabase.auth.signOut();
+    async verifyOtp(payload: { email?: string; phone?: string; token: string }) {
+        const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to verify OTP');
+        }
+
+        return response.json();
     },
 
-    async getUser() {
-        const { data: { user } } = await supabase.auth.getUser();
-        return user;
-    }
+    async loginWithOtp(payload: { email?: string; phone?: string; token: string }) {
+        const response = await fetch(`${API_BASE_URL}/auth/login-with-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to login with OTP');
+        }
+
+        return response.json();
+    },
 };

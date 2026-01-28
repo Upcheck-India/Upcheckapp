@@ -28,6 +28,26 @@ export class AuthController {
         return this.authService.verifyOtp(verifyOtpDto);
     }
 
+    @Get('health')
+    health() {
+        return {
+            brevo: {
+                apiKeyConfigured: !!this.authService.getBrevoApiKey(),
+                emailSenderConfigured: !!this.authService.getBrevoEmailSender(),
+                smsSenderConfigured: !!this.authService.getBrevoSmsSender(),
+            },
+            status: 'ok',
+        };
+    }
+
+    @Post('login-with-otp')
+    async loginWithOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+        const result = await this.authService.verifyOtp(verifyOtpDto);
+        // If OTP is valid, create or fetch Supabase user and return tokens
+        // For now, just return the verified status
+        return result;
+    }
+
     @Post('refresh')
     refreshToken(@Body('refreshToken') refreshToken: string) {
         return this.authService.refreshToken(refreshToken);
