@@ -1,5 +1,5 @@
 # compiled output
-/dist
+# /dist - uncommenting for Render deployment (build artifacts need to persist)
 /node_modules
 /build
 
