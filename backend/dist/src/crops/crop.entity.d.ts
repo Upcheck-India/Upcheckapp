@@ -1,0 +1,35 @@
+import { Pond } from '../ponds/pond.entity';
+export declare class Crop {
+    id: string;
+    pondId: string;
+    pond: Pond;
+    farmId: string;
+    createdAt: Date;
+    updatedAt: Date;
+    name: string;
+    cropCode: string;
+    totalSeed: number;
+    seedType: string;
+    stockingDate: Date;
+    initialAgeDays: number;
+    preparationDays: number;
+    totalFeedingTrays: number;
+    hatcheryId: string;
+    speciesId: string;
+    broodstockId: string;
+    speciesType: string;
+    stockingDensity: number;
+    stockingCount: number;
+    feedPriceRpPerKg: number;
+    carryingCapacityKgM2: number;
+    targetCultivationDays: number;
+    targetSize: number;
+    targetSrPercent: number;
+    srPredictionMethod: string;
+    doc: number;
+    isActive: boolean;
+    expectedHarvestDate: Date;
+    actualHarvestDate: Date;
+    harvestWeightKg: number;
+    status: string;
+}
