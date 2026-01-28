@@ -1,6 +1,6 @@
 import { HarvestCycleSummary, HarvestPlan } from '../types/harvest';
 
-const API_BASE_URL = 'http://localhost:3000'; // TODO: replace with deployed backend URL
+const API_BASE_URL = 'https://upcheckapp-c612.onrender.com/api';
 
 export const HarvestService = {
     async createPlan(payload: {

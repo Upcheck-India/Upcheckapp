@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-const API_BASE_URL = 'http://localhost:3000'; // TODO: replace with deployed backend URL
+const API_BASE_URL = 'https://upcheckapp-c612.onrender.com/api';
 
 export const AuthService = {
     async sendOtp(payload: { email?: string; phone?: string }) {
