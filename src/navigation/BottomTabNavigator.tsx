@@ -9,7 +9,7 @@ const Tab = createBottomTabNavigator();
 const BottomTabNavigator = () => {
     return (
         <Tab.Navigator
-            initialRouteName="Crop"
+            initialRouteName="Pond"
             screenOptions={({ route }) => ({
                 headerShown: false,
                 tabBarActiveTintColor: Colors.primary,
@@ -19,15 +19,15 @@ const BottomTabNavigator = () => {
                     let iconName;
 
                     if (route.name === 'News') {
-                        iconName = 'newspaper';
+                        iconName = 'newspaper-variant-outline';
                     } else if (route.name === 'eShop') {
-                        iconName = 'shopping';
-                    } else if (route.name === 'Crop') {
-                        iconName = 'sprout'; // Center icon, maybe different styling
+                        iconName = 'store';
+                    } else if (route.name === 'Pond') {
+                        iconName = 'fishbowl-outline'; // Center icon - aquaculture themed
                     } else if (route.name === 'Alerts') {
-                        iconName = 'bell';
-                    } else if (route.name === 'Personal') {
-                        iconName = 'account';
+                        iconName = 'bell-ring-outline';
+                    } else if (route.name === 'Profile') {
+                        iconName = 'account-circle-outline';
                     }
 
                     return <MaterialCommunityIcons name={iconName as any} size={size} color={color} />;
@@ -36,9 +36,9 @@ const BottomTabNavigator = () => {
         >
             <Tab.Screen name="News" component={NewsScreen} />
             <Tab.Screen name="eShop" component={EShopScreen} />
-            <Tab.Screen name="Crop" component={DashboardScreen} />
+            <Tab.Screen name="Pond" component={DashboardScreen} />
             <Tab.Screen name="Alerts" component={AlertsScreen} />
-            <Tab.Screen name="Personal" component={ProfileScreen} />
+            <Tab.Screen name="Profile" component={ProfileScreen} />
         </Tab.Navigator>
     );
 };

@@ -6,6 +6,7 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { Colors } from './src/constants/Colors';
 import NetInfo from '@react-native-community/netinfo';
 import { sync } from './src/services/sync';
+import { AuthProvider } from './src/context/AuthContext';
 import './src/i18n';
 
 // Custom theme aligned with icon colors
@@ -52,9 +53,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <PaperProvider theme={theme}>
-        <NavigationContainer>
-          <RootNavigator />
-        </NavigationContainer>
+        <AuthProvider>
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+        </AuthProvider>
       </PaperProvider>
     </SafeAreaProvider>
   );

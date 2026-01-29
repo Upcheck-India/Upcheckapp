@@ -152,7 +152,7 @@ const MineralCalculatorScreen = () => {
         return (
             <View>
                 <AppCard style={styles.resultCard}>
-                    <Card.Title title="Target vs Current" left={(props) => <List.Icon {...props} icon="chart-box-outline" />} />
+                    <Card.Title title="Target vs Current" left={(props) => <List.Icon {...props} icon="water-check-outline" />} />
                     <Card.Content>
                         <View style={styles.resultRow}>
                             <Text>Calcium:</Text>
@@ -170,7 +170,7 @@ const MineralCalculatorScreen = () => {
                 </AppCard>
 
                 <AppCard style={styles.recommendationCard}>
-                    <Card.Title title="Recommendations" left={(props) => <List.Icon {...props} icon="flask-outline" />} />
+                    <Card.Title title="Recommendations" left={(props) => <List.Icon {...props} icon="water-plus-outline" />} />
                     <Card.Content>
                         {results.recommendations.length > 0 ? (
                             results.recommendations.map((rec: any, index: number) => (

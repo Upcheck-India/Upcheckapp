@@ -92,7 +92,7 @@ const ShrimpCalculatorScreen = () => {
         if (!results) return null;
         return (
             <Card style={styles.resultCard}>
-                <Card.Title title="Results" left={(props) => <List.Icon {...props} icon="poll" />} />
+                <Card.Title title="Results" left={(props) => <List.Icon {...props} icon="fish-outline" />} />
                 <Card.Content>
                     <List.Item title="Average Body Weight (ABW)" description={`${results.averageBodyWeight} g`} />
                     <Divider />

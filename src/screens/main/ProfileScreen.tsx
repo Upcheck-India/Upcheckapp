@@ -2,16 +2,19 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Text, Avatar, Button, Card, Portal, Modal, TextInput, ActivityIndicator, Divider } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
-import { AuthService } from '../../services/auth';
+import { useFocusEffect, useNavigation, CommonActions } from '@react-navigation/native';
+import { useAuth } from '../../context/AuthContext';
 import { ProfileService } from '../../services/profileService';
 import { Profile } from '../../types/database';
 import { Colors } from '../../constants/Colors';
 
 const ProfileScreen = () => {
+    const navigation = useNavigation<any>();
+    const { user, signOut } = useAuth();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
     const [editModalVisible, setEditModalVisible] = useState(false);
+    const [signingOut, setSigningOut] = useState(false);
 
     // Edit Form
     const [fullName, setFullName] = useState('');
@@ -21,13 +24,12 @@ const ProfileScreen = () => {
     useFocusEffect(
         useCallback(() => {
             loadProfile();
-        }, [])
+        }, [user])
     );
 
     const loadProfile = async () => {
         setLoading(true);
         try {
-            const user = await AuthService.getUser();
             if (user) {
                 const data = await ProfileService.getProfile(user.id);
                 setProfile(data);
@@ -62,14 +64,34 @@ const ProfileScreen = () => {
     };
 
     const handleSignOut = async () => {
-        try {
-            await AuthService.signOut();
-            // Navigator usually handles the auth state change automatically effectively 
-            // but effectively here the stack might just reset. 
-            // Checking App.tsx logic/RootNavigator logic might be needed for full flow check.
-        } catch (error) {
-            Alert.alert('Error', 'Failed to sign out');
-        }
+        Alert.alert(
+            'Sign Out',
+            'Are you sure you want to sign out?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Sign Out',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setSigningOut(true);
+                        try {
+                            await signOut();
+                            // Reset navigation to Login screen
+                            navigation.dispatch(
+                                CommonActions.reset({
+                                    index: 0,
+                                    routes: [{ name: 'Login' }],
+                                })
+                            );
+                        } catch (error) {
+                            Alert.alert('Error', 'Failed to sign out');
+                        } finally {
+                            setSigningOut(false);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     if (loading) {

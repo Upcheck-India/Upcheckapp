@@ -34,26 +34,26 @@ const DataEntryMenuScreen = ({ navigation }: any) => {
 
                 <View style={styles.grid}>
                     <MenuItem
-                        title="Chemicals"
-                        icon="flask"
+                        title="Water Quality"
+                        icon="water-outline"
                         color={Colors.primary}
                         onPress={() => navigation.navigate('ChemicalEntry')}
                     />
                     <MenuItem
                         title="Plankton"
-                        icon="microscope" // better icon than rice
-                        color={Colors.success}
+                        icon="leaf-circle-outline"
+                        color={Colors.secondary}
                         onPress={() => navigation.navigate('PlanktonEntry')}
                     />
                     <MenuItem
                         title="Microbiology"
-                        icon="bacteria"
+                        icon="bacteria-outline"
                         color={Colors.info}
                         onPress={() => navigation.navigate('MicrobiologyEntry')}
                     />
                     <MenuItem
                         title="Mortality"
-                        icon="skull-outline"
+                        icon="fish-off"
                         color={Colors.error}
                         onPress={() => navigation.navigate('MortalityEntry')}
                     />

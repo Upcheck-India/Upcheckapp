@@ -27,6 +27,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f3274022-ae8a-4be6-9085-23f935542a4c"
+      }
+    },
+    "owner": "kiransekar"
   }
 }

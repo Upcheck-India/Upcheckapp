@@ -1,9 +1,12 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ActivityIndicator, View } from 'react-native';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import OtpVerificationScreen from '../screens/auth/OtpVerificationScreen';
 import { RootStackParamList } from './types';
+import { useAuth } from '../context/AuthContext';
+import { Colors } from '../constants/Colors';
 
 import BottomTabNavigator from './BottomTabNavigator';
 
@@ -37,11 +40,32 @@ import DiseaseRecordScreen from '../screens/features/disease/DiseaseRecordScreen
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
+    const { isLoading, isAuthenticated } = useAuth();
+
+    // Show loading screen while checking auth state
+    if (isLoading) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface }}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+            </View>
+        );
+    }
+
     return (
-        <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-            <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
+        <Stack.Navigator
+            initialRouteName={isAuthenticated ? "Main" : "Login"}
+            screenOptions={{ headerShown: false }}
+        >
+            {/* Auth Screens - only show when not authenticated */}
+            {!isAuthenticated ? (
+                <>
+                    <Stack.Screen name="Login" component={LoginScreen} />
+                    <Stack.Screen name="Register" component={RegisterScreen} />
+                    <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
+                </>
+            ) : null}
+
+            {/* Main App Screens */}
             <Stack.Screen name="Main" component={BottomTabNavigator} />
             <Stack.Screen name="MineralCalculator" component={MineralCalculatorScreen} options={{ headerShown: true, title: 'Minerals' }} />
             <Stack.Screen name="ShrimpCalculator" component={ShrimpCalculatorScreen} options={{ headerShown: true, title: 'Shrimp Calculator' }} />
@@ -68,6 +92,15 @@ const RootNavigator = () => {
             <Stack.Screen name="DiseaseLibrary" component={DiseaseLibraryScreen} options={{ headerShown: true, title: 'Disease Library' }} />
             <Stack.Screen name="DiseaseDetail" component={DiseaseDetailScreen} options={{ headerShown: true, title: 'Disease Details' }} />
             <Stack.Screen name="DiseaseRecord" component={DiseaseRecordScreen} options={{ headerShown: true, title: 'Record Disease' }} />
+
+            {/* Allow login screens even when authenticated (for OTP flow) */}
+            {isAuthenticated ? (
+                <>
+                    <Stack.Screen name="Login" component={LoginScreen} />
+                    <Stack.Screen name="Register" component={RegisterScreen} />
+                    <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
+                </>
+            ) : null}
         </Stack.Navigator>
     );
 };

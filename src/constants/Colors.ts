@@ -1,17 +1,18 @@
+// Theme inspired by Upcheck logo - Cyan to Blue gradient
 export const Colors = {
-    // Primary: Deep Ocean Blue & Vibrant Teal
-    primary: '#006064',       // Deep Cyan/Teal
+    // Primary: Cyan/Blue gradient from logo
+    primary: '#00A5CC',       // Main cyan from logo
     primaryLight: '#4DD0E1',  // Light Cyan
-    primaryDark: '#00363A',   // Darker Cyan
-    accent: '#1DE9B6',        // Vibrant Teal Accent
+    primaryDark: '#0077A8',   // Deeper blue from logo
+    accent: '#00B8D4',        // Vibrant Cyan Accent (no green)
 
-    // Secondary: Complementary
-    secondary: '#00BCD4',     // Cyan
-    secondaryDark: '#00838F', // Cyan 800
-    secondaryContainer: '#E0F7FA',
+    // Secondary: Blue tones
+    secondary: '#0091EA',     // Blue
+    secondaryDark: '#006DB3', // Darker Blue
+    secondaryContainer: '#E1F5FE', // Light blue container
 
     // Backgrounds
-    background: '#F5F7FA',    // Soft Mist
+    background: '#F5F9FC',    // Soft blue-ish white
     surface: '#FFFFFF',       // Pure White
 
     // Text
@@ -20,13 +21,18 @@ export const Colors = {
     textLight: '#FFFFFF',
 
     // Status colors
-    error: '#D32F2F',
-    success: '#388E3C',
-    warning: '#FBC02D',
-    info: '#0288D1',
+    error: '#D32F2F',         // Red
+    success: '#2196F3',       // Blue instead of green for success
+    warning: '#FF9800',       // Orange 
+    info: '#0288D1',          // Blue info
 
     // Neutrals
     grey: '#9E9E9E',
     lightGrey: '#ECEFF1',
     border: '#CFD8DC',
+
+    // Gradient colors (for linear gradients)
+    gradientStart: '#00CFFF', // Light cyan (top of logo)
+    gradientEnd: '#0088CC',   // Deep blue (bottom of logo)
+    gradientMiddle: '#00A5CC', // Middle transition
 };
