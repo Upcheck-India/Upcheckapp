@@ -20,6 +20,9 @@ export class OtpCode {
     @Column({ name: 'verified_at', type: 'timestamp with time zone', nullable: true })
     verifiedAt: Date | null;
 
+    @Column({ name: 'failed_attempts', type: 'int', default: 0 })
+    failedAttempts: number;
+
     @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
     createdAt: Date;
 }

@@ -7,10 +7,11 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { OtpCode } from './otp-code.entity';
 import { OtpRateLimitService } from './otp-rate-limit.service';
 import { OtpCleanupService } from './otp-cleanup.service';
+import { MailService } from './mail.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([OtpCode]), ScheduleModule.forRoot()],
-  providers: [AuthService, JwtAuthGuard, OtpRateLimitService, OtpCleanupService],
+  providers: [AuthService, JwtAuthGuard, OtpRateLimitService, OtpCleanupService, MailService],
   controllers: [AuthController],
   exports: [AuthService, JwtAuthGuard],
 })

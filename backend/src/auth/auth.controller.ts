@@ -29,13 +29,9 @@ export class AuthController {
     }
 
     @Get('health')
+    @UseGuards(JwtAuthGuard)
     health() {
         return {
-            brevo: {
-                apiKeyConfigured: !!this.authService.getBrevoApiKey(),
-                emailSenderConfigured: !!this.authService.getBrevoEmailSender(),
-                smsSenderConfigured: !!this.authService.getBrevoSmsSender(),
-            },
             status: 'ok',
         };
     }
@@ -60,6 +56,7 @@ export class AuthController {
     }
 
     @Post('logout')
+    @UseGuards(JwtAuthGuard)
     logout(@Headers('authorization') auth: string) {
         const token = auth?.replace('Bearer ', '');
         return this.authService.logout(token);

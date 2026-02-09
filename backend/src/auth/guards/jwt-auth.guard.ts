@@ -4,7 +4,14 @@ import { createClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-    constructor(private configService: ConfigService) { }
+    private supabase: ReturnType<typeof createClient>;
+
+    constructor(private configService: ConfigService) {
+        this.supabase = createClient(
+            this.configService.get<string>('SUPABASE_URL') || '',
+            this.configService.get<string>('SUPABASE_ANON_KEY') || '',
+        );
+    }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest();
@@ -17,12 +24,7 @@ export class JwtAuthGuard implements CanActivate {
         const token = authHeader.replace('Bearer ', '');
 
         try {
-            const supabase = createClient(
-                this.configService.get<string>('SUPABASE_URL') || '',
-                this.configService.get<string>('SUPABASE_ANON_KEY') || '',
-            );
-
-            const { data, error } = await supabase.auth.getUser(token);
+            const { data, error } = await this.supabase.auth.getUser(token);
 
             if (error || !data.user) {
                 throw new UnauthorizedException('Invalid token');

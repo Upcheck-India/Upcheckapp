@@ -1,9 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { HarvestPlansService } from './harvest-plans.service';
 import { CreateHarvestPlanDto } from './dto/create-harvest-plan.dto';
 import { UpdateHarvestPlanDto } from './dto/update-harvest-plan.dto';
 
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
 @Controller('harvest-plans')
+@UseGuards(JwtAuthGuard)
 export class HarvestPlansController {
     constructor(private readonly harvestPlansService: HarvestPlansService) { }
 
