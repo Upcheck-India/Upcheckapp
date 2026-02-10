@@ -9,9 +9,9 @@ interface AppCardProps extends CardProps {
     children: React.ReactNode;
 }
 
-export const AppCard: React.FC<AppCardProps> = ({ style, children, elevation = 2, ...props }) => {
+export const AppCard: React.FC<AppCardProps> = ({ style, children }) => {
     return (
-        <Card mode="elevated" elevation={elevation as any} style={[styles.card, style]} {...props}>
+        <Card style={[styles.card, style]}>
             {children}
         </Card>
     );

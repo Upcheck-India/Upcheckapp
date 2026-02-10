@@ -31,7 +31,7 @@
     "extra": {
       "supabaseUrl": "https://hporygudvkfoegxzsivt.supabase.co",
       "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhwb3J5Z3Vkdmtmb2VneHpzaXZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2MTQ5NzUsImV4cCI6MjA4NTE5MDk3NX0.UzR8k_53nERSiEMbYPF4eOVvYCDDaE6onNWGUptbInc",
-      "apiBaseUrl": "http://192.168.31.160:8080/api",
+      "apiBaseUrl": "https://upcheckapp-c612.onrender.com/api",
       "eas": {
         "projectId": "f3274022-ae8a-4be6-9085-23f935542a4c"
       }

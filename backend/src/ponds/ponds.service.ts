@@ -58,4 +58,17 @@ export class PondsService {
         await this.findOne(id, userId); // Verifies ownership
         return this.pondsRepository.delete(id);
     }
+
+    /**
+     * Calculate pond volume based on area and depth
+     * @param area Area in square meters
+     * @param depth Depth in meters
+     * @returns Volume in cubic meters
+     */
+    calculateVolume(area: number, depth: number): number {
+        if (area <= 0 || depth <= 0) {
+            return 0;
+        }
+        return area * depth;
+    }
 }

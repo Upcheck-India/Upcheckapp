@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
 
-const API_BASE_URL = 'https://upcheckapp-c612.onrender.com/api';
+import { Config } from '../constants/Config';
+
+const API_BASE_URL = Config.API_BASE_URL;
 
 export const getAuthHeaders = async () => {
     const { data } = await supabase.auth.getSession();

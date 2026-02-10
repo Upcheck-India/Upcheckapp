@@ -1,18 +1,209 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CropsService } from './crops.service';
+import { Crop } from './crop.entity';
+import { CreateCropDto } from './dto/create-crop.dto';
+import { UpdateCropDto } from './dto/update-crop.dto';
+import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import { PondsService } from '../ponds/ponds.service';
 
 describe('CropsService', () => {
   let service: CropsService;
+  let repository: MockRepository;
+  let pondsService: jest.Mocked<PondsService>;
+  
+  const mockCrop = new Crop();
+  mockCrop.id = 'crop-1';
+  mockCrop.pondId = 'pond-1';
+  mockCrop.name = 'Test Crop';
+  mockCrop.cropCode = 'TC001';
+  mockCrop.speciesType = 'vannamei';
+  mockCrop.stockingDate = new Date('2024-01-01');
+  mockCrop.stockingDensity = 10;
+  mockCrop.stockingCount = 10000;
+  mockCrop.status = 'active';
+  mockCrop.createdAt = new Date();
+  mockCrop.updatedAt = new Date();
+  
+  const mockCreateCropDto: CreateCropDto = {
+    pondId: 'pond-1',
+    name: 'New Crop',
+    cropCode: 'NC001',
+    speciesType: 'vannamei',
+    stockingDensity: 10,
+    stockingCount: 10000,
+    stockingDate: '2024-01-01',
+    status: 'active',
+  };
+  
+  const mockUpdateCropDto: UpdateCropDto = {
+    status: 'completed',
+  };
+  
+  type MockRepository = Partial<Record<keyof Repository<any>, jest.Mock>> & { [K in keyof Repository<any>]?: jest.Mock };
+  
+  const createMockRepository = (): MockRepository => ({
+    create: jest.fn(),
+    save: jest.fn(),
+    find: jest.fn(),
+    findOne: jest.fn(),
+    findOneBy: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [CropsService],
+      providers: [
+        CropsService,
+        {
+          provide: getRepositoryToken(Crop),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: PondsService,
+          useValue: {
+            findOne: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
     service = module.get<CropsService>(CropsService);
+    repository = module.get(getRepositoryToken(Crop));
+    pondsService = module.get(PondsService);
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+  
+  describe('create', () => {
+    it('should create a new crop', async () => {
+      const userId = 'user-1';
+      
+      pondsService.findOne.mockResolvedValue({} as any);
+      (repository.create as jest.Mock).mockReturnValue(mockCrop);
+      (repository.save as jest.Mock).mockResolvedValue(mockCrop);
+      
+      const result = await service.create(mockCreateCropDto, userId);
+      
+      expect(pondsService.findOne).toHaveBeenCalledWith(mockCreateCropDto.pondId, userId);
+      expect(repository.create).toHaveBeenCalledWith(mockCreateCropDto);
+      expect(repository.save).toHaveBeenCalledWith(mockCrop);
+      expect(result).toEqual(mockCrop);
+    });
+  });
+  
+  describe('findAll', () => {
+    it('should return all crops for a pond', async () => {
+      const pondId = 'pond-1';
+      const userId = 'user-1';
+      const crops = [mockCrop];
+      
+      pondsService.findOne.mockResolvedValue({} as any);
+      (repository.find as jest.Mock).mockResolvedValue(crops);
+      
+      const result = await service.findAll(pondId, userId);
+      
+      expect(pondsService.findOne).toHaveBeenCalledWith(pondId, userId);
+      expect(repository.find).toHaveBeenCalledWith({ where: { pondId } });
+      expect(result).toEqual(crops);
+    });
+  });
+  
+  describe('findOne', () => {
+    it('should return a crop by id', async () => {
+      const cropId = 'crop-1';
+      const userId = 'user-1';
+      
+      (repository.findOneBy as jest.Mock).mockResolvedValue(mockCrop);
+      pondsService.findOne.mockResolvedValue({} as any);
+      
+      const result = await service.findOne(cropId, userId);
+      
+      expect(repository.findOneBy).toHaveBeenCalledWith({ id: cropId });
+      expect(pondsService.findOne).toHaveBeenCalledWith(mockCrop.pondId, userId);
+      expect(result).toEqual(mockCrop);
+    });
+    
+    it('should throw NotFoundException when crop not found', async () => {
+      const cropId = 'non-existent';
+      const userId = 'user-1';
+      
+      (repository.findOneBy as jest.Mock).mockResolvedValue(null);
+      
+      await expect(service.findOne(cropId, userId)).rejects.toThrow(NotFoundException);
+    });
+  });
+  
+  describe('update', () => {
+    it('should update a crop', async () => {
+      const cropId = 'crop-1';
+      const userId = 'user-1';
+      const updatedCrop = { 
+        ...mockCrop, 
+        status: 'completed',
+        // Convert string dates to Date objects if needed
+        stockingDate: mockCrop.stockingDate instanceof Date ? mockCrop.stockingDate : new Date(mockCrop.stockingDate),
+        expectedHarvestDate: mockCrop.expectedHarvestDate instanceof Date ? mockCrop.expectedHarvestDate : new Date(mockCrop.expectedHarvestDate)
+      };
+      
+      jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
+      (repository.update as jest.Mock).mockResolvedValue(undefined);
+      jest.spyOn(service, 'findOne').mockResolvedValue(updatedCrop);
+      
+      const result = await service.update(cropId, mockUpdateCropDto, userId);
+      
+      expect(service.findOne).toHaveBeenCalledWith(cropId, userId);
+      expect(repository.update).toHaveBeenCalledWith(cropId, mockUpdateCropDto);
+      expect(result).toEqual(updatedCrop);
+    });
+  });
+  
+  describe('remove', () => {
+    it('should remove a crop', async () => {
+      const cropId = 'crop-1';
+      const userId = 'user-1';
+      
+      jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
+      (repository.delete as jest.Mock).mockResolvedValue({ affected: 1 });
+      
+      const result = await service.remove(cropId, userId);
+      
+      expect(service.findOne).toHaveBeenCalledWith(cropId, userId);
+      expect(repository.delete).toHaveBeenCalledWith(cropId);
+      expect(result).toEqual({ affected: 1 });
+    });
+  });
+  
+  describe('harvest', () => {
+    it('should record harvest data', async () => {
+      const cropId = 'crop-1';
+      const userId = 'user-1';
+      const harvestData = {
+        actualHarvestDate: new Date('2024-06-01'),
+        harvestWeightKg: 2500,
+      };
+      
+      jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
+      (repository.update as jest.Mock).mockResolvedValue(undefined);
+      jest.spyOn(service, 'findOne').mockResolvedValue({ 
+        ...mockCrop, 
+        status: 'harvested',
+        actualHarvestDate: harvestData.actualHarvestDate,
+        harvestWeightKg: harvestData.harvestWeightKg
+      });
+      
+      const result = await service.harvest(cropId, harvestData, userId);
+      
+      expect(service.findOne).toHaveBeenCalledWith(cropId, userId);
+      expect(repository.update).toHaveBeenCalledWith(cropId, {
+        ...harvestData,
+        status: 'harvested',
+      });
+      expect(result.status).toBe('harvested');
+    });
   });
 });
