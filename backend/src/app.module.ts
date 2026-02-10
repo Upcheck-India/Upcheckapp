@@ -53,7 +53,7 @@ import { FeedingTrayChecksModule } from './feeding-tray-checks/feeding-tray-chec
           ...common,
           type: 'postgres',
           url: configService.get<string>('DATABASE_URL'),
-          synchronize: configService.get('NODE_ENV') !== 'production',
+          ssl: { rejectUnauthorized: false },
         };
       },
       inject: [ConfigService],
