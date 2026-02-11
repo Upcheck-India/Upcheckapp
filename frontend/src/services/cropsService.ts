@@ -11,6 +11,10 @@ export interface CropData {
 
 export const CropsService = {
     getAllCrops: async (pondId: string): Promise<CropData[]> => {
+        if (!database) {
+            console.warn('CropsService: WatermelonDB not available (Expo Go).');
+            return [];
+        }
         const crops = await database.collections.get<Crop>('crops')
             .query(Q.where('pond_id', pondId))
             .fetch();
@@ -24,6 +28,10 @@ export const CropsService = {
     },
 
     getActiveCrop: async (pondId: string): Promise<CropData | undefined> => {
+        if (!database) {
+            console.warn('CropsService: WatermelonDB not available (Expo Go).');
+            return undefined;
+        }
         const crops = await database.collections.get<Crop>('crops')
             .query(
                 Q.where('pond_id', pondId),

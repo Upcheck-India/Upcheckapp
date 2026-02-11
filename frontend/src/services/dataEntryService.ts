@@ -4,11 +4,15 @@ import MortalityRecord from '../database/models/MortalityRecord';
 import PlanktonData from '../database/models/PlanktonData';
 import MicrobiologyData from '../database/models/MicrobiologyData';
 
+const DB_WARN = 'DataEntryService: WatermelonDB not available (Expo Go).';
+
 export const DataEntryService = {
     // Chemical
     addChemicalRecord: async (dto: any) => {
-        return database.write(async () => {
-            await database.collections.get<ChemicalData>('chemical_data').create(record => {
+        if (!database) { console.warn(DB_WARN); return; }
+        const db = database;
+        return db.write(async () => {
+            await db.collections.get<ChemicalData>('chemical_data').create(record => {
                 record.cropId = dto.cropId;
                 record.measurementDate = dto.measurementDate;
                 record.measurementTime = dto.measurementTime;
@@ -21,8 +25,10 @@ export const DataEntryService = {
 
     // Plankton
     addPlanktonRecord: async (dto: any) => {
-        return database.write(async () => {
-            await database.collections.get<PlanktonData>('plankton_data').create(record => {
+        if (!database) { console.warn(DB_WARN); return; }
+        const db = database;
+        return db.write(async () => {
+            await db.collections.get<PlanktonData>('plankton_data').create(record => {
                 record.cropId = dto.cropId;
                 record.measurementDate = dto.measurementDate;
                 record.measurementTime = dto.measurementTime;
@@ -35,8 +41,10 @@ export const DataEntryService = {
 
     // Microbiology
     addMicrobiologyRecord: async (dto: any) => {
-        return database.write(async () => {
-            await database.collections.get<MicrobiologyData>('microbiology_data').create(record => {
+        if (!database) { console.warn(DB_WARN); return; }
+        const db = database;
+        return db.write(async () => {
+            await db.collections.get<MicrobiologyData>('microbiology_data').create(record => {
                 record.cropId = dto.cropId;
                 record.measurementDate = dto.measurementDate;
                 record.measurementTime = dto.measurementTime;
@@ -48,8 +56,10 @@ export const DataEntryService = {
 
     // Mortality
     addMortalityRecord: async (dto: any) => {
-        return database.write(async () => {
-            await database.collections.get<MortalityRecord>('mortality_records').create(record => {
+        if (!database) { console.warn(DB_WARN); return; }
+        const db = database;
+        return db.write(async () => {
+            await db.collections.get<MortalityRecord>('mortality_records').create(record => {
                 record.cropId = dto.cropId;
                 record.mortalityDate = dto.mortalityDate;
                 record.basedOn = dto.basedOn;

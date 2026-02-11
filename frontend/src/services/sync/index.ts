@@ -3,6 +3,10 @@ import database from '../../database';
 import { supabase } from '../supabase';
 
 export async function sync() {
+    if (!database) {
+        console.warn('Sync skipped: WatermelonDB not available (Expo Go).');
+        return;
+    }
     await synchronize({
         database,
         pullChanges: async ({ lastPulledAt, schemaVersion, migration }) => {
