@@ -31,16 +31,20 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
 *.tsbuildinfo
 
 # generated native folders
-/ios
-/android
+frontend/ios
+frontend/android
 
 # Backend
 backend/dist/
-backend/.env
+backend/coverage/
+
+# IDE
 .qoder/
+.gemini/
