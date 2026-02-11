@@ -1,12 +1,18 @@
-import { Entity, Column, PrimaryColumn, CreateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
 
 @Entity('users')
 export class User {
-    @PrimaryColumn('uuid')
+    @PrimaryGeneratedColumn('uuid')
     id: string;
 
     @Column({ type: 'varchar', unique: true })
     email: string;
+
+    @Column({ name: 'password_hash', type: 'varchar', nullable: true })
+    passwordHash: string;
+
+    @Column({ type: 'simple-array', default: [] })
+    roles: string[];
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
     createdAt: Date;

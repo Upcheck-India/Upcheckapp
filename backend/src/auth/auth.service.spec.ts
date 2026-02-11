@@ -2,8 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { OtpCode } from './otp-code.entity';
+import { User } from './user.entity';
+import { Profile } from '../profiles/profile.entity';
 import { OtpRateLimitService } from './otp-rate-limit.service';
 import { MailService } from './mail.service';
 
@@ -20,14 +23,28 @@ const mockConfigService = {
 describe('AuthService', () => {
   let service: AuthService;
   let mockOtpRepository: Record<string, jest.Mock>;
+  let mockUserRepository: Record<string, jest.Mock>;
+  let mockProfileRepository: Record<string, jest.Mock>;
   let mockRateLimitService: Record<string, jest.Mock>;
   let mockMailService: Record<string, jest.Mock>;
+  let mockJwtService: Record<string, jest.Mock>;
 
   beforeEach(async () => {
     mockOtpRepository = {
       create: jest.fn().mockImplementation((dto) => ({ ...dto, id: 'otp-1', failedAttempts: 0 })),
       save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
       findOne: jest.fn().mockResolvedValue(null),
+    };
+
+    mockUserRepository = {
+      create: jest.fn().mockImplementation((dto) => ({ ...dto, id: 'user-1' })),
+      save: jest.fn().mockImplementation((entity) => Promise.resolve({ ...entity, id: 'user-1' })),
+      findOne: jest.fn().mockResolvedValue(null),
+    };
+
+    mockProfileRepository = {
+      create: jest.fn().mockImplementation((dto) => ({ ...dto, id: 'user-1' })),
+      save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
     };
 
     mockRateLimitService = {
@@ -40,13 +57,21 @@ describe('AuthService', () => {
       verifyConnection: jest.fn().mockResolvedValue(true),
     };
 
+    mockJwtService = {
+      sign: jest.fn().mockReturnValue('mock-token'),
+      verify: jest.fn().mockReturnValue({ sub: 'user-1', email: 'test@example.com' }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: ConfigService, useValue: mockConfigService },
         { provide: getRepositoryToken(OtpCode), useValue: mockOtpRepository },
+        { provide: getRepositoryToken(User), useValue: mockUserRepository },
+        { provide: getRepositoryToken(Profile), useValue: mockProfileRepository },
         { provide: OtpRateLimitService, useValue: mockRateLimitService },
         { provide: MailService, useValue: mockMailService },
+        { provide: JwtService, useValue: mockJwtService },
       ],
     }).compile();
 
@@ -200,30 +225,26 @@ describe('AuthService', () => {
     });
   });
 
-  // --- generateOtp ---
+  // --- generateOtpCode (private) ---
 
-  describe('generateOtp (private)', () => {
+  describe('generateOtpCode (private)', () => {
     it('should generate a 6-digit numeric string', () => {
-      const otp = service['generateOtp']();
+      const otp = service['generateOtpCode']();
       expect(otp).toMatch(/^\d{6}$/);
       expect(Number(otp)).toBeGreaterThanOrEqual(100000);
       expect(Number(otp)).toBeLessThanOrEqual(999999);
     });
 
     it('should generate different OTPs on successive calls', () => {
-      const otps = new Set(Array.from({ length: 20 }, () => service['generateOtp']()));
+      const otps = new Set(Array.from({ length: 20 }, () => service['generateOtpCode']()));
       // With 20 random 6-digit numbers, we should get at least 2 unique values
       expect(otps.size).toBeGreaterThan(1);
     });
   });
 
-  // --- Supabase-dependent methods (instantiation checks) ---
+  // --- Dependency checks ---
 
-  describe('supabase integration', () => {
-    it('should have supabase client initialized', () => {
-      expect(service['supabase']).toBeDefined();
-    });
-
+  describe('dependency injection', () => {
     it('should have mailService injected', () => {
       expect(service['mailService']).toBeDefined();
     });

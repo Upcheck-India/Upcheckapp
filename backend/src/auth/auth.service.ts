@@ -1,55 +1,62 @@
 import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { randomInt } from 'crypto';
+import * as bcrypt from 'bcrypt';
 import { RegisterDto, LoginDto, VerifyOtpDto, SendOtpDto } from './dto';
 import { OtpCode } from './otp-code.entity';
+import { User } from './user.entity';
+import { Profile } from '../profiles/profile.entity';
 import { OtpRateLimitService } from './otp-rate-limit.service';
 import { MailService } from './mail.service';
 
 @Injectable()
 export class AuthService {
-    private supabase: SupabaseClient;
-    private supabaseAdmin: SupabaseClient;
-
     constructor(
-        private configService: ConfigService,
+        @InjectRepository(User)
+        private userRepository: Repository<User>,
         @InjectRepository(OtpCode)
         private otpRepository: Repository<OtpCode>,
+        @InjectRepository(Profile)
+        private profileRepository: Repository<Profile>,
         private otpRateLimitService: OtpRateLimitService,
         private mailService: MailService,
-    ) {
-        const supabaseUrl = this.configService.get<string>('SUPABASE_URL') || '';
-        const supabaseAnonKey = this.configService.get<string>('SUPABASE_ANON_KEY') || '';
-        const supabaseServiceKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') || supabaseAnonKey;
-
-        this.supabase = createClient(supabaseUrl, supabaseAnonKey);
-        this.supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-            auth: { autoRefreshToken: false, persistSession: false },
-        });
-    }
+        private jwtService: JwtService,
+    ) { }
 
     // ─── Registration ────────────────────────────────────────────────
     async register(registerDto: RegisterDto) {
         const { email, password, fullName } = registerDto;
 
-        const { data, error } = await this.supabase.auth.signUp({
+        const existingUser = await this.userRepository.findOne({ where: { email } });
+        if (existingUser) {
+            throw new BadRequestException('User already exists');
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = this.userRepository.create({
             email,
-            password,
-            options: {
-                data: { full_name: fullName },
-            },
+            passwordHash: hashedPassword,
+            roles: [],
         });
 
-        if (error) {
-            throw new BadRequestException(error.message);
-        }
+        const savedUser = await this.userRepository.save(user);
+
+        // Create Profile
+        const profile = this.profileRepository.create({
+            id: savedUser.id,
+            fullName: fullName,
+            // default values
+            languagePreference: 'en',
+        });
+        await this.profileRepository.save(profile);
+
+        const tokens = this.generateTokens(savedUser);
 
         return {
             message: 'Registration successful.',
-            user: data.user,
+            user: { ...savedUser, passwordHash: undefined },
+            ...tokens,
         };
     }
 
@@ -57,19 +64,26 @@ export class AuthService {
     async login(loginDto: LoginDto) {
         const { email, password } = loginDto;
 
-        const { data, error } = await this.supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
-
-        if (error) {
-            throw new UnauthorizedException(error.message);
+        const user = await this.userRepository.findOne({ where: { email } });
+        if (!user) {
+            throw new UnauthorizedException('Invalid credentials');
         }
 
+        if (!user.passwordHash) {
+            // User might be OTP-only or migrated without password
+            throw new UnauthorizedException('Invalid credentials. Try logging in with OTP.');
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+        if (!isPasswordValid) {
+            throw new UnauthorizedException('Invalid credentials');
+        }
+
+        const tokens = this.generateTokens(user);
+
         return {
-            access_token: data.session?.access_token,
-            refresh_token: data.session?.refresh_token,
-            user: data.user,
+            user: { ...user, passwordHash: undefined },
+            ...tokens,
         };
     }
 
@@ -89,7 +103,7 @@ export class AuthService {
             throw new BadRequestException('Please wait before requesting another OTP.');
         }
 
-        const otp = this.generateOtp();
+        const otp = this.generateOtpCode();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
         if (email) {
@@ -107,7 +121,7 @@ export class AuthService {
     }
 
     // ─── Verify OTP ──────────────────────────────────────────────────
-    async verifyOtp(verifyOtpDto: VerifyOtpDto) {
+    async verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<{ verified: boolean; message: string }> {
         const { email, phone, token } = verifyOtpDto;
 
         if (!email && !phone) {
@@ -147,7 +161,7 @@ export class AuthService {
         return { verified: true, message: 'OTP verified successfully.' };
     }
 
-    // ─── Login With OTP (creates user if needed + returns session) ──
+    // ─── Login With OTP ──────────────────────────────────────────────
     async loginWithOtp(verifyOtpDto: VerifyOtpDto) {
         // Step 1: Verify the OTP
         await this.verifyOtp(verifyOtpDto);
@@ -157,126 +171,81 @@ export class AuthService {
             throw new BadRequestException('Email is required for OTP login');
         }
 
-        // Step 2: Find or create the user in Supabase
-        let userId: string | undefined;
+        // Step 2: Find or create the user
+        let user = await this.userRepository.findOne({ where: { email } });
 
-        // Try to find existing user by email
-        const { data: usersData } = await this.supabaseAdmin.auth.admin.listUsers() as any;
-        const existingUser = (usersData?.users || []).find(
-            (u: any) => u.email?.toLowerCase() === email.toLowerCase(),
-        );
-
-        if (existingUser) {
-            userId = existingUser.id;
-        } else {
-            // Create a new user (no password — OTP-only user)
-            const tempPassword = `otp_${randomInt(100000000, 999999999)}_${Date.now()}`;
-            const { data: newUser, error: createError } =
-                await this.supabaseAdmin.auth.admin.createUser({
-                    email,
-                    password: tempPassword,
-                    email_confirm: true,
-                    user_metadata: { auth_method: 'otp' },
-                });
-
-            if (createError) {
-                throw new BadRequestException(
-                    `Failed to create account: ${createError.message}`,
-                );
-            }
-            userId = newUser.user?.id;
-        }
-
-        if (!userId) {
-            throw new BadRequestException('Failed to resolve user account');
-        }
-
-        // Step 3: Generate a magic link and extract session tokens
-        const { data: linkData, error: linkError } =
-            await this.supabaseAdmin.auth.admin.generateLink({
-                type: 'magiclink',
+        if (!user) {
+            // Create a new user (OTP-only user for now)
+            user = this.userRepository.create({
                 email,
+                roles: [],
             });
+            user = await this.userRepository.save(user);
 
-        if (linkError || !linkData) {
-            throw new BadRequestException(
-                `Failed to generate session: ${linkError?.message || 'Unknown error'}`,
-            );
+            // Create Profile for new OTP user
+            const profile = this.profileRepository.create({
+                id: user.id,
+                fullName: email.split('@')[0], // Default name from email part
+                languagePreference: 'en',
+            });
+            await this.profileRepository.save(profile);
         }
 
-        // Step 4: Use the OTP from the magic link to sign in and get session tokens
-        const { data: sessionData, error: sessionError } =
-            await this.supabase.auth.verifyOtp({
-                email,
-                token: linkData.properties.hashed_token,
-                type: 'email',
-            });
-
-        if (sessionError || !sessionData.session) {
-            // Fallback: try magiclink type
-            const { data: fallbackData, error: fallbackError } =
-                await this.supabase.auth.verifyOtp({
-                    email,
-                    token: linkData.properties.hashed_token,
-                    type: 'magiclink',
-                });
-
-            if (fallbackError || !fallbackData.session) {
-                throw new BadRequestException(
-                    `Failed to create session: ${fallbackError?.message || sessionError?.message || 'No session returned'}`,
-                );
-            }
-
-            return {
-                access_token: fallbackData.session.access_token,
-                refresh_token: fallbackData.session.refresh_token,
-                user: fallbackData.user,
-            };
-        }
+        const tokens = this.generateTokens(user);
 
         return {
-            access_token: sessionData.session.access_token,
-            refresh_token: sessionData.session.refresh_token,
-            user: sessionData.user,
+            user: { ...user, passwordHash: undefined },
+            ...tokens,
         };
     }
 
     // ─── Token Refresh ───────────────────────────────────────────────
     async refreshToken(refreshToken: string) {
-        const { data, error } = await this.supabase.auth.refreshSession({
-            refresh_token: refreshToken,
-        });
+        try {
+            const payload = this.jwtService.verify(refreshToken);
+            const user = await this.userRepository.findOne({ where: { id: payload.sub } });
 
-        if (error) {
-            throw new UnauthorizedException(error.message);
+            if (!user) {
+                throw new UnauthorizedException('User not found');
+            }
+
+            // In a real app, verify 'refresh_token' version or similar to allow revocation
+            const tokens = this.generateTokens(user);
+            return tokens;
+        } catch (e) {
+            throw new UnauthorizedException('Invalid refresh token');
         }
-
-        return {
-            access_token: data.session?.access_token,
-            refresh_token: data.session?.refresh_token,
-        };
     }
 
     // ─── Get User ────────────────────────────────────────────────────
-    async getUser(accessToken: string) {
-        const { data, error } = await this.supabase.auth.getUser(accessToken);
-        if (error) {
-            throw new UnauthorizedException(error.message);
+    async getUser(id: string) {
+        const user = await this.userRepository.findOne({ where: { id } });
+        if (!user) {
+            throw new UnauthorizedException('User not found');
         }
-        return data.user;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { passwordHash, ...result } = user;
+        return result;
     }
 
     // ─── Logout ──────────────────────────────────────────────────────
-    async logout(accessToken: string) {
-        const { error } = await this.supabase.auth.admin.signOut(accessToken);
-        if (error) {
-            return { message: 'Logged out successfully' };
-        }
+    async logout(token: string) {
+        // In stateless JWT, we can't really "logout" without a blacklist.
+        // For now, client just discards token.
         return { message: 'Logged out successfully' };
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────
-    private generateOtp(): string {
-        return randomInt(100000, 999999).toString();
+    private generateOtpCode(): string {
+        // Simple numeric 6-digit OTP
+        return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    private generateTokens(user: User) {
+        const payload = { email: user.email, sub: user.id, roles: user.roles };
+        return {
+            access_token: this.jwtService.sign(payload, { expiresIn: '15m' }), // Short lived
+            refresh_token: this.jwtService.sign(payload, { expiresIn: '7d' }), // Long lived
+        };
     }
 }

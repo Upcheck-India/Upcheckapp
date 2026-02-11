@@ -1,64 +1,53 @@
-# Deploy Upcheck Backend on Render
+# Deployment Guide for Render
+
+This document outlines the steps to deploy the Upcheck backend application to Render.
 
 ## Prerequisites
-- GitHub repo with this backend code
-- Render account (Free tier works)
-- Supabase project URL and Anon Key
-- Brevo API key and approved sender email
 
-## Steps
+1.  **Render Account**: You must have an active Render account.
+2.  **Connected Repository**: Your GitHub/GitLab repository containing this backend code must be connected to Render.
+3.  **PostgreSQL Database**: You need a managed PostgreSQL database (Render provides this).
 
-### 1. Push to GitHub
-Ensure this backend is in a GitHub repo.
+## Environment Variables
 
-### 2. Create Render Web Service
-1. Go to Render Dashboard → New → Web Service.
-2. Connect your GitHub repo.
-3. Use the following settings:
-   - **Name**: upcheck-backend (or your choice)
-   - **Environment**: Node
-   - **Build Command**: `npm ci && npm run build`
-   - **Start Command**: `npm run start:prod`
-   - **Health Check Path**: `/auth/health`
-   - **Instance Type**: Free (or Standard if you prefer)
+Ensure the following environment variables are set in your Render service dashboard under **Environment**:
 
-### 3. Environment Variables
-Add these in Render → Service → Environment:
-```
-NODE_ENV=production
-PORT=10000
-DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
-SUPABASE_URL=your_supabase_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
-BREVO_API_KEY=your_brevo_api_key
-BREVO_EMAIL_SENDER_NAME=Upcheck
-BREVO_EMAIL_SENDER_EMAIL=your_verified_sender_email
-BREVO_SMS_SENDER=Upcheck
-```
+| Variable Key | Description | Example Value |
+| :--- | :--- | :--- |
+| `DB_TYPE` | Database Type | `postgres` |
+| `DATABASE_URL` | Connection string for your PostgreSQL DB | `postgres://user:pass@host/dbname` |
+| `JWT_SECRET` | Secret key for signing JWTs | `your-secure-random-secret-key` |
+| `JWT_EXPIRATION` | Token expiration time | `7d` |
+| `SMTP_HOST` | SMTP Server Host | `smtp-relay.brevo.com` |
+| `SMTP_PORT` | SMTP Server Port | `587` |
+| `SMTP_SECURE` | Use SSL/TLS | `false` |
+| `SMTP_USER` | SMTP Username | `your-smtp-username` |
+| `SMTP_PASS` | SMTP Password | `your-smtp-password` |
+| `SMTP_SENDER_NAME` | Sender Name for Emails | `Upcheck` |
+| `SMTP_SENDER_EMAIL` | Sender Email Address | `noreply@upcheck.in` |
+| `CORS_ORIGIN` | Allowed Origins for CORS | `*` (or specific frontend URLs) |
 
-### 4. Deploy
-- Push changes to GitHub; Render will auto-deploy.
-- Monitor the logs; ensure `/auth/health` returns 200.
+## Deployment Steps
 
-### 5. Optional: Cron for OTP Cleanup
-If you want hourly OTP cleanup:
-1. Create a new **Cron Job** in Render.
-2. Connect the same repo.
-3. Schedule: `0 * * * *` (hourly)
-4. Build Command: `npm ci`
-5. Start Command: `npm run otp-cleanup`
-6. Add the same `SUPABASE_URL` and `SUPABASE_ANON_KEY` env vars.
+1.  **Push Changes**: Commit and push your latest code changes to the `main` (or `master`) branch of your repository.
+    ```bash
+    git add .
+    git commit -m "feat: updated auth module and fixed tests"
+    git push origin main
+    ```
 
-## Post-Deploy
-- Note the Render service URL (e.g., `https://upcheck-backend.onrender.com`).
-- Update your mobile app’s `API_BASE_URL` to this URL.
-- Test OTP flows and health check.
+2.  **Automatic Deploy**: If you have "Auto-Deploy" enabled on Render, the build will start automatically upon pushing.
+
+3.  **Manual Deploy**:
+    *   Go to your Render Dashboard.
+    *   Select your Backend Web Service.
+    *   Click **Manual Deploy** > **Deploy latest commit**.
+
+4.  **Verify Deployment**:
+    *   Check the **Logs** tab in Render to ensure the build and start commands execute successfully.
+    *   Look for "Nest application successfully started".
 
 ## Troubleshooting
-- If build fails: check logs; ensure `npm ci` works and `nest build` succeeds.
-- If runtime fails: ensure all env vars are set and Supabase/Brevo credentials are valid.
-- For OTP cron: ensure ts-node is available; if not, switch to a compiled version.
 
-## Notes
-- Free tier services spin down after inactivity; first request may be slow.
-- For production, consider using a paid instance and a custom domain.
+*   **Database Connection**: If you see connection errors, double-check your `DATABASE_URL` and ensure you have disabled "SSL reject unauthorized" if required (the code handles `ssl: { rejectUnauthorized: false }` for production).
+*   **Build Failures**: Check the build logs. Ensure `npm install` and `npm run build` succeed.
