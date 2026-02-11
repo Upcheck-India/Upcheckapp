@@ -53,14 +53,14 @@ const RootNavigator = () => {
 
     return (
         <Stack.Navigator
-            initialRouteName={isAuthenticated ? "Main" : "Login"}
+            initialRouteName={isAuthenticated ? "Main" : "Register"}
             screenOptions={{ headerShown: false }}
         >
             {/* Auth Screens - only show when not authenticated */}
             {!isAuthenticated ? (
                 <>
-                    <Stack.Screen name="Login" component={LoginScreen} />
                     <Stack.Screen name="Register" component={RegisterScreen} />
+                    <Stack.Screen name="Login" component={LoginScreen} />
                     <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
                 </>
             ) : null}
@@ -92,15 +92,6 @@ const RootNavigator = () => {
             <Stack.Screen name="DiseaseLibrary" component={DiseaseLibraryScreen} options={{ headerShown: true, title: 'Disease Library' }} />
             <Stack.Screen name="DiseaseDetail" component={DiseaseDetailScreen} options={{ headerShown: true, title: 'Disease Details' }} />
             <Stack.Screen name="DiseaseRecord" component={DiseaseRecordScreen} options={{ headerShown: true, title: 'Record Disease' }} />
-
-            {/* Allow login screens even when authenticated (for OTP flow) */}
-            {isAuthenticated ? (
-                <>
-                    <Stack.Screen name="Login" component={LoginScreen} />
-                    <Stack.Screen name="Register" component={RegisterScreen} />
-                    <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
-                </>
-            ) : null}
         </Stack.Navigator>
     );
 };

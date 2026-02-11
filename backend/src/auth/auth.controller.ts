@@ -28,25 +28,19 @@ export class AuthController {
         return this.authService.verifyOtp(verifyOtpDto);
     }
 
-    @Get('health')
-    @UseGuards(JwtAuthGuard)
-    health() {
-        return {
-            status: 'ok',
-        };
-    }
-
     @Post('login-with-otp')
-    async loginWithOtp(@Body() verifyOtpDto: VerifyOtpDto) {
-        const result = await this.authService.verifyOtp(verifyOtpDto);
-        // If OTP is valid, create or fetch Supabase user and return tokens
-        // For now, just return the verified status
-        return result;
+    loginWithOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+        return this.authService.loginWithOtp(verifyOtpDto);
     }
 
     @Post('refresh')
     refreshToken(@Body('refreshToken') refreshToken: string) {
         return this.authService.refreshToken(refreshToken);
+    }
+
+    @Get('health')
+    health() {
+        return { status: 'ok' };
     }
 
     @Get('me')

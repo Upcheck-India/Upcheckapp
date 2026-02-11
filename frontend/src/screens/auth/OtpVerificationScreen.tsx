@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Text, TextInput, Button, useTheme, ActivityIndicator } from 'react-native-paper';
+import { Text, TextInput, Button, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { AuthService } from '../../services/auth';
 import { Colors } from '../../constants/Colors';
 
 const OtpVerificationScreen = () => {
-    const theme = useTheme();
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
-    const { email, phone, mode = 'login' } = route.params || {};
+    const { email, mode = 'login' } = route.params || {};
 
     const [otp, setOtp] = useState('');
     const [timer, setTimer] = useState(56);
@@ -42,31 +41,18 @@ const OtpVerificationScreen = () => {
 
         setVerifying(true);
         try {
-            // Step 1: Verify the OTP
-            const verifyResult = await AuthService.verifyOtp({
+            // loginWithOtp verifies the OTP and returns session tokens
+            const result = await AuthService.loginWithOtp({
                 email: email || undefined,
-                phone: phone || undefined,
                 token: otp,
             });
 
-            if (verifyResult.verified) {
-                // Step 2: Complete login with OTP to get session
-                try {
-                    await AuthService.loginWithOtp({
-                        email: email || undefined,
-                        phone: phone || undefined,
-                        token: otp,
-                    });
-                } catch (loginError) {
-                    // If loginWithOtp fails, the OTP is still verified
-                    // User can proceed but may need to re-login
-                    console.log('Session setup failed, but OTP verified');
-                }
-
-                // Navigate to main app
+            if (result.user) {
+                // Session is automatically set in Supabase by loginWithOtp
+                // AuthContext will pick up the state change and navigate
                 navigation.replace('Main');
             } else {
-                Alert.alert('Verification Failed', 'Invalid verification code. Please try again.');
+                Alert.alert('Error', 'Verification succeeded but session creation failed. Please try again.');
             }
         } catch (error: any) {
             Alert.alert('Verification Failed', error.message || 'Failed to verify code. Please try again.');
@@ -78,10 +64,7 @@ const OtpVerificationScreen = () => {
     const handleResend = async () => {
         setResending(true);
         try {
-            await AuthService.sendOtp({
-                email: email || undefined,
-                phone: phone || undefined,
-            });
+            await AuthService.sendOtp({ email: email || undefined });
             Alert.alert('Success', 'A new verification code has been sent.');
             setTimer(56);
             setCanResend(false);
@@ -93,12 +76,13 @@ const OtpVerificationScreen = () => {
         }
     };
 
-    const displayTarget = email || phone || 'your email/phone';
+    const displayTarget = email || 'your email';
+    const headerText = mode === 'register' ? 'Verify Your Email' : 'Enter Verification Code';
 
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.content}>
-                <Text variant="headlineSmall" style={styles.title}>Enter Verification Code</Text>
+                <Text variant="headlineSmall" style={styles.title}>{headerText}</Text>
                 <Text style={styles.subtitle}>
                     We have sent a 6-digit verification code to{'\n'}
                     <Text style={styles.targetText}>{displayTarget}</Text>
@@ -108,7 +92,6 @@ const OtpVerificationScreen = () => {
                     label="Verification Code"
                     value={otp}
                     onChangeText={(text) => {
-                        // Only allow numbers
                         const numericText = text.replace(/[^0-9]/g, '');
                         setOtp(numericText);
                     }}
@@ -157,7 +140,7 @@ const OtpVerificationScreen = () => {
                     style={styles.backLink}
                     onPress={() => navigation.goBack()}
                 >
-                    <Text style={{ color: Colors.primary }}>← Back to Login</Text>
+                    <Text style={{ color: Colors.primary }}>← Go Back</Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>

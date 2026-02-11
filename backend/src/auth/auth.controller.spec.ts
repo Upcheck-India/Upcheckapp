@@ -8,6 +8,7 @@ const mockAuthService = {
   login: jest.fn(),
   sendOtp: jest.fn(),
   verifyOtp: jest.fn(),
+  loginWithOtp: jest.fn(),
   refreshToken: jest.fn(),
   getUser: jest.fn(),
   logout: jest.fn(),
@@ -51,10 +52,10 @@ describe('AuthController', () => {
   describe('login', () => {
     it('should call authService.login', async () => {
       const dto = { email: 'a@b.com', password: 'pass123' };
-      mockAuthService.login.mockResolvedValue({ accessToken: 'tok' });
+      mockAuthService.login.mockResolvedValue({ access_token: 'tok' });
       const result = await controller.login(dto);
       expect(mockAuthService.login).toHaveBeenCalledWith(dto);
-      expect(result.accessToken).toBe('tok');
+      expect(result.access_token).toBe('tok');
     });
   });
 
@@ -87,10 +88,10 @@ describe('AuthController', () => {
 
   describe('refreshToken', () => {
     it('should call authService.refreshToken', async () => {
-      mockAuthService.refreshToken.mockResolvedValue({ accessToken: 'new-tok' });
+      mockAuthService.refreshToken.mockResolvedValue({ access_token: 'new-tok' });
       const result = await controller.refreshToken('old-refresh');
       expect(mockAuthService.refreshToken).toHaveBeenCalledWith('old-refresh');
-      expect(result.accessToken).toBe('new-tok');
+      expect(result.access_token).toBe('new-tok');
     });
   });
 
