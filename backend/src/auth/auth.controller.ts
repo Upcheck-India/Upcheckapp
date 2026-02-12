@@ -22,7 +22,13 @@ export class AuthController {
         });
 
         // Return refresh_token in body for Mobile App usage (Keychain)
-        return { user: result.user, access_token: result.access_token, refresh_token: result.refresh_token };
+        return {
+            user: result.user,
+            access_token: result.access_token,
+            refresh_token: result.refresh_token,
+            supabase_access_token: result.supabase_access_token,
+            supabase_refresh_token: result.supabase_refresh_token
+        };
     }
 
     @Post('register')
@@ -45,7 +51,9 @@ export class AuthController {
         return {
             user: result.user,
             access_token: result.access_token,
-            refresh_token: result.refresh_token
+            refresh_token: result.refresh_token,
+            supabase_access_token: result.supabase_access_token,
+            supabase_refresh_token: result.supabase_refresh_token
         };
     }
 
@@ -71,7 +79,9 @@ export class AuthController {
         return {
             user: result.user,
             access_token: result.access_token,
-            refresh_token: result.refresh_token
+            refresh_token: result.refresh_token,
+            supabase_access_token: result.supabase_access_token,
+            supabase_refresh_token: result.supabase_refresh_token
         };
     }
 

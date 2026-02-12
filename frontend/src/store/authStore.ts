@@ -1,14 +1,14 @@
 import { create } from 'zustand';
 import { AuthService } from '../services/auth';
+import { supabase } from '../services/supabase';
 
 export interface User {
     id: string;
     email: string;
-    fullName?: string; // from profile
+    fullName?: string;
     roles: string[];
     is2faEnabled: boolean;
     phoneNumber?: string;
-    // Add other fields as needed
 }
 
 interface AuthState {
@@ -18,8 +18,7 @@ interface AuthState {
     isLoading: boolean;
     error: string | null;
 
-    // Actions
-    login: (token: string) => Promise<any>; // Returns data (maybe { requires2fa, temp_token })
+    login: (token: string) => Promise<any>;
     loginWith2FA: (tempToken: string, code: string) => Promise<void>;
     logout: () => Promise<void>;
     checkAuth: () => Promise<void>;
@@ -46,6 +45,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                 return data; // Return data so comp knows to redirect
             }
 
+            // Sync Supabase Session if available
+            if (data.supabase_access_token && data.supabase_refresh_token) {
+                await supabase.auth.setSession({
+                    access_token: data.supabase_access_token,
+                    refresh_token: data.supabase_refresh_token,
+                });
+            }
+
             set({
                 user: data.user,
                 accessToken: data.access_token,
@@ -63,6 +70,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ isLoading: true, error: null });
         try {
             const data = await AuthService.login2FA(tempToken, code);
+
+            // Sync Supabase Session if available
+            if (data.supabase_access_token && data.supabase_refresh_token) {
+                await supabase.auth.setSession({
+                    access_token: data.supabase_access_token,
+                    refresh_token: data.supabase_refresh_token,
+                });
+            }
+
             set({
                 user: data.user,
                 accessToken: data.access_token,
@@ -79,6 +95,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ isLoading: true });
         try {
             await AuthService.logout();
+            await supabase.auth.signOut(); // Logout from Supabase too
         } catch (error) {
             console.error('Logout failed', error);
         } finally {
@@ -96,6 +113,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         try {
             // Attempt to refresh token (uses HttpOnly cookie)
             const data = await AuthService.refreshToken();
+
+            // Sync Supabase Session if available on refresh
+            if (data.supabase_access_token && data.supabase_refresh_token) {
+                await supabase.auth.setSession({
+                    access_token: data.supabase_access_token,
+                    refresh_token: data.supabase_refresh_token,
+                });
+            }
 
             set({ accessToken: data.access_token, isAuthenticated: true });
 

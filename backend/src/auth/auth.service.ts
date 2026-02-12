@@ -101,10 +101,25 @@ export class AuthService {
         const accessToken = this.generateAccessToken(user);
         const refreshToken = await this.generateRefreshToken(user.id, undefined, ip, userAgent);
 
+        // Exchange Google ID Token for Supabase Session to support SyncService
+        const { data: supabaseData, error: supabaseError } = await this.supabase.auth.signInWithIdToken({
+            provider: 'google',
+            token: token,
+        });
+
+        if (supabaseError) {
+            console.warn('Supabase Google Sign-In failed:', supabaseError);
+            // We could throw, or just continue without Supabase session (Sync will fail)
+            // Throwing ensures consistency
+            // throw new UnauthorizedException('Failed to authenticate with Supabase');
+        }
+
         return {
             user,
             access_token: accessToken,
             refresh_token: refreshToken,
+            supabase_access_token: supabaseData.session?.access_token,
+            supabase_refresh_token: supabaseData.session?.refresh_token,
         };
     }
 
@@ -210,6 +225,8 @@ export class AuthService {
             access_token: accessToken,
             refresh_token: refreshToken,
             requires2fa: false,
+            supabase_access_token: data.session?.access_token,
+            supabase_refresh_token: data.session?.refresh_token,
         };
     }
 
@@ -403,6 +420,8 @@ export class AuthService {
             user,
             access_token: accessToken,
             refresh_token: refreshToken,
+            supabase_access_token: data.session?.access_token,
+            supabase_refresh_token: data.session?.refresh_token,
         };
     }
 
