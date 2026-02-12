@@ -2,15 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { UnauthorizedException } from '@nestjs/common';
 
 const mockAuthService = {
-  register: jest.fn(),
-  login: jest.fn(),
-  sendOtp: jest.fn(),
-  verifyOtp: jest.fn(),
-  loginWithOtp: jest.fn(),
+  googleLogin: jest.fn(),
   refreshToken: jest.fn(),
-  getUser: jest.fn(),
   logout: jest.fn(),
 };
 
@@ -39,43 +35,59 @@ describe('AuthController', () => {
     expect(controller).toBeDefined();
   });
 
-  describe('register', () => {
-    it('should call authService.register', async () => {
-      const dto = { email: 'a@b.com', password: 'pass123' };
-      mockAuthService.register.mockResolvedValue({ message: 'ok', user: {} });
-      const result = await controller.register(dto);
-      expect(mockAuthService.register).toHaveBeenCalledWith(dto);
-      expect(result.message).toBe('ok');
+  describe('googleLogin', () => {
+    it('should call authService.googleLogin and set cookie', async () => {
+      const dto = { token: 'google-token' };
+      const authResult = {
+        user: { id: 'u1' },
+        access_token: 'at',
+        refresh_token: 'rt'
+      };
+      mockAuthService.googleLogin.mockResolvedValue(authResult);
+
+      const res = { cookie: jest.fn() } as any;
+
+      const result = await controller.googleLogin(dto, res);
+
+      expect(mockAuthService.googleLogin).toHaveBeenCalledWith(dto);
+      expect(res.cookie).toHaveBeenCalledWith('refresh_token', 'rt', expect.any(Object));
+      expect(result).toEqual({ user: authResult.user, access_token: authResult.access_token });
     });
   });
 
-  describe('login', () => {
-    it('should call authService.login', async () => {
-      const dto = { email: 'a@b.com', password: 'pass123' };
-      mockAuthService.login.mockResolvedValue({ access_token: 'tok' });
-      const result = await controller.login(dto);
-      expect(mockAuthService.login).toHaveBeenCalledWith(dto);
-      expect(result.access_token).toBe('tok');
+  describe('refreshToken', () => {
+    it('should call authService.refreshToken and update cookie', async () => {
+      const req = { cookies: { refresh_token: 'old-rt' } } as any;
+      const res = { cookie: jest.fn() } as any;
+      const authResult = { access_token: 'new-at', refresh_token: 'new-rt' };
+
+      mockAuthService.refreshToken.mockResolvedValue(authResult);
+
+      const result = await controller.refreshToken(req, res);
+
+      expect(mockAuthService.refreshToken).toHaveBeenCalledWith('old-rt');
+      expect(res.cookie).toHaveBeenCalledWith('refresh_token', 'new-rt', expect.any(Object));
+      expect(result).toEqual({ access_token: 'new-at' });
+    });
+
+    it('should throw UnauthorizedException if cookie missing', async () => {
+      const req = { cookies: {} } as any;
+      const res = { cookie: jest.fn() } as any;
+
+      await expect(controller.refreshToken(req, res)).rejects.toThrow(UnauthorizedException);
     });
   });
 
-  describe('sendOtp', () => {
-    it('should call authService.sendOtp', async () => {
-      const dto = { email: 'a@b.com' };
-      mockAuthService.sendOtp.mockResolvedValue({ message: 'OTP sent successfully.' });
-      const result = await controller.sendOtp(dto);
-      expect(mockAuthService.sendOtp).toHaveBeenCalledWith(dto);
-      expect(result.message).toBe('OTP sent successfully.');
-    });
-  });
+  describe('logout', () => {
+    it('should call authService.logout and clear cookie', async () => {
+      const req = { cookies: { refresh_token: 'rt' } } as any;
+      const res = { clearCookie: jest.fn() } as any;
 
-  describe('verifyOtp', () => {
-    it('should call authService.verifyOtp', async () => {
-      const dto = { email: 'a@b.com', token: '123456' };
-      mockAuthService.verifyOtp.mockResolvedValue({ verified: true });
-      const result = await controller.verifyOtp(dto);
-      expect(mockAuthService.verifyOtp).toHaveBeenCalledWith(dto);
-      expect(result.verified).toBe(true);
+      const result = await controller.logout(req, res);
+
+      expect(mockAuthService.logout).toHaveBeenCalledWith('rt');
+      expect(res.clearCookie).toHaveBeenCalledWith('refresh_token', expect.any(Object));
+      expect(result).toEqual({ message: 'Logged out successfully' });
     });
   });
 
@@ -86,21 +98,11 @@ describe('AuthController', () => {
     });
   });
 
-  describe('refreshToken', () => {
-    it('should call authService.refreshToken', async () => {
-      mockAuthService.refreshToken.mockResolvedValue({ access_token: 'new-tok' });
-      const result = await controller.refreshToken('old-refresh');
-      expect(mockAuthService.refreshToken).toHaveBeenCalledWith('old-refresh');
-      expect(result.access_token).toBe('new-tok');
-    });
-  });
-
-  describe('logout', () => {
-    it('should call authService.logout with extracted token', async () => {
-      mockAuthService.logout.mockResolvedValue({ message: 'Logged out successfully' });
-      const result = await controller.logout('Bearer my-token');
-      expect(mockAuthService.logout).toHaveBeenCalledWith('my-token');
-      expect(result.message).toBe('Logged out successfully');
+  describe('getMe', () => {
+    it('should return user from request', () => {
+      const user = { id: 'u1' };
+      const result = controller.getMe(user);
+      expect(result).toEqual(user);
     });
   });
 });

@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 import LoginScreen from '../screens/auth/LoginScreen';
 import { RootStackParamList } from './types';
-import { useAuth } from '../context/AuthContext';
+
 import { Colors } from '../constants/Colors';
 
 import BottomTabNavigator from './BottomTabNavigator';
@@ -30,6 +30,14 @@ import PlanktonEntryScreen from '../screens/features/data-entry/PlanktonEntryScr
 import MicrobiologyEntryScreen from '../screens/features/data-entry/MicrobiologyEntryScreen';
 import MortalityEntryScreen from '../screens/features/data-entry/MortalityEntryScreen';
 
+// Auth Screens
+import TwoFALoginScreen from '../screens/auth/TwoFALoginScreen';
+import TwoFASetupScreen from '../screens/auth/TwoFASetupScreen';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
+import ChangePasswordScreen from '../screens/auth/ChangePasswordScreen';
+import SessionManagementScreen from '../screens/auth/SessionManagementScreen';
+
 // Disease
 import DiseaseLibraryScreen from '../screens/features/disease/DiseaseLibraryScreen';
 import DiseaseDetailScreen from '../screens/features/disease/DiseaseDetailScreen';
@@ -37,8 +45,15 @@ import DiseaseRecordScreen from '../screens/features/disease/DiseaseRecordScreen
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+import { useAuthStore } from '../store/authStore';
+import { useEffect } from 'react';
+
 const RootNavigator = () => {
-    const { isLoading, isAuthenticated } = useAuth();
+    const { isLoading, isAuthenticated, checkAuth } = useAuthStore();
+
+    useEffect(() => {
+        checkAuth();
+    }, []);
 
     // Show loading screen while checking auth state
     if (isLoading) {
@@ -58,11 +73,20 @@ const RootNavigator = () => {
             {!isAuthenticated ? (
                 <>
                     <Stack.Screen name="Login" component={LoginScreen} />
+                    <Stack.Screen name="TwoFALogin" component={TwoFALoginScreen} options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+                    <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
                 </>
             ) : null}
 
             {/* Main App Screens */}
             <Stack.Screen name="Main" component={BottomTabNavigator} />
+
+            {/* Auth Protected Screens */}
+            <Stack.Screen name="TwoFASetup" component={TwoFASetupScreen} options={{ headerShown: true, title: 'Two-Factor Authentication' }} />
+            <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: true, title: 'Change Password' }} />
+            <Stack.Screen name="SessionManagement" component={SessionManagementScreen} options={{ headerShown: true, title: 'Active Sessions' }} />
+
             <Stack.Screen name="MineralCalculator" component={MineralCalculatorScreen} options={{ headerShown: true, title: 'Minerals' }} />
             <Stack.Screen name="ShrimpCalculator" component={ShrimpCalculatorScreen} options={{ headerShown: true, title: 'Shrimp Calculator' }} />
             <Stack.Screen name="Simulation" component={SimulationScreen} options={{ headerShown: true, title: 'Farm Simulation' }} />

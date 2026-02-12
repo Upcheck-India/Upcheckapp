@@ -3,14 +3,14 @@ import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Text, Avatar, Button, Card, Portal, Modal, TextInput, ActivityIndicator, Divider } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, CommonActions } from '@react-navigation/native';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthStore } from '../../store/authStore';
 import { ProfileService } from '../../services/profileService';
 import { Profile } from '../../types/database';
 import { Colors } from '../../constants/Colors';
 
 const ProfileScreen = () => {
     const navigation = useNavigation<any>();
-    const { user, signOut } = useAuth();
+    const { user, logout } = useAuthStore();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
     const [editModalVisible, setEditModalVisible] = useState(false);
@@ -75,7 +75,7 @@ const ProfileScreen = () => {
                     onPress: async () => {
                         setSigningOut(true);
                         try {
-                            await signOut();
+                            await logout();
                             // Reset navigation to Login screen
                             navigation.dispatch(
                                 CommonActions.reset({
@@ -132,6 +132,36 @@ const ProfileScreen = () => {
                     </Button>
                 </View>
 
+                <Card style={[styles.infoCard, { marginTop: 16 }]}>
+                    <Card.Title title="Security & Login" />
+                    <Card.Content>
+                        <Button
+                            mode="outlined"
+                            onPress={() => navigation.navigate('ChangePassword')}
+                            style={styles.securityBtn}
+                            icon="lock-reset"
+                        >
+                            Change Password
+                        </Button>
+                        <Button
+                            mode="outlined"
+                            onPress={() => navigation.navigate('TwoFASetup')}
+                            style={styles.securityBtn}
+                            icon="shield-account"
+                        >
+                            Two-Factor Authentication
+                        </Button>
+                        <Button
+                            mode="outlined"
+                            onPress={() => navigation.navigate('SessionManagement')}
+                            style={styles.securityBtn}
+                            icon="devices"
+                        >
+                            Active Sessions
+                        </Button>
+                    </Card.Content>
+                </Card>
+
             </ScrollView>
 
             <Portal>
@@ -171,7 +201,8 @@ const styles = StyleSheet.create({
     modalContent: { backgroundColor: Colors.surface, padding: 20, margin: 20, borderRadius: 8 },
     modalTitle: { marginBottom: 16, textAlign: 'center', color: Colors.text },
     input: { marginBottom: 12 },
-    button: { marginTop: 8 }
+    button: { marginTop: 8 },
+    securityBtn: { marginBottom: 12, borderColor: Colors.border }
 });
 
 export default ProfileScreen;

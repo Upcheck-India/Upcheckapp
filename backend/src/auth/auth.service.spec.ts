@@ -1,252 +1,182 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { DataSource } from 'typeorm';
 import { AuthService } from './auth.service';
-import { OtpCode } from './otp-code.entity';
 import { User } from './user.entity';
 import { Profile } from '../profiles/profile.entity';
-import { OtpRateLimitService } from './otp-rate-limit.service';
-import { MailService } from './mail.service';
+import { RefreshToken } from './refresh-token.entity';
+
+// Mock crypto globally for the test file
+jest.mock('crypto', () => ({
+  randomBytes: jest.fn().mockReturnValue(Buffer.from('mock-random-bytes')),
+  createHash: jest.fn().mockReturnValue({
+    update: jest.fn().mockReturnThis(),
+    digest: jest.fn().mockReturnValue('mock-hash'),
+  }),
+}));
 
 const mockConfigService = {
-  get: jest.fn().mockImplementation((key: string) => {
-    const configMap: Record<string, string> = {
-      SUPABASE_URL: 'https://test.supabase.co',
-      SUPABASE_ANON_KEY: 'test-anon-key',
-    };
-    return configMap[key] || '';
-  }),
+  get: jest.fn().mockReturnValue('mock-client-id'),
+};
+
+const mockJwtService = {
+  sign: jest.fn().mockReturnValue('mock-jwt-token'),
+  verify: jest.fn().mockReturnValue({ sub: 'user-id' }),
 };
 
 describe('AuthService', () => {
   let service: AuthService;
-  let mockOtpRepository: Record<string, jest.Mock>;
   let mockUserRepository: Record<string, jest.Mock>;
   let mockProfileRepository: Record<string, jest.Mock>;
-  let mockRateLimitService: Record<string, jest.Mock>;
-  let mockMailService: Record<string, jest.Mock>;
-  let mockJwtService: Record<string, jest.Mock>;
+  let mockRefreshTokenRepository: Record<string, jest.Mock>;
+  let mockDataSource: any;
+  let mockEntityManager: any;
 
   beforeEach(async () => {
-    mockOtpRepository = {
-      create: jest.fn().mockImplementation((dto) => ({ ...dto, id: 'otp-1', failedAttempts: 0 })),
-      save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
-      findOne: jest.fn().mockResolvedValue(null),
-    };
-
     mockUserRepository = {
-      create: jest.fn().mockImplementation((dto) => ({ ...dto, id: 'user-1' })),
-      save: jest.fn().mockImplementation((entity) => Promise.resolve({ ...entity, id: 'user-1' })),
-      findOne: jest.fn().mockResolvedValue(null),
+      findOne: jest.fn(),
+      save: jest.fn(),
+      create: jest.fn(),
     };
 
     mockProfileRepository = {
-      create: jest.fn().mockImplementation((dto) => ({ ...dto, id: 'user-1' })),
-      save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
+      create: jest.fn(),
+      save: jest.fn(),
     };
 
-    mockRateLimitService = {
-      checkDailyLimit: jest.fn().mockResolvedValue(true),
-      checkResendCooldown: jest.fn().mockResolvedValue(true),
+    mockRefreshTokenRepository = {
+      create: jest.fn(),
+      save: jest.fn(),
+      findOne: jest.fn(),
+      update: jest.fn(),
     };
 
-    mockMailService = {
-      sendOtpEmail: jest.fn().mockResolvedValue(undefined),
-      verifyConnection: jest.fn().mockResolvedValue(true),
+    mockEntityManager = {
+      create: jest.fn(),
+      save: jest.fn(),
     };
 
-    mockJwtService = {
-      sign: jest.fn().mockReturnValue('mock-token'),
-      verify: jest.fn().mockReturnValue({ sub: 'user-1', email: 'test@example.com' }),
+    mockDataSource = {
+      transaction: jest.fn().mockImplementation((cb) => cb(mockEntityManager)),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: getRepositoryToken(OtpCode), useValue: mockOtpRepository },
+        { provide: JwtService, useValue: mockJwtService },
         { provide: getRepositoryToken(User), useValue: mockUserRepository },
         { provide: getRepositoryToken(Profile), useValue: mockProfileRepository },
-        { provide: OtpRateLimitService, useValue: mockRateLimitService },
-        { provide: MailService, useValue: mockMailService },
-        { provide: JwtService, useValue: mockJwtService },
+        { provide: getRepositoryToken(RefreshToken), useValue: mockRefreshTokenRepository },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
+
+    // Mock Google Client verifyIdToken
+    (service as any).googleClient = {
+      verifyIdToken: jest.fn().mockResolvedValue({
+        getPayload: jest.fn().mockReturnValue({
+          sub: 'google-id',
+          email: 'test@example.com',
+          name: 'Test User',
+          picture: 'avatar.jpg',
+        }),
+      }),
+    };
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  // --- sendOtp ---
+  describe('googleLogin', () => {
+    it('should return tokens for existing user', async () => {
+      const user = { id: 'user-id', email: 'test@example.com', googleId: 'google-id' };
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockRefreshTokenRepository.create.mockReturnValue({ token: 'rt' });
 
-  describe('sendOtp', () => {
-    it('should throw BadRequestException when neither email nor phone provided', async () => {
-      await expect(service.sendOtp({} as any)).rejects.toThrow(BadRequestException);
+      const result = await service.googleLogin({ token: 'google-token' });
+
+      expect(result).toHaveProperty('access_token');
+      expect(result).toHaveProperty('refresh_token');
+      expect(result.user).toEqual(user);
     });
 
-    it('should throw BadRequestException when daily limit exceeded', async () => {
-      mockRateLimitService.checkDailyLimit.mockResolvedValue(false);
-      await expect(service.sendOtp({ email: 'a@b.com' })).rejects.toThrow('Daily OTP limit exceeded');
-    });
+    it('should create new user and return tokens', async () => {
+      mockUserRepository.findOne.mockResolvedValue(null);
+      const newUser = { id: 'new-user-id', email: 'test@example.com' };
+      mockEntityManager.create.mockReturnValue(newUser);
+      mockEntityManager.save.mockResolvedValue(newUser);
+      mockRefreshTokenRepository.create.mockReturnValue({ token: 'rt' });
 
-    it('should throw BadRequestException when resend cooldown active', async () => {
-      mockRateLimitService.checkResendCooldown.mockResolvedValue(false);
-      await expect(service.sendOtp({ email: 'a@b.com' })).rejects.toThrow('Please wait before requesting another OTP');
-    });
+      const result = await service.googleLogin({ token: 'google-token' });
 
-    it('should send OTP email and save record on success', async () => {
-      const result = await service.sendOtp({ email: 'user@example.com' });
-
-      expect(mockMailService.sendOtpEmail).toHaveBeenCalledTimes(1);
-      expect(mockMailService.sendOtpEmail.mock.calls[0][0]).toBe('user@example.com');
-      // OTP should be a 6-digit string
-      const otp = mockMailService.sendOtpEmail.mock.calls[0][1];
-      expect(otp).toMatch(/^\d{6}$/);
-
-      expect(mockOtpRepository.create).toHaveBeenCalledTimes(1);
-      expect(mockOtpRepository.save).toHaveBeenCalledTimes(1);
-      expect(result).toEqual({ message: 'OTP sent successfully.' });
-    });
-
-    it('should throw BadRequestException for phone OTP (not yet supported)', async () => {
-      await expect(service.sendOtp({ phone: '+919876543210' })).rejects.toThrow('SMS OTP is not yet supported');
-    });
-
-    it('should check rate limits before sending', async () => {
-      await service.sendOtp({ email: 'user@example.com' });
-
-      expect(mockRateLimitService.checkDailyLimit).toHaveBeenCalledWith('user@example.com', undefined);
-      expect(mockRateLimitService.checkResendCooldown).toHaveBeenCalledWith('user@example.com', undefined);
+      expect(mockDataSource.transaction).toHaveBeenCalled();
+      expect(result).toHaveProperty('access_token');
+      expect(result).toHaveProperty('refresh_token');
     });
   });
 
-  // --- verifyOtp ---
-
-  describe('verifyOtp', () => {
-    it('should throw BadRequestException when neither email nor phone provided', async () => {
-      await expect(service.verifyOtp({ token: '123456' } as any)).rejects.toThrow(BadRequestException);
-    });
-
-    it('should throw UnauthorizedException when no OTP record found', async () => {
-      mockOtpRepository.findOne.mockResolvedValue(null);
-      await expect(
-        service.verifyOtp({ email: 'user@example.com', token: '123456' }),
-      ).rejects.toThrow(UnauthorizedException);
-    });
-
-    it('should throw UnauthorizedException when OTP is expired', async () => {
-      mockOtpRepository.findOne.mockResolvedValue({
-        code: '123456',
-        expiresAt: new Date(Date.now() - 60000), // expired 1 min ago
-        verifiedAt: null,
-        failedAttempts: 0,
-      });
-
-      await expect(
-        service.verifyOtp({ email: 'user@example.com', token: '123456' }),
-      ).rejects.toThrow('OTP expired');
-    });
-
-    it('should throw UnauthorizedException when OTP already used', async () => {
-      mockOtpRepository.findOne.mockResolvedValue({
-        code: '123456',
-        expiresAt: new Date(Date.now() + 600000),
-        verifiedAt: new Date(),
-        failedAttempts: 0,
-      });
-
-      await expect(
-        service.verifyOtp({ email: 'user@example.com', token: '123456' }),
-      ).rejects.toThrow('OTP already used');
-    });
-
-    it('should throw UnauthorizedException when too many failed attempts', async () => {
-      mockOtpRepository.findOne.mockResolvedValue({
-        code: '123456',
-        expiresAt: new Date(Date.now() + 600000),
-        verifiedAt: null,
-        failedAttempts: 5,
-      });
-
-      await expect(
-        service.verifyOtp({ email: 'user@example.com', token: '123456' }),
-      ).rejects.toThrow('Too many failed attempts');
-    });
-
-    it('should increment failedAttempts on wrong code', async () => {
-      const otpRecord = {
-        code: '123456',
-        expiresAt: new Date(Date.now() + 600000),
-        verifiedAt: null,
-        failedAttempts: 2,
+  describe('refreshToken', () => {
+    it('should rotate tokens on valid refresh token', async () => {
+      const user = { id: 'user-id' };
+      const tokenEntity = {
+        id: 'token-id',
+        tokenHash: 'mock-hash',
+        user,
+        expiresAt: new Date(Date.now() + 10000),
+        isRevoked: false
       };
-      mockOtpRepository.findOne.mockResolvedValue(otpRecord);
 
-      await expect(
-        service.verifyOtp({ email: 'user@example.com', token: '999999' }),
-      ).rejects.toThrow('Invalid OTP');
+      // First findOne for validate
+      mockRefreshTokenRepository.findOne
+        .mockResolvedValueOnce(tokenEntity)
+        .mockResolvedValueOnce(tokenEntity); // Second findOne for rotation
 
-      expect(otpRecord.failedAttempts).toBe(3);
-      expect(mockOtpRepository.save).toHaveBeenCalledWith(otpRecord);
+      mockRefreshTokenRepository.create.mockReturnValue({ token: 'new-rt' });
+
+      const result = await service.refreshToken('old-token');
+
+      expect(result).toHaveProperty('access_token');
+      expect(result).toHaveProperty('refresh_token');
+      expect(mockRefreshTokenRepository.save).toHaveBeenCalledWith({ ...tokenEntity, isRevoked: true });
     });
 
-    it('should verify successfully with correct code', async () => {
-      const otpRecord = {
-        code: '123456',
-        expiresAt: new Date(Date.now() + 600000),
-        verifiedAt: null,
-        failedAttempts: 0,
-      };
-      mockOtpRepository.findOne.mockResolvedValue(otpRecord);
-
-      const result = await service.verifyOtp({ email: 'user@example.com', token: '123456' });
-
-      expect(result).toEqual({ verified: true, message: 'OTP verified successfully.' });
-      expect(otpRecord.verifiedAt).toBeInstanceOf(Date);
-      expect(mockOtpRepository.save).toHaveBeenCalledWith(otpRecord);
+    it('should throw UnauthorizedException on invalid token', async () => {
+      mockRefreshTokenRepository.findOne.mockResolvedValue(null);
+      await expect(service.refreshToken('invalid-token')).rejects.toThrow(UnauthorizedException);
     });
 
-    it('should verify with 4 failed attempts (under limit)', async () => {
-      const otpRecord = {
-        code: '123456',
-        expiresAt: new Date(Date.now() + 600000),
-        verifiedAt: null,
-        failedAttempts: 4,
+    it('should detect reuse and throw', async () => {
+      const tokenEntity = {
+        id: 'token-id',
+        tokenHash: 'mock-hash',
+        user: { id: 'user-id' },
+        expiresAt: new Date(Date.now() + 10000),
+        isRevoked: true // Already revoked
       };
-      mockOtpRepository.findOne.mockResolvedValue(otpRecord);
+      mockRefreshTokenRepository.findOne.mockResolvedValue(tokenEntity);
 
-      const result = await service.verifyOtp({ email: 'user@example.com', token: '123456' });
-      expect(result.verified).toBe(true);
+      await expect(service.refreshToken('reused-token')).rejects.toThrow(UnauthorizedException);
+      // It calls handleRefreshTokenReuse locally, effectively returning null from validateRefreshToken
+      // The service then throws "Invalid or expired refresh token"
     });
   });
 
-  // --- generateOtpCode (private) ---
+  describe('logout', () => {
+    it('should revoke token', async () => {
+      const tokenEntity = { id: 'token-id', isRevoked: false };
+      mockRefreshTokenRepository.findOne.mockResolvedValue(tokenEntity);
 
-  describe('generateOtpCode (private)', () => {
-    it('should generate a 6-digit numeric string', () => {
-      const otp = service['generateOtpCode']();
-      expect(otp).toMatch(/^\d{6}$/);
-      expect(Number(otp)).toBeGreaterThanOrEqual(100000);
-      expect(Number(otp)).toBeLessThanOrEqual(999999);
-    });
+      await service.logout('token');
 
-    it('should generate different OTPs on successive calls', () => {
-      const otps = new Set(Array.from({ length: 20 }, () => service['generateOtpCode']()));
-      // With 20 random 6-digit numbers, we should get at least 2 unique values
-      expect(otps.size).toBeGreaterThan(1);
-    });
-  });
-
-  // --- Dependency checks ---
-
-  describe('dependency injection', () => {
-    it('should have mailService injected', () => {
-      expect(service['mailService']).toBeDefined();
+      expect(tokenEntity.isRevoked).toBe(true);
+      expect(mockRefreshTokenRepository.save).toHaveBeenCalledWith(tokenEntity);
     });
   });
 });

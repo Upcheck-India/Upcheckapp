@@ -6,7 +6,7 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { Colors } from './src/constants/Colors';
 import NetInfo from '@react-native-community/netinfo';
 import { sync } from './src/services/sync';
-import { AuthProvider } from './src/context/AuthContext';
+
 import './src/i18n';
 
 // Custom theme aligned with icon colors
@@ -50,14 +50,21 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  const linking = {
+    prefixes: ['upcheck://', 'exp://'],
+    config: {
+      screens: {
+        ResetPassword: 'reset-password',
+      },
+    },
+  };
+
   return (
     <SafeAreaProvider>
       <PaperProvider theme={theme}>
-        <AuthProvider>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
-        </AuthProvider>
+        <NavigationContainer linking={linking}>
+          <RootNavigator />
+        </NavigationContainer>
       </PaperProvider>
     </SafeAreaProvider>
   );

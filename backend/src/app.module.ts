@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { SupabaseModule } from './supabase/supabase.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { FarmsModule } from './farms/farms.module';
 import { AuthModule } from './auth/auth.module';
@@ -58,6 +59,7 @@ import { FeedingTrayChecksModule } from './feeding-tray-checks/feeding-tray-chec
       },
       inject: [ConfigService],
     }),
+    SupabaseModule,
     ProfilesModule,
     FarmsModule,
     AuthModule,

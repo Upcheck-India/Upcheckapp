@@ -1,113 +1,145 @@
-import { supabase } from './supabase';
 import { Config } from '../constants/Config';
 
-const API_BASE_URL = Config.API_BASE_URL;
-
-export interface AuthResponse {
-    user: any;
-    session: any;
-    error?: string;
-}
+const API_BASE_URL = Config.API_BASE_URL; // e.g. http://localhost:3000
 
 export const AuthService = {
-    /**
-     * Login with Google ID token
-     * 1. Send ID token to backend
-     * 2. Backend verifies and returns session tokens (access_token, refresh_token)
-     * 3. Set session in Supabase client (so AuthContext updates)
-     */
-    async googleLogin(token: string): Promise<AuthResponse> {
-        try {
-            const response = await fetch(`${API_BASE_URL}/auth/google`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ token }),
-            });
+    async googleLogin(token: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/google/login`, { // Backend endpoint updated to /google/login
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+        });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Google login failed');
-            }
-
-            // Set session in Supabase if tokens are returned
-            // Assuming backend returns standard JWTs compatible with Supabase or self-signed
-            // If self-signed, Supabase client might not validate them if project ID differs, but let's try.
-            // If backend uses same JWT secret as Supabase, it works.
-            // If not, we might need to manage session manually in AuthContext without Supabase for auth state.
-            // But AuthContext uses onAuthStateChange...
-            // Let's assume we are using Supabase Auth or at least storing tokens.
-            // Actually, if we use Supabase client, we need a valid Supabase session.
-            // The backend returns `{ access_token, refresh_token, user }`.
-
-            const { access_token, refresh_token } = data;
-
-            if (access_token && refresh_token) {
-                const { data: sessionData, error } = await supabase.auth.setSession({
-                    access_token,
-                    refresh_token,
-                });
-
-                if (error) {
-                    console.warn('Supabase setSession warning:', error.message);
-                    // If Supabase rejects it (e.g. invalid signature for project), 
-                    // we might need a fallback or just return data if AuthContext handles it manually.
-                }
-
-                return {
-                    user: data.user,
-                    session: sessionData.session,
-                };
-            }
-
-            return {
-                user: data.user,
-                session: null,
-            };
-
-        } catch (error: any) {
-            console.error('Google login service error:', error);
-            throw error;
-        }
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Google login failed');
+        return data; // { user, access_token, refresh_token (cookie set), requires2fa, temp_token }
     },
 
-    /**
-     * get the current authenticated user
-     */
-    async getUser() {
-        const { data: { user } } = await supabase.auth.getUser();
-        return user;
+    async refreshToken() {
+        // credential: 'include' is crucial for sending cookies
+        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+            method: 'POST', // or GET? Backend is POST
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Refresh failed');
+        return data; // { access_token }
     },
 
-    /**
-     * Get the current session
-     */
-    async getSession() {
-        const { data: { session } } = await supabase.auth.getSession();
-        return session;
+    async logout() {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+            method: 'POST',
+            credentials: 'include',
+        });
     },
 
-    /**
-     * Check if user is authenticated
-     */
-    async isAuthenticated(): Promise<boolean> {
-        const session = await this.getSession();
-        return !!session;
+    async getMe(token: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch user');
+        return data;
     },
 
-    /**
-     * Sign out the current user
-     */
-    async signOut(): Promise<void> {
-        await supabase.auth.signOut();
+    // 2FA
+    async setup2FA(token: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/2fa/setup`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to setup 2FA');
+        return data; // { secret, otpAuthUrl }
     },
 
-    /**
-     * Listen to auth state changes
-     */
-    onAuthStateChange(callback: (event: string, session: any) => void) {
-        return supabase.auth.onAuthStateChange(callback);
+    async enable2FA(token: string, code: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/2fa/enable`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ token: code }), // Body expects { token: code }
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to enable 2FA');
+        return data;
     },
+
+    async login2FA(tempToken: string, code: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/2fa/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tempToken, token: code }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || '2FA Login failed');
+        return data; // { user, access_token, refresh_token }
+    },
+
+    // Password Management
+    async forgotPassword(email: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to request password reset');
+        return data;
+    },
+
+    async resetPassword(token: string, refreshToken: string, newPassword: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, refreshToken, newPassword }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Password reset failed');
+        return data;
+    },
+
+    async changePassword(token: string, oldPassword: string, newPassword: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ oldPassword, newPassword }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Change password failed');
+        return data;
+    },
+
+    // Session Management
+    async getSessions(token: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/sessions`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to fetch sessions');
+        return data;
+    },
+
+    async revokeSession(token: string, sessionId: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/sessions/${sessionId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to revoke session');
+        return data;
+    }
 };

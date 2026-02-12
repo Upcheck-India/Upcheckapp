@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity, Text, ViewStyle, TextStyle, ActivityIndicator } from 'react-native';
+import { StyleSheet, TouchableOpacity, Text, ViewStyle, TextStyle, ActivityIndicator, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors } from '../constants/Colors';
 
 interface GradientButtonProps {
@@ -11,6 +12,7 @@ interface GradientButtonProps {
     disabled?: boolean;
     loading?: boolean;
     variant?: 'primary' | 'secondary';
+    icon?: keyof typeof MaterialCommunityIcons.glyphMap;
 }
 
 export const GradientButton: React.FC<GradientButtonProps> = ({
@@ -21,6 +23,7 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
     disabled = false,
     loading = false,
     variant = 'primary',
+    icon,
 }) => {
     const gradientColors = variant === 'primary'
         ? [Colors.gradientStart, Colors.gradientEnd] as const
@@ -42,7 +45,17 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
                 {loading ? (
                     <ActivityIndicator color={Colors.textLight} size="small" />
                 ) : (
-                    <Text style={[styles.text, textStyle]}>{title}</Text>
+                    <View style={styles.contentContainer}>
+                        {icon && (
+                            <MaterialCommunityIcons
+                                name={icon}
+                                size={24}
+                                color={Colors.textLight}
+                                style={styles.icon}
+                            />
+                        )}
+                        <Text style={[styles.text, textStyle]}>{title}</Text>
+                    </View>
                 )}
             </LinearGradient>
         </TouchableOpacity>
@@ -64,6 +77,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 32,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    contentContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    icon: {
+        marginRight: 8,
     },
     text: {
         color: Colors.textLight,

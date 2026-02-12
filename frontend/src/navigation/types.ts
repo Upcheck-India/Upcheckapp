@@ -20,6 +20,14 @@ export type RootStackParamList = {
     PlanktonEntry: undefined;
     MicrobiologyEntry: undefined;
     MortalityEntry: undefined;
+    // Auth Routes
+    TwoFALogin: { tempToken: string };
+    TwoFASetup: undefined;
+    ForgotPassword: undefined;
+    ResetPassword: { token?: string, refreshToken?: string };
+    ChangePassword: undefined;
+    SessionManagement: undefined;
+
     DiseaseLibrary: undefined;
     DiseaseDetail: { disease: any };
     DiseaseRecord: undefined;

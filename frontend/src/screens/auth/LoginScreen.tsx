@@ -6,19 +6,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { AuthService } from '../../services/auth';
+import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { GradientButton } from '../../components/GradientButton';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const LoginScreen = () => {
+const LoginScreen = ({ navigation }: any) => {
     const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
         clientId: 'YOUR_GOOGLE_WEB_CLIENT_ID', // Replace with actual Web Client ID
         iosClientId: 'YOUR_GOOGLE_IOS_CLIENT_ID', // Replace with actual iOS Client ID
         androidClientId: 'YOUR_GOOGLE_ANDROID_CLIENT_ID', // Replace with actual Android Client ID
     });
 
-    const [loading, setLoading] = useState(false);
+    const { isLoading: loading } = useAuthStore();
 
     useEffect(() => {
         if (response?.type === 'success') {
@@ -29,16 +30,18 @@ const LoginScreen = () => {
         }
     }, [response]);
 
+    const { login } = useAuthStore();
+
     const handleGoogleLogin = async (token: string) => {
-        setLoading(true);
         try {
-            await AuthService.googleLogin(token);
-            // AuthContext should pick up the session change via onAuthStateChange
+            const data = await login(token);
+            if (data?.requires2fa) {
+                // If 2FA is required, navigate to 2FA screen with temp token
+                navigation.navigate('TwoFALogin', { tempToken: data.temp_token });
+            }
         } catch (error: any) {
             console.error('Google login error:', error);
             Alert.alert('Login Failed', error.message || 'Could not verify user');
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -67,6 +70,15 @@ const LoginScreen = () => {
                     icon="google"
                     style={styles.button}
                 />
+
+                <Button
+                    mode="text"
+                    textColor={Colors.primary}
+                    onPress={() => navigation.navigate('ForgotPassword')}
+                    style={styles.forgotBtn}
+                >
+                    Forgot Password?
+                </Button>
             </View>
         </SafeAreaView>
     );
@@ -108,6 +120,9 @@ const styles = StyleSheet.create({
         width: '100%',
         maxWidth: 300,
     },
+    forgotBtn: {
+        marginTop: 16,
+    }
 });
 
 export default LoginScreen;
