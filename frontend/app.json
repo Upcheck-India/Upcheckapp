@@ -3,6 +3,7 @@
     "name": "upcheck",
     "slug": "upcheck",
     "version": "1.0.0",
+    "scheme": "upcheck",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

@@ -19,4 +19,10 @@ export class User {
 
     @Column({ name: 'email_confirmed_at', type: 'timestamp with time zone', nullable: true })
     emailConfirmedAt: Date;
+
+    @Column({ name: 'google_id', type: 'varchar', nullable: true, unique: true })
+    googleId: string;
+
+    @Column({ name: 'avatar_url', type: 'varchar', nullable: true })
+    avatarUrl: string;
 }

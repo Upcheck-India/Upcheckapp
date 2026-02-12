@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Get, Headers, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto, VerifyOtpDto, SendOtpDto } from './dto';
+import { GoogleLoginDto } from './dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
@@ -8,29 +8,9 @@ import { CurrentUser } from './decorators/current-user.decorator';
 export class AuthController {
     constructor(private readonly authService: AuthService) { }
 
-    @Post('register')
-    register(@Body() registerDto: RegisterDto) {
-        return this.authService.register(registerDto);
-    }
-
-    @Post('login')
-    login(@Body() loginDto: LoginDto) {
-        return this.authService.login(loginDto);
-    }
-
-    @Post('login/otp')
-    sendOtp(@Body() sendOtpDto: SendOtpDto) {
-        return this.authService.sendOtp(sendOtpDto);
-    }
-
-    @Post('verify-otp')
-    verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
-        return this.authService.verifyOtp(verifyOtpDto);
-    }
-
-    @Post('login-with-otp')
-    loginWithOtp(@Body() verifyOtpDto: VerifyOtpDto) {
-        return this.authService.loginWithOtp(verifyOtpDto);
+    @Post('google')
+    googleLogin(@Body() googleLoginDto: GoogleLoginDto) {
+        return this.authService.googleLogin(googleLoginDto);
     }
 
     @Post('refresh')

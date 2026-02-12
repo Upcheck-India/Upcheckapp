@@ -2,8 +2,6 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 import LoginScreen from '../screens/auth/LoginScreen';
-import RegisterScreen from '../screens/auth/RegisterScreen';
-import OtpVerificationScreen from '../screens/auth/OtpVerificationScreen';
 import { RootStackParamList } from './types';
 import { useAuth } from '../context/AuthContext';
 import { Colors } from '../constants/Colors';
@@ -53,15 +51,13 @@ const RootNavigator = () => {
 
     return (
         <Stack.Navigator
-            initialRouteName={isAuthenticated ? "Main" : "Register"}
+            initialRouteName={isAuthenticated ? "Main" : "Login"}
             screenOptions={{ headerShown: false }}
         >
             {/* Auth Screens - only show when not authenticated */}
             {!isAuthenticated ? (
                 <>
-                    <Stack.Screen name="Register" component={RegisterScreen} />
                     <Stack.Screen name="Login" component={LoginScreen} />
-                    <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
                 </>
             ) : null}
 

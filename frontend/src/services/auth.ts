@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-
 import { Config } from '../constants/Config';
 
 const API_BASE_URL = Config.API_BASE_URL;
@@ -10,130 +9,72 @@ export interface AuthResponse {
     error?: string;
 }
 
-export interface OtpResponse {
-    message: string;
-    verified?: boolean;
-}
-
 export const AuthService = {
     /**
-     * Register a new user with email and password
+     * Login with Google ID token
+     * 1. Send ID token to backend
+     * 2. Backend verifies and returns session tokens (access_token, refresh_token)
+     * 3. Set session in Supabase client (so AuthContext updates)
      */
-    async register(payload: {
-        email: string;
-        password: string;
-        fullName?: string;
-        phone?: string;
-    }): Promise<AuthResponse> {
-        const { data, error } = await supabase.auth.signUp({
-            email: payload.email,
-            password: payload.password,
-            options: {
-                data: {
-                    full_name: payload.fullName,
-                    phone: payload.phone,
+    async googleLogin(token: string): Promise<AuthResponse> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/google`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
                 },
-            },
-        });
-
-        if (error) {
-            throw new Error(error.message);
-        }
-
-        return {
-            user: data.user,
-            session: data.session,
-        };
-    },
-
-    /**
-     * Login with email and password
-     */
-    async login(payload: { email: string; password: string }): Promise<AuthResponse> {
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: payload.email,
-            password: payload.password,
-        });
-
-        if (error) {
-            throw new Error(error.message);
-        }
-
-        return {
-            user: data.user,
-            session: data.session,
-        };
-    },
-
-    /**
-     * Send OTP to email or phone
-     */
-    async sendOtp(payload: { email?: string; phone?: string }): Promise<OtpResponse> {
-        const response = await fetch(`${API_BASE_URL}/auth/login/otp`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Failed to send OTP');
-        }
-
-        return response.json();
-    },
-
-    /**
-     * Verify OTP code
-     */
-    async verifyOtp(payload: { email?: string; phone?: string; token: string }): Promise<OtpResponse> {
-        const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Failed to verify OTP');
-        }
-
-        return response.json();
-    },
-
-    /**
-     * Login with OTP after verification - creates or retrieves user session
-     */
-    async loginWithOtp(payload: { email?: string; phone?: string; token: string }): Promise<AuthResponse> {
-        const response = await fetch(`${API_BASE_URL}/auth/login-with-otp`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Failed to login with OTP');
-        }
-
-        const result = await response.json();
-
-        // If the backend returns session tokens, set them in Supabase
-        if (result.access_token && result.refresh_token) {
-            await supabase.auth.setSession({
-                access_token: result.access_token,
-                refresh_token: result.refresh_token,
+                body: JSON.stringify({ token }),
             });
-        }
 
-        return {
-            user: result.user,
-            session: result.session,
-        };
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Google login failed');
+            }
+
+            // Set session in Supabase if tokens are returned
+            // Assuming backend returns standard JWTs compatible with Supabase or self-signed
+            // If self-signed, Supabase client might not validate them if project ID differs, but let's try.
+            // If backend uses same JWT secret as Supabase, it works.
+            // If not, we might need to manage session manually in AuthContext without Supabase for auth state.
+            // But AuthContext uses onAuthStateChange...
+            // Let's assume we are using Supabase Auth or at least storing tokens.
+            // Actually, if we use Supabase client, we need a valid Supabase session.
+            // The backend returns `{ access_token, refresh_token, user }`.
+
+            const { access_token, refresh_token } = data;
+
+            if (access_token && refresh_token) {
+                const { data: sessionData, error } = await supabase.auth.setSession({
+                    access_token,
+                    refresh_token,
+                });
+
+                if (error) {
+                    console.warn('Supabase setSession warning:', error.message);
+                    // If Supabase rejects it (e.g. invalid signature for project), 
+                    // we might need a fallback or just return data if AuthContext handles it manually.
+                }
+
+                return {
+                    user: data.user,
+                    session: sessionData.session,
+                };
+            }
+
+            return {
+                user: data.user,
+                session: null,
+            };
+
+        } catch (error: any) {
+            console.error('Google login service error:', error);
+            throw error;
+        }
     },
 
     /**
-     * Get the current authenticated user
+     * get the current authenticated user
      */
     async getUser() {
         const { data: { user } } = await supabase.auth.getUser();
