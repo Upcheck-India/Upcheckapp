@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, Length } from 'class-validator';
+import { IsNotEmpty, IsString, MinLength, MaxLength } from 'class-validator';
 
 export class Login2faDto {
     @IsString()
@@ -7,6 +7,7 @@ export class Login2faDto {
 
     @IsString()
     @IsNotEmpty()
-    @Length(6, 6)
+    @MinLength(6)
+    @MaxLength(9)
     token: string;
 }

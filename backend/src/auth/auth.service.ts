@@ -1,21 +1,33 @@
-import { Injectable, UnauthorizedException, BadRequestException, Inject } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ForbiddenException, Inject, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Repository, MoreThan } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
 import { randomBytes, createHash } from 'crypto';
+import * as bcrypt from 'bcrypt';
 import { GoogleLoginDto, RegisterDto, LoginDto, VerifyOtpDto } from './dto';
 import { User } from './user.entity';
 import { Profile } from '../profiles/profile.entity';
 import { RefreshToken } from './refresh-token.entity';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { generateSecret, verify, generateURI } from 'otplib';
+import { generateSecret, verifySync, generateURI } from 'otplib';
 import * as QRCode from 'qrcode';
 import { UAParser } from 'ua-parser-js';
 
+// ─── Constants ───────────────────────────────────────────────────
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MINUTES = 15;
+const ACCESS_TOKEN_EXPIRY = '15m';
+const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+const REMEMBER_ME_REFRESH_TOKEN_EXPIRY_DAYS = 30;
+const TEMP_2FA_TOKEN_EXPIRY = '5m';
+const BACKUP_CODES_COUNT = 10;
+const BCRYPT_ROUNDS = 12;
+
 @Injectable()
 export class AuthService {
+    private readonly logger = new Logger(AuthService.name);
     private googleClient: OAuth2Client;
 
     constructor(
@@ -36,7 +48,9 @@ export class AuthService {
         );
     }
 
-    // ─── Google Login ────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // ─── Google Login ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
     async googleLogin(googleLoginDto: GoogleLoginDto, ip?: string, userAgent?: string) {
         const { token } = googleLoginDto;
 
@@ -51,7 +65,7 @@ export class AuthService {
                 ].filter(Boolean) as string[],
             });
         } catch (error) {
-            console.error('Error verifying Google token:', error);
+            this.logger.warn(`Google token verification failed from IP ${ip}`);
             throw new UnauthorizedException('Invalid Google token');
         }
 
@@ -69,9 +83,13 @@ export class AuthService {
         let user = await this.userRepository.findOne({ where: { email } });
 
         if (user) {
+            // Check if account is locked
+            this.checkAccountLock(user);
+
             if (!user.googleId) {
                 user.googleId = googleId;
                 user.avatarUrl = picture || user.avatarUrl;
+                user.isEmailVerified = true;
                 await this.userRepository.save(user);
             }
         } else {
@@ -81,7 +99,8 @@ export class AuthService {
                     email,
                     googleId,
                     avatarUrl: picture,
-                    roles: [],
+                    isEmailVerified: true,
+                    roles: ['worker'],
                 });
                 user = await manager.save(newUser);
 
@@ -98,34 +117,59 @@ export class AuthService {
             throw new BadRequestException('Failed to create or retrieve user');
         }
 
+        // Reset failed attempts on successful login
+        await this.resetFailedAttempts(user);
+        await this.updateLastLogin(user);
+
+        // Check 2FA
+        if (user.is2faEnabled) {
+            const tempToken = this.generate2FATempToken(user);
+            return {
+                message: '2FA required',
+                requires2fa: true,
+                temp_token: tempToken,
+            };
+        }
+
         const accessToken = this.generateAccessToken(user);
         const refreshToken = await this.generateRefreshToken(user.id, undefined, ip, userAgent);
 
         // Exchange Google ID Token for Supabase Session to support SyncService
-        const { data: supabaseData, error: supabaseError } = await this.supabase.auth.signInWithIdToken({
-            provider: 'google',
-            token: token,
-        });
-
-        if (supabaseError) {
-            console.warn('Supabase Google Sign-In failed:', supabaseError);
-            // We could throw, or just continue without Supabase session (Sync will fail)
-            // Throwing ensures consistency
-            // throw new UnauthorizedException('Failed to authenticate with Supabase');
+        let supabaseAccessToken: string | undefined;
+        let supabaseRefreshToken: string | undefined;
+        try {
+            const { data: supabaseData, error: supabaseError } = await this.supabase.auth.signInWithIdToken({
+                provider: 'google',
+                token: token,
+            });
+            if (!supabaseError && supabaseData.session) {
+                supabaseAccessToken = supabaseData.session.access_token;
+                supabaseRefreshToken = supabaseData.session.refresh_token;
+            }
+        } catch (e) {
+            this.logger.warn('Supabase Google Sign-In failed, continuing without Supabase session');
         }
 
         return {
-            user,
+            user: this.sanitizeUser(user),
             access_token: accessToken,
             refresh_token: refreshToken,
-            supabase_access_token: supabaseData.session?.access_token,
-            supabase_refresh_token: supabaseData.session?.refresh_token,
+            supabase_access_token: supabaseAccessToken,
+            supabase_refresh_token: supabaseRefreshToken,
         };
     }
 
-    // ─── Email & Password Auth ───────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // ─── Email & Password Registration ────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
     async register(registerDto: RegisterDto, ip?: string, userAgent?: string) {
         const { email, password, fullName, phoneNumber } = registerDto;
+
+        // Check if user already exists locally
+        const existingUser = await this.userRepository.findOne({ where: { email } });
+        if (existingUser) {
+            throw new BadRequestException('An account with this email already exists');
+        }
 
         // 1. Create user in Supabase Auth
         const { data, error } = await this.supabase.auth.signUp({
@@ -147,50 +191,68 @@ export class AuthService {
             throw new BadRequestException('Registration failed');
         }
 
-        const supabaseUser = data.user; // alias for strict null check
+        const supabaseUser = data.user;
 
-        // 2. Create user in local DB if not exists
-        let user = await this.userRepository.findOne({ where: { email } });
-        if (!user) {
-            // Need to handle potential race condition or duplicate key error if phone is unique
-            await this.dataSource.transaction(async (manager) => {
-                user = manager.create(User, {
-                    id: supabaseUser.id, // Sync ID with Supabase
-                    email,
-                    phoneNumber,
-                    roles: ['worker'], // Default role
-                });
-                await manager.save(user);
-
-                // Create profile manually
-                const profile = new Profile();
-                profile.id = user.id;
-                profile.fullName = fullName;
-                profile.languagePreference = 'en'; // Default
-
-                await manager.save(Profile, profile);
+        // 2. Create user in local DB
+        let user: User | null = null;
+        await this.dataSource.transaction(async (manager) => {
+            user = manager.create(User, {
+                id: supabaseUser.id,
+                email,
+                phoneNumber,
+                roles: ['worker'],
             });
-        }
+            await manager.save(user);
+
+            const profile = new Profile();
+            profile.id = user!.id;
+            profile.fullName = fullName;
+            profile.languagePreference = 'en';
+            await manager.save(Profile, profile);
+        });
+
+        this.logger.log(`New user registered: ${email} from IP ${ip}`);
 
         return {
             message: 'Registration successful. Please check your email for verification link.',
             user: {
-                id: (user && user.id) || supabaseUser.id,
+                id: supabaseUser.id,
                 email: email,
             },
         };
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // ─── Email & Password Login ───────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
     async login(loginDto: LoginDto, ip?: string, userAgent?: string) {
-        const { emailOrPhone, password } = loginDto;
+        const { emailOrPhone, password, rememberMe } = loginDto;
 
-        // 1. Login with Supabase
-        const { data, error } = await this.supabase.auth.signInWithPassword({
-            email: emailOrPhone, // Supabase signInWithPassword expects email, phone logic might need separate call or distinction
-            password,
+        // Find user locally first to check lockout
+        let user = await this.userRepository.findOne({
+            where: [
+                { email: emailOrPhone },
+                { phoneNumber: emailOrPhone },
+            ],
         });
 
+        if (user) {
+            this.checkAccountLock(user);
+        }
+
+        // 1. Login with Supabase
+        const isEmail = emailOrPhone.includes('@');
+        const signInPayload = isEmail
+            ? { email: emailOrPhone, password }
+            : { phone: emailOrPhone, password };
+
+        const { data, error } = await this.supabase.auth.signInWithPassword(signInPayload);
+
         if (error) {
+            // Increment failed attempts
+            if (user) {
+                await this.incrementFailedAttempts(user);
+            }
             throw new UnauthorizedException('Invalid credentials');
         }
 
@@ -199,16 +261,27 @@ export class AuthService {
         }
 
         // 2. Sync/Get user from local DB
-        let user = await this.userRepository.findOne({ where: { id: data.user.id } });
+        if (!user) {
+            user = await this.userRepository.findOne({ where: { id: data.user.id } });
+        }
 
         if (!user) {
             throw new UnauthorizedException('User not found in system');
         }
 
+        // Reset failed attempts on successful login
+        await this.resetFailedAttempts(user);
+        await this.updateLastLogin(user);
+
+        // Mark email as verified if Supabase confirms it
+        if (data.user.email_confirmed_at && !user.isEmailVerified) {
+            user.isEmailVerified = true;
+            user.emailConfirmedAt = new Date(data.user.email_confirmed_at);
+            await this.userRepository.save(user);
+        }
+
         if (user.is2faEnabled) {
-            // Return temp token/session indicating 2FA required
-            const tempPayload = { sub: user.id, is2faStage: true, email: user.email };
-            const tempToken = this.jwtService.sign(tempPayload, { expiresIn: '5m' });
+            const tempToken = this.generate2FATempToken(user);
             return {
                 message: '2FA required',
                 requires2fa: true,
@@ -217,42 +290,49 @@ export class AuthService {
         }
 
         // 3. Generate tokens
+        const refreshExpiryDays = rememberMe ? REMEMBER_ME_REFRESH_TOKEN_EXPIRY_DAYS : REFRESH_TOKEN_EXPIRY_DAYS;
         const accessToken = this.generateAccessToken(user);
-        const refreshToken = await this.generateRefreshToken(user.id, undefined, ip, userAgent);
+        const refreshToken = await this.generateRefreshToken(user.id, undefined, ip, userAgent, refreshExpiryDays);
 
         return {
-            user,
+            user: this.sanitizeUser(user),
             access_token: accessToken,
             refresh_token: refreshToken,
+            refresh_token_expiry_days: refreshExpiryDays,
             requires2fa: false,
             supabase_access_token: data.session?.access_token,
             supabase_refresh_token: data.session?.refresh_token,
         };
     }
 
-
-    // ─── Token Refresh ───────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // ─── Token Refresh ────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
     async refreshToken(oldRefreshToken: string, ip?: string, userAgent?: string) {
-        const tokenUser = await this.validateRefreshToken(oldRefreshToken);
-        if (!tokenUser) {
-            throw new UnauthorizedException('Invalid or expired refresh token');
-        }
-
-        // Invalidate old token (Rotation)
-        // We find the token entity again because validateRefreshToken just returns the user/token data
-        // Ideally validateRefreshToken should return the token entity itself
+        const tokenHash = await this.hashToken(oldRefreshToken);
         const tokenEntity = await this.refreshTokenRepository.findOne({
-            where: { tokenHash: await this.hashToken(oldRefreshToken) },
-            relations: ['user']
+            where: { tokenHash },
+            relations: ['user'],
         });
 
         if (!tokenEntity) {
-            // This indicates a potential reuse attack if the token was valid logically but not found (revoked/deleted)
-            // But here we rely on validateRefreshToken check.
             throw new UnauthorizedException('Invalid refresh token');
         }
 
-        // Revoke the used token
+        // Detect reuse of revoked token — security breach
+        if (tokenEntity.isRevoked) {
+            this.logger.warn(`Refresh token reuse detected for user ${tokenEntity.userId}. Revoking all sessions.`);
+            await this.refreshTokenRepository.update({ userId: tokenEntity.userId }, { isRevoked: true });
+            throw new UnauthorizedException('Token reuse detected. All sessions have been revoked for security.');
+        }
+
+        if (tokenEntity.expiresAt < new Date()) {
+            tokenEntity.isRevoked = true;
+            await this.refreshTokenRepository.save(tokenEntity);
+            throw new UnauthorizedException('Refresh token expired');
+        }
+
+        // Revoke the used token (rotation)
         tokenEntity.isRevoked = true;
         await this.refreshTokenRepository.save(tokenEntity);
 
@@ -266,20 +346,22 @@ export class AuthService {
         };
     }
 
-    // ─── Get User ────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // ─── Get User ─────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
     async getUser(id: string) {
         const user = await this.userRepository.findOne({ where: { id } });
         if (!user) {
             throw new UnauthorizedException('User not found');
         }
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { ...result } = user;
-        return result;
+        return this.sanitizeUser(user);
     }
 
-    // ─── Logout ──────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // ─── Logout ───────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
     async logout(refreshToken: string) {
-        if (!refreshToken) return;
+        if (!refreshToken) return { message: 'Logged out successfully' };
         const tokenHash = await this.hashToken(refreshToken);
         const tokenEntity = await this.refreshTokenRepository.findOne({ where: { tokenHash } });
         if (tokenEntity) {
@@ -289,71 +371,14 @@ export class AuthService {
         return { message: 'Logged out successfully' };
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────
-    private generateAccessToken(user: User): string {
-        const payload = { email: user.email, sub: user.id, roles: user.roles };
-        return this.jwtService.sign(payload, { expiresIn: '15m' });
+    async logoutAllDevices(userId: string) {
+        await this.refreshTokenRepository.update({ userId }, { isRevoked: true });
+        return { message: 'All sessions have been revoked' };
     }
 
-    private async generateRefreshToken(userId: string, parentToken?: string, ip?: string, userAgent?: string): Promise<string> {
-        const token = randomBytes(32).toString('hex');
-        const tokenHash = await this.hashToken(token);
-
-        let deviceType = 'unknown';
-        let deviceOs = 'unknown';
-        let browser = 'unknown';
-
-        if (userAgent) {
-            const parser = new UAParser(userAgent);
-            const result = parser.getResult();
-            deviceType = result.device.type || 'desktop'; // Default to desktop if type is undefined (common for desktop browsers)
-            deviceOs = result.os.name || 'unknown';
-            browser = result.browser.name || 'unknown';
-        }
-
-        const refreshToken = this.refreshTokenRepository.create({
-            userId,
-            tokenHash,
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-            parentToken,
-            ipAddress: ip,
-            deviceType,
-            deviceOs,
-            browser,
-        });
-
-        await this.refreshTokenRepository.save(refreshToken);
-        return token;
-    }
-
-    private async validateRefreshToken(token: string): Promise<User | null> {
-        const tokenHash = await this.hashToken(token);
-        const tokenEntity = await this.refreshTokenRepository.findOne({
-            where: { tokenHash },
-            relations: ['user'],
-        });
-
-        if (!tokenEntity || tokenEntity.isRevoked || tokenEntity.expiresAt < new Date()) {
-            // If token is revoked, it might be a reuse attempt.
-            if (tokenEntity && tokenEntity.isRevoked) {
-                this.handleRefreshTokenReuse(tokenEntity);
-            }
-            return null;
-        }
-        return tokenEntity.user;
-    }
-
-    private async handleRefreshTokenReuse(revokedToken: RefreshToken) {
-        // Security: If a revoked token is reused, revoke all descendant tokens
-        // This is a simplified version. For full chain revocation we'd need recursive query.
-        // For now, let's just log it. A more aggressive approach would be to revoke ALL tokens for the user.
-        console.warn(`Refresh token reuse detected for user ${revokedToken.userId}. Token ID: ${revokedToken.id}`);
-
-        // Revoke all tokens for this user as a safety measure
-        await this.refreshTokenRepository.update({ userId: revokedToken.userId }, { isRevoked: true });
-    }
-
-    // ─── Phone Auth ──────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // ─── Phone Auth ───────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
     async sendOtp(phoneNumber: string) {
         const { error } = await this.supabase.auth.signInWithOtp({
             phone: phoneNumber,
@@ -394,7 +419,7 @@ export class AuthService {
                 const newUser = manager.create(User, {
                     id: data.user!.id,
                     phoneNumber,
-                    email: data.user!.email || `${phoneNumber}@placeholder.com`, // Placeholder if email missing
+                    email: data.user!.email || `${phoneNumber.replace(/\+/g, '')}@phone.upcheck.app`,
                     roles: ['worker'],
                     isPhoneVerified: true,
                 });
@@ -406,10 +431,27 @@ export class AuthService {
                 profile.languagePreference = 'en';
                 await manager.save(Profile, profile);
             });
+        } else {
+            if (!user.isPhoneVerified) {
+                user.isPhoneVerified = true;
+                await this.userRepository.save(user);
+            }
         }
 
         if (!user) {
             throw new UnauthorizedException('User creation failed');
+        }
+
+        await this.updateLastLogin(user);
+
+        // Check 2FA
+        if (user.is2faEnabled) {
+            const tempToken = this.generate2FATempToken(user);
+            return {
+                message: '2FA required',
+                requires2fa: true,
+                temp_token: tempToken,
+            };
         }
 
         // Generate tokens
@@ -417,23 +459,49 @@ export class AuthService {
         const refreshToken = await this.generateRefreshToken(user.id, undefined, ip, userAgent);
 
         return {
-            user,
+            user: this.sanitizeUser(user),
             access_token: accessToken,
             refresh_token: refreshToken,
+            requires2fa: false,
             supabase_access_token: data.session?.access_token,
             supabase_refresh_token: data.session?.refresh_token,
         };
     }
 
-    // ─── Password Management ──────────────────────────────────────────
-    async forgotPassword(email: string) {
+    // ═══════════════════════════════════════════════════════════════
+    // ─── Email Verification ───────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    async resendVerificationEmail(email: string) {
         const user = await this.userRepository.findOne({ where: { email } });
         if (!user) {
-            // Silently fail to prevent enumeration or throw?
-            // PRD doesn't specify. Standard is silent or generic message.
-            // But for dev/debug, throwing specific might be easier.
-            // I will throw for now, or just return success.
-            // Let's return success to be safe, but log.
+            // Don't reveal whether user exists
+            return { message: 'If the email is registered, a verification link has been sent.' };
+        }
+
+        if (user.isEmailVerified) {
+            return { message: 'Email is already verified.' };
+        }
+
+        const { error } = await this.supabase.auth.resend({
+            type: 'signup',
+            email,
+        });
+
+        if (error) {
+            this.logger.warn(`Failed to resend verification email for ${email}: ${error.message}`);
+            throw new BadRequestException('Failed to send verification email');
+        }
+
+        return { message: 'Verification email sent successfully.' };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ─── Password Management ──────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    async forgotPassword(email: string) {
+        // Always return generic message to prevent email enumeration
+        const user = await this.userRepository.findOne({ where: { email } });
+        if (!user) {
             return { message: 'If the email exists, a password reset link has been sent.' };
         }
 
@@ -442,48 +510,19 @@ export class AuthService {
         });
 
         if (error) {
+            this.logger.warn(`Password reset request failed for ${email}: ${error.message}`);
             throw new BadRequestException(error.message);
         }
 
-        return { message: 'Password reset link sent' };
+        return { message: 'If the email exists, a password reset link has been sent.' };
     }
 
     async resetPassword(token: string, refreshToken: string, newPassword: string) {
-        // We need to set session on a temporary client or the global one?
-        // Global client is risky for concurrency.
-        // We really should construct a new client or use the admin api if we have rights.
-        // But the token is for the user.
-        // The safest way in a singleton-scope service is to NOT set session on `this.supabase`.
-        // We should instantiate a stateless client or separate instance.
-        // However, `createClient` is lightweight.
-        // We can import `createClient` from `@supabase/supabase-js`.
-        // But we need the URL and KEY.
-
-        // Hack: temporarily assuming low concurrency or standard approach:
-        // Ideally we'd inject a factory.
-        // For this prototype, I'll assume we can use `this.supabase` IF it wasn't shared stateful.
-        // But `supabase-js` IS stateful.
-        // I will use `this.supabase.auth.admin.updateUserById` if I have the ID from the token?
-        // I can verify the token first.
-
         const { data: userData, error: userError } = await this.supabase.auth.getUser(token);
 
         if (userError || !userData.user) {
-            throw new UnauthorizedException('Invalid or expired token');
+            throw new UnauthorizedException('Invalid or expired reset token');
         }
-
-        // If we have the user, we can try to update using admin API (if service role)
-        // OR we just use the user's session to update.
-        // Since I can't easily isolate the client session here without creating new client...
-        // I'll try `updateUser` using the provided token?
-        // `updateUser` uses the current session.
-
-        // I'll use a local client instance.
-        // I need to import `createClient`.
-        // Let's create a helper or just import it at top (not injected).
-        // Since I can't change imports easily in this replacing block without context,
-        // I'll try to use the `admin` api if available, otherwise I'll need to refactor.
-        // Assuming `this.supabase` has service role key:
 
         const { error } = await this.supabase.auth.admin.updateUserById(
             userData.user.id,
@@ -491,17 +530,15 @@ export class AuthService {
         );
 
         if (error) {
-            // If admin API fails (e.g. anon key), fallback?
-            // Fallback would be creating a client.
             throw new BadRequestException(error.message);
         }
 
-        // Invalidate all sessions/refresh tokens for this user in MY db
-        // Sync with local DB if needed (we don't store password).
-        // But we should revoke our custom refresh tokens.
+        // Revoke all refresh tokens for this user
         await this.refreshTokenRepository.update({ userId: userData.user.id }, { isRevoked: true });
 
-        return { message: 'Password updated successfully' };
+        this.logger.log(`Password reset completed for user ${userData.user.id}`);
+
+        return { message: 'Password updated successfully. Please login with your new password.' };
     }
 
     async changePassword(userId: string, oldPass: string, newPass: string) {
@@ -517,7 +554,7 @@ export class AuthService {
         });
 
         if (error) {
-            throw new UnauthorizedException('Invalid old password');
+            throw new UnauthorizedException('Current password is incorrect');
         }
 
         // Update password using admin api
@@ -530,18 +567,25 @@ export class AuthService {
             throw new BadRequestException(updateError.message);
         }
 
-        // Revoke tokens
+        // Revoke all tokens except current session would be ideal,
+        // but for security, revoke all and force re-login
         await this.refreshTokenRepository.update({ userId }, { isRevoked: true });
 
-        return { message: 'Password changed successfully' };
+        this.logger.log(`Password changed for user ${userId}`);
+
+        return { message: 'Password changed successfully. Please login again.' };
     }
 
-    // ─── Session Management ──────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // ─── Session Management ───────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
     async getSessions(userId: string) {
-        return this.refreshTokenRepository.find({
-            where: { userId, isRevoked: false },
+        const sessions = await this.refreshTokenRepository.find({
+            where: { userId, isRevoked: false, expiresAt: MoreThan(new Date()) },
             order: { lastActiveAt: 'DESC' },
+            select: ['id', 'deviceType', 'deviceOs', 'browser', 'ipAddress', 'createdAt', 'lastActiveAt', 'location'],
         });
+        return sessions;
     }
 
     async revokeSession(userId: string, sessionId: string) {
@@ -554,62 +598,123 @@ export class AuthService {
         return { message: 'Session revoked' };
     }
 
-    // ─── 2FA ─────────────────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    // ─── 2FA (TOTP) ──────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
     async setup2FA(userId: string) {
         const user = await this.userRepository.findOne({ where: { id: userId } });
         if (!user) {
             throw new UnauthorizedException('User not found');
         }
 
-        const secret = generateSecret();
-        const otpauthUrl = generateURI({
-            issuer: 'Upcheck',
-            label: user.email,
-            secret,
-        });
+        if (user.is2faEnabled) {
+            throw new BadRequestException('2FA is already enabled. Disable it first to reconfigure.');
+        }
 
-        // Save secret to user (should be encrypted in production)
-        // For this implementation, we saving as plain text or simple hash?
-        // PRD says "Encrypted". Given I don't have encryption service ready, I'll store it as is (User entity defines it as string).
-        // WARNING: In production, use EncryptionService.
+        const secret = generateSecret();
+        const otpauthUrl = generateURI({ issuer: 'Upcheck', label: user.email, secret, strategy: 'totp' });
+
+        // Store secret (in production, encrypt this)
         user.totpSecret = secret;
         await this.userRepository.save(user);
 
-        const qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
+        const qrCode = await QRCode.toDataURL(otpauthUrl);
 
         return {
             secret,
-            qrCode: qrCodeUrl,
+            otpAuthUrl: otpauthUrl,
+            qrCode,
         };
     }
 
     async enable2FA(userId: string, token: string) {
         const user = await this.userRepository.findOne({ where: { id: userId } });
         if (!user || !user.totpSecret) {
-            throw new UnauthorizedException('2FA not set up');
+            throw new UnauthorizedException('2FA not set up. Please call setup first.');
         }
 
-        const isValid = await verify({
-            token,
-            secret: user.totpSecret,
-        });
+        const result = verifySync({ token, secret: user.totpSecret });
 
-        if (!isValid) {
-            throw new UnauthorizedException('Invalid 2FA token');
+        if (!result.valid) {
+            throw new UnauthorizedException('Invalid 2FA code. Please try again.');
         }
+
+        // Generate backup codes
+        const backupCodes = this.generateBackupCodes();
+        const hashedCodes = await Promise.all(
+            backupCodes.map(code => bcrypt.hash(code, BCRYPT_ROUNDS))
+        );
 
         user.is2faEnabled = true;
+        user.backupCodes = hashedCodes;
         await this.userRepository.save(user);
 
-        return { message: '2FA enabled successfully' };
+        return {
+            message: '2FA enabled successfully',
+            backupCodes, // Return plain codes ONCE for user to save
+        };
+    }
+
+    async disable2FA(userId: string, token: string) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user) {
+            throw new UnauthorizedException('User not found');
+        }
+
+        if (!user.is2faEnabled) {
+            throw new BadRequestException('2FA is not enabled');
+        }
+
+        // Verify TOTP code before disabling
+        const result = verifySync({ token, secret: user.totpSecret });
+
+        if (!result.valid) {
+            throw new UnauthorizedException('Invalid 2FA code');
+        }
+
+        user.is2faEnabled = false;
+        user.totpSecret = null as any;
+        user.backupCodes = null as any;
+        await this.userRepository.save(user);
+
+        this.logger.log(`2FA disabled for user ${userId}`);
+
+        return { message: '2FA has been disabled' };
+    }
+
+    async regenerateBackupCodes(userId: string, token: string) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user || !user.is2faEnabled) {
+            throw new UnauthorizedException('2FA is not enabled');
+        }
+
+        // Verify TOTP before regenerating
+        const result = verifySync({ token, secret: user.totpSecret });
+
+        if (!result.valid) {
+            throw new UnauthorizedException('Invalid 2FA code');
+        }
+
+        const backupCodes = this.generateBackupCodes();
+        const hashedCodes = await Promise.all(
+            backupCodes.map(code => bcrypt.hash(code, BCRYPT_ROUNDS))
+        );
+
+        user.backupCodes = hashedCodes;
+        await this.userRepository.save(user);
+
+        return {
+            message: 'Backup codes regenerated. Previous codes are now invalid.',
+            backupCodes,
+        };
     }
 
     async loginWith2FA(tempToken: string, token: string, ip?: string, userAgent?: string) {
-        let payload;
+        let payload: any;
         try {
             payload = this.jwtService.verify(tempToken);
         } catch (e) {
-            throw new UnauthorizedException('Invalid or expired temporary token');
+            throw new UnauthorizedException('Invalid or expired temporary token. Please login again.');
         }
 
         if (!payload.is2faStage) {
@@ -623,36 +728,214 @@ export class AuthService {
         }
 
         if (!user.is2faEnabled) {
-            // Should we allow login if 2FA NOT enabled but they have temp token?
-            // If temp token was issued, it means is2faEnabled WAS true at login time.
-            // So this check is redundant or safe.
-            // If user disabled 2FA in the meantime (unlikely in 5 mins), valid check.
             throw new UnauthorizedException('2FA not enabled for this user');
         }
 
-        const isValid = await verify({
-            token,
-            secret: user.totpSecret,
-        });
+        // Try TOTP first
+        const totpResult = verifySync({ token, secret: user.totpSecret });
+        let isValid = totpResult.valid;
+
+        // If TOTP fails, try backup codes
+        if (!isValid) {
+            isValid = await this.verifyBackupCode(user, token);
+        }
 
         if (!isValid) {
-            throw new UnauthorizedException('Invalid 2FA token');
+            throw new UnauthorizedException('Invalid 2FA code');
         }
+
+        await this.updateLastLogin(user);
 
         // Generate full tokens
         const accessToken = this.generateAccessToken(user);
         const refreshToken = await this.generateRefreshToken(user.id, undefined, ip, userAgent);
 
         return {
-            user,
+            user: this.sanitizeUser(user),
             access_token: accessToken,
             refresh_token: refreshToken,
         };
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // ─── Account Management ───────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    async deleteAccount(userId: string, password?: string) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user) {
+            throw new UnauthorizedException('User not found');
+        }
+
+        // If user has a password (email auth), verify it
+        if (password) {
+            const { error } = await this.supabase.auth.signInWithPassword({
+                email: user.email,
+                password,
+            });
+            if (error) {
+                throw new UnauthorizedException('Invalid password');
+            }
+        }
+
+        // Revoke all tokens
+        await this.refreshTokenRepository.update({ userId }, { isRevoked: true });
+
+        // Delete from Supabase
+        try {
+            await this.supabase.auth.admin.deleteUser(userId);
+        } catch (e) {
+            this.logger.warn(`Failed to delete user ${userId} from Supabase: ${e}`);
+        }
+
+        // Delete profile and user (cascade should handle refresh tokens)
+        await this.profileRepository.delete({ id: userId });
+        await this.userRepository.delete({ id: userId });
+
+        this.logger.log(`Account deleted for user ${userId}`);
+
+        return { message: 'Account has been permanently deleted' };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ─── Private Helpers ──────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    private generateAccessToken(user: User): string {
+        const payload = {
+            sub: user.id,
+            email: user.email,
+            roles: user.roles,
+            is2faEnabled: user.is2faEnabled,
+        };
+        return this.jwtService.sign(payload, { expiresIn: ACCESS_TOKEN_EXPIRY });
+    }
+
+    private generate2FATempToken(user: User): string {
+        const tempPayload = { sub: user.id, is2faStage: true, email: user.email };
+        return this.jwtService.sign(tempPayload, { expiresIn: TEMP_2FA_TOKEN_EXPIRY });
+    }
+
+    private async generateRefreshToken(
+        userId: string,
+        parentToken?: string,
+        ip?: string,
+        userAgent?: string,
+        expiryDays: number = REFRESH_TOKEN_EXPIRY_DAYS,
+    ): Promise<string> {
+        const token = randomBytes(32).toString('hex');
+        const tokenHash = await this.hashToken(token);
+
+        let deviceType = 'unknown';
+        let deviceOs = 'unknown';
+        let browser = 'unknown';
+
+        if (userAgent) {
+            const parser = new UAParser(userAgent);
+            const result = parser.getResult();
+            deviceType = result.device.type || 'desktop';
+            deviceOs = result.os.name || 'unknown';
+            browser = result.browser.name || 'unknown';
+        }
+
+        const refreshToken = this.refreshTokenRepository.create({
+            userId,
+            tokenHash,
+            expiresAt: new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000),
+            parentToken,
+            ipAddress: ip,
+            deviceType,
+            deviceOs,
+            browser,
+        });
+
+        await this.refreshTokenRepository.save(refreshToken);
+        return token;
+    }
+
     private async hashToken(token: string): Promise<string> {
-        // fast hash for lookup
-        // Using SHA256 is enough if the token has high entropy
         return createHash('sha256').update(token).digest('hex');
+    }
+
+    private checkAccountLock(user: User): void {
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+            const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+            throw new ForbiddenException(
+                `Account is temporarily locked due to too many failed login attempts. Try again in ${minutesLeft} minute(s).`
+            );
+        }
+    }
+
+    private async incrementFailedAttempts(user: User): Promise<void> {
+        user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+
+        if (user.failedLoginAttempts >= MAX_FAILED_ATTEMPTS) {
+            user.lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000);
+            this.logger.warn(`Account locked for user ${user.email} after ${MAX_FAILED_ATTEMPTS} failed attempts`);
+        }
+
+        await this.userRepository.save(user);
+    }
+
+    private async resetFailedAttempts(user: User): Promise<void> {
+        if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+            user.failedLoginAttempts = 0;
+            user.lockedUntil = null as any;
+            await this.userRepository.save(user);
+        }
+    }
+
+    private async updateLastLogin(user: User): Promise<void> {
+        user.lastLoginAt = new Date();
+        await this.userRepository.save(user);
+    }
+
+    private generateBackupCodes(): string[] {
+        const codes: string[] = [];
+        for (let i = 0; i < BACKUP_CODES_COUNT; i++) {
+            // Generate 8-character alphanumeric codes in xxxx-xxxx format
+            const raw = randomBytes(4).toString('hex').toUpperCase();
+            codes.push(`${raw.slice(0, 4)}-${raw.slice(4, 8)}`);
+        }
+        return codes;
+    }
+
+    private async verifyBackupCode(user: User, code: string): Promise<boolean> {
+        if (!user.backupCodes || user.backupCodes.length === 0) {
+            return false;
+        }
+
+        for (let i = 0; i < user.backupCodes.length; i++) {
+            const isMatch = await bcrypt.compare(code, user.backupCodes[i]);
+            if (isMatch) {
+                // Remove used backup code
+                user.backupCodes.splice(i, 1);
+                await this.userRepository.save(user);
+                this.logger.log(`Backup code used for user ${user.id}. ${user.backupCodes.length} codes remaining.`);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private sanitizeUser(user: User): Partial<User> {
+        const { passwordHash, totpSecret, backupCodes, ...sanitized } = user;
+        return sanitized;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ─── Cleanup (called by scheduler) ────────────────────────────
+    // ═══════════════════════════════════════════════════════════════
+    async cleanupExpiredTokens(): Promise<number> {
+        const result = await this.refreshTokenRepository
+            .createQueryBuilder()
+            .delete()
+            .where('expires_at < :now', { now: new Date() })
+            .orWhere('is_revoked = :revoked', { revoked: true })
+            .execute();
+
+        const count = result.affected || 0;
+        if (count > 0) {
+            this.logger.log(`Cleaned up ${count} expired/revoked refresh tokens`);
+        }
+        return count;
     }
 }

@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
-import { Text, TextInput, Button, Surface, ActivityIndicator, IconButton } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Alert, Clipboard } from 'react-native';
+import { Text, TextInput, Surface, ActivityIndicator, IconButton } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { AuthService } from '../../services/auth';
 import { GradientButton } from '../../components/GradientButton';
 import { useAuthStore } from '../../store/authStore';
 import QRCode from 'react-native-qrcode-svg';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+type Step = 'setup' | 'backup-codes';
 
 const TwoFASetupScreen = ({ navigation }: any) => {
     const { accessToken } = useAuthStore();
+    const [step, setStep] = useState<Step>('setup');
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [secret, setSecret] = useState<string>('');
     const [otpAuthUrl, setOtpAuthUrl] = useState<string>('');
     const [code, setCode] = useState('');
+    const [backupCodes, setBackupCodes] = useState<string[]>([]);
 
     useEffect(() => {
         fetchSetup();
@@ -41,9 +46,14 @@ const TwoFASetupScreen = ({ navigation }: any) => {
 
         setSubmitting(true);
         try {
-            await AuthService.enable2FA(accessToken!, code);
-            Alert.alert('Success', 'Two-Factor Authentication has been enabled');
-            navigation.goBack();
+            const data = await AuthService.enable2FA(accessToken!, code);
+            if (data.backupCodes) {
+                setBackupCodes(data.backupCodes);
+                setStep('backup-codes');
+            } else {
+                Alert.alert('Success', 'Two-Factor Authentication has been enabled');
+                navigation.goBack();
+            }
         } catch (error: any) {
             Alert.alert('Error', error.message || 'Failed to enable 2FA');
         } finally {
@@ -52,8 +62,24 @@ const TwoFASetupScreen = ({ navigation }: any) => {
     };
 
     const handleCopySecret = () => {
-        // Implement copy to clipboard if needed
-        Alert.alert('Secret', secret);
+        Clipboard.setString(secret);
+        Alert.alert('Copied', 'Secret key copied to clipboard');
+    };
+
+    const handleCopyBackupCodes = () => {
+        Clipboard.setString(backupCodes.join('\n'));
+        Alert.alert('Copied', 'Backup codes copied to clipboard');
+    };
+
+    const handleDone = () => {
+        Alert.alert(
+            'Have you saved your backup codes?',
+            'You will not be able to see these codes again. Make sure you have saved them in a secure location.',
+            [
+                { text: 'Go Back', style: 'cancel' },
+                { text: 'Yes, I saved them', onPress: () => navigation.goBack() },
+            ]
+        );
     };
 
     if (loading) {
@@ -64,6 +90,58 @@ const TwoFASetupScreen = ({ navigation }: any) => {
         );
     }
 
+    // ─── Backup Codes Screen ─────────────────────────────────
+    if (step === 'backup-codes') {
+        return (
+            <SafeAreaView style={styles.container}>
+                <ScrollView contentContainerStyle={styles.content}>
+                    <MaterialCommunityIcons
+                        name="shield-check"
+                        size={64}
+                        color={Colors.success}
+                        style={styles.successIcon}
+                    />
+                    <Text variant="headlineMedium" style={styles.title}>2FA Enabled!</Text>
+                    <Text style={styles.instruction}>
+                        Save these backup codes in a secure location. Each code can only be used once if you lose access to your authenticator app.
+                    </Text>
+
+                    <Surface style={styles.codesContainer} elevation={2}>
+                        <View style={styles.codesGrid}>
+                            {backupCodes.map((code, index) => (
+                                <View key={index} style={styles.codeItem}>
+                                    <Text style={styles.codeNumber}>{index + 1}.</Text>
+                                    <Text style={styles.codeText} selectable>{code}</Text>
+                                </View>
+                            ))}
+                        </View>
+                        <IconButton
+                            icon="content-copy"
+                            onPress={handleCopyBackupCodes}
+                            iconColor={Colors.primary}
+                            style={styles.copyButton}
+                        />
+                    </Surface>
+
+                    <View style={styles.warningBox}>
+                        <MaterialCommunityIcons name="alert" size={20} color={Colors.warning} />
+                        <Text style={styles.warningText}>
+                            These codes will NOT be shown again. Store them safely.
+                        </Text>
+                    </View>
+
+                    <GradientButton
+                        title="I've Saved My Codes"
+                        onPress={handleDone}
+                        style={styles.button}
+                        icon="check-circle"
+                    />
+                </ScrollView>
+            </SafeAreaView>
+        );
+    }
+
+    // ─── Setup Screen ────────────────────────────────────────
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView contentContainerStyle={styles.content}>
@@ -82,9 +160,9 @@ const TwoFASetupScreen = ({ navigation }: any) => {
                 </Surface>
 
                 <View style={styles.secretContainer}>
-                    <Text style={styles.secretLabel}>Manual Entry Secret:</Text>
+                    <Text style={styles.secretLabel}>Manual Entry:</Text>
                     <Text style={styles.secretText} selectable>{secret}</Text>
-                    <IconButton icon="content-copy" onPress={handleCopySecret} />
+                    <IconButton icon="content-copy" onPress={handleCopySecret} size={18} />
                 </View>
 
                 <Text style={styles.instruction}>
@@ -127,6 +205,10 @@ const styles = StyleSheet.create({
     content: {
         padding: 24,
     },
+    successIcon: {
+        alignSelf: 'center',
+        marginBottom: 8,
+    },
     title: {
         fontWeight: 'bold',
         marginBottom: 24,
@@ -134,10 +216,10 @@ const styles = StyleSheet.create({
         color: Colors.text,
     },
     instruction: {
-        fontSize: 16,
+        fontSize: 15,
         marginBottom: 16,
         color: Colors.textSecondary,
-        lineHeight: 24,
+        lineHeight: 22,
     },
     qrContainer: {
         padding: 24,
@@ -152,7 +234,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 32,
+        marginBottom: 24,
         backgroundColor: Colors.surface,
         padding: 12,
         borderRadius: 8,
@@ -160,9 +242,12 @@ const styles = StyleSheet.create({
     secretLabel: {
         fontWeight: 'bold',
         marginRight: 8,
+        fontSize: 13,
     },
     secretText: {
         fontFamily: 'monospace',
+        fontSize: 13,
+        flex: 1,
     },
     input: {
         marginBottom: 24,
@@ -170,6 +255,53 @@ const styles = StyleSheet.create({
     },
     button: {
         marginTop: 8,
+    },
+    codesContainer: {
+        padding: 16,
+        borderRadius: 12,
+        backgroundColor: Colors.surface,
+        marginBottom: 16,
+    },
+    codesGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    codeItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: '50%',
+        paddingVertical: 6,
+    },
+    codeNumber: {
+        color: Colors.textSecondary,
+        fontSize: 13,
+        width: 24,
+    },
+    codeText: {
+        fontFamily: 'monospace',
+        fontSize: 15,
+        fontWeight: '600',
+        color: Colors.text,
+        letterSpacing: 1,
+    },
+    copyButton: {
+        alignSelf: 'center',
+        marginTop: 4,
+    },
+    warningBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF3E0',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 24,
+    },
+    warningText: {
+        color: '#E65100',
+        fontSize: 13,
+        marginLeft: 8,
+        flex: 1,
+        lineHeight: 18,
     },
 });
 

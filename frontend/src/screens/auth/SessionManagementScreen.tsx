@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, FlatList } from 'react-native';
+import { View, StyleSheet, Alert, FlatList, TouchableOpacity } from 'react-native';
 import { Text, Card, IconButton, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
@@ -15,11 +15,10 @@ interface Session {
     browser: string;
     createdAt: string;
     lastActiveAt?: string;
-    isCurrent?: boolean; // We might need to logic this out or backend sends it
 }
 
 const SessionManagementScreen = ({ navigation }: any) => {
-    const { accessToken } = useAuthStore();
+    const { accessToken, logoutAllDevices } = useAuthStore();
     const [sessions, setSessions] = useState<Session[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -41,7 +40,7 @@ const SessionManagementScreen = ({ navigation }: any) => {
     const handleRevoke = async (sessionId: string) => {
         Alert.alert(
             'Revoke Session',
-            'Are you sure you want to revoke this session? The device will be logged out.',
+            'Are you sure? The device will be logged out.',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -60,6 +59,35 @@ const SessionManagementScreen = ({ navigation }: any) => {
         );
     };
 
+    const handleLogoutAll = () => {
+        Alert.alert(
+            'Logout All Devices',
+            'This will sign you out from ALL devices including this one. You will need to login again.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Logout All',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await logoutAllDevices();
+                        } catch (error: any) {
+                            Alert.alert('Error', error.message || 'Failed to logout all devices');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const formatDate = (dateStr: string) => {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString(undefined, {
+            month: 'short', day: 'numeric', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        });
+    };
+
     const renderItem = ({ item }: { item: Session }) => {
         const iconName = item.deviceType === 'mobile' ? 'cellphone' : 'monitor';
 
@@ -71,11 +99,14 @@ const SessionManagementScreen = ({ navigation }: any) => {
                     </View>
                     <View style={styles.infoContainer}>
                         <Text style={styles.deviceName}>{item.deviceOs} - {item.browser}</Text>
-                        <Text style={styles.ipAddress}>IP: {item.ipAddress}</Text>
-                        <Text style={styles.date}>Created: {new Date(item.createdAt).toLocaleDateString()}</Text>
+                        <Text style={styles.ipAddress}>IP: {item.ipAddress || 'Unknown'}</Text>
+                        {item.lastActiveAt && (
+                            <Text style={styles.date}>Last active: {formatDate(item.lastActiveAt)}</Text>
+                        )}
+                        <Text style={styles.date}>Created: {formatDate(item.createdAt)}</Text>
                     </View>
                     <IconButton
-                        icon="delete"
+                        icon="close-circle"
                         iconColor={Colors.error}
                         onPress={() => handleRevoke(item.id)}
                     />
@@ -95,14 +126,28 @@ const SessionManagementScreen = ({ navigation }: any) => {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <Text variant="headlineSmall" style={styles.title}>Active Sessions</Text>
+                <View style={styles.headerRow}>
+                    <Text variant="headlineSmall" style={styles.title}>Active Sessions</Text>
+                    <Text style={styles.countBadge}>{sessions.length}</Text>
+                </View>
+                {sessions.length > 1 && (
+                    <TouchableOpacity style={styles.logoutAllButton} onPress={handleLogoutAll}>
+                        <MaterialCommunityIcons name="logout" size={18} color={Colors.error} />
+                        <Text style={styles.logoutAllText}>Logout All Devices</Text>
+                    </TouchableOpacity>
+                )}
             </View>
             <FlatList
                 data={sessions}
                 renderItem={renderItem}
                 keyExtractor={item => item.id}
                 contentContainerStyle={styles.listContent}
-                ListEmptyComponent={<Text style={styles.emptyText}>No active sessions found.</Text>}
+                ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                        <MaterialCommunityIcons name="devices" size={48} color={Colors.grey} />
+                        <Text style={styles.emptyText}>No active sessions found.</Text>
+                    </View>
+                }
             />
         </SafeAreaView>
     );
@@ -123,9 +168,40 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: Colors.border,
     },
+    headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     title: {
         fontWeight: 'bold',
         color: Colors.text,
+    },
+    countBadge: {
+        marginLeft: 8,
+        backgroundColor: Colors.primary,
+        color: Colors.textLight,
+        fontSize: 13,
+        fontWeight: '700',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 12,
+        overflow: 'hidden',
+    },
+    logoutAllButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 12,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        backgroundColor: '#FFEBEE',
+        borderRadius: 8,
+        alignSelf: 'flex-start',
+    },
+    logoutAllText: {
+        color: Colors.error,
+        fontSize: 14,
+        fontWeight: '600',
+        marginLeft: 6,
     },
     listContent: {
         padding: 16,
@@ -133,6 +209,7 @@ const styles = StyleSheet.create({
     card: {
         marginBottom: 12,
         backgroundColor: Colors.surface,
+        borderRadius: 12,
     },
     cardContent: {
         flexDirection: 'row',
@@ -146,23 +223,29 @@ const styles = StyleSheet.create({
     },
     deviceName: {
         fontWeight: 'bold',
-        fontSize: 16,
+        fontSize: 15,
         color: Colors.text,
     },
     ipAddress: {
         color: Colors.textSecondary,
-        fontSize: 14,
+        fontSize: 13,
+        marginTop: 2,
     },
     date: {
         color: Colors.textSecondary,
         fontSize: 12,
-        marginTop: 4,
+        marginTop: 2,
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        marginTop: 48,
     },
     emptyText: {
         textAlign: 'center',
-        marginTop: 32,
+        marginTop: 12,
         color: Colors.textSecondary,
-    }
+        fontSize: 15,
+    },
 });
 
 export default SessionManagementScreen;

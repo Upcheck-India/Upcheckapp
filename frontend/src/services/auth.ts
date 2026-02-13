@@ -1,78 +1,158 @@
 import { Config } from '../constants/Config';
 
-const API_BASE_URL = Config.API_BASE_URL; // e.g. http://localhost:3000
+const API_BASE_URL = Config.API_BASE_URL;
 
+// ─── Helper: Parse API response ──────────────────────────────────
+async function handleResponse<T = any>(response: Response, fallbackMsg: string): Promise<T> {
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.message || fallbackMsg);
+    }
+    return data as T;
+}
+
+function authHeader(token: string) {
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+    };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ─── Auth Service ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
 export const AuthService = {
+
+    // ─── Google Login ────────────────────────────────────────────
     async googleLogin(token: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/google/login`, { // Backend endpoint updated to /google/login
+        const response = await fetch(`${API_BASE_URL}/auth/google`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token }),
         });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Google login failed');
-        return data; // { user, access_token, refresh_token (cookie set), requires2fa, temp_token }
+        return handleResponse(response, 'Google login failed');
     },
 
-    async refreshToken() {
-        // credential: 'include' is crucial for sending cookies
+    // ─── Email/Password Register ─────────────────────────────────
+    async register(email: string, password: string, fullName: string, phoneNumber?: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, fullName, phoneNumber }),
+        });
+        return handleResponse(response, 'Registration failed');
+    },
+
+    // ─── Email/Password Login ────────────────────────────────────
+    async login(emailOrPhone: string, password: string, rememberMe = false) {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ emailOrPhone, password, rememberMe }),
+        });
+        return handleResponse(response, 'Login failed');
+    },
+
+    // ─── Phone OTP ───────────────────────────────────────────────
+    async sendOtp(phoneNumber: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/otp/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phoneNumber }),
+        });
+        return handleResponse(response, 'Failed to send OTP');
+    },
+
+    async verifyOtp(phoneNumber: string, otp: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/otp/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phoneNumber, otp }),
+        });
+        return handleResponse(response, 'OTP verification failed');
+    },
+
+    // ─── Token Refresh ───────────────────────────────────────────
+    async refreshToken(refreshToken?: string) {
         const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-            method: 'POST', // or GET? Backend is POST
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
+            body: JSON.stringify({ refreshToken }),
         });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Refresh failed');
-        return data; // { access_token }
+        return handleResponse(response, 'Token refresh failed');
     },
 
-    async logout() {
+    // ─── Logout ──────────────────────────────────────────────────
+    async logout(refreshToken?: string) {
         await fetch(`${API_BASE_URL}/auth/logout`, {
             method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
+            body: JSON.stringify({ refreshToken }),
         });
     },
 
-    async getMe(token: string) {
+    async logoutAll(accessToken: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/logout-all`, {
+            method: 'POST',
+            headers: authHeader(accessToken),
+        });
+        return handleResponse(response, 'Failed to logout all devices');
+    },
+
+    // ─── Get Current User ────────────────────────────────────────
+    async getMe(accessToken: string) {
         const response = await fetch(`${API_BASE_URL}/auth/me`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
+            headers: authHeader(accessToken),
         });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Failed to fetch user');
-        return data;
+        return handleResponse(response, 'Failed to fetch user');
     },
 
-    // 2FA
-    async setup2FA(token: string) {
+    // ─── Email Verification ──────────────────────────────────────
+    async resendVerificationEmail(email: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/verify-email/resend`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+        });
+        return handleResponse(response, 'Failed to resend verification email');
+    },
+
+    // ─── 2FA ─────────────────────────────────────────────────────
+    async setup2FA(accessToken: string) {
         const response = await fetch(`${API_BASE_URL}/auth/2fa/setup`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
+            headers: authHeader(accessToken),
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Failed to setup 2FA');
-        return data; // { secret, otpAuthUrl }
+        return handleResponse(response, 'Failed to setup 2FA');
     },
 
-    async enable2FA(token: string, code: string) {
+    async enable2FA(accessToken: string, code: string) {
         const response = await fetch(`${API_BASE_URL}/auth/2fa/enable`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ token: code }), // Body expects { token: code }
+            headers: authHeader(accessToken),
+            body: JSON.stringify({ token: code }),
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Failed to enable 2FA');
-        return data;
+        return handleResponse(response, 'Failed to enable 2FA');
+    },
+
+    async disable2FA(accessToken: string, code: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/2fa/disable`, {
+            method: 'POST',
+            headers: authHeader(accessToken),
+            body: JSON.stringify({ token: code }),
+        });
+        return handleResponse(response, 'Failed to disable 2FA');
+    },
+
+    async regenerateBackupCodes(accessToken: string, code: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/2fa/backup-codes/regenerate`, {
+            method: 'POST',
+            headers: authHeader(accessToken),
+            body: JSON.stringify({ token: code }),
+        });
+        return handleResponse(response, 'Failed to regenerate backup codes');
     },
 
     async login2FA(tempToken: string, code: string) {
@@ -81,21 +161,17 @@ export const AuthService = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tempToken, token: code }),
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || '2FA Login failed');
-        return data; // { user, access_token, refresh_token }
+        return handleResponse(response, '2FA login failed');
     },
 
-    // Password Management
+    // ─── Password Management ─────────────────────────────────────
     async forgotPassword(email: string) {
         const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email }),
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Failed to request password reset');
-        return data;
+        return handleResponse(response, 'Failed to request password reset');
     },
 
     async resetPassword(token: string, refreshToken: string, newPassword: string) {
@@ -104,42 +180,41 @@ export const AuthService = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token, refreshToken, newPassword }),
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Password reset failed');
-        return data;
+        return handleResponse(response, 'Password reset failed');
     },
 
-    async changePassword(token: string, oldPassword: string, newPassword: string) {
+    async changePassword(accessToken: string, oldPassword: string, newPassword: string) {
         const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
+            headers: authHeader(accessToken),
             body: JSON.stringify({ oldPassword, newPassword }),
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Change password failed');
-        return data;
+        return handleResponse(response, 'Failed to change password');
     },
 
-    // Session Management
-    async getSessions(token: string) {
+    // ─── Session Management ──────────────────────────────────────
+    async getSessions(accessToken: string) {
         const response = await fetch(`${API_BASE_URL}/auth/sessions`, {
-            headers: { 'Authorization': `Bearer ${token}` },
+            headers: authHeader(accessToken),
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Failed to fetch sessions');
-        return data;
+        return handleResponse(response, 'Failed to fetch sessions');
     },
 
-    async revokeSession(token: string, sessionId: string) {
+    async revokeSession(accessToken: string, sessionId: string) {
         const response = await fetch(`${API_BASE_URL}/auth/sessions/${sessionId}`, {
             method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` },
+            headers: authHeader(accessToken),
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Failed to revoke session');
-        return data;
-    }
+        return handleResponse(response, 'Failed to revoke session');
+    },
+
+    // ─── Account Management ──────────────────────────────────────
+    async deleteAccount(accessToken: string, password?: string) {
+        const response = await fetch(`${API_BASE_URL}/auth/account`, {
+            method: 'DELETE',
+            headers: authHeader(accessToken),
+            body: JSON.stringify({ password }),
+        });
+        return handleResponse(response, 'Failed to delete account');
+    },
 };

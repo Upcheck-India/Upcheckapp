@@ -1,7 +1,18 @@
 import { Product } from '../services/mockProductService';
 
 export type RootStackParamList = {
+    // ─── Auth Screens ────────────────────────────────────────
     Login: undefined;
+    Register: undefined;
+    PhoneLogin: undefined;
+    TwoFALogin: { tempToken: string };
+    TwoFASetup: undefined;
+    ForgotPassword: undefined;
+    ResetPassword: { token?: string, refreshToken?: string };
+    ChangePassword: undefined;
+    SessionManagement: undefined;
+
+    // ─── Main App ────────────────────────────────────────────
     Main: undefined;
     MineralCalculator: undefined;
     ShrimpCalculator: undefined;
@@ -10,24 +21,21 @@ export type RootStackParamList = {
     Simulation: undefined;
     HarvestPlanning: undefined;
     ProductDetail: { product: Product };
-    // New Feature Routes
+
+    // ─── Calculators ─────────────────────────────────────────
     CalculatorsMenu: undefined;
     CultivationPerformance: undefined;
     FreeAmmonia: undefined;
     ProductDosage: undefined;
+
+    // ─── Data Entry ──────────────────────────────────────────
     DataEntryMenu: undefined;
     ChemicalEntry: undefined;
     PlanktonEntry: undefined;
     MicrobiologyEntry: undefined;
     MortalityEntry: undefined;
-    // Auth Routes
-    TwoFALogin: { tempToken: string };
-    TwoFASetup: undefined;
-    ForgotPassword: undefined;
-    ResetPassword: { token?: string, refreshToken?: string };
-    ChangePassword: undefined;
-    SessionManagement: undefined;
 
+    // ─── Disease ─────────────────────────────────────────────
     DiseaseLibrary: undefined;
     DiseaseDetail: { disease: any };
     DiseaseRecord: undefined;

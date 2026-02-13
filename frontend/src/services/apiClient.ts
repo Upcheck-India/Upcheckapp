@@ -3,57 +3,97 @@ import { useAuthStore } from '../store/authStore';
 
 const API_BASE_URL = Config.API_BASE_URL;
 
-export const getAuthHeaders = async () => {
-    // Use the Custom JWT from our Auth Store (Backend issued)
-    // We access the store state directly outside of React components
-    const token = useAuthStore.getState().accessToken;
+// ─── Token refresh lock to prevent concurrent refresh calls ──────
+let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
 
+async function getValidAccessToken(): Promise<string | null> {
+    const { accessToken, refreshAccessToken } = useAuthStore.getState();
+
+    if (accessToken) {
+        // Quick check: is the JWT likely expired? (decode exp without library)
+        try {
+            const payload = JSON.parse(atob(accessToken.split('.')[1]));
+            const expiresAt = payload.exp * 1000;
+            // Refresh if token expires within 60 seconds
+            if (expiresAt - Date.now() > 60_000) {
+                return accessToken;
+            }
+        } catch {
+            // If decode fails, use the token as-is and let the server decide
+            return accessToken;
+        }
+    }
+
+    // Token is expired or missing — attempt refresh
+    if (!isRefreshing) {
+        isRefreshing = true;
+        refreshPromise = refreshAccessToken().finally(() => {
+            isRefreshing = false;
+            refreshPromise = null;
+        });
+    }
+
+    return refreshPromise;
+}
+
+function getAuthHeaders(token: string | null) {
     return {
         'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     };
-};
+}
 
-export const apiClient = {
-    get: async (endpoint: string) => {
-        const headers = await getAuthHeaders();
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-            method: 'GET',
-            headers,
-        });
-        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-        return response.json();
-    },
+// ─── Request with automatic retry on 401 ─────────────────────────
+async function request(method: string, endpoint: string, body?: any): Promise<any> {
+    let token = await getValidAccessToken();
+    let response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method,
+        headers: getAuthHeaders(token),
+        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
 
-    post: async (endpoint: string, body: any) => {
-        const headers = await getAuthHeaders();
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(body),
-        });
-        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-        return response.json();
-    },
+    // If 401, try refreshing token once and retry
+    if (response.status === 401) {
+        const { refreshAccessToken } = useAuthStore.getState();
+        token = await refreshAccessToken();
 
-    patch: async (endpoint: string, body: any) => {
-        const headers = await getAuthHeaders();
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-            method: 'PATCH',
-            headers,
-            body: JSON.stringify(body),
-        });
-        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-        return response.json();
-    },
-
-    delete: async (endpoint: string) => {
-        const headers = await getAuthHeaders();
-        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-            method: 'DELETE',
-            headers,
-        });
-        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-        return response.json(); // Backend delete usually returns result or void, ensure JSON is returned
+        if (token) {
+            response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method,
+                headers: getAuthHeaders(token),
+                ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+            });
+        }
     }
+
+    // If still unauthorized after refresh, force logout
+    if (response.status === 401) {
+        const { logout } = useAuthStore.getState();
+        await logout();
+        throw new Error('Session expired. Please login again.');
+    }
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `API Error: ${response.status} ${response.statusText}`);
+    }
+
+    // Handle empty responses (204 No Content, etc.)
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+        return response.json();
+    }
+    return {};
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ─── API Client with auto token refresh ───────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+export const apiClient = {
+    get: (endpoint: string) => request('GET', endpoint),
+    post: (endpoint: string, body?: any) => request('POST', endpoint, body),
+    patch: (endpoint: string, body?: any) => request('PATCH', endpoint, body),
+    put: (endpoint: string, body?: any) => request('PUT', endpoint, body),
+    delete: (endpoint: string, body?: any) => request('DELETE', endpoint, body),
 };

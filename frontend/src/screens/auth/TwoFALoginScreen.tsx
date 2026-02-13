@@ -1,27 +1,35 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { GradientButton } from '../../components/GradientButton';
 import { useAuthStore } from '../../store/authStore';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-const TwoFALoginScreen = ({ route, navigation }: any) => {
-    const { tempToken } = route.params; // Passed from LoginScreen
+type Mode = 'totp' | 'backup';
+
+const TwoFALoginScreen = ({ route }: any) => {
+    const { tempToken } = route.params;
     const { loginWith2FA } = useAuthStore();
+    const [mode, setMode] = useState<Mode>('totp');
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleVerify = async () => {
-        if (!code || code.length !== 6) {
+        const trimmed = code.trim();
+        if (mode === 'totp' && (!trimmed || trimmed.length !== 6)) {
             Alert.alert('Invalid Code', 'Please enter a valid 6-digit code');
+            return;
+        }
+        if (mode === 'backup' && (!trimmed || trimmed.length < 6)) {
+            Alert.alert('Invalid Code', 'Please enter a valid backup code (e.g., ABCD-EF12)');
             return;
         }
 
         setLoading(true);
         try {
-            await loginWith2FA(tempToken, code);
-            // On success, store updates isAuthenticated, RootNavigator redirects to Main
+            await loginWith2FA(tempToken, trimmed);
         } catch (error: any) {
             Alert.alert('Verification Failed', error.message || 'Invalid code');
         } finally {
@@ -29,21 +37,43 @@ const TwoFALoginScreen = ({ route, navigation }: any) => {
         }
     };
 
+    const toggleMode = () => {
+        setCode('');
+        setMode(mode === 'totp' ? 'backup' : 'totp');
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.content}>
-                <Text variant="headlineMedium" style={styles.title}>Two-Factor Authentication</Text>
-                <Text style={styles.subtitle}>Enter the code from your authenticator app</Text>
+                <MaterialCommunityIcons
+                    name={mode === 'totp' ? 'shield-lock' : 'key-variant'}
+                    size={56}
+                    color={Colors.primary}
+                    style={styles.icon}
+                />
+
+                <Text variant="headlineMedium" style={styles.title}>
+                    Two-Factor Authentication
+                </Text>
+                <Text style={styles.subtitle}>
+                    {mode === 'totp'
+                        ? 'Enter the 6-digit code from your authenticator app'
+                        : 'Enter one of your backup codes'
+                    }
+                </Text>
 
                 <TextInput
-                    label="6-Digit Code"
+                    label={mode === 'totp' ? '6-Digit Code' : 'Backup Code'}
                     value={code}
                     onChangeText={setCode}
-                    keyboardType="number-pad"
-                    maxLength={6}
+                    keyboardType={mode === 'totp' ? 'number-pad' : 'default'}
+                    maxLength={mode === 'totp' ? 6 : 9}
+                    autoCapitalize={mode === 'backup' ? 'characters' : 'none'}
                     mode="outlined"
                     style={styles.input}
-                    left={<TextInput.Icon icon="shield-check" />}
+                    left={<TextInput.Icon icon={mode === 'totp' ? 'shield-check' : 'key'} />}
+                    outlineColor={Colors.border}
+                    activeOutlineColor={Colors.primary}
                 />
 
                 <GradientButton
@@ -51,8 +81,18 @@ const TwoFALoginScreen = ({ route, navigation }: any) => {
                     onPress={handleVerify}
                     loading={loading}
                     disabled={loading}
+                    icon="check-circle"
                     style={styles.button}
                 />
+
+                <TouchableOpacity onPress={toggleMode} style={styles.toggleRow}>
+                    <Text style={styles.toggleText}>
+                        {mode === 'totp'
+                            ? 'Use a backup code instead'
+                            : 'Use authenticator app instead'
+                        }
+                    </Text>
+                </TouchableOpacity>
             </View>
         </SafeAreaView>
     );
@@ -68,6 +108,10 @@ const styles = StyleSheet.create({
         padding: 24,
         justifyContent: 'center',
     },
+    icon: {
+        alignSelf: 'center',
+        marginBottom: 16,
+    },
     title: {
         fontWeight: 'bold',
         marginBottom: 8,
@@ -78,6 +122,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: 32,
         color: Colors.textSecondary,
+        lineHeight: 20,
     },
     input: {
         marginBottom: 24,
@@ -85,6 +130,16 @@ const styles = StyleSheet.create({
     },
     button: {
         marginTop: 8,
+    },
+    toggleRow: {
+        alignItems: 'center',
+        marginTop: 24,
+        paddingVertical: 8,
+    },
+    toggleText: {
+        color: Colors.primary,
+        fontSize: 14,
+        fontWeight: '600',
     },
 });
 
