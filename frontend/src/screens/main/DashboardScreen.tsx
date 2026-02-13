@@ -98,7 +98,7 @@ const DashboardScreen = () => {
             <Card.Title
                 title={item.name}
                 subtitle={`${item.area_hectares ? item.area_hectares + ' ha' : 'No area'} • ${item.address || 'No address'}`}
-                left={(props) => <Avatar.Icon {...props} icon="fish" style={{ backgroundColor: Colors.primary }} />}
+                left={(props) => <Avatar.Icon {...props} icon="home-variant" style={{ backgroundColor: Colors.primary }} />}
             />
         </AppCard>
     );
@@ -142,7 +142,7 @@ const DashboardScreen = () => {
                     <View style={styles.grid}>
                         <QuickActionCard
                             title="Water Quality"
-                            icon="water-check"
+                            icon="test-tube"
                             gradientColors={[Colors.gradientStart, Colors.gradientMiddle]}
                             onPress={() => navigation.navigate('MineralCalculator')}
                         />
@@ -154,19 +154,19 @@ const DashboardScreen = () => {
                         />
                         <QuickActionCard
                             title="Simulation"
-                            icon="waves"
+                            icon="chart-timeline-variant-shimmer"
                             gradientColors={[Colors.secondary, Colors.secondaryDark]}
                             onPress={() => navigation.navigate('Simulation')}
                         />
                         <QuickActionCard
                             title="Ponds"
-                            icon="fishbowl"
+                            icon="waves"
                             gradientColors={[Colors.gradientEnd, Colors.primaryDark]}
                             onPress={() => navigation.navigate('FarmManagement')}
                         />
                         <QuickActionCard
                             title="Alerts"
-                            icon="bell-ring"
+                            icon="bell-alert"
                             gradientColors={['#FF6B6B', '#D32F2F']}
                             onPress={() => navigation.navigate('Alerts')}
                         />
@@ -185,7 +185,7 @@ const DashboardScreen = () => {
                         </View>
                     ) : (
                         <EmptyState
-                            icon="fish"
+                            icon="tractor-variant"
                             title="No farms added yet"
                             subtitle='Tap "Add Farm" to create your first farm and start managing your aquaculture operations.'
                             actionLabel="Add Farm"
@@ -206,7 +206,7 @@ const DashboardScreen = () => {
                         style={styles.modalInput}
                         outlineColor={Colors.border}
                         activeOutlineColor={Colors.primary}
-                        left={<TextInput.Icon icon="barn" />}
+                        left={<TextInput.Icon icon="home-group" />}
                     />
                     <TextInput
                         label="Area (Hectares)"

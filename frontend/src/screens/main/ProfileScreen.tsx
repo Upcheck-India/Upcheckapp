@@ -190,9 +190,9 @@ const ProfileScreen = () => {
                     <Card style={styles.infoCard}>
                         <Card.Content>
                             <Text variant="titleSmall" style={styles.sectionLabel}>Security & Login</Text>
-                            <SecurityRow icon="lock-reset" title="Change Password" onPress={() => navigation.navigate('ChangePassword')} />
-                            <SecurityRow icon="shield-account" title="Two-Factor Authentication" onPress={() => navigation.navigate('TwoFASetup')} />
-                            <SecurityRow icon="devices" title="Active Sessions" onPress={() => navigation.navigate('SessionManagement')} />
+                            <SecurityRow icon="lock-outline" title="Change Password" onPress={() => navigation.navigate('ChangePassword')} />
+                            <SecurityRow icon="shield-lock-outline" title="Two-Factor Authentication" onPress={() => navigation.navigate('TwoFASetup')} />
+                            <SecurityRow icon="cellphone-link" title="Active Sessions" onPress={() => navigation.navigate('SessionManagement')} />
                         </Card.Content>
                     </Card>
 

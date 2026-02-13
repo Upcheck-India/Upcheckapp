@@ -37,19 +37,19 @@ const CalculatorsMenuScreen = ({ navigation }: any) => {
                 <View style={styles.grid}>
                     <MenuItem
                         title="Growth & FCR"
-                        icon="shrimp"
+                        icon="chart-line"
                         color={Colors.primary}
                         onPress={() => navigation.navigate('CultivationPerformance')}
                     />
                     <MenuItem
                         title="Free Ammonia"
-                        icon="water-alert-outline"
+                        icon="flask-round-bottom"
                         color={Colors.error}
                         onPress={() => navigation.navigate('FreeAmmonia')}
                     />
                     <MenuItem
                         title="Dosage"
-                        icon="bowl-mix-outline"
+                        icon="eyedropper"
                         color={Colors.accent}
                         onPress={() => navigation.navigate('ProductDosage')}
                     />

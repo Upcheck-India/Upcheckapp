@@ -71,7 +71,7 @@ const FarmManagementScreen = () => {
             <Card.Title
                 title={item.name}
                 subtitle={item.address || 'No address'}
-                left={(props) => <Avatar.Icon {...props} icon="barn" style={{ backgroundColor: Colors.secondaryContainer }} color={Colors.primary} />}
+                left={(props) => <Avatar.Icon {...props} icon="home-group" style={{ backgroundColor: Colors.secondaryContainer }} color={Colors.primary} />}
             />
             <Card.Content>
                 <View style={styles.farmMeta}>
@@ -94,7 +94,7 @@ const FarmManagementScreen = () => {
                     contentContainerStyle={styles.listContent}
                     ListEmptyComponent={
                         <EmptyState
-                            icon="barn"
+                            icon="tractor-variant"
                             title="No farms yet"
                             subtitle="Create your first farm to start managing ponds and crops."
                             actionLabel="Add Farm"
@@ -115,7 +115,7 @@ const FarmManagementScreen = () => {
             <Portal>
                 <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={styles.modalContent}>
                     <Text variant="titleMedium" style={styles.modalTitle}>Add New Farm</Text>
-                    <TextInput label="Farm Name *" value={name} onChangeText={setName} mode="outlined" style={styles.input} left={<TextInput.Icon icon="barn" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
+                    <TextInput label="Farm Name *" value={name} onChangeText={setName} mode="outlined" style={styles.input} left={<TextInput.Icon icon="home-group" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
                     <TextInput label="Address" value={address} onChangeText={setAddress} mode="outlined" style={styles.input} left={<TextInput.Icon icon="map-marker" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
                     <TextInput label="Area (Hectares)" value={area} onChangeText={setArea} mode="outlined" keyboardType="numeric" style={styles.input} left={<TextInput.Icon icon="ruler-square" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
 

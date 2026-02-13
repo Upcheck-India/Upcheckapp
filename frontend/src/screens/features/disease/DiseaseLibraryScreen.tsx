@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Card, Text, Searchbar, Chip } from 'react-native-paper';
+import { Avatar, Card, Text, Searchbar, Chip } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
 import { Layout } from '../../../constants/Layout';
 import { DiseaseService } from '../../../services/diseaseService';
+import { EmptyState } from '../../../components/EmptyState';
 
 const DiseaseLibraryScreen = ({ navigation }: any) => {
     const [diseases, setDiseases] = useState<any[]>([]);
@@ -57,6 +58,13 @@ const DiseaseLibraryScreen = ({ navigation }: any) => {
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
+                {filteredDiseases.length === 0 && (
+                    <EmptyState
+                        icon="magnify"
+                        title="No diseases found"
+                        subtitle={searchQuery ? `No results for "${searchQuery}".` : 'Disease library is empty.'}
+                    />
+                )}
                 {filteredDiseases.map((disease) => (
                     <Card
                         key={disease.id}
@@ -66,17 +74,25 @@ const DiseaseLibraryScreen = ({ navigation }: any) => {
                         <Card.Title
                             title={disease.name}
                             subtitle={disease.scientificName}
-                            right={(props) => (
+                            left={(props) => (
+                                <Avatar.Icon
+                                    {...props}
+                                    icon="virus-outline"
+                                    style={{ backgroundColor: getSeverityColor(disease.severityLevel) + '20' }}
+                                    color={getSeverityColor(disease.severityLevel)}
+                                />
+                            )}
+                            right={() => (
                                 <Chip
-                                    style={{ backgroundColor: getSeverityColor(disease.severityLevel), marginRight: 16 }}
-                                    textStyle={{ color: 'white' }}
+                                    style={{ backgroundColor: getSeverityColor(disease.severityLevel), marginRight: Layout.spacing.lg }}
+                                    textStyle={{ color: Colors.textLight, fontSize: 11, fontWeight: '600' }}
                                 >
                                     {disease.severityLevel?.toUpperCase()}
                                 </Chip>
                             )}
                         />
                         <Card.Content>
-                            <Text numberOfLines={2} variant="bodyMedium">
+                            <Text numberOfLines={2} variant="bodyMedium" style={{ color: Colors.textSecondary }}>
                                 {disease.symptoms?.join(', ')}
                             </Text>
                         </Card.Content>
@@ -91,9 +107,9 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: Colors.background },
     header: { padding: Layout.padding, paddingBottom: 0 },
     content: { padding: Layout.padding },
-    title: { textAlign: 'center', marginBottom: 16, color: Colors.primaryDark, fontWeight: 'bold' },
-    searchBar: { marginBottom: 8, backgroundColor: Colors.surface },
-    card: { marginBottom: 12, backgroundColor: Colors.surface },
+    title: { textAlign: 'center', marginBottom: Layout.spacing.lg, color: Colors.primaryDark, fontWeight: 'bold' },
+    searchBar: { marginBottom: Layout.spacing.sm, backgroundColor: Colors.surfaceVariant, elevation: 0, borderRadius: Layout.radius.md },
+    card: { marginBottom: Layout.spacing.md, backgroundColor: Colors.cardBackground, borderRadius: Layout.radius.lg },
 });
 
 export default DiseaseLibraryScreen;

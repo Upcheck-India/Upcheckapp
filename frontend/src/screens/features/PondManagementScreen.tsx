@@ -83,7 +83,7 @@ const PondManagementScreen = () => {
         <AppCard style={styles.card}>
             <Card.Title
                 title={item.name}
-                left={(props) => <Avatar.Icon {...props} icon="fishbowl-outline" style={{ backgroundColor: Colors.secondaryContainer }} color={Colors.primary} />}
+                left={(props) => <Avatar.Icon {...props} icon="waves" style={{ backgroundColor: Colors.secondaryContainer }} color={Colors.primary} />}
                 right={() => (
                     <Chip
                         style={[styles.statusChip, { backgroundColor: getStatusColor(item.status) + '20' }]}
@@ -118,7 +118,7 @@ const PondManagementScreen = () => {
                     contentContainerStyle={styles.listContent}
                     ListEmptyComponent={
                         <EmptyState
-                            icon="fishbowl-outline"
+                            icon="waves"
                             title="No ponds yet"
                             subtitle="Add your first pond to start tracking water quality and crops."
                             actionLabel="Add Pond"
@@ -139,7 +139,7 @@ const PondManagementScreen = () => {
             <Portal>
                 <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={styles.modalContent}>
                     <Text variant="titleMedium" style={styles.modalTitle}>Add New Pond</Text>
-                    <TextInput label="Pond Name *" value={name} onChangeText={setName} mode="outlined" style={styles.input} left={<TextInput.Icon icon="fishbowl-outline" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
+                    <TextInput label="Pond Name *" value={name} onChangeText={setName} mode="outlined" style={styles.input} left={<TextInput.Icon icon="waves" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
                     <TextInput label="Area (m²)" value={area} onChangeText={setArea} mode="outlined" keyboardType="numeric" style={styles.input} left={<TextInput.Icon icon="ruler-square" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
                     <TextInput label="Depth (m)" value={depth} onChangeText={setDepth} mode="outlined" keyboardType="numeric" style={styles.input} left={<TextInput.Icon icon="arrow-collapse-down" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
 

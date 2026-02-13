@@ -28,10 +28,10 @@ const BottomTabNavigator = () => {
                 tabBarIcon: ({ focused, color }) => {
                     let iconName = 'help-circle-outline';
 
-                    if (route.name === 'News') iconName = focused ? 'newspaper-variant' : 'newspaper-variant-outline';
+                    if (route.name === 'News') iconName = focused ? 'newspaper' : 'newspaper-variant-outline';
                     else if (route.name === 'eShop') iconName = focused ? 'store' : 'store-outline';
-                    else if (route.name === 'Pond') iconName = focused ? 'fishbowl' : 'fishbowl-outline';
-                    else if (route.name === 'Alerts') iconName = focused ? 'bell-ring' : 'bell-ring-outline';
+                    else if (route.name === 'Pond') iconName = focused ? 'waves' : 'wave';
+                    else if (route.name === 'Alerts') iconName = focused ? 'bell' : 'bell-outline';
                     else if (route.name === 'Profile') iconName = focused ? 'account-circle' : 'account-circle-outline';
 
                     return <TabIcon name={iconName} focused={focused} color={color} />;
