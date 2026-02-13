@@ -35,7 +35,10 @@
       "apiBaseUrl": "https://upcheckapp-c612.onrender.com/api",
       "eas": {
         "projectId": "f3274022-ae8a-4be6-9085-23f935542a4c"
-      }
+      },
+      "googleClientIdWeb": "557249592391-104epoeebi8ji9bkeacme4kt6urj4ef7.apps.googleusercontent.com",
+      "googleClientIdIos": "557249592391-smcje08fcv71hh1vjhmshhvnklpmd7lo.apps.googleusercontent.com",
+      "googleClientIdAndroid": "557249592391-omumak2q0qnor86nj47m93ln4fsn8uv3.apps.googleusercontent.com"
     },
     "owner": "kiransekar"
   }

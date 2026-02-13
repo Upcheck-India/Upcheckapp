@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import Constants from 'expo-constants';
 import { View, StyleSheet, Alert, Platform } from 'react-native';
 import { Text, ActivityIndicator, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
+import { Prompt } from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import { AuthService } from '../../services/auth';
 import { useAuthStore } from '../../store/authStore';
@@ -14,9 +16,10 @@ WebBrowser.maybeCompleteAuthSession();
 
 const LoginScreen = ({ navigation }: any) => {
     const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-        clientId: 'YOUR_GOOGLE_WEB_CLIENT_ID', // Replace with actual Web Client ID
-        iosClientId: 'YOUR_GOOGLE_IOS_CLIENT_ID', // Replace with actual iOS Client ID
-        androidClientId: 'YOUR_GOOGLE_ANDROID_CLIENT_ID', // Replace with actual Android Client ID
+        clientId: Constants.expoConfig?.extra?.googleClientIdWeb,
+        iosClientId: Constants.expoConfig?.extra?.googleClientIdIos,
+        androidClientId: Constants.expoConfig?.extra?.googleClientIdAndroid,
+        prompt: Prompt.SelectAccount,
     });
 
     const { isLoading: loading } = useAuthStore();
