@@ -12,7 +12,7 @@ const COLUMN_WIDTH = (width - Layout.padding * 3) / 2;
 
 const MenuItem = ({ title, icon, color, onPress }: any) => (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-        <AppCard style={styles.card} elevation={4}>
+        <AppCard style={styles.card}>
             <View style={[styles.iconContainer, { backgroundColor: color + '20' }]}>
                 <MaterialCommunityIcons name={icon} size={32} color={color} />
             </View>
