@@ -3,6 +3,7 @@ import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, TouchableOpaci
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { AuthService } from '../../services/auth';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
@@ -83,22 +84,32 @@ const PhoneLoginScreen = ({ navigation }: any) => {
         }
     };
 
-    const handleVerifyOtp = async () => {
-        if (!otp || otp.length !== 6) {
+    const handleVerifyOtp = async (code?: string) => {
+        const otpCode = code || otp;
+        if (!otpCode || otpCode.length !== 6) {
             Alert.alert('Error', 'Please enter the 6-digit verification code');
             return;
         }
 
         setVerifying(true);
         try {
-            const data = await phoneLogin(phoneNumber.trim(), otp);
+            const data = await phoneLogin(phoneNumber.trim(), otpCode);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             if (data?.requires2fa) {
                 navigation.navigate('TwoFALogin', { tempToken: data.temp_token });
             }
         } catch (error: any) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Verification Failed', error.message || 'Invalid OTP');
         } finally {
             setVerifying(false);
+        }
+    };
+
+    const handleOtpChange = (text: string) => {
+        setOtp(text);
+        if (text.length === 6) {
+            handleVerifyOtp(text);
         }
     };
 
@@ -158,7 +169,7 @@ const PhoneLoginScreen = ({ navigation }: any) => {
                             <TextInput
                                 label="Verification Code"
                                 value={otp}
-                                onChangeText={setOtp}
+                                onChangeText={handleOtpChange}
                                 keyboardType="number-pad"
                                 maxLength={6}
                                 mode="outlined"

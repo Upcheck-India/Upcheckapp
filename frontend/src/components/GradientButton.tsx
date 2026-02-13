@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, TouchableOpacity, Text, ViewStyle, TextStyle, ActivityIndicator, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Colors } from '../constants/Colors';
 
 interface GradientButtonProps {
@@ -29,9 +30,14 @@ export const GradientButton: React.FC<GradientButtonProps> = ({
         ? [Colors.gradientStart, Colors.gradientEnd] as const
         : [Colors.secondary, Colors.secondaryDark] as const;
 
+    const handlePress = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        onPress();
+    };
+
     return (
         <TouchableOpacity
-            onPress={onPress}
+            onPress={handlePress}
             disabled={disabled || loading}
             style={[styles.container, style, disabled && styles.disabled]}
             activeOpacity={0.8}

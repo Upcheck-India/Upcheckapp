@@ -1,11 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
-import { Text, TextInput, ProgressBar } from 'react-native-paper';
+import { Text, TextInput, ProgressBar, HelperText } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '../../store/authStore';
 import { Colors } from '../../constants/Colors';
 import { GradientButton } from '../../components/GradientButton';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 // ─── Password Strength Calculator ────────────────────────────────
 function getPasswordStrength(password: string): { score: number; label: string; color: string } {
@@ -22,6 +24,15 @@ function getPasswordStrength(password: string): { score: number; label: string; 
     return { score: score / 6, label: 'Strong', color: Colors.success };
 }
 
+// ─── Password Requirements ───────────────────────────────────────
+const PASSWORD_RULES = [
+    { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
+    { label: 'Uppercase letter', test: (p: string) => /[A-Z]/.test(p) },
+    { label: 'Lowercase letter', test: (p: string) => /[a-z]/.test(p) },
+    { label: 'Number', test: (p: string) => /\d/.test(p) },
+    { label: 'Special character (@$!%*?&)', test: (p: string) => /[@$!%*?&]/.test(p) },
+];
+
 const RegisterScreen = ({ navigation }: any) => {
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
@@ -30,6 +41,8 @@ const RegisterScreen = ({ navigation }: any) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [secureTextEntry, setSecureTextEntry] = useState(true);
     const [loading, setLoading] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
+    const [serverError, setServerError] = useState('');
     const emailRef = useRef<any>(null);
     const phoneRef = useRef<any>(null);
     const passwordRef = useRef<any>(null);
@@ -38,43 +51,44 @@ const RegisterScreen = ({ navigation }: any) => {
     const { register } = useAuthStore();
 
     const passwordStrength = getPasswordStrength(password);
+    const allRulesPassed = PASSWORD_RULES.every(r => r.test(password));
+    const confirmMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+
+    // ─── Inline Validation ────────────────────────────────────
+    const nameError = submitted && !fullName.trim() ? 'Full name is required' : '';
+    const emailError = submitted && !email.trim() ? 'Email is required' : '';
+    const passwordError = submitted && !password ? 'Password is required' : '';
+    const confirmError = submitted && !confirmPassword ? 'Please confirm your password' : '';
 
     const handleRegister = async () => {
-        if (!fullName.trim()) {
-            Alert.alert('Error', 'Please enter your full name');
+        setSubmitted(true);
+        setServerError('');
+
+        if (!fullName.trim() || !email.trim() || !password || !confirmPassword) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             return;
         }
-        if (!email.trim()) {
-            Alert.alert('Error', 'Please enter your email address');
-            return;
-        }
-        if (!password) {
-            Alert.alert('Error', 'Please enter a password');
-            return;
-        }
-        if (password.length < 8) {
-            Alert.alert('Error', 'Password must be at least 8 characters');
-            return;
-        }
-        if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/.test(password)) {
-            Alert.alert('Error', 'Password must contain uppercase, lowercase, number, and special character');
+        if (!allRulesPassed) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             return;
         }
         if (password !== confirmPassword) {
-            Alert.alert('Error', 'Passwords do not match');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             return;
         }
 
         setLoading(true);
         try {
             await register(email.trim(), password, fullName.trim(), phoneNumber.trim() || undefined);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert(
                 'Registration Successful',
                 'Please check your email for a verification link before signing in.',
                 [{ text: 'OK', onPress: () => navigation.navigate('Login') }]
             );
         } catch (error: any) {
-            Alert.alert('Registration Failed', error.message || 'Could not create account');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            setServerError(error.message || 'Could not create account');
         } finally {
             setLoading(false);
         }
@@ -100,6 +114,14 @@ const RegisterScreen = ({ navigation }: any) => {
                     </LinearGradient>
 
                     <View style={styles.content}>
+                        {/* Server Error Banner */}
+                        {serverError ? (
+                            <View style={styles.errorBanner}>
+                                <MaterialCommunityIcons name="alert-circle" size={18} color={Colors.error} />
+                                <Text style={styles.errorBannerText}>{serverError}</Text>
+                            </View>
+                        ) : null}
+
                         <TextInput
                             label="Full Name *"
                             value={fullName}
@@ -109,9 +131,11 @@ const RegisterScreen = ({ navigation }: any) => {
                             mode="outlined"
                             style={styles.input}
                             left={<TextInput.Icon icon="account" />}
-                            outlineColor={Colors.border}
-                            activeOutlineColor={Colors.primary}
+                            outlineColor={nameError ? Colors.error : Colors.border}
+                            activeOutlineColor={nameError ? Colors.error : Colors.primary}
+                            error={!!nameError}
                         />
+                        {nameError ? <HelperText type="error" style={styles.helperText}>{nameError}</HelperText> : null}
 
                         <TextInput
                             ref={emailRef}
@@ -125,9 +149,11 @@ const RegisterScreen = ({ navigation }: any) => {
                             mode="outlined"
                             style={styles.input}
                             left={<TextInput.Icon icon="email" />}
-                            outlineColor={Colors.border}
-                            activeOutlineColor={Colors.primary}
+                            outlineColor={emailError ? Colors.error : Colors.border}
+                            activeOutlineColor={emailError ? Colors.error : Colors.primary}
+                            error={!!emailError}
                         />
+                        {emailError ? <HelperText type="error" style={styles.helperText}>{emailError}</HelperText> : null}
 
                         <TextInput
                             ref={phoneRef}
@@ -161,21 +187,41 @@ const RegisterScreen = ({ navigation }: any) => {
                                     onPress={() => setSecureTextEntry(!secureTextEntry)}
                                 />
                             }
-                            outlineColor={Colors.border}
-                            activeOutlineColor={Colors.primary}
+                            outlineColor={passwordError ? Colors.error : Colors.border}
+                            activeOutlineColor={passwordError ? Colors.error : Colors.primary}
+                            error={!!passwordError}
                         />
 
-                        {/* Password Strength Indicator */}
+                        {/* Password Strength Bar + Requirements Checklist */}
                         {password.length > 0 && (
-                            <View style={styles.strengthContainer}>
-                                <ProgressBar
-                                    progress={passwordStrength.score}
-                                    color={passwordStrength.color}
-                                    style={styles.strengthBar}
-                                />
-                                <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
-                                    {passwordStrength.label}
-                                </Text>
+                            <View style={styles.passwordFeedback}>
+                                <View style={styles.strengthContainer}>
+                                    <ProgressBar
+                                        progress={passwordStrength.score}
+                                        color={passwordStrength.color}
+                                        style={styles.strengthBar}
+                                    />
+                                    <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
+                                        {passwordStrength.label}
+                                    </Text>
+                                </View>
+                                <View style={styles.rulesContainer}>
+                                    {PASSWORD_RULES.map((rule, i) => {
+                                        const passed = rule.test(password);
+                                        return (
+                                            <View key={i} style={styles.ruleRow}>
+                                                <MaterialCommunityIcons
+                                                    name={passed ? 'check-circle' : 'circle-outline'}
+                                                    size={14}
+                                                    color={passed ? Colors.success : Colors.grey}
+                                                />
+                                                <Text style={[styles.ruleText, passed && styles.ruleTextPassed]}>
+                                                    {rule.label}
+                                                </Text>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
                             </View>
                         )}
 
@@ -190,9 +236,15 @@ const RegisterScreen = ({ navigation }: any) => {
                             mode="outlined"
                             style={styles.input}
                             left={<TextInput.Icon icon="lock-check" />}
-                            outlineColor={Colors.border}
-                            activeOutlineColor={Colors.primary}
+                            outlineColor={confirmMismatch || confirmError ? Colors.error : Colors.border}
+                            activeOutlineColor={confirmMismatch || confirmError ? Colors.error : Colors.primary}
+                            error={!!confirmMismatch || !!confirmError}
                         />
+                        {confirmMismatch ? (
+                            <HelperText type="error" style={styles.helperText}>Passwords do not match</HelperText>
+                        ) : confirmError ? (
+                            <HelperText type="error" style={styles.helperText}>{confirmError}</HelperText>
+                        ) : null}
 
                         <GradientButton
                             title="Create Account"
@@ -244,15 +296,36 @@ const styles = StyleSheet.create({
         padding: 24,
         paddingTop: 24,
     },
+    errorBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFEBEE',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    errorBannerText: {
+        color: Colors.error,
+        fontSize: 14,
+        marginLeft: 8,
+        flex: 1,
+    },
     input: {
-        marginBottom: 12,
+        marginBottom: 2,
         backgroundColor: Colors.surface,
+    },
+    helperText: {
+        marginBottom: 4,
+        marginTop: -2,
+    },
+    passwordFeedback: {
+        marginBottom: 8,
+        marginTop: 4,
     },
     strengthContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
-        marginTop: -4,
+        marginBottom: 8,
     },
     strengthBar: {
         flex: 1,
@@ -265,8 +338,26 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '700',
     },
+    rulesContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    ruleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: '50%',
+        paddingVertical: 2,
+    },
+    ruleText: {
+        fontSize: 11,
+        color: Colors.grey,
+        marginLeft: 4,
+    },
+    ruleTextPassed: {
+        color: Colors.textSecondary,
+    },
     registerButton: {
-        marginTop: 8,
+        marginTop: 12,
         marginBottom: 16,
     },
     loginRow: {

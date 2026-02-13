@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Alert, TouchableOpacity } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/Colors';
 import { GradientButton } from '../../components/GradientButton';
 import { useAuthStore } from '../../store/authStore';
@@ -16,8 +17,8 @@ const TwoFALoginScreen = ({ route }: any) => {
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const handleVerify = async () => {
-        const trimmed = code.trim();
+    const handleVerify = async (overrideCode?: string) => {
+        const trimmed = (overrideCode || code).trim();
         if (mode === 'totp' && (!trimmed || trimmed.length !== 6)) {
             Alert.alert('Invalid Code', 'Please enter a valid 6-digit code');
             return;
@@ -30,10 +31,19 @@ const TwoFALoginScreen = ({ route }: any) => {
         setLoading(true);
         try {
             await loginWith2FA(tempToken, trimmed);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (error: any) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Verification Failed', error.message || 'Invalid code');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleCodeChange = (text: string) => {
+        setCode(text);
+        if (mode === 'totp' && text.length === 6) {
+            handleVerify(text);
         }
     };
 
@@ -65,7 +75,7 @@ const TwoFALoginScreen = ({ route }: any) => {
                 <TextInput
                     label={mode === 'totp' ? '6-Digit Code' : 'Backup Code'}
                     value={code}
-                    onChangeText={setCode}
+                    onChangeText={handleCodeChange}
                     keyboardType={mode === 'totp' ? 'number-pad' : 'default'}
                     maxLength={mode === 'totp' ? 6 : 9}
                     autoCapitalize={mode === 'backup' ? 'characters' : 'none'}

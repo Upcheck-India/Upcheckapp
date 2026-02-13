@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Constants from 'expo-constants';
 import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Text, TextInput, Checkbox, Divider } from 'react-native-paper';
+import { Text, TextInput, Checkbox, Divider, HelperText } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
+import * as Haptics from 'expo-haptics';
 import { Prompt } from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import { useAuthStore } from '../../store/authStore';
@@ -30,9 +31,15 @@ const LoginScreen = ({ navigation }: any) => {
     const [secureTextEntry, setSecureTextEntry] = useState(true);
     const [emailLoading, setEmailLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
+    const [serverError, setServerError] = useState('');
     const passwordRef = useRef<any>(null);
 
     const { isLoading: loading, googleLogin, emailLogin, error, clearError } = useAuthStore();
+
+    // ─── Inline Validation ────────────────────────────────────
+    const emailError = submitted && !emailOrPhone.trim() ? 'Email or phone is required' : '';
+    const passwordError = submitted && !password ? 'Password is required' : '';
 
     // ─── Google Response Handler ─────────────────────────────
     useEffect(() => {
@@ -48,6 +55,11 @@ const LoginScreen = ({ navigation }: any) => {
     useEffect(() => {
         clearError();
     }, []);
+
+    // Clear server error when user types
+    useEffect(() => {
+        if (serverError) setServerError('');
+    }, [emailOrPhone, password]);
 
     const handle2FARedirect = (data: any) => {
         if (data?.requires2fa) {
@@ -68,12 +80,10 @@ const LoginScreen = ({ navigation }: any) => {
     };
 
     const handleEmailLogin = async () => {
-        if (!emailOrPhone.trim()) {
-            Alert.alert('Error', 'Please enter your email or phone number');
-            return;
-        }
-        if (!password) {
-            Alert.alert('Error', 'Please enter your password');
+        setSubmitted(true);
+        setServerError('');
+        if (!emailOrPhone.trim() || !password) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             return;
         }
 
@@ -83,6 +93,7 @@ const LoginScreen = ({ navigation }: any) => {
             handle2FARedirect(data);
         } catch (error: any) {
             const msg = error.message || 'Invalid credentials';
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             if (msg.toLowerCase().includes('verify') || msg.toLowerCase().includes('email not verified')) {
                 Alert.alert('Email Not Verified', msg, [
                     { text: 'Cancel', style: 'cancel' },
@@ -97,11 +108,16 @@ const LoginScreen = ({ navigation }: any) => {
                     },
                 ]);
             } else {
-                Alert.alert('Login Failed', msg);
+                setServerError(msg);
             }
         } finally {
             setEmailLoading(false);
         }
+    };
+
+    const handleSocialPress = (action: () => void) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        action();
     };
 
     return (
@@ -125,6 +141,14 @@ const LoginScreen = ({ navigation }: any) => {
                     </LinearGradient>
 
                     <View style={styles.content}>
+                        {/* Server Error Banner */}
+                        {serverError ? (
+                            <View style={styles.errorBanner}>
+                                <MaterialCommunityIcons name="alert-circle" size={18} color={Colors.error} />
+                                <Text style={styles.errorBannerText}>{serverError}</Text>
+                            </View>
+                        ) : null}
+
                         {/* Email/Password Form */}
                         <TextInput
                             label="Email or Phone"
@@ -137,9 +161,11 @@ const LoginScreen = ({ navigation }: any) => {
                             mode="outlined"
                             style={styles.input}
                             left={<TextInput.Icon icon="account" />}
-                            outlineColor={Colors.border}
-                            activeOutlineColor={Colors.primary}
+                            outlineColor={emailError ? Colors.error : Colors.border}
+                            activeOutlineColor={emailError ? Colors.error : Colors.primary}
+                            error={!!emailError}
                         />
+                        {emailError ? <HelperText type="error" style={styles.helperText}>{emailError}</HelperText> : null}
 
                         <TextInput
                             ref={passwordRef}
@@ -158,9 +184,11 @@ const LoginScreen = ({ navigation }: any) => {
                                     onPress={() => setSecureTextEntry(!secureTextEntry)}
                                 />
                             }
-                            outlineColor={Colors.border}
-                            activeOutlineColor={Colors.primary}
+                            outlineColor={passwordError ? Colors.error : Colors.border}
+                            activeOutlineColor={passwordError ? Colors.error : Colors.primary}
+                            error={!!passwordError}
                         />
+                        {passwordError ? <HelperText type="error" style={styles.helperText}>{passwordError}</HelperText> : null}
 
                         {/* Remember Me + Forgot Password Row */}
                         <View style={styles.optionsRow}>
@@ -201,7 +229,7 @@ const LoginScreen = ({ navigation }: any) => {
                         {/* Social Login Buttons */}
                         <TouchableOpacity
                             style={[styles.socialButton, styles.googleButton, (!request || loading || googleLoading) && styles.socialButtonDisabled]}
-                            onPress={() => promptAsync()}
+                            onPress={() => handleSocialPress(() => promptAsync())}
                             disabled={!request || loading || googleLoading}
                         >
                             {googleLoading ? (
@@ -215,8 +243,8 @@ const LoginScreen = ({ navigation }: any) => {
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.socialButton, styles.phoneButton]}
-                            onPress={() => navigation.navigate('PhoneLogin')}
+                            style={[styles.socialButton, styles.phoneButton, (loading || googleLoading) && styles.socialButtonDisabled]}
+                            onPress={() => handleSocialPress(() => navigation.navigate('PhoneLogin'))}
                             disabled={loading || googleLoading}
                         >
                             <MaterialCommunityIcons name="cellphone" size={22} color={Colors.primary} />
@@ -265,14 +293,33 @@ const styles = StyleSheet.create({
         padding: 24,
         paddingTop: 28,
     },
+    errorBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFEBEE',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    errorBannerText: {
+        color: Colors.error,
+        fontSize: 14,
+        marginLeft: 8,
+        flex: 1,
+    },
     input: {
-        marginBottom: 12,
+        marginBottom: 2,
         backgroundColor: Colors.surface,
+    },
+    helperText: {
+        marginBottom: 4,
+        marginTop: -2,
     },
     optionsRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        marginTop: 8,
         marginBottom: 20,
     },
     rememberRow: {
