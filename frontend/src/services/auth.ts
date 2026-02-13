@@ -4,11 +4,29 @@ const API_BASE_URL = Config.API_BASE_URL;
 
 // ─── Helper: Parse API response ──────────────────────────────────
 async function handleResponse<T = any>(response: Response, fallbackMsg: string): Promise<T> {
-    const data = await response.json();
+    let data: any;
+    try {
+        data = await response.json();
+    } catch {
+        if (!response.ok) throw new Error(fallbackMsg);
+        return {} as T;
+    }
     if (!response.ok) {
         throw new Error(data.message || fallbackMsg);
     }
     return data as T;
+}
+
+// ─── Helper: Wrap fetch with network error handling ─────────────
+async function safeFetch(url: string, options?: RequestInit): Promise<Response> {
+    try {
+        return await fetch(url, options);
+    } catch (error: any) {
+        if (error.message === 'Network request failed' || error.name === 'TypeError') {
+            throw new Error('No internet connection. Please check your network and try again.');
+        }
+        throw error;
+    }
 }
 
 function authHeader(token: string) {
@@ -25,7 +43,7 @@ export const AuthService = {
 
     // ─── Google Login ────────────────────────────────────────────
     async googleLogin(token: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/google`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/google`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token }),
@@ -35,7 +53,7 @@ export const AuthService = {
 
     // ─── Email/Password Register ─────────────────────────────────
     async register(email: string, password: string, fullName: string, phoneNumber?: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password, fullName, phoneNumber }),
@@ -45,7 +63,7 @@ export const AuthService = {
 
     // ─── Email/Password Login ────────────────────────────────────
     async login(emailOrPhone: string, password: string, rememberMe = false) {
-        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ emailOrPhone, password, rememberMe }),
@@ -55,7 +73,7 @@ export const AuthService = {
 
     // ─── Phone OTP ───────────────────────────────────────────────
     async sendOtp(phoneNumber: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/otp/send`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/otp/send`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phoneNumber }),
@@ -64,7 +82,7 @@ export const AuthService = {
     },
 
     async verifyOtp(phoneNumber: string, otp: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/otp/verify`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/otp/verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phoneNumber, otp }),
@@ -74,7 +92,7 @@ export const AuthService = {
 
     // ─── Token Refresh ───────────────────────────────────────────
     async refreshToken(refreshToken?: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -85,7 +103,7 @@ export const AuthService = {
 
     // ─── Logout ──────────────────────────────────────────────────
     async logout(refreshToken?: string) {
-        await fetch(`${API_BASE_URL}/auth/logout`, {
+        await safeFetch(`${API_BASE_URL}/auth/logout`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -94,7 +112,7 @@ export const AuthService = {
     },
 
     async logoutAll(accessToken: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/logout-all`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/logout-all`, {
             method: 'POST',
             headers: authHeader(accessToken),
         });
@@ -103,7 +121,7 @@ export const AuthService = {
 
     // ─── Get Current User ────────────────────────────────────────
     async getMe(accessToken: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/me`, {
             headers: authHeader(accessToken),
         });
         return handleResponse(response, 'Failed to fetch user');
@@ -111,7 +129,7 @@ export const AuthService = {
 
     // ─── Email Verification ──────────────────────────────────────
     async resendVerificationEmail(email: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/verify-email/resend`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/verify-email/resend`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email }),
@@ -121,7 +139,7 @@ export const AuthService = {
 
     // ─── 2FA ─────────────────────────────────────────────────────
     async setup2FA(accessToken: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/2fa/setup`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/2fa/setup`, {
             method: 'POST',
             headers: authHeader(accessToken),
         });
@@ -129,7 +147,7 @@ export const AuthService = {
     },
 
     async enable2FA(accessToken: string, code: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/2fa/enable`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/2fa/enable`, {
             method: 'POST',
             headers: authHeader(accessToken),
             body: JSON.stringify({ token: code }),
@@ -138,7 +156,7 @@ export const AuthService = {
     },
 
     async disable2FA(accessToken: string, code: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/2fa/disable`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/2fa/disable`, {
             method: 'POST',
             headers: authHeader(accessToken),
             body: JSON.stringify({ token: code }),
@@ -147,7 +165,7 @@ export const AuthService = {
     },
 
     async regenerateBackupCodes(accessToken: string, code: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/2fa/backup-codes/regenerate`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/2fa/backup-codes/regenerate`, {
             method: 'POST',
             headers: authHeader(accessToken),
             body: JSON.stringify({ token: code }),
@@ -156,7 +174,7 @@ export const AuthService = {
     },
 
     async login2FA(tempToken: string, code: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/2fa/login`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/2fa/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tempToken, token: code }),
@@ -166,7 +184,7 @@ export const AuthService = {
 
     // ─── Password Management ─────────────────────────────────────
     async forgotPassword(email: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/forgot-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email }),
@@ -175,7 +193,7 @@ export const AuthService = {
     },
 
     async resetPassword(token: string, refreshToken: string, newPassword: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/reset-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token, refreshToken, newPassword }),
@@ -184,7 +202,7 @@ export const AuthService = {
     },
 
     async changePassword(accessToken: string, oldPassword: string, newPassword: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/change-password`, {
             method: 'POST',
             headers: authHeader(accessToken),
             body: JSON.stringify({ oldPassword, newPassword }),
@@ -194,14 +212,14 @@ export const AuthService = {
 
     // ─── Session Management ──────────────────────────────────────
     async getSessions(accessToken: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/sessions`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/sessions`, {
             headers: authHeader(accessToken),
         });
         return handleResponse(response, 'Failed to fetch sessions');
     },
 
     async revokeSession(accessToken: string, sessionId: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/sessions/${sessionId}`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/sessions/${sessionId}`, {
             method: 'DELETE',
             headers: authHeader(accessToken),
         });
@@ -210,7 +228,7 @@ export const AuthService = {
 
     // ─── Account Management ──────────────────────────────────────
     async deleteAccount(accessToken: string, password?: string) {
-        const response = await fetch(`${API_BASE_URL}/auth/account`, {
+        const response = await safeFetch(`${API_BASE_URL}/auth/account`, {
             method: 'DELETE',
             headers: authHeader(accessToken),
             body: JSON.stringify({ password }),

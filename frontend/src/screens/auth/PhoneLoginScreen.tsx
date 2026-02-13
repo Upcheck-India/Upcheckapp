@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +21,13 @@ const PhoneLoginScreen = ({ navigation }: any) => {
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const { phoneLogin } = useAuthStore();
+
+    // Clean up timer on unmount
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, []);
 
     const startCountdown = () => {
         setCountdown(60);

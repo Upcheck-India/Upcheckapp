@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Clipboard } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Text, TextInput, Surface, ActivityIndicator, IconButton } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
@@ -61,13 +62,13 @@ const TwoFASetupScreen = ({ navigation }: any) => {
         }
     };
 
-    const handleCopySecret = () => {
-        Clipboard.setString(secret);
+    const handleCopySecret = async () => {
+        await Clipboard.setStringAsync(secret);
         Alert.alert('Copied', 'Secret key copied to clipboard');
     };
 
-    const handleCopyBackupCodes = () => {
-        Clipboard.setString(backupCodes.join('\n'));
+    const handleCopyBackupCodes = async () => {
+        await Clipboard.setStringAsync(backupCodes.join('\n'));
         Alert.alert('Copied', 'Backup codes copied to clipboard');
     };
 

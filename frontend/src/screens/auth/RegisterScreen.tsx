@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import { Text, TextInput, ProgressBar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,6 +30,10 @@ const RegisterScreen = ({ navigation }: any) => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [secureTextEntry, setSecureTextEntry] = useState(true);
     const [loading, setLoading] = useState(false);
+    const emailRef = useRef<any>(null);
+    const phoneRef = useRef<any>(null);
+    const passwordRef = useRef<any>(null);
+    const confirmRef = useRef<any>(null);
 
     const { register } = useAuthStore();
 
@@ -100,6 +104,8 @@ const RegisterScreen = ({ navigation }: any) => {
                             label="Full Name *"
                             value={fullName}
                             onChangeText={setFullName}
+                            returnKeyType="next"
+                            onSubmitEditing={() => emailRef.current?.focus()}
                             mode="outlined"
                             style={styles.input}
                             left={<TextInput.Icon icon="account" />}
@@ -108,11 +114,14 @@ const RegisterScreen = ({ navigation }: any) => {
                         />
 
                         <TextInput
+                            ref={emailRef}
                             label="Email Address *"
                             value={email}
                             onChangeText={setEmail}
                             keyboardType="email-address"
                             autoCapitalize="none"
+                            returnKeyType="next"
+                            onSubmitEditing={() => phoneRef.current?.focus()}
                             mode="outlined"
                             style={styles.input}
                             left={<TextInput.Icon icon="email" />}
@@ -121,10 +130,13 @@ const RegisterScreen = ({ navigation }: any) => {
                         />
 
                         <TextInput
+                            ref={phoneRef}
                             label="Phone Number (optional)"
                             value={phoneNumber}
                             onChangeText={setPhoneNumber}
                             keyboardType="phone-pad"
+                            returnKeyType="next"
+                            onSubmitEditing={() => passwordRef.current?.focus()}
                             mode="outlined"
                             style={styles.input}
                             left={<TextInput.Icon icon="phone" />}
@@ -133,10 +145,13 @@ const RegisterScreen = ({ navigation }: any) => {
                         />
 
                         <TextInput
+                            ref={passwordRef}
                             label="Password *"
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry={secureTextEntry}
+                            returnKeyType="next"
+                            onSubmitEditing={() => confirmRef.current?.focus()}
                             mode="outlined"
                             style={styles.input}
                             left={<TextInput.Icon icon="lock" />}
@@ -165,10 +180,13 @@ const RegisterScreen = ({ navigation }: any) => {
                         )}
 
                         <TextInput
+                            ref={confirmRef}
                             label="Confirm Password *"
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
                             secureTextEntry={secureTextEntry}
+                            returnKeyType="done"
+                            onSubmitEditing={handleRegister}
                             mode="outlined"
                             style={styles.input}
                             left={<TextInput.Icon icon="lock-check" />}

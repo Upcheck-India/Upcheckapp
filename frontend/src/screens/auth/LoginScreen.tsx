@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Constants from 'expo-constants';
-import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Text, TextInput, Checkbox, Divider } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,6 +29,8 @@ const LoginScreen = ({ navigation }: any) => {
     const [rememberMe, setRememberMe] = useState(false);
     const [secureTextEntry, setSecureTextEntry] = useState(true);
     const [emailLoading, setEmailLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
+    const passwordRef = useRef<any>(null);
 
     const { isLoading: loading, googleLogin, emailLogin, error, clearError } = useAuthStore();
 
@@ -54,11 +56,14 @@ const LoginScreen = ({ navigation }: any) => {
     };
 
     const handleGoogleLogin = async (token: string) => {
+        setGoogleLoading(true);
         try {
             const data = await googleLogin(token);
             handle2FARedirect(data);
         } catch (error: any) {
             Alert.alert('Login Failed', error.message || 'Could not verify user');
+        } finally {
+            setGoogleLoading(false);
         }
     };
 
@@ -77,7 +82,23 @@ const LoginScreen = ({ navigation }: any) => {
             const data = await emailLogin(emailOrPhone.trim(), password, rememberMe);
             handle2FARedirect(data);
         } catch (error: any) {
-            Alert.alert('Login Failed', error.message || 'Invalid credentials');
+            const msg = error.message || 'Invalid credentials';
+            if (msg.toLowerCase().includes('verify') || msg.toLowerCase().includes('email not verified')) {
+                Alert.alert('Email Not Verified', msg, [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Resend Email',
+                        onPress: () => {
+                            const { AuthService } = require('../../services/auth');
+                            AuthService.resendVerificationEmail(emailOrPhone.trim())
+                                .then(() => Alert.alert('Sent', 'Verification email resent. Please check your inbox.'))
+                                .catch(() => Alert.alert('Error', 'Failed to resend verification email'));
+                        },
+                    },
+                ]);
+            } else {
+                Alert.alert('Login Failed', msg);
+            }
         } finally {
             setEmailLoading(false);
         }
@@ -111,6 +132,8 @@ const LoginScreen = ({ navigation }: any) => {
                             onChangeText={setEmailOrPhone}
                             keyboardType="email-address"
                             autoCapitalize="none"
+                            returnKeyType="next"
+                            onSubmitEditing={() => passwordRef.current?.focus()}
                             mode="outlined"
                             style={styles.input}
                             left={<TextInput.Icon icon="account" />}
@@ -119,10 +142,13 @@ const LoginScreen = ({ navigation }: any) => {
                         />
 
                         <TextInput
+                            ref={passwordRef}
                             label="Password"
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry={secureTextEntry}
+                            returnKeyType="done"
+                            onSubmitEditing={handleEmailLogin}
                             mode="outlined"
                             style={styles.input}
                             left={<TextInput.Icon icon="lock" />}
@@ -174,17 +200,24 @@ const LoginScreen = ({ navigation }: any) => {
 
                         {/* Social Login Buttons */}
                         <TouchableOpacity
-                            style={[styles.socialButton, styles.googleButton]}
+                            style={[styles.socialButton, styles.googleButton, (!request || loading || googleLoading) && styles.socialButtonDisabled]}
                             onPress={() => promptAsync()}
-                            disabled={!request || loading}
+                            disabled={!request || loading || googleLoading}
                         >
-                            <MaterialCommunityIcons name="google" size={22} color="#DB4437" />
-                            <Text style={styles.socialButtonText}>Continue with Google</Text>
+                            {googleLoading ? (
+                                <ActivityIndicator size={20} color="#DB4437" />
+                            ) : (
+                                <MaterialCommunityIcons name="google" size={22} color="#DB4437" />
+                            )}
+                            <Text style={styles.socialButtonText}>
+                                {googleLoading ? 'Signing in...' : 'Continue with Google'}
+                            </Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             style={[styles.socialButton, styles.phoneButton]}
                             onPress={() => navigation.navigate('PhoneLogin')}
+                            disabled={loading || googleLoading}
                         >
                             <MaterialCommunityIcons name="cellphone" size={22} color={Colors.primary} />
                             <Text style={styles.socialButtonText}>Continue with Phone</Text>
@@ -290,6 +323,9 @@ const styles = StyleSheet.create({
     phoneButton: {
         borderColor: Colors.primary,
         backgroundColor: '#FFF',
+    },
+    socialButtonDisabled: {
+        opacity: 0.5,
     },
     socialButtonText: {
         marginLeft: 10,
