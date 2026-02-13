@@ -38,9 +38,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# generated native folders
+# generated native folders (CNG / Prebuild)
+frontend/android
 frontend/ios
-# frontend/android
 
 # Backend
 backend/dist/
