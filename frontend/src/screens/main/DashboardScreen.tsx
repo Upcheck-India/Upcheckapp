@@ -1,16 +1,19 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { Text, Avatar, Button, Card, Portal, Modal, TextInput, ActivityIndicator } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { FarmService } from '../../services/farmService';
 import { Farm } from '../../types/database';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { AppCard } from '../../components/AppCard';
+import { EmptyState } from '../../components/EmptyState';
+import { GradientButton } from '../../components/GradientButton';
 
 const DashboardScreen = () => {
     const navigation = useNavigation<any>();
@@ -102,7 +105,12 @@ const DashboardScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl refreshing={loading} onRefresh={loadFarms} colors={[Colors.primary]} tintColor={Colors.primary} />
+                }
+            >
                 {/* Gradient Header */}
                 <LinearGradient
                     colors={[Colors.gradientStart, Colors.gradientEnd]}
@@ -169,35 +177,36 @@ const DashboardScreen = () => {
                         <Button onPress={() => setAddFarmVisible(true)} textColor={Colors.primary}>Add Farm</Button>
                     </View>
 
-                    {loading ? (
+                    {loading && farms.length === 0 ? (
                         <ActivityIndicator style={{ marginTop: 20 }} color={Colors.primary} />
                     ) : farms.length > 0 ? (
                         <View>
                             {farms.map((farm) => renderFarmItem({ item: farm }))}
                         </View>
                     ) : (
-                        <AppCard>
-                            <Card.Content style={styles.emptyCard}>
-                                <Avatar.Icon size={64} icon="fish" style={{ backgroundColor: Colors.secondaryContainer }} color={Colors.primary} />
-                                <Text style={styles.emptyText}>No farms added yet</Text>
-                                <Text style={styles.emptySubtext}>Tap "Add Farm" to create your first farm</Text>
-                            </Card.Content>
-                        </AppCard>
+                        <EmptyState
+                            icon="fish"
+                            title="No farms added yet"
+                            subtitle='Tap "Add Farm" to create your first farm and start managing your aquaculture operations.'
+                            actionLabel="Add Farm"
+                            onAction={() => setAddFarmVisible(true)}
+                        />
                     )}
                 </View>
             </ScrollView>
 
             <Portal>
                 <Modal visible={addFarmVisible} onDismiss={() => setAddFarmVisible(false)} contentContainerStyle={styles.modalContent}>
-                    <Text variant="titleMedium" style={{ marginBottom: 16, color: Colors.text }}>Add New Farm</Text>
+                    <Text variant="titleMedium" style={styles.modalTitle}>Add New Farm</Text>
                     <TextInput
                         label="Farm Name *"
                         value={newFarmName}
                         onChangeText={setNewFarmName}
                         mode="outlined"
-                        style={{ marginBottom: 12 }}
+                        style={styles.modalInput}
                         outlineColor={Colors.border}
                         activeOutlineColor={Colors.primary}
+                        left={<TextInput.Icon icon="barn" />}
                     />
                     <TextInput
                         label="Area (Hectares)"
@@ -205,37 +214,33 @@ const DashboardScreen = () => {
                         onChangeText={setNewFarmArea}
                         mode="outlined"
                         keyboardType="numeric"
-                        style={{ marginBottom: 12 }}
+                        style={styles.modalInput}
                         outlineColor={Colors.border}
                         activeOutlineColor={Colors.primary}
+                        left={<TextInput.Icon icon="ruler-square" />}
                     />
                     <TextInput
                         label="Address"
                         value={newFarmAddress}
                         onChangeText={setNewFarmAddress}
                         mode="outlined"
-                        style={{ marginBottom: 12 }}
+                        style={styles.modalInput}
                         outlineColor={Colors.border}
                         activeOutlineColor={Colors.primary}
+                        left={<TextInput.Icon icon="map-marker" />}
                     />
-                    <TouchableOpacity onPress={handleAddFarm} disabled={creating}>
-                        <LinearGradient
-                            colors={[Colors.gradientStart, Colors.gradientEnd]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.gradientButton}
-                        >
-                            {creating ? (
-                                <ActivityIndicator color="white" size="small" />
-                            ) : (
-                                <Text style={styles.gradientButtonText}>Create Farm</Text>
-                            )}
-                        </LinearGradient>
-                    </TouchableOpacity>
+                    <GradientButton
+                        title="Create Farm"
+                        onPress={handleAddFarm}
+                        loading={creating}
+                        disabled={creating}
+                        icon="plus-circle"
+                        style={{ marginTop: Layout.spacing.sm }}
+                    />
                     <Button
                         mode="text"
                         onPress={() => setAddFarmVisible(false)}
-                        style={{ marginTop: 8 }}
+                        style={{ marginTop: Layout.spacing.sm }}
                         disabled={creating}
                     >
                         Cancel
@@ -243,21 +248,22 @@ const DashboardScreen = () => {
                 </Modal>
 
                 <Modal visible={languageMenuVisible} onDismiss={() => setLanguageMenuVisible(false)} contentContainerStyle={styles.modalContent}>
-                    <Text variant="titleMedium" style={{ marginBottom: 16 }}>Select Language</Text>
-                    {languages.map((lang) => (
-                        <TouchableOpacity
-                            key={lang.code}
-                            onPress={() => changeLanguage(lang.code)}
-                            style={[
-                                styles.langOption,
-                                i18n.language === lang.code && styles.langOptionActive
-                            ]}
-                        >
-                            <Text variant="bodyLarge" style={{ fontWeight: i18n.language === lang.code ? 'bold' : 'normal', color: i18n.language === lang.code ? Colors.textLight : Colors.text }}>
-                                {lang.label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
+                    <Text variant="titleMedium" style={styles.modalTitle}>Select Language</Text>
+                    {languages.map((lang) => {
+                        const isActive = i18n.language === lang.code;
+                        return (
+                            <TouchableOpacity
+                                key={lang.code}
+                                onPress={() => changeLanguage(lang.code)}
+                                style={[styles.langOption, isActive && styles.langOptionActive]}
+                            >
+                                {isActive && <MaterialCommunityIcons name="check" size={20} color={Colors.textLight} style={{ marginRight: 8 }} />}
+                                <Text variant="bodyLarge" style={{ fontWeight: isActive ? 'bold' : 'normal', color: isActive ? Colors.textLight : Colors.text }}>
+                                    {lang.label}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
                 </Modal>
             </Portal>
         </SafeAreaView>
@@ -265,14 +271,23 @@ const DashboardScreen = () => {
 };
 
 const QuickActionCard = ({ title, icon, gradientColors, onPress }: any) => (
-    <TouchableOpacity style={styles.actionCardWrapper} onPress={onPress} activeOpacity={0.8}>
+    <TouchableOpacity
+        style={styles.actionCardWrapper}
+        onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onPress();
+        }}
+        activeOpacity={0.8}
+    >
         <LinearGradient
             colors={gradientColors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.actionCard}
         >
-            <Avatar.Icon size={40} icon={icon} style={{ backgroundColor: 'rgba(255,255,255,0.25)' }} color="white" />
+            <View style={styles.actionIconCircle}>
+                <MaterialCommunityIcons name={icon} size={24} color="white" />
+            </View>
             <Text style={styles.actionText}>{title}</Text>
         </LinearGradient>
     </TouchableOpacity>
@@ -282,11 +297,11 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: Colors.background },
     scrollContent: { flexGrow: 1 },
     header: {
-        padding: Layout.padding,
-        paddingTop: 20,
-        paddingBottom: 30,
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
+        paddingHorizontal: Layout.spacing.lg,
+        paddingTop: Layout.spacing.xl,
+        paddingBottom: Layout.spacing.xxl,
+        borderBottomLeftRadius: Layout.headerBorderRadius,
+        borderBottomRightRadius: Layout.headerBorderRadius,
     },
     headerRow: {
         flexDirection: 'row',
@@ -294,55 +309,71 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     greeting: { fontWeight: 'bold', color: Colors.textLight },
-    subGreeting: { color: 'rgba(255,255,255,0.9)', marginTop: 4 },
+    subGreeting: { color: 'rgba(255,255,255,0.85)', marginTop: Layout.spacing.xs },
     langButton: {
-        backgroundColor: 'rgba(255,255,255,0.25)',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: Layout.spacing.md,
+        paddingVertical: Layout.spacing.sm,
+        borderRadius: Layout.radius.full,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.3)',
     },
-    langButtonText: { color: Colors.textLight, fontWeight: '600' },
-    content: { padding: Layout.padding },
-    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    langButtonText: { color: Colors.textLight, fontWeight: '600', fontSize: 13 },
+    content: { padding: Layout.spacing.lg },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: Layout.spacing.md,
+    },
     sectionTitle: { color: Colors.text, fontWeight: '600' },
     grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-    actionCardWrapper: { width: '48%', marginBottom: 16 },
+    actionCardWrapper: { width: '48%', marginBottom: Layout.spacing.lg },
     actionCard: {
-        padding: 16,
-        borderRadius: 16,
+        padding: Layout.spacing.lg,
+        borderRadius: Layout.radius.lg,
         alignItems: 'center',
         justifyContent: 'center',
-        elevation: 4,
-        shadowColor: Colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
+        minHeight: 100,
+        ...Layout.shadow.lg,
     },
-    actionText: { color: 'white', fontWeight: 'bold', marginTop: 8 },
-    modalContent: { backgroundColor: 'white', padding: 20, margin: 20, borderRadius: 16 },
-    farmCard: { marginBottom: 12 },
-    emptyCard: { alignItems: 'center', paddingVertical: 32 },
-    emptyText: { marginTop: 16, fontSize: 16, color: Colors.text },
-    emptySubtext: { marginTop: 4, color: Colors.textSecondary },
-    gradientButton: {
-        paddingVertical: 14,
-        borderRadius: 12,
+    actionIconCircle: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255,255,255,0.25)',
         alignItems: 'center',
+        justifyContent: 'center',
     },
-    gradientButtonText: {
-        color: Colors.textLight,
-        fontSize: 16,
+    actionText: { color: Colors.textLight, fontWeight: 'bold', marginTop: Layout.spacing.sm, fontSize: 13 },
+    modalContent: {
+        backgroundColor: Colors.modalBackground,
+        padding: Layout.modalPadding,
+        margin: Layout.modalMargin,
+        borderRadius: Layout.modalRadius,
+    },
+    modalTitle: {
+        marginBottom: Layout.spacing.lg,
+        color: Colors.text,
         fontWeight: '600',
     },
+    modalInput: {
+        marginBottom: Layout.spacing.md,
+        backgroundColor: Colors.surface,
+    },
+    farmCard: { marginBottom: Layout.spacing.md },
     langOption: {
-        padding: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: Layout.spacing.lg,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.lightGrey,
+        borderBottomColor: Colors.divider,
     },
     langOptionActive: {
         backgroundColor: Colors.primary,
-        borderRadius: 8,
+        borderRadius: Layout.radius.sm,
         marginVertical: 2,
+        borderBottomWidth: 0,
     },
 });
 

@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, FlatList } from 'react-native';
 import { Text, Searchbar, Chip, Card, ActivityIndicator, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { MockProductService, Product } from '../../services/mockProductService';
 import { Colors } from '../../constants/Colors';
+import { Layout } from '../../constants/Layout';
+import { EmptyState } from '../../components/EmptyState';
 
 const EShopScreen = () => {
     const navigation = useNavigation<any>();
@@ -51,18 +54,22 @@ const EShopScreen = () => {
     };
 
     const renderItem = ({ item }: { item: Product }) => (
-        <Card style={styles.card} onPress={() => navigation.navigate('ProductDetail', { product: item })}>
+        <Card
+            style={styles.card}
+            onPress={() => navigation.navigate('ProductDetail', { product: item })}
+        >
             <Card.Cover source={{ uri: item.imageUrl }} style={styles.cardCover} />
             <Card.Content style={styles.cardContent}>
                 <Text variant="titleSmall" style={styles.productName} numberOfLines={2}>{item.name}</Text>
-                <Text variant="titleMedium" style={{ color: Colors.primary, fontWeight: 'bold' }}>
+                <Text variant="titleMedium" style={styles.price}>
                     {item.currency}{item.price}
                 </Text>
-                <Text variant="bodySmall" style={styles.category}>{item.category}</Text>
+                <View style={styles.ratingRow}>
+                    <MaterialCommunityIcons name="star" size={14} color={Colors.warning} />
+                    <Text variant="bodySmall" style={styles.rating}>{item.rating}</Text>
+                    <Text variant="bodySmall" style={styles.category}>{item.category}</Text>
+                </View>
             </Card.Content>
-            <Card.Actions>
-                <Button mode="contained-tonal" style={{ width: '100%' }}>View</Button>
-            </Card.Actions>
         </Card>
     );
 
@@ -74,6 +81,8 @@ const EShopScreen = () => {
                     onChangeText={setSearchQuery}
                     value={searchQuery}
                     style={styles.searchBar}
+                    inputStyle={styles.searchInput}
+                    iconColor={Colors.grey}
                 />
                 <FlatList
                     horizontal
@@ -85,8 +94,12 @@ const EShopScreen = () => {
                         <Chip
                             selected={selectedCategory === item}
                             onPress={() => setSelectedCategory(item)}
-                            style={styles.chip}
-                            showSelectedOverlay
+                            style={[
+                                styles.chip,
+                                selectedCategory === item && styles.chipSelected,
+                            ]}
+                            textStyle={selectedCategory === item ? styles.chipTextSelected : styles.chipText}
+                            showSelectedOverlay={false}
                         >
                             {item}
                         </Chip>
@@ -95,7 +108,13 @@ const EShopScreen = () => {
             </View>
 
             {loading ? (
-                <View style={[styles.center, { marginTop: 40 }]}><ActivityIndicator /></View>
+                <View style={styles.center}><ActivityIndicator color={Colors.primary} /></View>
+            ) : filteredProducts.length === 0 ? (
+                <EmptyState
+                    icon="store-search-outline"
+                    title="No products found"
+                    subtitle={searchQuery ? `No results for "${searchQuery}". Try a different search term.` : 'No products available in this category.'}
+                />
             ) : (
                 <FlatList
                     data={filteredProducts}
@@ -112,18 +131,54 @@ const EShopScreen = () => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: Colors.background },
-    header: { backgroundColor: Colors.surface, paddingBottom: 12, elevation: 2 },
-    searchBar: { margin: 16, backgroundColor: Colors.lightGrey },
-    categoryList: { paddingHorizontal: 16 },
-    chip: { marginRight: 8 },
-    productList: { padding: 12 },
+    header: {
+        backgroundColor: Colors.surface,
+        paddingBottom: Layout.spacing.md,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.tabBarBorder,
+    },
+    searchBar: {
+        margin: Layout.spacing.lg,
+        backgroundColor: Colors.surfaceVariant,
+        borderRadius: Layout.radius.md,
+        elevation: 0,
+    },
+    searchInput: { fontSize: 14 },
+    categoryList: { paddingHorizontal: Layout.spacing.lg },
+    chip: {
+        marginRight: Layout.spacing.sm,
+        backgroundColor: Colors.surfaceVariant,
+    },
+    chipSelected: {
+        backgroundColor: Colors.primary,
+    },
+    chipText: { color: Colors.textSecondary },
+    chipTextSelected: { color: Colors.textLight, fontWeight: '600' },
+    productList: { padding: Layout.spacing.md },
     row: { justifyContent: 'space-between' },
-    card: { width: '48%', marginBottom: 12, backgroundColor: Colors.surface },
-    cardCover: { height: 120 },
-    cardContent: { paddingTop: 8 },
-    productName: { height: 40, color: Colors.text },
-    category: { color: Colors.textSecondary, marginTop: 4 },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center' }
+    card: {
+        width: '48%',
+        marginBottom: Layout.spacing.md,
+        backgroundColor: Colors.cardBackground,
+        borderRadius: Layout.radius.lg,
+        ...Layout.shadow.sm,
+    },
+    cardCover: {
+        height: 130,
+        borderTopLeftRadius: Layout.radius.lg,
+        borderTopRightRadius: Layout.radius.lg,
+    },
+    cardContent: { paddingTop: Layout.spacing.sm, paddingBottom: Layout.spacing.md },
+    productName: { height: 38, color: Colors.text, lineHeight: 19 },
+    price: { color: Colors.primary, fontWeight: 'bold' },
+    ratingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: Layout.spacing.xs,
+    },
+    rating: { color: Colors.text, marginLeft: 2, marginRight: Layout.spacing.sm, fontWeight: '600' },
+    category: { color: Colors.textTertiary },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 });
 
 export default EShopScreen;
