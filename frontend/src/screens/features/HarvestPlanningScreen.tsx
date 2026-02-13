@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Text, TextInput } from 'react-native-paper';
 import { Colors } from '../../constants/Colors';
@@ -40,7 +40,7 @@ const HarvestPlanningScreen = () => {
 
     const handlePlan = async () => {
         if (!pondId) {
-            alert('Please enter a pond ID');
+            Alert.alert('Validation', 'Please enter a pond ID');
             return;
         }
         setLoading(true);
@@ -56,7 +56,7 @@ const HarvestPlanningScreen = () => {
             });
             setCurrentPlan(plan);
         } catch (error) {
-            alert('Failed to save harvest plan');
+            Alert.alert('Error', 'Failed to save harvest plan');
         } finally {
             setLoading(false);
         }
@@ -64,7 +64,7 @@ const HarvestPlanningScreen = () => {
 
     const handleComplete = async () => {
         if (!currentPlan || !farmId) {
-            alert('Plan and farm ID required');
+            Alert.alert('Validation', 'Plan and farm ID required');
             return;
         }
         setLoading(true);
@@ -81,7 +81,7 @@ const HarvestPlanningScreen = () => {
             const summaryData = await HarvestService.getSummary(pondId, farmId);
             setSummary(summaryData);
         } catch (error) {
-            alert('Failed to complete harvest plan');
+            Alert.alert('Error', 'Failed to complete harvest plan');
         } finally {
             setLoading(false);
         }
@@ -89,7 +89,7 @@ const HarvestPlanningScreen = () => {
 
     const handleFetchSummary = async () => {
         if (!pondId || !farmId) {
-            alert('Pond ID and Farm ID required');
+            Alert.alert('Validation', 'Pond ID and Farm ID required');
             return;
         }
         setLoading(true);
@@ -100,7 +100,7 @@ const HarvestPlanningScreen = () => {
                 setCurrentPlan(summaryData.latestPlan);
             }
         } catch (error) {
-            alert('Failed to fetch summary');
+            Alert.alert('Error', 'Failed to fetch summary');
         } finally {
             setLoading(false);
         }

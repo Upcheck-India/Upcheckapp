@@ -1,15 +1,19 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, Image } from 'react-native';
-import { Text, Button, Card, Divider, useTheme } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Image, Alert } from 'react-native';
+import { Text, Chip, Divider } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Product } from '../../services/mockProductService';
+import { Colors } from '../../constants/Colors';
+import { Layout } from '../../constants/Layout';
+import { GradientButton } from '../../components/GradientButton';
 
 const ProductDetailScreen = () => {
     const route = useRoute<any>();
     const navigation = useNavigation();
     const product: Product = route.params?.product;
-    const theme = useTheme();
 
     if (!product) return null;
 
@@ -20,21 +24,19 @@ const ProductDetailScreen = () => {
 
                 <View style={styles.detailsContainer}>
                     <Text variant="headlineSmall" style={styles.title}>{product.name}</Text>
-                    <Text variant="titleLarge" style={[styles.price, { color: theme.colors.primary }]}>
+                    <Text variant="titleLarge" style={styles.price}>
                         {product.currency}{product.price}
                     </Text>
 
                     <View style={styles.tagContainer}>
-                        <Card style={styles.tag} mode="outlined">
-                            <Card.Content style={{ paddingVertical: 4, paddingHorizontal: 8 }}>
-                                <Text>{product.category}</Text>
-                            </Card.Content>
-                        </Card>
-                        <Card style={[styles.tag, { marginLeft: 8 }]} mode="outlined">
-                            <Card.Content style={{ paddingVertical: 4, paddingHorizontal: 8 }}>
-                                <Text>⭐ {product.rating}</Text>
-                            </Card.Content>
-                        </Card>
+                        <Chip icon="tag" style={styles.tag} textStyle={styles.tagText}>{product.category}</Chip>
+                        <Chip
+                            icon={() => <MaterialCommunityIcons name="star" size={16} color={Colors.warning} />}
+                            style={styles.tag}
+                            textStyle={styles.tagText}
+                        >
+                            {product.rating}
+                        </Chip>
                     </View>
 
                     <Divider style={styles.divider} />
@@ -46,49 +48,47 @@ const ProductDetailScreen = () => {
                     <Text variant="bodyMedium" style={styles.description}>
                         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
                     </Text>
-
                 </View>
             </ScrollView>
 
             <View style={styles.footer}>
-                <Button
-                    mode="contained"
+                <GradientButton
+                    title="Add to Cart"
                     icon="cart-plus"
-                    onPress={() => alert('Added to cart (Mock)')}
-                    style={styles.cartBtn}
-                    contentStyle={{ height: 50 }}
-                >
-                    Add to Cart
-                </Button>
+                    onPress={() => {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        Alert.alert('Success', 'Added to cart (Mock)');
+                    }}
+                />
             </View>
         </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#fff' },
-    content: { paddingBottom: 80 },
+    container: { flex: 1, backgroundColor: Colors.surface },
+    content: { paddingBottom: 90 },
     image: { width: '100%', height: 300, resizeMode: 'cover' },
-    detailsContainer: { padding: 20 },
-    title: { fontWeight: 'bold', marginBottom: 8 },
-    price: { fontWeight: 'bold', marginBottom: 16 },
-    tagContainer: { flexDirection: 'row', marginBottom: 20 },
-    tag: { borderRadius: 4 },
-    divider: { marginBottom: 20 },
-    sectionTitle: { fontWeight: 'bold', marginBottom: 8 },
-    description: { color: '#444', marginBottom: 12, lineHeight: 22 },
+    detailsContainer: { padding: Layout.spacing.xl },
+    title: { fontWeight: 'bold', marginBottom: Layout.spacing.sm, color: Colors.text },
+    price: { fontWeight: 'bold', marginBottom: Layout.spacing.lg, color: Colors.primary },
+    tagContainer: { flexDirection: 'row', marginBottom: Layout.spacing.xl, gap: Layout.spacing.sm },
+    tag: { backgroundColor: Colors.surfaceVariant },
+    tagText: { color: Colors.textSecondary, fontSize: 13 },
+    divider: { marginBottom: Layout.spacing.xl },
+    sectionTitle: { fontWeight: 'bold', marginBottom: Layout.spacing.sm, color: Colors.text },
+    description: { color: Colors.textSecondary, marginBottom: Layout.spacing.md, lineHeight: 22 },
     footer: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        padding: 16,
-        backgroundColor: 'white',
+        padding: Layout.spacing.lg,
+        backgroundColor: Colors.surface,
         borderTopWidth: 1,
-        borderTopColor: '#eee',
-        elevation: 8
+        borderTopColor: Colors.divider,
+        ...Layout.shadow.xl,
     },
-    cartBtn: { borderRadius: 8 }
 });
 
 export default ProductDetailScreen;

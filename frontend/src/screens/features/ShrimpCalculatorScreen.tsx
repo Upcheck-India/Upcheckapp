@@ -3,6 +3,9 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, TextInput, Button, ProgressBar, useTheme, Card, List } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ShrimpService, ShrimpResults } from '../../services/shrimpService';
+import { Colors } from '../../constants/Colors';
+import { Layout } from '../../constants/Layout';
+import { Alert } from 'react-native';
 
 const ShrimpCalculatorScreen = () => {
     const theme = useTheme();
@@ -35,7 +38,7 @@ const ShrimpCalculatorScreen = () => {
         };
 
         if (!inputs.pondArea || !inputs.sampleCount) {
-            alert("Please ensure Pond Area and Sample Count are filled.");
+            Alert.alert('Validation', 'Please ensure Pond Area and Sample Count are filled.');
             return;
         }
 
@@ -108,8 +111,7 @@ const ShrimpCalculatorScreen = () => {
         );
     };
 
-    // Helper component for divider since List.Item doesn't include it automatically nicely here
-    const Divider = () => <View style={{ height: 1, backgroundColor: '#eee' }} />;
+    const Divider = () => <View style={{ height: 1, backgroundColor: Colors.divider }} />;
 
     return (
         <SafeAreaView style={styles.container}>
@@ -138,45 +140,50 @@ const ShrimpCalculatorScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: Colors.background,
     },
     content: {
-        padding: 16,
+        padding: Layout.spacing.lg,
     },
     title: {
         textAlign: 'center',
-        marginBottom: 16,
+        marginBottom: Layout.spacing.lg,
+        color: Colors.primaryDark,
+        fontWeight: '600',
     },
     progress: {
-        marginBottom: 8,
+        marginBottom: Layout.spacing.sm,
         height: 6,
         borderRadius: 3,
     },
     stepText: {
         textAlign: 'right',
-        marginBottom: 16,
-        color: '#666',
+        marginBottom: Layout.spacing.lg,
+        color: Colors.textTertiary,
     },
     card: {
-        marginBottom: 16,
+        marginBottom: Layout.spacing.lg,
+        backgroundColor: Colors.cardBackground,
     },
     input: {
-        marginBottom: 12,
+        marginBottom: Layout.spacing.md,
+        backgroundColor: Colors.surface,
     },
     button: {
-        marginTop: 12,
+        marginTop: Layout.spacing.md,
         flex: 1,
-        marginHorizontal: 4,
+        marginHorizontal: Layout.spacing.xs,
     },
     row: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 8
+        marginTop: Layout.spacing.sm,
     },
     resultCard: {
         borderTopWidth: 4,
-        borderTopColor: '#006d77',
-    }
+        borderTopColor: Colors.primaryDark,
+        backgroundColor: Colors.cardBackground,
+    },
 });
 
 export default ShrimpCalculatorScreen;

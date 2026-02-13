@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, Alert } from 'react-native';
 import { Button, Card, Menu, Text, TextInput, HelperText, SegmentedButtons } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
@@ -53,10 +53,10 @@ const MortalityEntryScreen = ({ navigation }: any) => {
                 totalWeightKg: Number(form.totalWeightKg) || undefined,
                 multiplier: Number(form.multiplier),
             });
-            alert('Mortality record saved!');
+            Alert.alert('Success', 'Mortality record saved!');
             navigation.goBack();
         } catch (e) {
-            alert('Failed to save');
+            Alert.alert('Error', 'Failed to save');
         } finally {
             setSubmitting(false);
         }

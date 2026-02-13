@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, Alert } from 'react-native';
 import { Button, Card, Menu, Text, TextInput, HelperText } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
@@ -53,10 +53,10 @@ const MicrobiologyEntryScreen = ({ navigation }: any) => {
                 totalBacteriaCfuMl: Number(form.totalBacteria) || undefined,
                 luminanceCfuMl: Number(form.luminance) || undefined,
             });
-            alert('Microbiology data saved!');
+            Alert.alert('Success', 'Microbiology data saved!');
             navigation.goBack();
         } catch (e) {
-            alert('Failed to save data');
+            Alert.alert('Error', 'Failed to save data');
         } finally {
             setSubmitting(false);
         }

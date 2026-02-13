@@ -66,7 +66,15 @@ const RootNavigator = () => {
     return (
         <Stack.Navigator
             initialRouteName={isAuthenticated ? "Main" : "Login"}
-            screenOptions={{ headerShown: false }}
+            screenOptions={{
+                headerShown: false,
+                animation: 'slide_from_right',
+                headerStyle: { backgroundColor: Colors.surface },
+                headerTintColor: Colors.primary,
+                headerTitleStyle: { color: Colors.text, fontWeight: '600' },
+                headerShadowVisible: false,
+                contentStyle: { backgroundColor: Colors.background },
+            }}
         >
             {/* ─── Auth Screens (unauthenticated) ─────────────────── */}
             {!isAuthenticated ? (

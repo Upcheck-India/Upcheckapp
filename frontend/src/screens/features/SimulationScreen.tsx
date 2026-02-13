@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, SegmentedButtons, Text, Menu, useTheme } from 'react-native-paper';
 import Slider from '@react-native-community/slider';
@@ -86,7 +86,7 @@ const SimulationScreen = () => {
 
     const handleSimulate = async () => {
         if (!pondId) {
-            alert('Please select a pond');
+            Alert.alert('Validation', 'Please select a pond');
             return;
         }
 
@@ -104,7 +104,7 @@ const SimulationScreen = () => {
             });
             setResult(response.result);
         } catch (error) {
-            alert('Failed to run simulation');
+            Alert.alert('Error', 'Failed to run simulation');
         } finally {
             setLoading(false);
         }
@@ -120,7 +120,7 @@ const SimulationScreen = () => {
                     </Text>
                 </View>
 
-                <AppCard style={styles.card} elevation={2}>
+                <AppCard style={styles.card}>
                     <View style={styles.cardHeader}>
                         <Text variant="titleMedium" style={styles.sectionTitle}>Baseline Pond</Text>
                     </View>
@@ -162,7 +162,7 @@ const SimulationScreen = () => {
                 </AppCard>
 
                 {scenarioType === 'feed_change' && (
-                    <AppCard style={styles.card} elevation={2}>
+                    <AppCard style={styles.card}>
                         <View style={styles.cardHeader}>
                             <Text variant="titleMedium" style={styles.sectionTitle}>Feed Switch Variables</Text>
                         </View>
@@ -194,7 +194,7 @@ const SimulationScreen = () => {
                 )}
 
                 {scenarioType === 'price_change' && (
-                    <AppCard style={styles.card} elevation={2}>
+                    <AppCard style={styles.card}>
                         <View style={styles.cardHeader}>
                             <Text variant="titleMedium" style={styles.sectionTitle}>Market Price Variables</Text>
                         </View>
@@ -215,7 +215,7 @@ const SimulationScreen = () => {
                 )}
 
                 {scenarioType === 'stocking_density' && (
-                    <AppCard style={styles.card} elevation={2}>
+                    <AppCard style={styles.card}>
                         <View style={styles.cardHeader}>
                             <Text variant="titleMedium" style={styles.sectionTitle}>Stocking Density Variables</Text>
                         </View>
@@ -246,7 +246,7 @@ const SimulationScreen = () => {
                 </Button>
 
                 {result && (
-                    <AppCard style={styles.resultCard} elevation={4}>
+                    <AppCard style={styles.resultCard}>
                         <View style={styles.cardHeader}>
                             <Text variant="titleMedium" style={styles.sectionTitle}>Projected Profitability</Text>
                         </View>
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     },
     warningContainer: {
         marginTop: 16,
-        backgroundColor: '#FFEBEE',
+        backgroundColor: Colors.errorLight,
         padding: 12,
         borderRadius: 8,
     },

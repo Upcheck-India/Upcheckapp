@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     errorBanner: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFEBEE',
+        backgroundColor: Colors.errorLight,
         padding: 12,
         borderRadius: 8,
         marginBottom: 16,
@@ -365,11 +365,11 @@ const styles = StyleSheet.create({
     },
     googleButton: {
         borderColor: '#DB4437',
-        backgroundColor: '#FFF',
+        backgroundColor: Colors.surface,
     },
     phoneButton: {
         borderColor: Colors.primary,
-        backgroundColor: '#FFF',
+        backgroundColor: Colors.surface,
     },
     socialButtonDisabled: {
         opacity: 0.5,

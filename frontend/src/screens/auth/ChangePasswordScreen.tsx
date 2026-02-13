@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     errorBanner: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFEBEE',
+        backgroundColor: Colors.errorLight,
         padding: 12,
         borderRadius: 8,
         marginBottom: 16,

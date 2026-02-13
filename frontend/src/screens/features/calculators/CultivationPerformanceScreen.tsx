@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, Alert } from 'react-native';
 import { Button, Card, Text, TextInput, HelperText } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
@@ -30,7 +30,7 @@ const CultivationPerformanceScreen = () => {
             setResult(response.result || response);
         } catch (error) {
             console.error(error);
-            alert('Calculation failed');
+            Alert.alert('Error', 'Calculation failed');
         } finally {
             setLoading(false);
         }

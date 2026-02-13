@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, Alert } from 'react-native';
 import { Button, Card, Menu, Text, TextInput, HelperText } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
@@ -56,7 +56,7 @@ const ChemicalEntryScreen = ({ navigation }: any) => {
 
     const handleSubmit = async () => {
         if (!activeCrop) {
-            alert('No active crop selected');
+            Alert.alert('Validation', 'No active crop selected');
             return;
         }
 
@@ -71,11 +71,11 @@ const ChemicalEntryScreen = ({ navigation }: any) => {
                 alkalinityPpm: Number(form.alkalinityPpm) || undefined,
                 // Add other fields as needed
             });
-            alert('Chemical data saved!');
+            Alert.alert('Success', 'Chemical data saved!');
             navigation.goBack();
         } catch (error) {
             console.error(error);
-            alert('Failed to save data');
+            Alert.alert('Error', 'Failed to save data');
         } finally {
             setSubmitting(false);
         }

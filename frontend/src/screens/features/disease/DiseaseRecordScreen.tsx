@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, Alert } from 'react-native';
 import { Button, Card, Menu, Text, TextInput, HelperText, SegmentedButtons } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
@@ -57,10 +57,10 @@ const DiseaseRecordScreen = ({ navigation }: any) => {
                 severityAtDetection: form.severity,
                 notes: form.notes,
             });
-            alert('Disease recorded successfully');
+            Alert.alert('Success', 'Disease recorded successfully');
             navigation.goBack();
         } catch (e) {
-            alert('Failed to record disease');
+            Alert.alert('Error', 'Failed to record disease');
         } finally {
             setSubmitting(false);
         }

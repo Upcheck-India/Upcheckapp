@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, Alert } from 'react-native';
 import { Button, Card, Menu, Text, TextInput, HelperText } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
@@ -55,10 +55,10 @@ const PlanktonEntryScreen = ({ navigation }: any) => {
                 diatomCellMl: Number(form.diatom) || undefined,
                 protozoaCellMl: Number(form.protozoa) || undefined,
             });
-            alert('Plankton data saved!');
+            Alert.alert('Success', 'Plankton data saved!');
             navigation.goBack();
         } catch (e) {
-            alert('Failed to save data');
+            Alert.alert('Error', 'Failed to save data');
         } finally {
             setSubmitting(false);
         }

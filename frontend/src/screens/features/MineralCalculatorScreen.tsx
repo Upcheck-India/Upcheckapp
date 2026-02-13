@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { Text, Button, useTheme, Card, SegmentedButtons, Checkbox, Portal, Modal, Divider, List } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AVAILABLE_CHEMICALS, MineralService, Chemical } from '../../services/mineralService';
@@ -36,7 +36,7 @@ const MineralCalculatorScreen = () => {
         const salinityVal = parseFloat(salinity);
 
         if (!salinityVal) {
-            alert('Please enter salinity');
+            Alert.alert('Validation', 'Please enter salinity');
             return;
         }
 

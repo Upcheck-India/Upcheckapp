@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'white',
+        backgroundColor: Colors.surface,
         alignSelf: 'center',
         marginBottom: 24,
     },
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     warningBox: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFF3E0',
+        backgroundColor: Colors.warningLight,
         padding: 12,
         borderRadius: 8,
         marginBottom: 24,

@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
         marginTop: 12,
         paddingVertical: 8,
         paddingHorizontal: 12,
-        backgroundColor: '#FFEBEE',
+        backgroundColor: Colors.errorLight,
         borderRadius: 8,
         alignSelf: 'flex-start',
     },
