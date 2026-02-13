@@ -1,17 +1,18 @@
 import React from 'react';
 import { StyleSheet, ViewStyle } from 'react-native';
-import { Card, CardProps } from 'react-native-paper';
+import { Card } from 'react-native-paper';
 import { Layout } from '../constants/Layout';
 import { Colors } from '../constants/Colors';
 
-interface AppCardProps extends CardProps {
+interface AppCardProps {
     style?: ViewStyle;
     children: React.ReactNode;
+    onPress?: () => void;
 }
 
-export const AppCard: React.FC<AppCardProps> = ({ style, children }) => {
+export const AppCard: React.FC<AppCardProps> = ({ style, children, onPress }) => {
     return (
-        <Card style={[styles.card, style]}>
+        <Card style={[styles.card, style] as any} onPress={onPress}>
             {children}
         </Card>
     );
@@ -20,13 +21,8 @@ export const AppCard: React.FC<AppCardProps> = ({ style, children }) => {
 const styles = StyleSheet.create({
     card: {
         marginBottom: Layout.margin,
-        borderRadius: 16,
-        backgroundColor: Colors.surface,
-        // Removed border, relying on shadow/elevation
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4, // Android elevation
-    }
+        borderRadius: Layout.radius.lg,
+        backgroundColor: Colors.cardBackground,
+        ...Layout.shadow.lg,
+    },
 });

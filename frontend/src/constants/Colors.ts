@@ -14,25 +14,42 @@ export const Colors = {
     // Backgrounds
     background: '#F5F9FC',    // Soft blue-ish white
     surface: '#FFFFFF',       // Pure White
+    surfaceVariant: '#F0F4F8', // Slightly tinted surface for cards on white bg
 
     // Text
     text: '#263238',          // Dark Slate
     textSecondary: '#546E7A', // Blue Grey
+    textTertiary: '#90A4AE',  // Lighter grey for hints/timestamps
     textLight: '#FFFFFF',
 
     // Status colors
     error: '#D32F2F',         // Red
+    errorLight: '#FFEBEE',    // Light red background
     success: '#2196F3',       // Blue instead of green for success
-    warning: '#FF9800',       // Orange 
+    successLight: '#E3F2FD',  // Light blue background
+    warning: '#FF9800',       // Orange
+    warningLight: '#FFF3E0',  // Light orange background
     info: '#0288D1',          // Blue info
+    infoLight: '#E1F5FE',     // Light info background
 
     // Neutrals
     grey: '#9E9E9E',
     lightGrey: '#ECEFF1',
     border: '#CFD8DC',
+    divider: '#E0E0E0',
 
     // Gradient colors (for linear gradients)
     gradientStart: '#00CFFF', // Light cyan (top of logo)
     gradientEnd: '#0088CC',   // Deep blue (bottom of logo)
     gradientMiddle: '#00A5CC', // Middle transition
+
+    // Semantic aliases (for consistent usage)
+    cardBackground: '#FFFFFF',
+    modalBackground: '#FFFFFF',
+    backdrop: 'rgba(0,0,0,0.5)',
+    skeleton: '#E0E0E0',
+    skeletonHighlight: '#F5F5F5',
+    unreadBackground: '#E3F2FD',
+    tabBarBackground: '#FFFFFF',
+    tabBarBorder: '#ECEFF1',
 };
