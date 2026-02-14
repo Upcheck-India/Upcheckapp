@@ -11,7 +11,7 @@ import { User } from './user.entity';
 import { Profile } from '../profiles/profile.entity';
 import { RefreshToken } from './refresh-token.entity';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { generateSecret, verifySync, generateURI } from 'otplib';
+import { generateSecret, verifyTOTP, generateOtpAuthURI } from './totp.util';
 import * as QRCode from 'qrcode';
 import { UAParser } from 'ua-parser-js';
 
@@ -612,7 +612,7 @@ export class AuthService {
         }
 
         const secret = generateSecret();
-        const otpauthUrl = generateURI({ issuer: 'Upcheck', label: user.email, secret, strategy: 'totp' });
+        const otpauthUrl = generateOtpAuthURI({ issuer: 'Upcheck', label: user.email, secret });
 
         // Store secret (in production, encrypt this)
         user.totpSecret = secret;
@@ -633,9 +633,9 @@ export class AuthService {
             throw new UnauthorizedException('2FA not set up. Please call setup first.');
         }
 
-        const result = verifySync({ token, secret: user.totpSecret });
+        const isValid = verifyTOTP(token, user.totpSecret);
 
-        if (!result.valid) {
+        if (!isValid) {
             throw new UnauthorizedException('Invalid 2FA code. Please try again.');
         }
 
@@ -666,9 +666,9 @@ export class AuthService {
         }
 
         // Verify TOTP code before disabling
-        const result = verifySync({ token, secret: user.totpSecret });
+        const isValid = verifyTOTP(token, user.totpSecret);
 
-        if (!result.valid) {
+        if (!isValid) {
             throw new UnauthorizedException('Invalid 2FA code');
         }
 
@@ -689,9 +689,9 @@ export class AuthService {
         }
 
         // Verify TOTP before regenerating
-        const result = verifySync({ token, secret: user.totpSecret });
+        const isValid = verifyTOTP(token, user.totpSecret);
 
-        if (!result.valid) {
+        if (!isValid) {
             throw new UnauthorizedException('Invalid 2FA code');
         }
 
@@ -732,8 +732,7 @@ export class AuthService {
         }
 
         // Try TOTP first
-        const totpResult = verifySync({ token, secret: user.totpSecret });
-        let isValid = totpResult.valid;
+        let isValid = verifyTOTP(token, user.totpSecret);
 
         // If TOTP fails, try backup codes
         if (!isValid) {
