@@ -8,6 +8,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { sync } from './src/services/sync';
 
 import './src/i18n';
+import { AuthProvider } from './src/context/AuthContext';
 
 // Custom theme aligned with icon colors
 const theme = {
@@ -61,11 +62,13 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <PaperProvider theme={theme}>
-        <NavigationContainer linking={linking}>
-          <RootNavigator />
-        </NavigationContainer>
-      </PaperProvider>
+      <AuthProvider>
+        <PaperProvider theme={theme}>
+          <NavigationContainer linking={linking}>
+            <RootNavigator />
+          </NavigationContainer>
+        </PaperProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

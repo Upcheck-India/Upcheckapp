@@ -18,6 +18,7 @@
     "@react-navigation/native": "^7.1.28",
     "@react-navigation/native-stack": "^7.10.1",
     "@supabase/supabase-js": "^2.91.1",
+    "axios": "^1.13.5",
     "expo": "~54.0.32",
     "expo-auth-session": "~7.0.10",
     "expo-clipboard": "~8.0.8",
@@ -58,7 +59,9 @@
   "expo": {
     "doctor": {
       "reactNativeDirectoryCheck": {
-        "exclude": ["@nozbe/watermelondb"],
+        "exclude": [
+          "@nozbe/watermelondb"
+        ],
         "listUnknownPackages": false
       }
     }

@@ -1,145 +1,93 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Text, TextInput, HelperText } from 'react-native-paper';
+import React, { useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
+import { Text, TextInput, Button, useTheme } from 'react-native-paper';
+import { useNavigation } from '@react-navigation/native';
+import { api } from '../../services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
-import { Colors } from '../../constants/Colors';
-import { GradientButton } from '../../components/GradientButton';
-import { AuthService } from '../../services/auth';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-const ForgotPasswordScreen = ({ navigation }: any) => {
+export const ForgotPasswordScreen = () => {
     const [email, setEmail] = useState('');
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
-    const [submitted, setSubmitted] = useState(false);
-    const [serverError, setServerError] = useState('');
-    const [sent, setSent] = useState(false);
 
-    const emailError = submitted && !email.trim() ? 'Email address is required' : '';
-
-    // Clear server error when user types
-    useEffect(() => {
-        if (serverError) setServerError('');
-    }, [email]);
+    const navigation = useNavigation<any>();
+    const theme = useTheme();
 
     const handleReset = async () => {
-        setSubmitted(true);
-        setServerError('');
-
-        if (!email.trim()) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        if (!email) {
+            setError('Please enter your email address');
             return;
         }
 
         setLoading(true);
+        setError('');
+        setSuccess('');
+
         try {
-            await AuthService.forgotPassword(email.trim());
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            setSent(true);
-        } catch (error: any) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            setServerError(error.message || 'Failed to request reset');
+            await api.post('/auth/forgot-password', { email });
+            setSuccess('If an account exists with this email, you will receive password reset instructions.');
+        } catch (err: any) {
+            // For security, we might ideally show generic message, allowing retry if error is transient
+            // But here we show error for debugging or valid validation errors
+            setError(err.response?.data?.message || 'Request failed. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
-    // ─── Success State ────────────────────────────────────────
-    if (sent) {
-        return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.content}>
-                    <MaterialCommunityIcons
-                        name="email-check"
-                        size={64}
-                        color={Colors.success}
-                        style={styles.icon}
-                    />
-                    <Text variant="headlineMedium" style={styles.title}>Check Your Email</Text>
-                    <Text style={styles.subtitle}>
-                        If an account exists for {email.trim()}, we've sent password reset instructions to your inbox.
-                    </Text>
-                    <Text style={styles.hint}>
-                        Didn't receive it? Check your spam folder or try again.
-                    </Text>
-
-                    <GradientButton
-                        title="Back to Login"
-                        onPress={() => navigation.navigate('Login')}
-                        icon="login"
-                        style={styles.button}
-                    />
-
-                    <GradientButton
-                        title="Try Again"
-                        onPress={() => { setSent(false); setSubmitted(false); }}
-                        variant="secondary"
-                        style={styles.secondaryButton}
-                    />
-                </View>
-            </SafeAreaView>
-        );
-    }
-
-    // ─── Form State ───────────────────────────────────────────
     return (
         <SafeAreaView style={styles.container}>
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={{ flex: 1 }}
+                style={styles.keyboardView}
             >
-                <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                    <MaterialCommunityIcons
-                        name="lock-reset"
-                        size={64}
-                        color={Colors.primary}
-                        style={styles.icon}
-                    />
-                    <Text variant="headlineMedium" style={styles.title}>Forgot Password</Text>
-                    <Text style={styles.subtitle}>
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Text style={{ color: theme.colors.primary }}>Back to Login</Text>
+                </TouchableOpacity>
+
+                <View style={styles.headerContainer}>
+                    <Text variant="headlineLarge" style={styles.title}>Reset Password</Text>
+                    <Text variant="bodyLarge" style={styles.subtitle}>
                         Enter your email address and we'll send you instructions to reset your password.
                     </Text>
+                </View>
 
-                    {serverError ? (
-                        <View style={styles.errorBanner}>
-                            <MaterialCommunityIcons name="alert-circle" size={18} color={Colors.error} />
-                            <Text style={styles.errorBannerText}>{serverError}</Text>
-                        </View>
-                    ) : null}
-
+                <View style={styles.formContainer}>
                     <TextInput
-                        label="Email Address"
+                        label="Email"
                         value={email}
                         onChangeText={setEmail}
+                        mode="outlined"
                         keyboardType="email-address"
                         autoCapitalize="none"
-                        returnKeyType="done"
-                        onSubmitEditing={handleReset}
-                        mode="outlined"
                         style={styles.input}
-                        left={<TextInput.Icon icon="email" />}
-                        outlineColor={emailError ? Colors.error : Colors.border}
-                        activeOutlineColor={emailError ? Colors.error : Colors.primary}
-                        error={!!emailError}
+                        error={!!error}
                     />
-                    {emailError ? <HelperText type="error" style={styles.helperText}>{emailError}</HelperText> : null}
 
-                    <GradientButton
-                        title="Send Reset Link"
+                    {error ? (
+                        <Text style={styles.errorText}>{error}</Text>
+                    ) : null}
+
+                    {success ? (
+                        <Text style={styles.successText}>{success}</Text>
+                    ) : null}
+
+                    <Button
+                        mode="contained"
                         onPress={handleReset}
                         loading={loading}
-                        disabled={loading}
-                        icon="email-fast"
+                        disabled={loading || !!success}
                         style={styles.button}
-                    />
+                        contentStyle={styles.buttonContent}
+                    >
+                        Send Instructions
+                    </Button>
 
-                    <GradientButton
-                        title="Back to Login"
-                        onPress={() => navigation.goBack()}
-                        variant="secondary"
-                        style={styles.secondaryButton}
-                    />
-                </ScrollView>
+                </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -148,63 +96,53 @@ const ForgotPasswordScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background,
+        backgroundColor: '#fff',
     },
-    content: {
-        flexGrow: 1,
-        padding: 24,
+    keyboardView: {
+        flex: 1,
+        padding: 20,
         justifyContent: 'center',
     },
-    icon: {
-        alignSelf: 'center',
-        marginBottom: 16,
+    backButton: {
+        position: 'absolute',
+        top: 20,
+        left: 20,
+        zIndex: 1,
+    },
+    headerContainer: {
+        marginBottom: 40,
+        alignItems: 'center',
     },
     title: {
         fontWeight: 'bold',
-        marginBottom: 8,
-        textAlign: 'center',
-        color: Colors.text,
+        marginBottom: 10,
     },
     subtitle: {
+        color: '#666',
         textAlign: 'center',
-        marginBottom: 32,
-        color: Colors.textSecondary,
-        lineHeight: 20,
+        paddingHorizontal: 20,
     },
-    hint: {
-        textAlign: 'center',
-        marginBottom: 32,
-        color: Colors.grey,
-        fontSize: 13,
-    },
-    errorBanner: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: Colors.errorLight,
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 16,
-    },
-    errorBannerText: {
-        color: Colors.error,
-        fontSize: 14,
-        marginLeft: 8,
-        flex: 1,
+    formContainer: {
+        width: '100%',
     },
     input: {
-        marginBottom: 2,
-        backgroundColor: Colors.surface,
-    },
-    helperText: {
-        marginBottom: 4,
-        marginTop: -2,
+        marginBottom: 24,
     },
     button: {
-        marginTop: 16,
+        borderRadius: 8,
+        marginBottom: 24,
     },
-    secondaryButton: {
-        marginTop: 12,
+    buttonContent: {
+        paddingVertical: 6,
+    },
+    errorText: {
+        color: 'red',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    successText: {
+        color: 'green',
+        marginBottom: 16,
+        textAlign: 'center',
     },
 });
-
-export default ForgotPasswordScreen;

@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useNavigation, CommonActions } from '@react-navigation/native';
-import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../context/AuthContext';
 import { ProfileService } from '../../services/profileService';
 import { Profile } from '../../types/database';
 import { Colors } from '../../constants/Colors';
@@ -59,7 +59,7 @@ const secStyles = StyleSheet.create({
 
 const ProfileScreen = () => {
     const navigation = useNavigation<any>();
-    const { user, logout } = useAuthStore();
+    const { user, logout } = useAuth();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
     const [editModalVisible, setEditModalVisible] = useState(false);
