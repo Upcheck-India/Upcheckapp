@@ -1,53 +1,54 @@
 import { apiClient } from './apiClient';
-import { Pond } from '../types/database';
+import { Pond, PondDimensionHistory } from '../types/database';
 
 export const PondService = {
-    async fetchPonds(farmId: string): Promise<Pond[]> {
+    async fetchPonds(farmId: string, options?: {
+        status?: string;
+        search?: string;
+        sort?: string;
+        page?: number;
+        includeArchived?: boolean;
+    }): Promise<{ ponds: Pond[], total: number, page: number, hasMore: boolean }> {
         try {
-            return await apiClient.get(`/ponds?farmId=${farmId}`);
+            const params = new URLSearchParams();
+            if (farmId) params.append('farmId', farmId);
+            if (options?.status) params.append('status', options.status);
+            if (options?.search) params.append('search', options.search);
+            if (options?.sort) params.append('sort', options.sort);
+            if (options?.page) params.append('page', options.page.toString());
+            if (options?.includeArchived) params.append('includeArchived', 'true');
+
+            return await apiClient.get(`/ponds?${params.toString()}`);
         } catch (error) {
             console.error('Error fetching ponds:', error);
             throw error;
         }
     },
 
-    async fetchAllUserPonds(): Promise<(Pond & { farm: { name: string } })[]> {
-        // Backend doesn't explicitly have fetchAllUserPonds logic in the snippet I saw?
-        // It has `findAll` with `farmId` query.
-        // Wait, `PondsController.findAll` requires `farmId`.
-        // `if (!farmId) throw BadRequest`.
-        // So I can't fetch ALL ponds for a user across farms with the current controller?
-        // I need to check `PondService` logic again.
-        // Original: .select('*, farm:farms(name)')
-
-        // I might need to update Backend `PondsController` to allow optional farmId?
-        // Or I just implement `fetchAllUserPonds` by other means?
-        // Let's assume for now I should only port what is supported.
-        // If `fetchAllUserPonds` is used, I should support it.
-        // I will defer this specific method refactor or update backend.
-        // Actually, let's update backend to allow fetching all ponds if no farmId is provided (if logic permits).
-        // But for now, I will comment this out or try to map it best effort.
-        // Actually, I should update the backend first if I want to support this.
-        // I'll stick to what I can reliably do.
-        // I'll leave this method using `supabase` for now? No, I want to remove `supabase`.
-        // I will update `PondsController` to allow fetching all my ponds.
-
-        // For this edit, I will refrain from replacing this specific method if possible, or replace with a TODO/Warning.
-        // Actually, I'll update it to call `/ponds/all` (new endpoint) or similar.
-        // Or just `/ponds` without param?
-        // `PondsController` throws BadRequest if no farmId.
-
-        // Use `apiClient.get('/ponds')` and hope I update backend.
+    async fetchAllUserPonds(): Promise<Pond[]> {
         try {
-            // TODO: Update backend to support fetching all ponds without farmId
-            return await apiClient.get(`/ponds`);
+            const response = await apiClient.get('/ponds');
+            return response.ponds || response; // Handle { ponds: [], total: ... } or just []
         } catch (error) {
             console.error('Error fetching all user ponds:', error);
             throw error;
         }
     },
 
-    async createPond(pondData: Partial<Pond>): Promise<Pond | null> {
+    async fetchPondById(id: string): Promise<Pond> {
+        try {
+            return await apiClient.get(`/ponds/${id}`);
+        } catch (error) {
+            console.error('Error fetching pond by ID:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Create a single pond or batch of ponds.
+     * DTO: CreatePondDto supports batchCount and namePrefix.
+     */
+    async createPond(pondData: Partial<Pond> & { batchCount?: number, namePrefix?: string }): Promise<any> {
         try {
             return await apiClient.post('/ponds', pondData);
         } catch (error) {
@@ -56,7 +57,7 @@ export const PondService = {
         }
     },
 
-    async updatePond(id: string, updates: Partial<Pond>): Promise<Pond | null> {
+    async updatePond(id: string, updates: Partial<Pond> & { changeReason?: string }): Promise<Pond> {
         try {
             return await apiClient.patch(`/ponds/${id}`, updates);
         } catch (error) {
@@ -65,11 +66,29 @@ export const PondService = {
         }
     },
 
-    async deletePond(id: string): Promise<void> {
+    async archivePond(id: string): Promise<{ message: string }> {
         try {
-            await apiClient.delete(`/ponds/${id}`);
+            return await apiClient.patch(`/ponds/${id}/archive`);
+        } catch (error) {
+            console.error('Error archiving pond:', error);
+            throw error;
+        }
+    },
+
+    async deletePond(id: string): Promise<{ message: string }> {
+        try {
+            return await apiClient.delete(`/ponds/${id}`);
         } catch (error) {
             console.error('Error deleting pond:', error);
+            throw error;
+        }
+    },
+
+    async fetchDimensionHistory(pondId: string): Promise<PondDimensionHistory[]> {
+        try {
+            return await apiClient.get(`/ponds/${pondId}/dimension-history`);
+        } catch (error) {
+            console.error('Error fetching dimension history:', error);
             throw error;
         }
     }

@@ -1,5 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Pond } from '../ponds/pond.entity';
+import { Crop } from '../crops/crop.entity';
+import { InventoryItem } from '../inventory/inventory-item.entity';
 
 @Entity('feed_records')
 export class FeedRecord {
@@ -12,6 +14,20 @@ export class FeedRecord {
     @ManyToOne(() => Pond, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'pond_id' })
     pond: Pond;
+
+    @Column({ name: 'crop_id', type: 'uuid', nullable: true })
+    cropId: string | null;
+
+    @ManyToOne(() => Crop, { onDelete: 'SET NULL' })
+    @JoinColumn({ name: 'crop_id' })
+    crop: Crop;
+
+    @Column({ name: 'inventory_item_id', type: 'uuid', nullable: true })
+    inventoryItemId: string | null;
+
+    @ManyToOne(() => InventoryItem, { onDelete: 'SET NULL' })
+    @JoinColumn({ name: 'inventory_item_id' })
+    inventoryItem: InventoryItem;
 
     @CreateDateColumn({ name: 'recorded_at', type: 'timestamp with time zone' })
     recordedAt: Date;

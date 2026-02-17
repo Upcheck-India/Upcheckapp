@@ -8,11 +8,12 @@ interface AppCardProps {
     style?: ViewStyle;
     children: React.ReactNode;
     onPress?: () => void;
+    onLongPress?: () => void;
 }
 
-export const AppCard: React.FC<AppCardProps> = ({ style, children, onPress }) => {
+export const AppCard: React.FC<AppCardProps> = ({ style, children, onPress, onLongPress }) => {
     return (
-        <Card style={[styles.card, style] as any} onPress={onPress}>
+        <Card style={[styles.card, style] as any} onPress={onPress} onLongPress={onLongPress}>
             {children}
         </Card>
     );

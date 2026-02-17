@@ -83,7 +83,7 @@ const ProfileScreen = () => {
                 const data = await ProfileService.getProfile(user.id);
                 setProfile(data);
                 if (data) {
-                    setFullName(data.full_name || '');
+                    setFullName(data.fullName || '');
                     setWebsite(data.website || '');
                     setUsername(data.username || '');
                 }
@@ -100,9 +100,10 @@ const ProfileScreen = () => {
 
         try {
             await ProfileService.updateProfile(profile.id, {
-                full_name: fullName,
+                fullName: fullName,
                 website,
-                username
+                username,
+                avatarUrl: profile.avatarUrl // Updated via state directly in input for now
             });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setEditModalVisible(false);
@@ -160,10 +161,10 @@ const ProfileScreen = () => {
                 >
                     <Avatar.Text
                         size={80}
-                        label={profile?.full_name?.substring(0, 2).toUpperCase() || 'U'}
+                        label={profile?.fullName?.substring(0, 2).toUpperCase() || 'U'}
                         style={styles.avatar}
                     />
-                    <Text variant="headlineSmall" style={styles.name}>{profile?.full_name || 'User'}</Text>
+                    <Text variant="headlineSmall" style={styles.name}>{profile?.fullName || 'User'}</Text>
                     <Text style={styles.email}>{profile?.email || 'No Email'}</Text>
                     <TouchableOpacity
                         style={styles.editBadge}
@@ -182,7 +183,7 @@ const ProfileScreen = () => {
                             <Divider style={styles.divider} />
                             <InfoRow icon="web" label="Website" value={profile?.website || 'Not set'} />
                             <Divider style={styles.divider} />
-                            <InfoRow icon="translate" label="Language" value={profile?.language_preference || 'en'} />
+                            <InfoRow icon="translate" label="Language" value={profile?.languagePreference || 'en'} />
                         </Card.Content>
                     </Card>
 
@@ -190,6 +191,7 @@ const ProfileScreen = () => {
                     <Card style={styles.infoCard}>
                         <Card.Content>
                             <Text variant="titleSmall" style={styles.sectionLabel}>Security & Login</Text>
+                            <SecurityRow icon="tools" title="Settings" onPress={() => navigation.navigate('Settings')} />
                             <SecurityRow icon="lock-outline" title="Change Password" onPress={() => navigation.navigate('ChangePassword')} />
                             <SecurityRow icon="shield-lock-outline" title="Two-Factor Authentication" onPress={() => navigation.navigate('TwoFASetup')} />
                             <SecurityRow icon="cellphone-link" title="Active Sessions" onPress={() => navigation.navigate('SessionManagement')} />
@@ -246,6 +248,18 @@ const ProfileScreen = () => {
                         autoCapitalize="none"
                         inputMode="url"
                         left={<TextInput.Icon icon="web" />}
+                        outlineColor={Colors.border}
+                        activeOutlineColor={Colors.primary}
+                    />
+                    <TextInput
+                        label="Avatar URL (Optional)"
+                        value={profile?.avatarUrl || ''}
+                        onChangeText={(text) => setProfile(prev => prev ? { ...prev, avatarUrl: text } : null)}
+                        mode="outlined"
+                        style={styles.input}
+                        autoCapitalize="none"
+                        inputMode="url"
+                        left={<TextInput.Icon icon="camera" />}
                         outlineColor={Colors.border}
                         activeOutlineColor={Colors.primary}
                     />

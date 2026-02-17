@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
 import { FeedRecordsService } from './feed-records.service';
 import { CreateFeedRecordDto } from './dto/create-feed-record.dto';
 import { UpdateFeedRecordDto } from './dto/update-feed-record.dto';
@@ -11,8 +11,9 @@ export class FeedRecordsController {
     constructor(private readonly feedRecordsService: FeedRecordsService) { }
 
     @Post()
-    create(@Body() createDto: CreateFeedRecordDto) {
-        return this.feedRecordsService.create(createDto);
+    @Post()
+    create(@Body() createDto: CreateFeedRecordDto, @Req() req) {
+        return this.feedRecordsService.create(createDto, req.user.id);
     }
 
     @Get()

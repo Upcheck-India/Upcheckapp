@@ -34,6 +34,18 @@ const DataEntryMenuScreen = ({ navigation }: any) => {
 
                 <View style={styles.grid}>
                     <MenuItem
+                        title="Feed"
+                        icon="food-apple"
+                        color="#F57C00"
+                        onPress={() => navigation.navigate('FeedEntry')}
+                    />
+                    <MenuItem
+                        title="Sampling"
+                        icon="scale"
+                        color="#388E3C"
+                        onPress={() => navigation.navigate('SamplingEntry')}
+                    />
+                    <MenuItem
                         title="Water Quality"
                         icon="test-tube"
                         color={Colors.primary}
@@ -56,6 +68,12 @@ const DataEntryMenuScreen = ({ navigation }: any) => {
                         icon="skull-crossbones-outline"
                         color={Colors.error}
                         onPress={() => navigation.navigate('MortalityEntry')}
+                    />
+                    <MenuItem
+                        title="Expense"
+                        icon="cash-multiple"
+                        color={Colors.error}
+                        onPress={() => navigation.navigate('ExpenseEntry', { pondId: undefined })}
                     />
                 </View>
             </ScrollView>

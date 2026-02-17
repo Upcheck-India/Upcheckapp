@@ -1,53 +1,41 @@
-import database from '../database';
-import { Q } from '@nozbe/watermelondb';
-import Crop from '../database/models/Crop';
-
-export interface CropData {
-    id: string;
-    pondId: string;
-    status: 'active' | 'completed' | 'cancelled';
-    name: string;
-}
+import { apiClient } from './apiClient';
+import { Crop } from '../types/database';
 
 export const CropsService = {
-    getAllCrops: async (pondId: string): Promise<CropData[]> => {
-        if (!database) {
-            console.warn('CropsService: WatermelonDB not available (Expo Go).');
-            return [];
+    async fetchCropsByPond(pondId: string): Promise<Crop[]> {
+        try {
+            return await apiClient.get(`/crops?pondId=${pondId}`);
+        } catch (error) {
+            console.error('Error fetching crops:', error);
+            throw error;
         }
-        const crops = await database.collections.get<Crop>('crops')
-            .query(Q.where('pond_id', pondId))
-            .fetch();
-
-        return crops.map(c => ({
-            id: c.id,
-            pondId: c.pondId,
-            status: c.status as any,
-            name: c.name,
-        }));
     },
 
-    getActiveCrop: async (pondId: string): Promise<CropData | undefined> => {
-        if (!database) {
-            console.warn('CropsService: WatermelonDB not available (Expo Go).');
+    async fetchActiveCrop(pondId: string): Promise<Crop | undefined> {
+        try {
+            const crops = await this.fetchCropsByPond(pondId);
+            return crops.find(c => c.status === 'active');
+        } catch (error) {
+            console.error('Error fetching active crop:', error);
             return undefined;
         }
-        const crops = await database.collections.get<Crop>('crops')
-            .query(
-                Q.where('pond_id', pondId),
-                Q.where('status', 'active')
-            )
-            .fetch();
+    },
 
-        if (crops.length > 0) {
-            const c = crops[0];
-            return {
-                id: c.id,
-                pondId: c.pondId,
-                status: c.status as any,
-                name: c.name,
-            };
+    async createCrop(data: Partial<Crop>): Promise<Crop> {
+        try {
+            return await apiClient.post('/crops', data);
+        } catch (error) {
+            console.error('Error creating crop:', error);
+            throw error;
         }
-        return undefined;
+    },
+
+    async harvestCrop(id: string, data: { actualHarvestDate: Date; harvestWeightKg: number }): Promise<Crop> {
+        try {
+            return await apiClient.post(`/crops/${id}/harvest`, data);
+        } catch (error) {
+            console.error('Error harvesting crop:', error);
+            throw error;
+        }
     }
 };

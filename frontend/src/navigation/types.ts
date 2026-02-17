@@ -14,10 +14,13 @@ export type RootStackParamList = {
 
     // ─── Main App ────────────────────────────────────────────
     Main: undefined;
+    Settings: undefined;
     MineralCalculator: undefined;
     ShrimpCalculator: undefined;
     FarmManagement: undefined;
     PondManagement: { farmId: string, farmName: string };
+    PondDetail: { pondId: string, pondName: string };
+    CycleManagement: { pondId: string, pondName: string };
     Simulation: undefined;
     HarvestPlanning: undefined;
     ProductDetail: { product: Product };
@@ -30,6 +33,8 @@ export type RootStackParamList = {
 
     // ─── Data Entry ──────────────────────────────────────────
     DataEntryMenu: undefined;
+    FeedEntry: { pondId?: string, pondName?: string };
+    SamplingEntry: { pondId?: string, pondName?: string };
     ChemicalEntry: undefined;
     PlanktonEntry: undefined;
     MicrobiologyEntry: undefined;
@@ -39,4 +44,14 @@ export type RootStackParamList = {
     DiseaseLibrary: undefined;
     DiseaseDetail: { disease: any };
     DiseaseRecord: undefined;
+
+    // ─── Harvest ─────────────────────────────────────────────
+    HarvestEntry: { cropId: string, pondId: string, pondName: string, cycleName: string };
+    HarvestHistory: { cropId: string, pondName: string, cycleName: string };
+
+    // ─── Finance ─────────────────────────────────────────────
+    ExpenseEntry: { cropId?: string, pondId: string, pondName: string, cycleName?: string };
+
+    // ─── Inventory ───────────────────────────────────────────
+    Inventory: { farmId?: string, farmName?: string };
 };

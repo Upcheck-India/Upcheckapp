@@ -5,15 +5,24 @@ import { SamplingData } from './sampling-data.entity';
 import { CreateSamplingDto } from './dto/create-sampling.dto';
 import { UpdateSamplingDto } from './dto/update-sampling.dto';
 
+import { PondsService } from '../ponds/ponds.service';
+
 @Injectable()
 export class SamplingService {
     constructor(
         @InjectRepository(SamplingData)
         private samplingRepository: Repository<SamplingData>,
+        private pondsService: PondsService,
     ) { }
 
-    create(createDto: CreateSamplingDto) {
-        const record = this.samplingRepository.create(createDto);
+    async create(createDto: CreateSamplingDto, userId: string) {
+        // Verify ownership and get active cycle
+        const pond = await this.pondsService.findOne(createDto.pondId, userId);
+
+        const record = this.samplingRepository.create({
+            ...createDto,
+            cropId: pond.activeCycleId,
+        });
         return this.samplingRepository.save(record);
     }
 

@@ -45,4 +45,12 @@ export class CropsController {
     remove(@Param('id') id: string, @Request() req) {
         return this.cropsService.remove(id, req.user.id);
     }
+    @Patch(':id/close')
+    closeCycle(
+        @Param('id') id: string,
+        @Body() body: { actualHarvestDate: string },
+        @Request() req
+    ) {
+        return this.cropsService.closeCycle(id, body.actualHarvestDate, req.user.id);
+    }
 }

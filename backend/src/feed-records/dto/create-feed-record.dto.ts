@@ -29,4 +29,8 @@ export class CreateFeedRecordDto {
     @IsString()
     @IsOptional()
     notes?: string;
+
+    @IsUUID()
+    @IsOptional()
+    inventoryItemId?: string;
 }

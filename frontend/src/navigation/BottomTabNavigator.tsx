@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { DashboardScreen, NewsScreen, EShopScreen, AlertsScreen, ProfileScreen } from '../screens/main/TabScreens';
+import { ReportsScreen } from '../screens/features/reports/ReportsScreen';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Colors } from '../constants/Colors';
 import { Layout } from '../constants/Layout';
@@ -28,7 +29,7 @@ const BottomTabNavigator = () => {
                 tabBarIcon: ({ focused, color }) => {
                     let iconName = 'help-circle-outline';
 
-                    if (route.name === 'News') iconName = focused ? 'newspaper' : 'newspaper-variant-outline';
+                    if (route.name === 'Reports') iconName = focused ? 'chart-box' : 'chart-box-outline';
                     else if (route.name === 'eShop') iconName = focused ? 'store' : 'store-outline';
                     else if (route.name === 'Pond') iconName = focused ? 'waves' : 'wave';
                     else if (route.name === 'Alerts') iconName = focused ? 'bell' : 'bell-outline';
@@ -38,10 +39,17 @@ const BottomTabNavigator = () => {
                 },
             })}
         >
-            <Tab.Screen name="News" component={NewsScreen} />
+            <Tab.Screen name="Reports" component={ReportsScreen} />
             <Tab.Screen name="eShop" component={EShopScreen} />
             <Tab.Screen name="Pond" component={DashboardScreen} />
-            <Tab.Screen name="Alerts" component={AlertsScreen} />
+            <Tab.Screen
+                name="Alerts"
+                component={AlertsScreen}
+                options={{
+                    tabBarBadge: 3, // Placeholder. Real implementation requires a global store/context for unread count.
+                    tabBarBadgeStyle: { backgroundColor: Colors.error, color: 'white', fontSize: 10 }
+                }}
+            />
             <Tab.Screen name="Profile" component={ProfileScreen} />
         </Tab.Navigator>
     );

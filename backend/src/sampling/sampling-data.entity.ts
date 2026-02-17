@@ -1,15 +1,23 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Crop } from '../crops/crop.entity';
+import { Pond } from '../ponds/pond.entity';
 
 @Entity('sampling_data')
 export class SamplingData {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @Column({ name: 'crop_id', type: 'uuid' })
-    cropId: string;
+    @Column({ name: 'pond_id', type: 'uuid' })
+    pondId: string;
 
-    @ManyToOne(() => Crop, { onDelete: 'CASCADE' })
+    @ManyToOne(() => Pond, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'pond_id' })
+    pond: Pond;
+
+    @Column({ name: 'crop_id', type: 'uuid', nullable: true })
+    cropId: string | null;
+
+    @ManyToOne(() => Crop, { onDelete: 'SET NULL' })
     @JoinColumn({ name: 'crop_id' })
     crop: Crop;
 

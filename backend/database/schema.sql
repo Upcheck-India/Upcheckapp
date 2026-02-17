@@ -113,3 +113,9 @@ CREATE TRIGGER update_users_updated_at
 BEFORE UPDATE ON users
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
+
+-- Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_crops_pond_id ON crops(pond_id);
+CREATE INDEX IF NOT EXISTS idx_water_quality_pond_id ON water_quality_records(pond_id);
+CREATE INDEX IF NOT EXISTS idx_feed_records_pond_id ON feed_records(pond_id);
+CREATE INDEX IF NOT EXISTS idx_feed_records_crop_id ON feed_records(crop_id);

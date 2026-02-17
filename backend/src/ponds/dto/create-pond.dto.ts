@@ -1,33 +1,83 @@
-import { IsString, IsOptional, IsNumber, IsDateString, IsUUID } from 'class-validator';
+import {
+    IsString, IsOptional, IsNumber, IsUUID, IsEnum, IsInt, Min, Max,
+    MaxLength, MinLength, ValidateIf, IsLatitude, IsLongitude, IsArray,
+} from 'class-validator';
 
 export class CreatePondDto {
     @IsUUID()
     farmId: string;
 
     @IsString()
-    name: string;
+    @MinLength(1)
+    @MaxLength(4)
+    namePrefix: string;
 
-    @IsString()
-    @IsOptional()
-    pondCode?: string;
+    @IsEnum(['rectangular', 'circular', 'irregular', 'raceway'])
+    geometryType: string;
+
+    @IsEnum(['earthen', 'lined', 'cage', 'biofloc_ras'])
+    constructionType: string;
+
+    // Conditional: required for rectangular and raceway
+    @ValidateIf(o => o.geometryType === 'rectangular' || o.geometryType === 'raceway')
+    @IsNumber()
+    @Min(1)
+    @Max(500)
+    lengthM?: number;
+
+    @ValidateIf(o => o.geometryType === 'rectangular' || o.geometryType === 'raceway')
+    @IsNumber()
+    @Min(1)
+    @Max(500)
+    widthM?: number;
+
+    // Conditional: required for circular
+    @ValidateIf(o => o.geometryType === 'circular')
+    @IsNumber()
+    @Min(1)
+    @Max(400)
+    diameterM?: number;
 
     @IsNumber()
-    @IsOptional()
-    areaM2?: number;
+    @Min(0.5)
+    @Max(5.0)
+    depthM: number;
 
+    // Optional: for raceway ponds
+    @IsOptional()
+    @IsInt()
+    @Min(1)
+    @Max(20)
+    channelCount?: number;
+
+    // Optional: manual override area (e.g. from survey)
+    @IsOptional()
     @IsNumber()
-    @IsOptional()
-    depthM?: number;
+    @Min(1)
+    overrideAreaM2?: number;
 
+    // Optional: display alias
+    @IsOptional()
     @IsString()
-    @IsOptional()
-    speciesType?: string;
+    @MaxLength(100)
+    displayName?: string;
 
-    @IsDateString()
+    // Optional: GPS coordinates
     @IsOptional()
-    stockingDate?: string;
+    @IsLatitude()
+    gpsLat?: number;
 
-    @IsString()
     @IsOptional()
-    status?: string;
+    @IsLongitude()
+    gpsLng?: number;
+
+    @IsOptional()
+    @IsInt()
+    @Min(1)
+    @Max(50)
+    batchCount?: number;
+
+    @IsOptional()
+    @IsArray()
+    boundary?: { latitude: number, longitude: number }[];
 }

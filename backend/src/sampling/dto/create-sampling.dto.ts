@@ -2,7 +2,11 @@ import { IsUUID, IsString, IsOptional, IsNumber, IsDateString, IsArray } from 'c
 
 export class CreateSamplingDto {
     @IsUUID()
-    cropId: string;
+    pondId: string;
+
+    @IsUUID()
+    @IsOptional()
+    cropId?: string;
 
     @IsDateString()
     samplingDate: string;

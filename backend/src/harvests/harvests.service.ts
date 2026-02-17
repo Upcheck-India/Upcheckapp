@@ -1,42 +1,48 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { HarvestRecord } from './harvest-record.entity';
+import { Harvest } from './harvest.entity';
 import { CreateHarvestDto } from './dto/create-harvest.dto';
-import { UpdateHarvestDto } from './dto/update-harvest.dto';
+import { CropsService } from '../crops/crops.service';
 
 @Injectable()
 export class HarvestsService {
     constructor(
-        @InjectRepository(HarvestRecord)
-        private harvestsRepository: Repository<HarvestRecord>,
+        @InjectRepository(Harvest)
+        private harvestsRepository: Repository<Harvest>,
+        private cropsService: CropsService,
     ) { }
 
-    create(createDto: CreateHarvestDto) {
-        const record = this.harvestsRepository.create(createDto);
-        return this.harvestsRepository.save(record);
-    }
+    async create(createDto: CreateHarvestDto, userId: string) {
+        // Create harvest record
+        const harvest = this.harvestsRepository.create(createDto);
+        const savedHarvest = await this.harvestsRepository.save(harvest);
 
-    findAll(cropId?: string) {
-        if (cropId) {
-            return this.harvestsRepository.find({
-                where: { cropId },
-                order: { harvestDate: 'DESC' },
-            });
+        // If full harvest, close the cycle
+        if (createDto.harvestType === 'full') {
+            await this.cropsService.closeCycle(createDto.cropId, createDto.harvestDate, userId);
         }
-        return this.harvestsRepository.find({ order: { harvestDate: 'DESC' } });
+
+        return savedHarvest;
     }
 
-    findOne(id: string) {
-        return this.harvestsRepository.findOneBy({ id });
+    async findAll(cropId: string) {
+        return this.harvestsRepository.find({
+            where: { cropId },
+            order: { harvestDate: 'DESC' },
+        });
     }
 
-    async update(id: string, updateDto: UpdateHarvestDto) {
-        await this.harvestsRepository.update(id, updateDto);
-        return this.findOne(id);
+    async findOne(id: string) {
+        const harvest = await this.harvestsRepository.findOneBy({ id });
+        if (!harvest) {
+            throw new NotFoundException(`Harvest with ID ${id} not found`);
+        }
+        return harvest;
     }
 
-    remove(id: string) {
-        return this.harvestsRepository.delete(id);
+    async remove(id: string) {
+        const harvest = await this.findOne(id);
+        return this.harvestsRepository.remove(harvest);
     }
 }

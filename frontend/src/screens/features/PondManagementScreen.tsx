@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, FlatList, Alert } from 'react-native';
-import { Text, FAB, Card, Modal, Portal, TextInput, Button, ActivityIndicator, Avatar, Chip } from 'react-native-paper';
+import { FAB, ActivityIndicator, Avatar, Chip, Card, Text } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
@@ -11,21 +11,17 @@ import { Layout } from '../../constants/Layout';
 import { AppCard } from '../../components/AppCard';
 import { EmptyState } from '../../components/EmptyState';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import { GradientButton } from '../../components/GradientButton';
+import { AddPondModal } from '../../components/AddPondModal';
 
 const PondManagementScreen = () => {
     const route = useRoute<any>();
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
     const { farmId, farmName } = route.params || {};
 
     const [ponds, setPonds] = useState<Pond[]>([]);
     const [loading, setLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
-
-    // New Pond
-    const [name, setName] = useState('');
-    const [area, setArea] = useState('');
-    const [depth, setDepth] = useState('');
+    const [creating, setCreating] = useState(false);
 
     useEffect(() => {
         if (farmId) loadPonds();
@@ -34,8 +30,8 @@ const PondManagementScreen = () => {
     const loadPonds = async () => {
         setLoading(true);
         try {
-            const data = await PondService.fetchPonds(farmId);
-            setPonds(data);
+            const response = await PondService.fetchPonds(farmId);
+            setPonds(response.ponds);
         } catch (error) {
             console.error(error);
         } finally {
@@ -43,61 +39,93 @@ const PondManagementScreen = () => {
         }
     };
 
-    const handleCreatePond = async () => {
-        if (!name) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            Alert.alert('Validation', 'Pond name is required');
-            return;
-        }
-
+    const handleCreatePond = async (formData: any) => {
+        setCreating(true);
         try {
             await PondService.createPond({
-                farm_id: farmId,
-                name,
-                area_m2: area ? parseFloat(area) : 0,
-                depth_m: depth ? parseFloat(depth) : 0,
-                status: 'active'
+                ...formData,
+                farmId,
             });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setModalVisible(false);
-            setName('');
-            setArea('');
-            setDepth('');
             loadPonds();
         } catch (error) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert('Error', 'Failed to create pond');
+            Alert.alert('Error', error instanceof Error ? error.message : 'Failed to create pond');
+        } finally {
+            setCreating(false);
         }
+    };
+
+    const handleArchivePond = (id: string, name: string) => {
+        Alert.alert(
+            'Archive Pond',
+            `Are you sure you want to archive ${name}? This will mark it as archived without deleting its history.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Archive',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await PondService.archivePond(id);
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            loadPonds();
+                        } catch (error) {
+                            Alert.alert('Error', error instanceof Error ? error.message : 'Failed to archive');
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'active': return Colors.success;
-            case 'inactive': return Colors.grey;
-            case 'harvested': return Colors.warning;
+            case 'fallow': return Colors.grey;
+            case 'harvesting': return Colors.warning;
+            case 'archived': return Colors.error;
             default: return Colors.textTertiary;
         }
     };
 
     const renderItem = ({ item }: { item: Pond }) => (
-        <AppCard style={styles.card}>
+        <AppCard
+            style={styles.card}
+            onPress={() => navigation.navigate('PondDetail', { pondId: item.id, pondName: item.displayName || item.name })}
+            onLongPress={() => handleArchivePond(item.id, item.displayName || item.name)}
+        >
             <Card.Title
-                title={item.name}
+                title={item.displayName || item.name}
+                subtitle={item.pondCode}
                 left={(props) => <Avatar.Icon {...props} icon="waves" style={{ backgroundColor: Colors.secondaryContainer }} color={Colors.primary} />}
                 right={() => (
-                    <Chip
-                        style={[styles.statusChip, { backgroundColor: getStatusColor(item.status) + '20' }]}
-                        textStyle={{ color: getStatusColor(item.status), fontSize: 11, fontWeight: '600' }}
-                    >
-                        {item.status?.toUpperCase()}
-                    </Chip>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Chip
+                            style={[styles.statusChip, { backgroundColor: getStatusColor(item.status) + '20' }]}
+                            textStyle={{ color: getStatusColor(item.status), fontSize: 10, fontWeight: '600' }}
+                        >
+                            {item.status?.toUpperCase()}
+                        </Chip>
+                    </View>
                 )}
             />
             <Card.Content>
                 <View style={styles.pondMeta}>
-                    <Text style={styles.metaText}>Area: {item.area_m2} m²</Text>
-                    <Text style={styles.metaText}>Depth: {item.depth_m} m</Text>
+                    <Text style={styles.metaText}>{item.geometryType.toUpperCase()} • {item.constructionType.replace('_', ' ').toUpperCase()}</Text>
                 </View>
+                <View style={styles.pondMeta}>
+                    <Text style={styles.metaText}>Area: {item.calculatedAreaM2} m²</Text>
+                    <Text style={styles.metaText}>Depth: {item.depthM} m</Text>
+                </View>
+                {item.activeCycle && (
+                    <View style={styles.activeCycleRow}>
+                        <Avatar.Icon icon="sprout" size={24} style={{ backgroundColor: 'transparent' }} color={Colors.success} />
+                        <Text style={{ fontWeight: '600', color: Colors.text, flex: 1 }}>{item.activeCycle.name}</Text>
+                        <Chip style={{ height: 24, backgroundColor: Colors.success + '20' }} textStyle={{ color: Colors.success, fontSize: 10, lineHeight: 10 }}>DOC {item.activeCycle.doc}</Chip>
+                    </View>
+                )}
             </Card.Content>
         </AppCard>
     );
@@ -136,19 +164,12 @@ const PondManagementScreen = () => {
                 color={Colors.textLight}
             />
 
-            <Portal>
-                <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={styles.modalContent}>
-                    <Text variant="titleMedium" style={styles.modalTitle}>Add New Pond</Text>
-                    <TextInput label="Pond Name *" value={name} onChangeText={setName} mode="outlined" style={styles.input} left={<TextInput.Icon icon="waves" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
-                    <TextInput label="Area (m²)" value={area} onChangeText={setArea} mode="outlined" keyboardType="numeric" style={styles.input} left={<TextInput.Icon icon="ruler-square" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
-                    <TextInput label="Depth (m)" value={depth} onChangeText={setDepth} mode="outlined" keyboardType="numeric" style={styles.input} left={<TextInput.Icon icon="arrow-collapse-down" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
-
-                    <GradientButton title="Create Pond" onPress={handleCreatePond} icon="plus-circle" style={{ marginTop: Layout.spacing.sm }} />
-                    <Button mode="text" onPress={() => setModalVisible(false)} style={{ marginTop: Layout.spacing.sm }}>
-                        Cancel
-                    </Button>
-                </Modal>
-            </Portal>
+            <AddPondModal
+                visible={modalVisible}
+                onDismiss={() => setModalVisible(false)}
+                onSubmit={handleCreatePond}
+                loading={creating}
+            />
         </SafeAreaView>
     );
 };
@@ -162,6 +183,15 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         marginTop: Layout.spacing.xs,
     },
+    activeCycleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: Layout.spacing.sm,
+        paddingTop: Layout.spacing.sm,
+        borderTopWidth: 1,
+        borderTopColor: Colors.border,
+        gap: 4
+    },
     metaText: { color: Colors.textSecondary, fontSize: 13 },
     statusChip: { marginRight: Layout.spacing.lg },
     fab: {
@@ -171,14 +201,6 @@ const styles = StyleSheet.create({
         bottom: 0,
         backgroundColor: Colors.primary,
     },
-    modalContent: {
-        backgroundColor: Colors.modalBackground,
-        padding: Layout.modalPadding,
-        margin: Layout.modalMargin,
-        borderRadius: Layout.modalRadius,
-    },
-    modalTitle: { marginBottom: Layout.spacing.lg, textAlign: 'center', color: Colors.text, fontWeight: '600' },
-    input: { marginBottom: Layout.spacing.md, backgroundColor: Colors.surface },
 });
 
 export default PondManagementScreen;

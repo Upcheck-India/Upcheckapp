@@ -71,9 +71,9 @@ const DashboardScreen = () => {
         try {
             await FarmService.createFarm({
                 name: newFarmName.trim(),
-                area_hectares: newFarmArea ? parseFloat(newFarmArea) : undefined,
+                areaHectares: newFarmArea ? parseFloat(newFarmArea) : undefined,
                 address: newFarmAddress.trim() || undefined,
-                privacy_setting: 'private',
+                privacySetting: 'private',
             });
 
             setNewFarmName('');
@@ -97,7 +97,7 @@ const DashboardScreen = () => {
         >
             <Card.Title
                 title={item.name}
-                subtitle={`${item.area_hectares ? item.area_hectares + ' ha' : 'No area'} • ${item.address || 'No address'}`}
+                subtitle={`${item.areaHectares ? item.areaHectares + ' ha' : 'No area'} • ${item.address || 'No address'}`}
                 left={(props) => <Avatar.Icon {...props} icon="home-variant" style={{ backgroundColor: Colors.primary }} />}
             />
         </AppCard>

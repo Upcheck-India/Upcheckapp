@@ -12,6 +12,8 @@ import { AppCard } from '../../components/AppCard';
 import { EmptyState } from '../../components/EmptyState';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { GradientButton } from '../../components/GradientButton';
+import { MapBoundaryPicker } from '../../components/MapBoundaryPicker';
+import { HelperText } from 'react-native-paper';
 
 const FarmManagementScreen = () => {
     const navigation = useNavigation<any>();
@@ -23,6 +25,8 @@ const FarmManagementScreen = () => {
     const [name, setName] = useState('');
     const [address, setAddress] = useState('');
     const [area, setArea] = useState('');
+    const [boundary, setBoundary] = useState<{ latitude: number, longitude: number }[] | undefined>();
+    const [mapVisible, setMapVisible] = useState(false);
 
     useEffect(() => {
         loadFarms();
@@ -51,14 +55,18 @@ const FarmManagementScreen = () => {
             await FarmService.createFarm({
                 name,
                 address,
-                area_hectares: area ? parseFloat(area) : undefined,
-                privacy_setting: 'private'
+                areaHectares: area ? parseFloat(area) : undefined,
+                privacySetting: 'private',
+                boundary,
+                latitude: boundary?.[0]?.latitude,
+                longitude: boundary?.[0]?.longitude,
             });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setModalVisible(false);
             setName('');
             setAddress('');
             setArea('');
+            setBoundary(undefined);
             loadFarms();
         } catch (error) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -67,7 +75,7 @@ const FarmManagementScreen = () => {
     };
 
     const renderItem = ({ item }: { item: Farm }) => (
-        <AppCard style={styles.card} onPress={() => navigation.navigate('PondManagement', { farmId: item.id, farmName: item.name })}>
+        <AppCard style={styles.card}>
             <Card.Title
                 title={item.name}
                 subtitle={item.address || 'No address'}
@@ -75,8 +83,14 @@ const FarmManagementScreen = () => {
             />
             <Card.Content>
                 <View style={styles.farmMeta}>
-                    <Text style={styles.metaText}>Code: {item.farm_code}</Text>
-                    <Text style={styles.metaText}>Area: {item.area_hectares || '—'} ha</Text>
+                    <Text style={styles.metaText}>Code: {item.farmCode}</Text>
+                    <Text style={styles.metaText}>Area: {item.areaHectares || '—'} ha</Text>
+                    {item.boundary?.length ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Avatar.Icon icon="map-check" size={16} color={Colors.success} style={{ backgroundColor: 'transparent' }} />
+                            <Text style={[styles.metaText, { color: Colors.success, marginLeft: 2 }]}>Mapped</Text>
+                        </View>
+                    ) : null}
                 </View>
             </Card.Content>
         </AppCard>
@@ -119,11 +133,30 @@ const FarmManagementScreen = () => {
                     <TextInput label="Address" value={address} onChangeText={setAddress} mode="outlined" style={styles.input} left={<TextInput.Icon icon="map-marker" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
                     <TextInput label="Area (Hectares)" value={area} onChangeText={setArea} mode="outlined" keyboardType="numeric" style={styles.input} left={<TextInput.Icon icon="ruler-square" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
 
+                    <Button
+                        mode="outlined"
+                        icon={boundary ? "map-check" : "map-marker-plus"}
+                        onPress={() => setMapVisible(true)}
+                        textColor={boundary ? Colors.success : Colors.primary}
+                        style={{ marginBottom: Layout.spacing.md, borderColor: boundary ? Colors.success : Colors.primary }}
+                    >
+                        {boundary ? "Boundary Defined" : "Set Map Boundary"}
+                    </Button>
+
                     <GradientButton title="Create Farm" onPress={handleCreateFarm} icon="plus-circle" style={{ marginTop: Layout.spacing.sm }} />
                     <Button mode="text" onPress={() => setModalVisible(false)} style={{ marginTop: Layout.spacing.sm }}>
                         Cancel
                     </Button>
                 </Modal>
+                <MapBoundaryPicker
+                    visible={mapVisible}
+                    onDismiss={() => setMapVisible(false)}
+                    onSave={(b) => {
+                        setBoundary(b);
+                        setMapVisible(false);
+                    }}
+                    initialBoundary={boundary}
+                />
             </Portal>
         </SafeAreaView>
     );

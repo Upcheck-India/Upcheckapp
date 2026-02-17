@@ -16,7 +16,7 @@ export class WaterQualityService {
 
     async create(createDto: CreateWaterQualityRecordDto, userId: string) {
         // Verify user owns the pond
-        await this.pondsService.findOne(createDto.pondId, userId);
+        await this.pondsService.verifyOwner(createDto.pondId, userId);
 
         const record = this.recordsRepository.create(createDto);
         return this.recordsRepository.save(record);
@@ -35,7 +35,7 @@ export class WaterQualityService {
         }
 
         // Verify user owns the pond
-        await this.pondsService.findOne(pondId, userId);
+        await this.pondsService.verifyOwner(pondId, userId);
 
         return this.recordsRepository.find({
             where: { pondId },
@@ -45,7 +45,7 @@ export class WaterQualityService {
 
     async findByPond(pondId: string, userId: string, startDate?: Date, endDate?: Date) {
         // Verify user owns the pond
-        await this.pondsService.findOne(pondId, userId);
+        await this.pondsService.verifyOwner(pondId, userId);
 
         if (startDate && endDate) {
             return this.recordsRepository.find({
@@ -68,7 +68,7 @@ export class WaterQualityService {
             throw new NotFoundException(`WaterQualityRecord with ID ${id} not found`);
         }
         // Verify ownership via pond
-        await this.pondsService.findOne(record.pondId, userId);
+        await this.pondsService.verifyOwner(record.pondId, userId);
         return record;
     }
 
@@ -85,7 +85,7 @@ export class WaterQualityService {
 
     async getLatestByPond(pondId: string, userId: string) {
         // Verify user owns the pond
-        await this.pondsService.findOne(pondId, userId);
+        await this.pondsService.verifyOwner(pondId, userId);
 
         return this.recordsRepository.findOne({
             where: { pondId },

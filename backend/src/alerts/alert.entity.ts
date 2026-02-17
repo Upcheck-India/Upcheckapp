@@ -31,4 +31,10 @@ export class Alert {
 
     @Column({ name: 'farm_id', type: 'uuid', nullable: true })
     farmId: string;
+
+    @Column({ type: 'jsonb', nullable: true })
+    data: Record<string, any>;
+
+    @Column({ name: 'is_push_sent', type: 'boolean', default: false })
+    isPushSent: boolean;
 }

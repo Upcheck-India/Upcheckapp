@@ -1,5 +1,13 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToOne } from 'typeorm';
 import { Farm } from '../farms/farm.entity';
+import { Crop } from '../crops/crop.entity';
+
+export type PondGeometryType = 'rectangular' | 'circular' | 'irregular' | 'raceway';
+export type PondConstructionType = 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
+export type PondStatus = 'fallow' | 'active' | 'harvesting' | 'archived';
+
+// Note: Entity columns use 'string' to avoid TypeORM DeepPartial conflicts.
+// The type aliases above serve as documentation for valid values.
 
 @Entity('ponds')
 export class Pond {
@@ -22,17 +30,23 @@ export class Pond {
     @Column({ type: 'text' })
     name: string;
 
-    @Column({ name: 'name_prefix', type: 'text', nullable: true })
+    @Column({ name: 'name_prefix', type: 'varchar', length: 4, nullable: true })
     namePrefix: string;
 
-    @Column({ name: 'auto_number', type: 'int', nullable: true })
-    autoNumber: number;
+    @Column({ name: 'sequence_number', type: 'int', nullable: true })
+    sequenceNumber: number;
 
-    @Column({ name: 'pond_code', type: 'text', nullable: true })
+    @Column({ name: 'pond_code', type: 'varchar', length: 20, unique: true, nullable: true })
     pondCode: string;
 
-    @Column({ type: 'text', nullable: true })
-    type: string; // 'square' | 'circle'
+    @Column({ name: 'display_name', type: 'varchar', length: 100, nullable: true })
+    displayName: string;
+
+    @Column({ name: 'geometry_type', type: 'varchar', length: 20 })
+    geometryType: string;
+
+    @Column({ name: 'construction_type', type: 'varchar', length: 20 })
+    constructionType: string;
 
     @Column({ name: 'length_m', type: 'numeric', nullable: true })
     lengthM: number;
@@ -40,21 +54,55 @@ export class Pond {
     @Column({ name: 'width_m', type: 'numeric', nullable: true })
     widthM: number;
 
-    @Column({ name: 'area_m2', type: 'numeric', nullable: true })
-    areaM2: number;
+    @Column({ name: 'diameter_m', type: 'numeric', nullable: true })
+    diameterM: number;
 
-    @Column({ name: 'depth_m', type: 'numeric', nullable: true })
+    @Column({ name: 'depth_m', type: 'numeric' })
     depthM: number;
 
-    @Column({ name: 'rfid_tag', type: 'text', nullable: true })
-    rfidTag: string;
+    @Column({ name: 'channel_count', type: 'int', nullable: true })
+    channelCount: number;
 
-    @Column({ name: 'species_type', type: 'text', nullable: true })
-    speciesType: string;
+    @Column({ name: 'calculated_area_m2', type: 'numeric' })
+    calculatedAreaM2: number;
 
-    @Column({ name: 'stocking_date', type: 'timestamp with time zone', nullable: true })
-    stockingDate: Date;
+    @Column({ name: 'override_area_m2', type: 'numeric', nullable: true })
+    overrideAreaM2: number;
 
-    @Column({ type: 'text', default: 'active' })
-    status: string; // 'active' | 'inactive' | 'empty'
+    @Column({ name: 'gps_lat', type: 'numeric', nullable: true })
+    gpsLat: number;
+
+    @Column({ name: 'gps_lng', type: 'numeric', nullable: true })
+    gpsLng: number;
+
+    @Column({ type: 'varchar', length: 20, default: 'fallow' })
+    status: string;
+
+    @Column({ name: 'archived_at', type: 'timestamp with time zone', nullable: true })
+    archivedAt: Date;
+
+    @Column({ name: 'active_cycle_id', type: 'uuid', nullable: true })
+    activeCycleId: string | null;
+
+    @OneToOne(() => Crop)
+    @JoinColumn({ name: 'active_cycle_id' })
+    activeCycle: Crop;
+
+    @Column({ type: 'jsonb', nullable: true })
+    boundary: { latitude: number, longitude: number }[];
+
+    /**
+     * Returns the effective area: override if set, otherwise calculated.
+     * All downstream consumers (cycles, dashboards) should use this.
+     */
+    get effectiveAreaM2(): number {
+        return this.overrideAreaM2 ?? this.calculatedAreaM2;
+    }
+
+    /**
+     * Returns the calculated volume from effective area and depth.
+     */
+    get volumeM3(): number {
+        return (this.effectiveAreaM2 ?? 0) * (this.depthM ?? 0);
+    }
 }

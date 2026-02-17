@@ -138,6 +138,12 @@ export class AuthController {
         return this.authService.getSessions(userId);
     }
 
+    @Post('preferences') // Or PATCH /auth/me/preferences
+    @HttpCode(HttpStatus.OK)
+    async updatePreferences(@GetUserId() userId: string, @Body() body: { key: string; value: any }) {
+        return this.authService.updatePreferences(userId, body.key, body.value);
+    }
+
     @Delete('sessions/:id')
     @HttpCode(HttpStatus.OK)
     async revokeSession(@GetUserId() userId: string, @Param('id') sessionId: string) {

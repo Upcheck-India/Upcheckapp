@@ -1,239 +1,292 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { PondsService } from './ponds.service';
 import { Pond } from './pond.entity';
-import { CreatePondDto } from './dto/create-pond.dto';
-import { UpdatePondDto } from './dto/update-pond.dto';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import { PondDimensionHistory } from './pond-dimension-history.entity';
 import { FarmsService } from '../farms/farms.service';
+import { PondDimensionService } from './pond-dimension.service';
+import { PondNamingService } from './pond-naming.service';
+import { CreatePondDto } from './dto/create-pond.dto';
 
 describe('PondsService', () => {
   let service: PondsService;
-  let repository: MockRepository;
-  let farmsService: jest.Mocked<FarmsService>;
-  
+  let pondsRepository: any;
+  let historyRepository: any;
+  let farmsService: any;
+  let dimensionService: any;
+  let namingService: any;
+  let dataSource: any;
+
   const mockFarm = {
     id: 'farm-1',
     userId: 'user-1',
     name: 'Test Farm',
-    farmCode: 'F001',
+    farmCode: 'TF001234',
     areaHectares: 10,
-    address: '123 Test Street',
-    longitude: 77.5946,
-    latitude: 12.9716,
-    qrCodeUrl: 'https://example.com/qrcode',
+    address: '123 Test',
+    longitude: 77.5,
+    latitude: 12.9,
+    waterSourceType: 'tidal',
+    qrCodeUrl: '',
     privacySetting: 'private',
+    deletedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
-  
-  const mockPondEntity = {
+
+  const mockPond = {
     id: 'pond-1',
     farmId: 'farm-1',
-    name: 'Test Pond',
-    namePrefix: 'P',
-    autoNumber: 1,
-    pondCode: 'P001',
-    type: 'square',
+    name: 'A01',
+    namePrefix: 'A',
+    sequenceNumber: 1,
+    pondCode: 'TF001234:A01',
+    displayName: null,
+    geometryType: 'rectangular',
+    constructionType: 'earthen',
     lengthM: 20,
-    widthM: 20,
-    areaM2: 1000,
+    widthM: 10,
+    diameterM: null,
     depthM: 1.5,
-    rfidTag: 'RFID001',
-    speciesType: 'vannamei',
-    stockingDate: new Date(), // Date for entity
-    status: 'active',
+    channelCount: null,
+    calculatedAreaM2: 200,
+    overrideAreaM2: null,
+    gpsLat: null,
+    gpsLng: null,
+    status: 'fallow',
+    archivedAt: null,
+    activeCycleId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     farm: mockFarm,
+    get effectiveAreaM2() { return this.overrideAreaM2 ?? this.calculatedAreaM2; },
+    get volumeM3() { return (this.effectiveAreaM2 ?? 0) * (this.depthM ?? 0); },
   };
-  
-  const mockPond = mockPondEntity;
-  
-  const mockCreatePondDto: CreatePondDto = {
-    farmId: 'farm-1',
-    name: 'New Pond',
-    pondCode: 'P002',
-    areaM2: 1200,
-    depthM: 1.8,
-    speciesType: 'vannamei',
-    stockingDate: new Date().toISOString(), // String as expected by DTO
-    status: 'active',
-  };
-  
-  const mockUpdatePondDto: UpdatePondDto = {
-    name: 'Updated Pond',
-    areaM2: 1500,
-  };
-  
-  type MockRepository = Partial<Record<keyof Repository<any>, jest.Mock>> & { [K in keyof Repository<any>]?: jest.Mock };
-  
-  const createMockRepository = (): MockRepository => ({
-    create: jest.fn(),
-    save: jest.fn(),
-    find: jest.fn(),
-    findOne: jest.fn(),
-    findOneBy: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-  });
 
   beforeEach(async () => {
+    pondsRepository = {
+      create: jest.fn().mockImplementation(data => ({ ...data, id: 'pond-new' })),
+      save: jest.fn(),
+      find: jest.fn(),
+      findOne: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      count: jest.fn(),
+      createQueryBuilder: jest.fn(),
+    };
+
+    historyRepository = {
+      create: jest.fn().mockImplementation(data => data),
+      save: jest.fn(),
+      find: jest.fn(),
+    };
+
+    farmsService = {
+      verifyOwnership: jest.fn().mockResolvedValue(mockFarm),
+      findOne: jest.fn().mockResolvedValue(mockFarm),
+    };
+
+    dimensionService = {
+      validateDimensions: jest.fn(),
+      calculateArea: jest.fn().mockReturnValue(200),
+      calculateVolume: jest.fn().mockReturnValue(300),
+      getWarnings: jest.fn().mockReturnValue([]),
+      hasDimensionsChanged: jest.fn().mockReturnValue(false),
+    };
+
+    namingService = {
+      validatePrefix: jest.fn(),
+      validatePondLimit: jest.fn(),
+      generateBatchNames: jest.fn().mockResolvedValue([
+        { name: 'A01', pondCode: 'TF001234:A01', sequenceNumber: 1 },
+      ]),
+    };
+
+    const mockTransactionManager = {
+      save: jest.fn().mockImplementation(entities => entities),
+    };
+    dataSource = {
+      transaction: jest.fn().mockImplementation(async cb => cb(mockTransactionManager)),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PondsService,
-        {
-          provide: getRepositoryToken(Pond),
-          useValue: createMockRepository(),
-        },
-        {
-          provide: FarmsService,
-          useValue: {
-            findOne: jest.fn(),
-          },
-        },
+        { provide: getRepositoryToken(Pond), useValue: pondsRepository },
+        { provide: getRepositoryToken(PondDimensionHistory), useValue: historyRepository },
+        { provide: FarmsService, useValue: farmsService },
+        { provide: PondDimensionService, useValue: dimensionService },
+        { provide: PondNamingService, useValue: namingService },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
 
     service = module.get<PondsService>(PondsService);
-    repository = module.get(getRepositoryToken(Pond));
-    farmsService = module.get(FarmsService);
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
-  
+
+  // ── create ─────────────────────────────────────────────────
+
   describe('create', () => {
-    it('should create a new pond', async () => {
-      const userId = 'user-1';
-      
-      farmsService.findOne.mockResolvedValue(mockFarm);
-      (repository.create as jest.Mock).mockReturnValue(mockPond);
-      (repository.save as jest.Mock).mockResolvedValue(mockPond);
-      
-      const result = await service.create(mockCreatePondDto, userId);
-      
-      expect(farmsService.findOne).toHaveBeenCalledWith(mockCreatePondDto.farmId, userId);
-      expect(repository.create).toHaveBeenCalledWith(mockCreatePondDto);
-      expect(repository.save).toHaveBeenCalledWith(mockPond);
-      expect(result).toEqual(mockPond);
+    const dto: CreatePondDto = {
+      farmId: 'farm-1',
+      namePrefix: 'A',
+      geometryType: 'rectangular',
+      constructionType: 'earthen',
+      lengthM: 20,
+      widthM: 10,
+      depthM: 1.5,
+    };
+
+    it('should create a single pond with calculated area', async () => {
+      const result = await service.create(dto, 'user-1');
+
+      expect(farmsService.verifyOwnership).toHaveBeenCalledWith('farm-1', 'user-1');
+      expect(namingService.validatePrefix).toHaveBeenCalledWith('A');
+      expect(dimensionService.validateDimensions).toHaveBeenCalled();
+      expect(dimensionService.calculateArea).toHaveBeenCalled();
+      expect(result).toHaveProperty('pond');
+      expect(result).toHaveProperty('calculatedAreaM2');
+      expect(result).toHaveProperty('warnings');
+    });
+
+    it('should create batch ponds', async () => {
+      const batchDto = { ...dto, batchCount: 3 };
+      namingService.generateBatchNames.mockResolvedValue([
+        { name: 'A01', pondCode: 'TF001234:A01', sequenceNumber: 1 },
+        { name: 'A02', pondCode: 'TF001234:A02', sequenceNumber: 2 },
+        { name: 'A03', pondCode: 'TF001234:A03', sequenceNumber: 3 },
+      ]);
+
+      const result = await service.create(batchDto, 'user-1');
+
+      expect(result).toHaveProperty('ponds');
+      expect(result).toHaveProperty('count', 3);
+      expect(namingService.validatePondLimit).toHaveBeenCalledWith('farm-1', 3);
+    });
+
+    it('should use transaction for bulk save', async () => {
+      await service.create(dto, 'user-1');
+      expect(dataSource.transaction).toHaveBeenCalled();
+    });
+
+    it('should throw when farm ownership fails', async () => {
+      farmsService.verifyOwnership.mockRejectedValue(new ForbiddenException());
+      await expect(service.create(dto, 'user-2')).rejects.toThrow(ForbiddenException);
     });
   });
-  
-  describe('findAll', () => {
-    it('should return all ponds for a farm', async () => {
-      const farmId = 'farm-1';
-      const userId = 'user-1';
-      const ponds = [mockPond];
-      
-      farmsService.findOne.mockResolvedValue(mockFarm);
-      (repository.find as jest.Mock).mockResolvedValue(ponds);
-      
-      const result = await service.findAll(farmId, userId);
-      
-      expect(farmsService.findOne).toHaveBeenCalledWith(farmId, userId);
-      expect(repository.find).toHaveBeenCalledWith({ where: { farmId } });
-      expect(result).toEqual(ponds);
-    });
-  });
-  
+
+  // ── findOne ────────────────────────────────────────────────
+
   describe('findOne', () => {
-    it('should return a pond by id for authorized user', async () => {
-      const pondId = 'pond-1';
-      const userId = 'user-1';
-      
-      (repository.findOne as jest.Mock).mockResolvedValue(mockPond);
-      
-      const result = await service.findOne(pondId, userId);
-      
-      expect(repository.findOne).toHaveBeenCalledWith({
-        where: { id: pondId },
-        relations: ['farm'],
-      });
+    it('should return pond for authorized user', async () => {
+      pondsRepository.findOne.mockResolvedValue(mockPond);
+      const result = await service.findOne('pond-1', 'user-1');
       expect(result).toEqual(mockPond);
     });
-    
-    it('should throw NotFoundException when pond not found', async () => {
-      const pondId = 'non-existent';
-      const userId = 'user-1';
-      
-      (repository.findOne as jest.Mock).mockResolvedValue(null);
-      
-      await expect(service.findOne(pondId, userId)).rejects.toThrow(NotFoundException);
+
+    it('should throw NotFoundException when not found', async () => {
+      pondsRepository.findOne.mockResolvedValue(null);
+      await expect(service.findOne('bad-id', 'user-1')).rejects.toThrow(NotFoundException);
     });
-    
-    it('should throw ForbiddenException when user is not owner', async () => {
-      const pondId = 'pond-1';
-      const userId = 'user-2'; // Different user
-      const pondWithDifferentOwner = { 
-        ...mockPond, 
-        farm: { ...mockFarm, userId: 'user-1' } 
-      };
-      
-      (repository.findOne as jest.Mock).mockResolvedValue(pondWithDifferentOwner);
-      
-      await expect(service.findOne(pondId, userId)).rejects.toThrow(ForbiddenException);
+
+    it('should throw ForbiddenException for non-owner', async () => {
+      pondsRepository.findOne.mockResolvedValue(mockPond);
+      await expect(service.findOne('pond-1', 'user-2')).rejects.toThrow(ForbiddenException);
     });
   });
-  
+
+  // ── update ─────────────────────────────────────────────────
+
   describe('update', () => {
-    it('should update a pond', async () => {
-      const pondId = 'pond-1';
-      const userId = 'user-1';
-      const updatedPond = { 
-        ...mockPond, 
-        name: 'Updated Pond',
-        areaM2: 1500,
-        // Convert string stockingDate to Date for entity
-        stockingDate: typeof mockPond.stockingDate === 'string' ? new Date(mockPond.stockingDate) : mockPond.stockingDate
-      };
-      
-      // Mock the findOne call inside update
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockPond);
-      (repository.update as jest.Mock).mockResolvedValue(undefined);
-      jest.spyOn(service, 'findOne').mockResolvedValue(updatedPond);
-      
-      const result = await service.update(pondId, mockUpdatePondDto, userId);
-      
-      expect(service.findOne).toHaveBeenCalledWith(pondId, userId);
-      expect(repository.update).toHaveBeenCalledWith(pondId, mockUpdatePondDto);
-      expect(result).toEqual(updatedPond);
+    it('should update without history when no dimension change', async () => {
+      pondsRepository.findOne.mockResolvedValue(mockPond);
+      dimensionService.hasDimensionsChanged.mockReturnValue(false);
+      pondsRepository.update.mockResolvedValue(undefined);
+
+      await service.update('pond-1', { displayName: 'Pond Alpha' }, 'user-1');
+
+      expect(historyRepository.save).not.toHaveBeenCalled();
+      expect(pondsRepository.update).toHaveBeenCalledWith('pond-1', { displayName: 'Pond Alpha' });
+    });
+
+    it('should log history and recalculate when dimensions change', async () => {
+      pondsRepository.findOne.mockResolvedValue(mockPond);
+      dimensionService.hasDimensionsChanged.mockReturnValue(true);
+      dimensionService.calculateArea.mockReturnValue(250);
+      pondsRepository.update.mockResolvedValue(undefined);
+
+      await service.update('pond-1', { lengthM: 25, changeReason: 'Measured again' }, 'user-1');
+
+      expect(historyRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+        pondId: 'pond-1',
+        lengthMBefore: 20,
+        changeReason: 'Measured again',
+      }));
+      expect(historyRepository.save).toHaveBeenCalled();
+      expect(pondsRepository.update).toHaveBeenCalledWith('pond-1', expect.objectContaining({
+        calculatedAreaM2: 250,
+      }));
     });
   });
-  
+
+  // ── archive ────────────────────────────────────────────────
+
+  describe('archive', () => {
+    it('should archive fallow pond', async () => {
+      pondsRepository.findOne.mockResolvedValue(mockPond);
+      pondsRepository.update.mockResolvedValue(undefined);
+
+      const result = await service.archive('pond-1', 'user-1');
+      expect(result.message).toContain('archived');
+      expect(pondsRepository.update).toHaveBeenCalledWith('pond-1', expect.objectContaining({
+        status: 'archived',
+        archivedAt: expect.any(Date),
+      }));
+    });
+
+    it('should throw 409 when pond has active cycle', async () => {
+      pondsRepository.findOne.mockResolvedValue({ ...mockPond, activeCycleId: 'cycle-1' });
+      await expect(service.archive('pond-1', 'user-1')).rejects.toThrow(ConflictException);
+    });
+
+    it('should throw when already archived', async () => {
+      pondsRepository.findOne.mockResolvedValue({ ...mockPond, status: 'archived' });
+      await expect(service.archive('pond-1', 'user-1')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ── remove ─────────────────────────────────────────────────
+
   describe('remove', () => {
-    it('should remove a pond', async () => {
-      const pondId = 'pond-1';
-      const userId = 'user-1';
-      
-      // Mock the findOne call inside remove
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockPond);
-      (repository.delete as jest.Mock).mockResolvedValue({ affected: 1 });
-      
-      const result = await service.remove(pondId, userId);
-      
-      expect(service.findOne).toHaveBeenCalledWith(pondId, userId);
-      expect(repository.delete).toHaveBeenCalledWith(pondId);
-      expect(result).toEqual({ affected: 1 });
+    it('should delete pond', async () => {
+      pondsRepository.findOne.mockResolvedValue(mockPond);
+      pondsRepository.delete.mockResolvedValue({ affected: 1 });
+
+      const result = await service.remove('pond-1', 'user-1');
+      expect(result.message).toContain('deleted');
+    });
+
+    it('should throw when active cycle exists', async () => {
+      pondsRepository.findOne.mockResolvedValue({ ...mockPond, activeCycleId: 'cycle-1' });
+      await expect(service.remove('pond-1', 'user-1')).rejects.toThrow(ConflictException);
     });
   });
-  
-  describe('calculateVolume', () => {
-    it('should calculate pond volume correctly', () => {
-      const area = 1000;
-      const depth = 1.5;
-      const expectedVolume = 1500;
-      
-      const result = service.calculateVolume(area, depth);
-      
-      expect(result).toBe(expectedVolume);
-    });
-    
-    it('should handle zero values', () => {
-      const result = service.calculateVolume(0, 1.5);
-      expect(result).toBe(0);
+
+  // ── getDimensionHistory ────────────────────────────────────
+
+  describe('getDimensionHistory', () => {
+    it('should return history after ownership check', async () => {
+      pondsRepository.findOne.mockResolvedValue(mockPond);
+      historyRepository.find.mockResolvedValue([{ id: 'h1' }]);
+
+      const result = await service.getDimensionHistory('pond-1', 'user-1');
+      expect(result).toEqual([{ id: 'h1' }]);
     });
   });
 });

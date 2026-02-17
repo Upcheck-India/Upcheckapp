@@ -5,7 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
 import { Layout } from '../../../constants/Layout';
 import { PondService } from '../../../services/pondService';
-import { CropsService, CropData as Crop } from '../../../services/cropsService';
+import { CropsService } from '../../../services/cropsService';
+import { Crop } from '../../../types/database';
 import { DataEntryService } from '../../../services/dataEntryService';
 
 const ChemicalEntryScreen = ({ navigation }: any) => {
@@ -46,7 +47,7 @@ const ChemicalEntryScreen = ({ navigation }: any) => {
         setMenuVisible(false);
         // Load active crop
         try {
-            const crop = await CropsService.getActiveCrop(pond.id);
+            const crop = await CropsService.fetchActiveCrop(pond.id);
             setActiveCrop(crop || null);
         } catch (error) {
             console.error('Failed to load active crop', error);

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
 import { SamplingService } from './sampling.service';
 import { CreateSamplingDto } from './dto/create-sampling.dto';
 import { UpdateSamplingDto } from './dto/update-sampling.dto';
@@ -10,8 +10,8 @@ export class SamplingController {
     constructor(private readonly samplingService: SamplingService) { }
 
     @Post()
-    create(@Body() createDto: CreateSamplingDto) {
-        return this.samplingService.create(createDto);
+    create(@Body() createDto: CreateSamplingDto, @Req() req) {
+        return this.samplingService.create(createDto, req.user.id);
     }
 
     @Get()

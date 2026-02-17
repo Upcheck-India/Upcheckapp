@@ -1,8 +1,11 @@
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FeedRecordsService } from './feed-records.service';
 import { FeedRecord } from './feed-record.entity';
+import { PondsService } from '../ponds/ponds.service';
+import { InventoryService } from '../inventory/inventory.service';
 
 // Mock repository factory
 const createMockRepository = () => ({
@@ -22,14 +25,27 @@ const createMockRepository = () => ({
 describe('FeedRecordsService', () => {
   let service: FeedRecordsService;
   let mockRepository: any;
+  let module: TestingModule; // Correctly scoped module variable
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         FeedRecordsService,
         {
           provide: getRepositoryToken(FeedRecord),
           useValue: createMockRepository(),
+        },
+        {
+          provide: PondsService,
+          useValue: {
+            findOne: jest.fn(),
+          },
+        },
+        {
+          provide: InventoryService,
+          useValue: {
+            adjustStock: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -52,14 +68,49 @@ describe('FeedRecordsService', () => {
         feedingTime: '08:00',
         feedingMethod: 'Manual',
         waterTemperature: 28,
-        notes: 'Morning feeding'
+        notes: 'Morning feeding',
+        inventoryItemId: 'inv-item-1' // Added this
       };
 
-      const result = await service.create(createDto);
+      // Mock PondsService to return a pond with activeCycleId
+      const pondServiceMock = module.get<PondsService>(PondsService);
+      jest.spyOn(pondServiceMock, 'findOne').mockResolvedValue({
+        id: 'pond-1',
+        activeCycleId: 'crop-1',
+        userId: 'user-1',
+        farmId: 'farm-1'
+      } as any);
 
-      expect(mockRepository.create).toHaveBeenCalledWith(createDto);
+      // Mock InventoryService
+      const inventoryServiceMock = module.get<InventoryService>(InventoryService);
+      jest.spyOn(inventoryServiceMock, 'adjustStock').mockResolvedValue({} as any);
+
+      const result = await service.create(createDto, 'user-1');
+
+      expect(mockRepository.create).toHaveBeenCalledWith({
+        ...createDto,
+        cropId: 'crop-1'
+      });
       expect(mockRepository.save).toHaveBeenCalled();
+      expect(inventoryServiceMock.adjustStock).toHaveBeenCalledWith('inv-item-1', -50); // Verify deduction
       expect(result).toEqual(expect.objectContaining(createDto));
+    });
+
+    it('should not deduct stock if inventoryItemId is missing', async () => {
+      const createDto = {
+        pondId: 'pond-1',
+        feedType: 'Manual Feed',
+        quantityKg: 50,
+      };
+
+      const pondServiceMock = module.get<PondsService>(PondsService);
+      jest.spyOn(pondServiceMock, 'findOne').mockResolvedValue({ id: 'pond-1', activeCycleId: 'crop-1' } as any);
+
+      const inventoryServiceMock = module.get<InventoryService>(InventoryService);
+
+      await service.create(createDto as any, 'user-1');
+
+      expect(inventoryServiceMock.adjustStock).not.toHaveBeenCalled();
     });
   });
 
@@ -103,7 +154,7 @@ describe('FeedRecordsService', () => {
       const recordId = 'record-1';
       const updateDto = { quantityKg: 75 };
       const updatedRecord = { id: recordId, quantityKg: 75 };
-      
+
       mockRepository.findOneBy.mockResolvedValue(updatedRecord);
 
       const result = await service.update(recordId, updateDto);
@@ -128,7 +179,7 @@ describe('FeedRecordsService', () => {
     it('should return total feed for a pond', async () => {
       const pondId = 'pond-1';
       const mockResult = { totalFeed: '150' };
-      
+
       mockRepository.createQueryBuilder.mockReturnValue({
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),

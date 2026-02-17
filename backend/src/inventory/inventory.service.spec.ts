@@ -106,7 +106,7 @@ describe('InventoryService', () => {
       const itemId = 'item-1';
       const updateDto = { quantity: 150 };
       const updatedItem = { id: itemId, name: 'Fish Feed', quantity: 150 };
-      
+
       mockRepository.findOneBy.mockResolvedValue(updatedItem);
 
       const result = await service.update(itemId, updateDto);
@@ -131,7 +131,7 @@ describe('InventoryService', () => {
     it('should return low stock items for a farm', async () => {
       const farmId = 'farm-1';
       const mockLowStockItems = [{ id: '1', name: 'Fish Feed', quantity: 5, reorderLevel: 20 }];
-      
+
       mockRepository.createQueryBuilder.mockReturnValue({
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
@@ -142,6 +142,41 @@ describe('InventoryService', () => {
 
       expect(mockRepository.createQueryBuilder).toHaveBeenCalledWith('item');
       expect(result).toEqual(mockLowStockItems);
+    });
+  });
+  describe('adjustStock', () => {
+    it('should adjust stock level correctly', async () => {
+      const itemId = 'item-1';
+      const initialQuantity = 100;
+      const adjustment = -20;
+      const mockItem = { id: itemId, name: 'Fish Feed', quantity: initialQuantity };
+
+      mockRepository.findOneBy.mockResolvedValue(mockItem);
+      mockRepository.save.mockImplementation((item) => Promise.resolve(item));
+
+      const result = await service.adjustStock(itemId, adjustment);
+
+      expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: itemId });
+      expect(mockRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+        id: itemId,
+        quantity: initialQuantity + adjustment
+      }));
+      expect(result.quantity).toBe(initialQuantity + adjustment);
+    });
+
+    it('should throw error if item not found', async () => {
+      const itemId = 'non-existent';
+      mockRepository.findOneBy.mockResolvedValue(null);
+
+      await expect(service.adjustStock(itemId, 10)).rejects.toThrow('Inventory item not found');
+    });
+
+    it('should throw error if insufficient stock', async () => {
+      const itemId = 'item-1';
+      const mockItem = { id: itemId, name: 'Fish Feed', quantity: 10 };
+      mockRepository.findOneBy.mockResolvedValue(mockItem);
+
+      await expect(service.adjustStock(itemId, -20)).rejects.toThrow('Insufficient stock');
     });
   });
 });

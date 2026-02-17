@@ -1,37 +1,38 @@
-import { IsString, IsOptional, IsNumber, IsUrl, IsEnum, IsLatitude, IsLongitude } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsLatitude, IsLongitude, IsEnum, IsArray } from 'class-validator';
 
 export class CreateFarmDto {
     @IsString()
-    userId: string; // Ideally this should be removed from DTO and taken from JWT, but we'll validate it for now
-
-    @IsString()
     name: string;
 
-    @IsString()
     @IsOptional()
+    @IsString()
     farmCode?: string;
 
-    @IsNumber()
     @IsOptional()
+    @IsNumber()
     areaHectares?: number;
 
-    @IsString()
     @IsOptional()
+    @IsString()
     address?: string;
 
-    @IsLongitude()
     @IsOptional()
+    @IsLongitude()
     longitude?: number;
 
-    @IsLatitude()
     @IsOptional()
+    @IsLatitude()
     latitude?: number;
 
-    @IsUrl()
     @IsOptional()
-    qrCodeUrl?: string;
+    @IsEnum(['tidal', 'river', 'borehole', 'reservoir', 'recycled'])
+    waterSourceType?: string;
 
-    @IsString()
     @IsOptional()
+    @IsString()
     privacySetting?: string;
+
+    @IsOptional()
+    @IsArray()
+    boundary?: { latitude: number, longitude: number }[];
 }

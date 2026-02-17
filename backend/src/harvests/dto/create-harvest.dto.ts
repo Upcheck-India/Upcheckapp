@@ -1,4 +1,4 @@
-import { IsUUID, IsString, IsOptional, IsNumber, IsDateString } from 'class-validator';
+import { IsUUID, IsDateString, IsNumber, IsOptional, IsString, IsEnum } from 'class-validator';
 
 export class CreateHarvestDto {
     @IsUUID()
@@ -7,24 +7,31 @@ export class CreateHarvestDto {
     @IsDateString()
     harvestDate: string;
 
-    @IsString()
-    @IsOptional()
-    harvestType?: string; // 'partial' | 'final' | 'emergency'
-
     @IsNumber()
-    totalWeightKg: number;
+    weightKg: number;
 
     @IsNumber()
     @IsOptional()
-    countPerKg?: number;
+    count?: number;
 
     @IsNumber()
     @IsOptional()
-    pricePerKgRp?: number;
+    averageSize?: number;
+
+    @IsNumber()
+    @IsOptional()
+    salePriceTotal?: number;
 
     @IsString()
     @IsOptional()
     buyerName?: string;
+
+    @IsEnum(['partial', 'full'])
+    harvestType: 'partial' | 'full';
+
+    @IsEnum(['pending', 'sold', 'discarded'])
+    @IsOptional()
+    status?: 'pending' | 'sold' | 'discarded';
 
     @IsString()
     @IsOptional()

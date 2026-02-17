@@ -5,7 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
 import { Layout } from '../../../constants/Layout';
 import { PondService } from '../../../services/pondService';
-import { CropsService, CropData as Crop } from '../../../services/cropsService';
+import { CropsService } from '../../../services/cropsService';
+import { Crop } from '../../../types/database';
 import { DataEntryService } from '../../../services/dataEntryService';
 
 const PlanktonEntryScreen = ({ navigation }: any) => {
@@ -38,7 +39,7 @@ const PlanktonEntryScreen = ({ navigation }: any) => {
     const handleSelectPond = async (pond: any) => {
         setSelectedPond(pond);
         setMenuVisible(false);
-        const crop = await CropsService.getActiveCrop(pond.id);
+        const crop = await CropsService.fetchActiveCrop(pond.id);
         setActiveCrop(crop || null);
     };
 

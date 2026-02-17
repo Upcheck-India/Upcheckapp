@@ -1,102 +1,126 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
-import { Text, List, ActivityIndicator, Badge } from 'react-native-paper';
+import React, { useCallback, useState } from 'react';
+import { View, StyleSheet, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import { Text, Avatar, IconButton, ActivityIndicator, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MockDataService, AlertItem } from '../../services/mockDataService';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useFocusEffect } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
-import { ScreenHeader } from '../../components/ScreenHeader';
-import { EmptyState } from '../../components/EmptyState';
+import { Alert, AlertsService } from '../../services/alertsService';
 
-const AlertsScreen = () => {
-    const [alerts, setAlerts] = useState<AlertItem[]>([]);
+export const AlertsScreen = ({ navigation }) => {
+    const [alerts, setAlerts] = useState<Alert[]>([]);
     const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        loadAlerts();
-    }, []);
+    const [refreshing, setRefreshing] = useState(false);
 
     const loadAlerts = async () => {
-        setLoading(true);
         try {
-            const data = await MockDataService.getAlerts();
+            const data = await AlertsService.fetchAlerts();
             setAlerts(data);
         } catch (error) {
             console.error(error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            loadAlerts();
+        }, [])
+    );
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        loadAlerts();
+    };
+
+    const handleMarkAsRead = async (id: string) => {
+        try {
+            // Optimistic update
+            setAlerts(prev => prev.map(a => a.id === id ? { ...a, isRead: true } : a));
+            await AlertsService.markAsRead(id);
+        } catch (error) {
+            console.error(error);
+            loadAlerts(); // Revert on error
+        }
+    };
+
+    const handleMarkAllRead = async () => {
+        try {
+            setAlerts(prev => prev.map(a => ({ ...a, isRead: true })));
+            await AlertsService.markAllAsRead();
+        } catch (error) {
+            console.error(error);
         }
     };
 
     const getIcon = (type: string) => {
         switch (type) {
-            case 'warning': return 'alert-circle';
-            case 'success': return 'check-circle';
-            case 'info': default: return 'information';
+            case 'inventory_low_stock': return 'package-variant-closed';
+            case 'water_quality': return 'water-alert';
+            case 'system': return 'cogs';
+            default: return 'bell';
         }
     };
 
-    const getColor = (type: string) => {
-        switch (type) {
-            case 'warning': return Colors.error;
-            case 'success': return Colors.success;
-            case 'info': default: return Colors.primary;
+    const getColor = (severity: string) => {
+        switch (severity) {
+            case 'critical': return Colors.error;
+            case 'warning': return Colors.warning;
+            default: return Colors.primary;
         }
     };
 
-    const getBgColor = (type: string) => {
-        switch (type) {
-            case 'warning': return Colors.errorLight;
-            case 'success': return Colors.successLight;
-            case 'info': default: return Colors.infoLight;
-        }
-    };
-
-    const renderItem = ({ item }: { item: AlertItem }) => (
-        <List.Item
-            title={item.title}
-            description={item.message}
-            left={() => (
-                <View style={[styles.iconContainer, { backgroundColor: getBgColor(item.type) }]}>
-                    <MaterialCommunityIcons name={getIcon(item.type) as any} size={22} color={getColor(item.type)} />
-                </View>
-            )}
-            right={() => (
-                <View style={styles.rightContainer}>
-                    <Text variant="labelSmall" style={styles.date}>
-                        {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                    {!item.read && <Badge size={8} style={styles.unreadBadge} />}
-                </View>
-            )}
-            style={[styles.item, !item.read && styles.unreadItem]}
-            titleStyle={!item.read ? styles.unreadText : styles.readTitle}
-            descriptionStyle={styles.description}
-        />
+    const renderItem = ({ item }: { item: Alert }) => (
+        <TouchableOpacity
+            style={[styles.card, !item.isRead && styles.unreadCard]}
+            onPress={() => handleMarkAsRead(item.id)}
+        >
+            <View style={styles.iconContainer}>
+                <Avatar.Icon
+                    size={40}
+                    icon={getIcon(item.type)}
+                    style={{ backgroundColor: getColor(item.severity) + '20' }}
+                    color={getColor(item.severity)}
+                />
+            </View>
+            <View style={styles.textContainer}>
+                <Text variant="titleSmall" style={[styles.title, !item.isRead && styles.bold]}>
+                    {item.title}
+                </Text>
+                <Text variant="bodyMedium" style={styles.message} numberOfLines={2}>
+                    {item.message}
+                </Text>
+                <Text variant="labelSmall" style={styles.time}>
+                    {new Date(item.createdAt).toLocaleDateString()}
+                </Text>
+            </View>
+            {!item.isRead && <View style={styles.dot} />}
+        </TouchableOpacity>
     );
 
     return (
-        <SafeAreaView style={styles.container}>
-            <ScreenHeader title="Notifications" subtitle="Stay updated on your farm activity" variant="flat" />
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <View style={styles.header}>
+                <Text variant="headlineMedium" style={styles.headerTitle}>Notifications</Text>
+                <IconButton icon="check-all" onPress={handleMarkAllRead} />
+            </View>
 
             {loading ? (
-                <View style={styles.center}><ActivityIndicator color={Colors.primary} /></View>
-            ) : alerts.length === 0 ? (
-                <EmptyState
-                    icon="bell-off-outline"
-                    title="No notifications"
-                    subtitle="You're all caught up! We'll notify you when something needs your attention."
-                />
+                <View style={styles.center}><ActivityIndicator /></View>
             ) : (
                 <FlatList
                     data={alerts}
-                    keyExtractor={(item) => item.id}
                     renderItem={renderItem}
-                    contentContainerStyle={styles.listContent}
-                    onRefresh={loadAlerts}
-                    refreshing={loading}
-                    ItemSeparatorComponent={() => <View style={styles.separator} />}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={styles.list}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                    ListEmptyComponent={
+                        <View style={styles.center}>
+                            <Text variant="bodyLarge" style={{ color: Colors.textSecondary }}>No notifications</Text>
+                        </View>
+                    }
                 />
             )}
         </SafeAreaView>
@@ -104,26 +128,71 @@ const AlertsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: Colors.background },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    listContent: { backgroundColor: Colors.surface },
-    item: { paddingVertical: Layout.spacing.sm },
-    unreadItem: { backgroundColor: Colors.unreadBackground },
-    unreadText: { fontWeight: 'bold', color: Colors.text },
-    readTitle: { color: Colors.text },
-    description: { color: Colors.textSecondary, fontSize: 13 },
+    container: {
+        flex: 1,
+        backgroundColor: Colors.background,
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: Layout.padding,
+        paddingVertical: 12,
+        backgroundColor: Colors.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.divider,
+    },
+    headerTitle: {
+        fontWeight: 'bold',
+        color: Colors.text,
+    },
+    list: {
+        padding: Layout.padding,
+    },
+    card: {
+        flexDirection: 'row',
+        padding: 16,
+        backgroundColor: Colors.surface,
+        borderRadius: 12,
+        marginBottom: 12,
+        alignItems: 'center',
+        elevation: 1,
+    },
+    unreadCard: {
+        backgroundColor: Colors.surfaceVariant, // Slightly different bg for unread? Or keep white but add dot
+        borderLeftWidth: 4,
+        borderLeftColor: Colors.primary,
+    },
     iconContainer: {
+        marginRight: 16,
+    },
+    textContainer: {
+        flex: 1,
+    },
+    title: {
+        color: Colors.text,
+        marginBottom: 4,
+    },
+    bold: {
+        fontWeight: 'bold',
+    },
+    message: {
+        color: Colors.textSecondary,
+        marginBottom: 4,
+    },
+    time: {
+        color: Colors.textTertiary,
+    },
+    dot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: Colors.primary,
+        marginLeft: 8,
+    },
+    center: {
+        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        marginLeft: Layout.spacing.lg,
-    },
-    rightContainer: { justifyContent: 'center', paddingRight: Layout.spacing.lg },
-    date: { color: Colors.textTertiary },
-    unreadBadge: { alignSelf: 'flex-end', marginTop: Layout.spacing.xs, backgroundColor: Colors.primary },
-    separator: { height: 1, backgroundColor: Colors.divider },
+    }
 });
-
-export default AlertsScreen;

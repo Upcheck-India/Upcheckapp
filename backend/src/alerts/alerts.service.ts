@@ -16,6 +16,31 @@ export class AlertsService {
         return this.alertsRepository.save(alert);
     }
 
+    async createAutoAlert(
+        userId: string,
+        farmId: string,
+        type: string,
+        title: string,
+        message: string,
+        severity: 'info' | 'warning' | 'critical' = 'info',
+        data?: Record<string, any>,
+        pondId?: string,
+    ) {
+        const alert = this.alertsRepository.create({
+            userId,
+            farmId,
+            type,
+            title,
+            message,
+            severity,
+            data,
+            pondId,
+            isRead: false,
+            isPushSent: false,
+        });
+        return this.alertsRepository.save(alert);
+    }
+
     findByUser(userId: string, unreadOnly = false) {
         const where: any = { userId };
         if (unreadOnly) where.isRead = false;

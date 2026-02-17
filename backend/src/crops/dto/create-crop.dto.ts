@@ -15,6 +15,10 @@ export class CreateCropDto {
     @IsOptional()
     speciesType?: string;
 
+    @IsString()
+    @IsOptional()
+    seedType?: string;
+
     @IsNumber()
     @IsOptional()
     stockingDensity?: number;

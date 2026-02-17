@@ -5,7 +5,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { SupabaseModule } from './supabase/supabase.module';
+
 import { ProfilesModule } from './profiles/profiles.module';
 import { FarmsModule } from './farms/farms.module';
 import { AuthModule } from './auth/auth.module';
@@ -33,6 +33,8 @@ import { TreatmentsModule } from './treatments/treatments.module';
 import { HarvestsModule } from './harvests/harvests.module';
 import { FeedProductsModule } from './feed-products/feed-products.module';
 import { FeedingTrayChecksModule } from './feeding-tray-checks/feeding-tray-checks.module';
+import { FinancesModule } from './finances/finances.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -45,9 +47,10 @@ import { FeedingTrayChecksModule } from './feeding-tray-checks/feeding-tray-chec
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         const type = configService.get('DB_TYPE') || 'postgres';
+        const isProduction = configService.get('NODE_ENV') === 'production';
         const common = {
           autoLoadEntities: true,
-          synchronize: true,
+          synchronize: !isProduction, // Disable in production
         };
         if (type === 'sqlite') {
           return {
@@ -66,7 +69,6 @@ import { FeedingTrayChecksModule } from './feeding-tray-checks/feeding-tray-chec
       },
       inject: [ConfigService],
     }),
-    SupabaseModule,
     ProfilesModule,
     FarmsModule,
     AuthModule,
@@ -94,6 +96,7 @@ import { FeedingTrayChecksModule } from './feeding-tray-checks/feeding-tray-chec
     HarvestsModule,
     FeedProductsModule,
     FeedingTrayChecksModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [

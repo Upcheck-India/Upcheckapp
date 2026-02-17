@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import DashboardScreen from './DashboardScreen';
 import ProfileScreen from './ProfileScreen';
 import NewsScreen from './NewsScreen';
-import AlertsScreen from './AlertsScreen';
+import { AlertsScreen } from './AlertsScreen';
 import EShopScreen from '../features/EShopScreen';
 
 export { DashboardScreen, ProfileScreen, NewsScreen, AlertsScreen, EShopScreen };

@@ -555,20 +555,21 @@ export class AuthService {
     }
 
     async updateProfile(userId: string, dto: UpdateProfileDto) {
-        // Use TypeORM update with partial entity
-        await this.userRepository.update({ id: userId }, {
-            ...(dto.name && { firstName: dto.name.split(' ')[0], lastName: dto.name.split(' ').slice(1).join(' ') || '' }), // Map 'name' to first/last?
-            // Wait, RegisterDto has firstName/lastName. UpdateProfileDto has 'name'.
-            // I should explicitly map or update UpdateProfileDto to match.
-            // Let's assume UpdateProfileDto 'name' maps to firstName (simple) or split it.
-            // Or better, update UpdateProfileDto to have firstName/lastName.
-            // But for now keeping compatibility with frontend if it sends 'name'.
-            // I'll split 'name' into firstName/lastName.
-            ...(dto.profilePicture && { avatarUrl: dto.profilePicture }),
-        });
+        const updates: Partial<User> = {};
+        if (dto.name) {
+            const parts = dto.name.split(' ');
+            updates.firstName = parts[0];
+            updates.lastName = parts.slice(1).join(' ');
+        }
+        if (dto.profilePicture) {
+            updates.avatarUrl = dto.profilePicture;
+        }
+
+        await this.userRepository.update({ id: userId }, updates);
 
         const user = await this.userRepository.findOne({ where: { id: userId } });
         if (!user) throw new NotFoundException('User not found');
+
         return {
             message: 'Profile updated successfully',
             user: this.sanitizeUser(user),
@@ -607,6 +608,19 @@ export class AuthService {
         const code = await this.generateOtp(user.id, 'email_verify');
         await this.emailService.sendVerificationEmail(email, code, user.firstName || undefined);
         return { message: 'Verification email sent' };
+    }
+
+    async updatePreferences(userId: string, key: string, value: any) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user) throw new NotFoundException('User not found');
+
+        // Initialize if null
+        if (!user.preferences) user.preferences = {};
+
+        user.preferences[key] = value;
+        await this.userRepository.save(user);
+
+        return { message: 'Preferences updated', preferences: user.preferences };
     }
 
     // ==================== Private Helpers ====================
