@@ -4,16 +4,14 @@ import * as Clipboard from 'expo-clipboard';
 import { Text, TextInput, Surface, ActivityIndicator, IconButton } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { AuthService } from '../../services/auth';
+import { api } from '../../services/api';
 import { GradientButton } from '../../components/GradientButton';
-import { useAuthStore } from '../../store/authStore';
 import QRCode from 'react-native-qrcode-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 type Step = 'setup' | 'backup-codes';
 
 const TwoFASetupScreen = ({ navigation }: any) => {
-    const { accessToken } = useAuthStore();
     const [step, setStep] = useState<Step>('setup');
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -28,11 +26,11 @@ const TwoFASetupScreen = ({ navigation }: any) => {
 
     const fetchSetup = async () => {
         try {
-            const data = await AuthService.setup2FA(accessToken!);
-            setSecret(data.secret);
-            setOtpAuthUrl(data.otpAuthUrl);
+            const response = await api.post('/auth/2fa/setup');
+            setSecret(response.data.secret);
+            setOtpAuthUrl(response.data.otpAuthUrl);
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to initialize 2FA setup');
+            Alert.alert('Error', error.response?.data?.message || 'Failed to initialize 2FA setup');
             navigation.goBack();
         } finally {
             setLoading(false);
@@ -47,7 +45,8 @@ const TwoFASetupScreen = ({ navigation }: any) => {
 
         setSubmitting(true);
         try {
-            const data = await AuthService.enable2FA(accessToken!, code);
+            const response = await api.post('/auth/2fa/enable', { token: code });
+            const data = response.data;
             if (data.backupCodes) {
                 setBackupCodes(data.backupCodes);
                 setStep('backup-codes');
@@ -56,7 +55,7 @@ const TwoFASetupScreen = ({ navigation }: any) => {
                 navigation.goBack();
             }
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to enable 2FA');
+            Alert.alert('Error', error.response?.data?.message || error.message || 'Failed to enable 2FA');
         } finally {
             setSubmitting(false);
         }

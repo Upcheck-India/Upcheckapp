@@ -1,395 +1,194 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TransactionalEmailsApi, TransactionalEmailsApiApiKeys, SendSmtpEmail } from '@getbrevo/brevo';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private apiInstance: TransactionalEmailsApi;
+  private transporter: nodemailer.Transporter;
 
   constructor(private configService: ConfigService) {
-    const apiKey = this.configService.get('BREVO_API_KEY');
-    this.apiInstance = new TransactionalEmailsApi();
-    this.apiInstance.setApiKey(TransactionalEmailsApiApiKeys.apiKey, apiKey);
+    this.transporter = nodemailer.createTransport({
+      host: this.configService.get('SMTP_HOST', 'smtp-relay.brevo.com'),
+      port: parseInt(this.configService.get('SMTP_PORT', '587'), 10),
+      secure: this.configService.get('SMTP_SECURE', 'false') === 'true',
+      auth: {
+        user: this.configService.get('SMTP_USER'),
+        pass: this.configService.get('SMTP_PASS'),
+      },
+    });
+
+    // Verify connection on startup
+    this.transporter.verify().then(() => {
+      this.logger.log('SMTP connection established successfully');
+    }).catch((err) => {
+      this.logger.warn(`SMTP connection failed: ${err.message}. Emails will be logged but not sent.`);
+    });
+  }
+
+  private get senderEmail(): string {
+    return this.configService.get('SMTP_SENDER_EMAIL', this.configService.get('EMAIL_FROM', 'noreply@upcheck.in'));
+  }
+
+  private get senderName(): string {
+    return this.configService.get('SMTP_SENDER_NAME', this.configService.get('EMAIL_FROM_NAME', 'Upcheck'));
+  }
+
+  private get appName(): string {
+    return this.configService.get('APP_NAME', 'Upcheck');
+  }
+
+  private async sendMail(to: string, subject: string, html: string): Promise<void> {
+    try {
+      await this.transporter.sendMail({
+        from: `"${this.senderName}" <${this.senderEmail}>`,
+        to,
+        subject,
+        html,
+      });
+      this.logger.log(`Email sent to ${to}: ${subject}`);
+    } catch (error) {
+      this.logger.error(`Failed to send email to ${to}: ${error.message}`);
+      // Don't throw — email failures should not block auth flows
+    }
   }
 
   async sendVerificationEmail(email: string, token: string, name?: string) {
-    const appName = this.configService.get('APP_NAME', 'Your App');
-    const verificationUrl = `${this.configService.get('MOBILE_DEEP_LINK', 'myapp://verify-email')}?token=${token}`;
+    const verificationUrl = `${this.configService.get('FRONTEND_URL', 'upcheck://verify-email')}?token=${token}`;
 
-    const sendSmtpEmail = new SendSmtpEmail();
-    sendSmtpEmail.to = [{ email, name: name || email }];
-    sendSmtpEmail.sender = {
-      email: this.configService.get('EMAIL_FROM'),
-      name: this.configService.get('EMAIL_FROM_NAME', appName),
-    };
-    sendSmtpEmail.subject = `Verify your email address - ${appName}`;
-    sendSmtpEmail.htmlContent = `
+    const html = `
       <!DOCTYPE html>
       <html>
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { 
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-              line-height: 1.6; 
-              color: #333;
-              margin: 0;
-              padding: 0;
-              background-color: #f5f5f5;
-            }
-            .container { 
-              max-width: 600px; 
-              margin: 0 auto; 
-              background-color: #ffffff;
-              padding: 40px 30px;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 30px;
-            }
-            .logo {
-              font-size: 28px;
-              font-weight: bold;
-              color: #007bff;
-            }
-            h2 {
-              color: #333;
-              margin-bottom: 10px;
-            }
-            .button { 
-              display: inline-block; 
-              padding: 14px 32px; 
-              background-color: #007bff; 
-              color: white !important; 
-              text-decoration: none; 
-              border-radius: 8px;
-              margin: 20px 0;
-              font-weight: 600;
-            }
-            .code-box {
-              background-color: #f8f9fa;
-              padding: 15px;
-              border-radius: 8px;
-              margin: 20px 0;
-              font-family: monospace;
-              word-break: break-all;
-              font-size: 14px;
-            }
-            .footer { 
-              margin-top: 40px; 
-              padding-top: 20px;
-              border-top: 1px solid #e0e0e0;
-              font-size: 12px; 
-              color: #666;
-              text-align: center;
-            }
-            .security-note {
-              background-color: #fff3cd;
-              border-left: 4px solid #ffc107;
-              padding: 12px;
-              margin: 20px 0;
-              font-size: 13px;
-            }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 30px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .logo { font-size: 28px; font-weight: bold; color: #007bff; }
+            .button { display: inline-block; padding: 14px 32px; background-color: #007bff; color: white !important; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: 600; }
+            .code-box { background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; font-family: monospace; word-break: break-all; font-size: 14px; }
+            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; text-align: center; }
+            .security-note { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 20px 0; font-size: 13px; }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="header">
-              <div class="logo">${appName}</div>
-            </div>
-            <h2>Welcome to ${appName}! 🎉</h2>
+            <div class="header"><div class="logo">${this.appName}</div></div>
+            <h2>Welcome to ${this.appName}! 🎉</h2>
             <p>Hi ${name || 'there'},</p>
-            <p>Thank you for signing up! We're excited to have you on board. To get started, please verify your email address by tapping the button below:</p>
+            <p>Thank you for signing up! Please verify your email address by tapping the button below:</p>
             <div style="text-align: center;">
               <a href="${verificationUrl}" class="button">Verify Email Address</a>
             </div>
-            <p>Or tap this link in your mobile device:</p>
+            <p>Or tap this link:</p>
             <div class="code-box">${verificationUrl}</div>
-            <div class="security-note">
-              <strong>⏱️ This verification link will expire in 24 hours.</strong>
-            </div>
+            <div class="security-note"><strong>⏱️ This verification link will expire in 24 hours.</strong></div>
             <div class="footer">
-              <p>If you didn't create an account with ${appName}, you can safely ignore this email.</p>
-              <p>Need help? Contact our support team anytime.</p>
-              <p>&copy; ${new Date().getFullYear()} ${appName}. All rights reserved.</p>
+              <p>If you didn't create an account with ${this.appName}, you can safely ignore this email.</p>
+              <p>&copy; ${new Date().getFullYear()} ${this.appName}. All rights reserved.</p>
             </div>
           </div>
         </body>
-      </html>
-    `;
+      </html>`;
 
-    try {
-      await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-      this.logger.log(`Verification email sent to ${email}`);
-    } catch (error) {
-      this.logger.error(`Error sending verification email to ${email}:`, error);
-      throw new Error('Failed to send verification email');
-    }
+    await this.sendMail(email, `Verify your email address - ${this.appName}`, html);
   }
 
   async sendPasswordResetEmail(email: string, token: string, name?: string) {
-    const appName = this.configService.get('APP_NAME', 'Your App');
-    const resetUrl = `${this.configService.get('MOBILE_DEEP_LINK', 'myapp://reset-password')}?token=${token}`;
+    const resetUrl = `${this.configService.get('FRONTEND_URL', 'upcheck://reset-password')}?token=${token}`;
 
-    const sendSmtpEmail = new SendSmtpEmail();
-    sendSmtpEmail.to = [{ email, name: name || email }];
-    sendSmtpEmail.sender = {
-      email: this.configService.get('EMAIL_FROM'),
-      name: this.configService.get('EMAIL_FROM_NAME', appName),
-    };
-    sendSmtpEmail.subject = `Reset your password - ${appName}`;
-    sendSmtpEmail.htmlContent = `
+    const html = `
       <!DOCTYPE html>
       <html>
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { 
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-              line-height: 1.6; 
-              color: #333;
-              margin: 0;
-              padding: 0;
-              background-color: #f5f5f5;
-            }
-            .container { 
-              max-width: 600px; 
-              margin: 0 auto; 
-              background-color: #ffffff;
-              padding: 40px 30px;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 30px;
-            }
-            .logo {
-              font-size: 28px;
-              font-weight: bold;
-              color: #007bff;
-            }
-            h2 {
-              color: #333;
-              margin-bottom: 10px;
-            }
-            .button { 
-              display: inline-block; 
-              padding: 14px 32px; 
-              background-color: #dc3545; 
-              color: white !important; 
-              text-decoration: none; 
-              border-radius: 8px;
-              margin: 20px 0;
-              font-weight: 600;
-            }
-            .code-box {
-              background-color: #f8f9fa;
-              padding: 15px;
-              border-radius: 8px;
-              margin: 20px 0;
-              font-family: monospace;
-              word-break: break-all;
-              font-size: 14px;
-            }
-            .footer { 
-              margin-top: 40px; 
-              padding-top: 20px;
-              border-top: 1px solid #e0e0e0;
-              font-size: 12px; 
-              color: #666;
-              text-align: center;
-            }
-            .security-note {
-              background-color: #f8d7da;
-              border-left: 4px solid #dc3545;
-              padding: 12px;
-              margin: 20px 0;
-              font-size: 13px;
-            }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 30px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .logo { font-size: 28px; font-weight: bold; color: #007bff; }
+            .button { display: inline-block; padding: 14px 32px; background-color: #dc3545; color: white !important; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: 600; }
+            .code-box { background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; font-family: monospace; word-break: break-all; font-size: 14px; }
+            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; text-align: center; }
+            .security-note { background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 12px; margin: 20px 0; font-size: 13px; }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="header">
-              <div class="logo">${appName}</div>
-            </div>
+            <div class="header"><div class="logo">${this.appName}</div></div>
             <h2>Password Reset Request 🔒</h2>
             <p>Hi ${name || 'there'},</p>
-            <p>We received a request to reset your password. If you made this request, tap the button below to create a new password:</p>
+            <p>We received a request to reset your password. Tap the button below to create a new password:</p>
             <div style="text-align: center;">
               <a href="${resetUrl}" class="button">Reset Password</a>
             </div>
-            <p>Or tap this link in your mobile device:</p>
+            <p>Or tap this link:</p>
             <div class="code-box">${resetUrl}</div>
-            <div class="security-note">
-              <strong>⏱️ This link will expire in 1 hour for security reasons.</strong>
-            </div>
+            <div class="security-note"><strong>⏱️ This link will expire in 1 hour for security reasons.</strong></div>
             <div class="footer">
-              <p><strong>If you didn't request a password reset, please ignore this email.</strong> Your password will remain unchanged.</p>
-              <p>For security, we recommend changing your password regularly.</p>
-              <p>&copy; ${new Date().getFullYear()} ${appName}. All rights reserved.</p>
+              <p><strong>If you didn't request a password reset, please ignore this email.</strong></p>
+              <p>&copy; ${new Date().getFullYear()} ${this.appName}. All rights reserved.</p>
             </div>
           </div>
         </body>
-      </html>
-    `;
+      </html>`;
 
-    try {
-      await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-      this.logger.log(`Password reset email sent to ${email}`);
-    } catch (error) {
-      this.logger.error(`Error sending password reset email to ${email}:`, error);
-      throw new Error('Failed to send password reset email');
-    }
+    await this.sendMail(email, `Reset your password - ${this.appName}`, html);
   }
 
   async sendWelcomeEmail(email: string, name?: string) {
-    const appName = this.configService.get('APP_NAME', 'Your App');
-
-    const sendSmtpEmail = new SendSmtpEmail();
-    sendSmtpEmail.to = [{ email, name: name || email }];
-    sendSmtpEmail.sender = {
-      email: this.configService.get('EMAIL_FROM'),
-      name: this.configService.get('EMAIL_FROM_NAME', appName),
-    };
-    sendSmtpEmail.subject = `Welcome to ${appName}! 🎉`;
-    sendSmtpEmail.htmlContent = `
+    const html = `
       <!DOCTYPE html>
       <html>
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { 
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-              line-height: 1.6; 
-              color: #333;
-              margin: 0;
-              padding: 0;
-              background-color: #f5f5f5;
-            }
-            .container { 
-              max-width: 600px; 
-              margin: 0 auto; 
-              background-color: #ffffff;
-              padding: 40px 30px;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 30px;
-            }
-            .logo {
-              font-size: 28px;
-              font-weight: bold;
-              color: #007bff;
-            }
-            h2 {
-              color: #333;
-              margin-bottom: 10px;
-            }
-            .success-icon {
-              text-align: center;
-              font-size: 48px;
-              margin: 20px 0;
-            }
-            .footer { 
-              margin-top: 40px; 
-              padding-top: 20px;
-              border-top: 1px solid #e0e0e0;
-              font-size: 12px; 
-              color: #666;
-              text-align: center;
-            }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 30px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .logo { font-size: 28px; font-weight: bold; color: #007bff; }
+            .success-icon { text-align: center; font-size: 48px; margin: 20px 0; }
+            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; text-align: center; }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="header">
-              <div class="logo">${appName}</div>
-            </div>
+            <div class="header"><div class="logo">${this.appName}</div></div>
             <div class="success-icon">✅</div>
             <h2>You're All Set!</h2>
             <p>Hi ${name || 'there'},</p>
-            <p>Your email has been verified successfully! Welcome to ${appName}. We're thrilled to have you with us.</p>
-            <p>You can now access all the features of our app. If you have any questions or need assistance, our support team is here to help.</p>
+            <p>Your email has been verified successfully! Welcome to ${this.appName}. We're thrilled to have you with us.</p>
+            <p>You can now access all the features of our app.</p>
             <div class="footer">
               <p>Happy exploring! 🚀</p>
-              <p>Need help? Contact our support team anytime.</p>
-              <p>&copy; ${new Date().getFullYear()} ${appName}. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} ${this.appName}. All rights reserved.</p>
             </div>
           </div>
         </body>
-      </html>
-    `;
+      </html>`;
 
-    try {
-      await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-      this.logger.log(`Welcome email sent to ${email}`);
-    } catch (error) {
-      this.logger.error(`Error sending welcome email to ${email}:`, error);
-      // Don't throw error for welcome email as it's not critical
-    }
+    await this.sendMail(email, `Welcome to ${this.appName}! 🎉`, html);
   }
 
   async sendPasswordChangedNotification(email: string, name?: string) {
-    const appName = this.configService.get('APP_NAME', 'Your App');
-
-    const sendSmtpEmail = new SendSmtpEmail();
-    sendSmtpEmail.to = [{ email, name: name || email }];
-    sendSmtpEmail.sender = {
-      email: this.configService.get('EMAIL_FROM'),
-      name: this.configService.get('EMAIL_FROM_NAME', appName),
-    };
-    sendSmtpEmail.subject = `Your password has been changed - ${appName}`;
-    sendSmtpEmail.htmlContent = `
+    const html = `
       <!DOCTYPE html>
       <html>
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <style>
-            body { 
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-              line-height: 1.6; 
-              color: #333;
-              margin: 0;
-              padding: 0;
-              background-color: #f5f5f5;
-            }
-            .container { 
-              max-width: 600px; 
-              margin: 0 auto; 
-              background-color: #ffffff;
-              padding: 40px 30px;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 30px;
-            }
-            .logo {
-              font-size: 28px;
-              font-weight: bold;
-              color: #007bff;
-            }
-            .security-alert {
-              background-color: #d1ecf1;
-              border-left: 4px solid #17a2b8;
-              padding: 15px;
-              margin: 20px 0;
-            }
-            .footer { 
-              margin-top: 40px; 
-              padding-top: 20px;
-              border-top: 1px solid #e0e0e0;
-              font-size: 12px; 
-              color: #666;
-              text-align: center;
-            }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 30px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .logo { font-size: 28px; font-weight: bold; color: #007bff; }
+            .security-alert { background-color: #d1ecf1; border-left: 4px solid #17a2b8; padding: 15px; margin: 20px 0; }
+            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; text-align: center; }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="header">
-              <div class="logo">${appName}</div>
-            </div>
+            <div class="header"><div class="logo">${this.appName}</div></div>
             <h2>Password Changed Successfully 🔐</h2>
             <p>Hi ${name || 'there'},</p>
             <p>This is a confirmation that your password was changed on ${new Date().toLocaleString()}.</p>
@@ -399,18 +198,46 @@ export class EmailService {
             </div>
             <div class="footer">
               <p>This is an automated security notification.</p>
-              <p>&copy; ${new Date().getFullYear()} ${appName}. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} ${this.appName}. All rights reserved.</p>
             </div>
           </div>
         </body>
-      </html>
-    `;
+      </html>`;
 
-    try {
-      await this.apiInstance.sendTransacEmail(sendSmtpEmail);
-      this.logger.log(`Password changed notification sent to ${email}`);
-    } catch (error) {
-      this.logger.error(`Error sending password changed notification to ${email}:`, error);
-    }
+    await this.sendMail(email, `Your password has been changed - ${this.appName}`, html);
+  }
+
+  async sendOtpEmail(email: string, code: string, name?: string) {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 30px; text-align: center; }
+            .header { margin-bottom: 30px; }
+            .logo { font-size: 28px; font-weight: bold; color: #007bff; }
+            .otp-code { font-size: 36px; font-weight: bold; letter-spacing: 5px; color: #333; margin: 30px 0; background: #f8f9fa; padding: 20px; border-radius: 10px; display: inline-block; }
+            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header"><div class="logo">${this.appName}</div></div>
+            <h2>Verification Code 🔐</h2>
+            <p>Hi ${name || 'there'},</p>
+            <p>Use the following code to complete your login/verification:</p>
+            <div class="otp-code">${code}</div>
+            <p>This code will expire in 5 minutes.</p>
+            <p>If you didn't request this code, you can safely ignore this email.</p>
+            <div class="footer">
+              <p>&copy; ${new Date().getFullYear()} ${this.appName}. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+      </html>`;
+
+    await this.sendMail(email, `Your Verification Code - ${this.appName}`, html);
   }
 }

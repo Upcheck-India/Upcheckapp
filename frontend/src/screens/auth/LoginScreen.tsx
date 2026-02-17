@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export const LoginScreen = () => {
-    const [email, setEmail] = useState('');
+    const [emailOrPhone, setEmailOrPhone] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -16,7 +16,7 @@ export const LoginScreen = () => {
     const theme = useTheme();
 
     const handleLogin = async () => {
-        if (!email || !password) {
+        if (!emailOrPhone || !password) {
             setError('Please fill in all fields');
             return;
         }
@@ -25,7 +25,11 @@ export const LoginScreen = () => {
         setError('');
 
         try {
-            await login({ email, password });
+            const response = await login({ emailOrPhone, password });
+            if (response?.requires2fa) {
+                navigation.navigate('TwoFALogin', { tempToken: response.tempToken });
+                return;
+            }
         } catch (err: any) {
             setError(err.response?.data?.message || 'Login failed. Please try again.');
         } finally {
@@ -46,11 +50,10 @@ export const LoginScreen = () => {
 
                 <View style={styles.formContainer}>
                     <TextInput
-                        label="Email"
-                        value={email}
-                        onChangeText={setEmail}
+                        label="Email or Phone"
+                        value={emailOrPhone}
+                        onChangeText={setEmailOrPhone}
                         mode="outlined"
-                        keyboardType="email-address"
                         autoCapitalize="none"
                         style={styles.input}
                         error={!!error}

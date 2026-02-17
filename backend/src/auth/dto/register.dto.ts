@@ -1,9 +1,15 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength, Matches, IsPhoneNumber } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength, Matches, IsPhoneNumber, IsAlphanumeric } from 'class-validator';
 
 export class RegisterDto {
     @IsEmail()
     @IsNotEmpty()
     email: string;
+
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(3)
+    @IsAlphanumeric()
+    username: string;
 
     @IsString()
     @IsNotEmpty()
@@ -15,9 +21,13 @@ export class RegisterDto {
 
     @IsString()
     @IsNotEmpty()
-    fullName: string;
+    firstName: string;
+
+    @IsString()
+    @IsNotEmpty()
+    lastName: string;
 
     @IsOptional()
-    @IsString() // Changed to IsString because IsPhoneNumber sometimes requires region
+    @IsString()
     phoneNumber?: string;
 }

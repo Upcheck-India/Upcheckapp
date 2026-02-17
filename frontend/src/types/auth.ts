@@ -1,11 +1,19 @@
 export interface User {
     id: string;
     email: string;
-    name: string;
+    username?: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    avatarUrl?: string;
     emailVerified: boolean;
-    profilePicture?: string;
-    authProvider: 'email' | 'google';
+    phoneVerified: boolean;
+    isActive: boolean;
+    verificationLevel: string;
+    authProvider: string;
+    googleId?: string;
     createdAt: string;
+    updatedAt: string;
 }
 
 export interface AuthState {
@@ -16,9 +24,11 @@ export interface AuthState {
 
 export interface LoginResponse {
     message: string;
-    user: User;
-    accessToken: string;
-    refreshToken: string;
+    user?: User;
+    accessToken?: string;
+    refreshToken?: string;
+    requires2fa?: boolean;
+    tempToken?: string;
 }
 
 export interface RegisterResponse {

@@ -4,8 +4,7 @@ import { Text, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { AuthService } from '../../services/auth';
-import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { GradientButton } from '../../components/GradientButton';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -21,7 +20,7 @@ const PhoneLoginScreen = ({ navigation }: any) => {
     const [countdown, setCountdown] = useState(0);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    const { phoneLogin } = useAuthStore();
+    const { requestOtpLogin, verifyOtpLogin } = useAuth();
 
     // Clean up timer on unmount
     useEffect(() => {
@@ -59,12 +58,12 @@ const PhoneLoginScreen = ({ navigation }: any) => {
 
         setSendingOtp(true);
         try {
-            await AuthService.sendOtp(cleaned);
+            await requestOtpLogin(cleaned);
             setStep('otp');
             startCountdown();
             Alert.alert('OTP Sent', `A verification code has been sent to ${cleaned}`);
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to send OTP');
+            Alert.alert('Error', error.response?.data?.message || error.message || 'Failed to send OTP');
         } finally {
             setSendingOtp(false);
         }
@@ -74,11 +73,11 @@ const PhoneLoginScreen = ({ navigation }: any) => {
         if (countdown > 0) return;
         setSendingOtp(true);
         try {
-            await AuthService.sendOtp(phoneNumber.trim());
+            await requestOtpLogin(phoneNumber.trim());
             startCountdown();
             Alert.alert('OTP Resent', 'A new verification code has been sent');
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to resend OTP');
+            Alert.alert('Error', error.response?.data?.message || error.message || 'Failed to resend OTP');
         } finally {
             setSendingOtp(false);
         }
@@ -93,14 +92,12 @@ const PhoneLoginScreen = ({ navigation }: any) => {
 
         setVerifying(true);
         try {
-            const data = await phoneLogin(phoneNumber.trim(), otpCode);
+            await verifyOtpLogin(phoneNumber.trim(), otpCode);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            if (data?.requires2fa) {
-                navigation.navigate('TwoFALogin', { tempToken: data.temp_token });
-            }
+            // Navigation handled by auth state change
         } catch (error: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert('Verification Failed', error.message || 'Invalid OTP');
+            Alert.alert('Verification Failed', error.response?.data?.message || error.message || 'Invalid OTP');
         } finally {
             setVerifying(false);
         }

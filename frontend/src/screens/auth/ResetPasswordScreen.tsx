@@ -6,7 +6,7 @@ import * as Linking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/Colors';
 import { GradientButton } from '../../components/GradientButton';
-import { AuthService } from '../../services/auth';
+import { api } from '../../services/api';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 // ─── Password Strength Calculator ────────────────────────────────
@@ -36,13 +36,12 @@ const ResetPasswordScreen = ({ route, navigation }: any) => {
     // Expecting token and refreshToken specific args from deep link
     // or manually entered if we provide that option
     const [token, setToken] = useState(route.params?.token || '');
-    const [refreshToken, setRefreshToken] = useState(route.params?.refreshToken || '');
 
     // Handle deep link hash parsing if params are missing (common with Supabase implicit flow)
     React.useEffect(() => {
         const handleDeepLink = async () => {
             // If we already have params via navigation linking, great.
-            if (token && refreshToken) return;
+            if (token) return;
 
             const url = await Linking.getInitialURL();
             if (url) {
@@ -56,14 +55,12 @@ const ResetPasswordScreen = ({ route, navigation }: any) => {
                         return acc;
                     }, {});
 
-                    if (params.access_token) setToken(params.access_token);
-                    if (params.refresh_token) setRefreshToken(params.refresh_token);
+                    if (params.token) setToken(params.token);
                 }
 
                 // Also check query params if expo-linking parsed them differently
                 const { queryParams } = Linking.parse(url);
                 if (queryParams?.token && !token) setToken(queryParams.token as string);
-                if (queryParams?.refreshToken && !refreshToken) setRefreshToken(queryParams.refreshToken as string);
             }
         };
         handleDeepLink();
@@ -96,7 +93,7 @@ const ResetPasswordScreen = ({ route, navigation }: any) => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             return;
         }
-        if (!token || !refreshToken) {
+        if (!token) {
             setServerError('Invalid or expired reset link. Please request a new one.');
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             return;
@@ -104,14 +101,14 @@ const ResetPasswordScreen = ({ route, navigation }: any) => {
 
         setLoading(true);
         try {
-            await AuthService.resetPassword(token, refreshToken, newPassword);
+            await api.post('/auth/reset-password', { token, newPassword });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert('Success', 'Password has been reset. Please login with your new password.', [
                 { text: 'OK', onPress: () => navigation.navigate('Login') }
             ]);
         } catch (error: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            setServerError(error.message || 'Failed to reset password');
+            setServerError(error.response?.data?.message || error.message || 'Failed to reset password');
         } finally {
             setLoading(false);
         }

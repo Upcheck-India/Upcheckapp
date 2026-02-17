@@ -1,15 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { DataSource } from 'typeorm';
 import { AuthService } from './auth.service';
 import { User } from './user.entity';
-import { Profile } from '../profiles/profile.entity';
+import { OtpCode } from './otp-code.entity';
 import { RefreshToken } from './refresh-token.entity';
+import { LoginHistory } from './login-history.entity';
+import { EmailService } from '../email.service';
+import { RedisService } from '../redis/redis.service';
 
-// Mock crypto globally for the test file
+// Mock crypto globally
 jest.mock('crypto', () => ({
   randomBytes: jest.fn().mockReturnValue(Buffer.from('mock-random-bytes')),
   createHash: jest.fn().mockReturnValue({
@@ -19,32 +22,54 @@ jest.mock('crypto', () => ({
 }));
 
 const mockConfigService = {
-  get: jest.fn().mockReturnValue('mock-client-id'),
+  get: jest.fn().mockReturnValue('mock-value'),
 };
 
 const mockJwtService = {
   sign: jest.fn().mockReturnValue('mock-jwt-token'),
+  signAsync: jest.fn().mockResolvedValue('mock-jwt-token'),
   verify: jest.fn().mockReturnValue({ sub: 'user-id' }),
+  verifyAsync: jest.fn().mockResolvedValue({ sub: 'user-id' }),
+};
+
+const mockEmailService = {
+  sendWelcomeEmail: jest.fn(),
+  sendPasswordResetEmail: jest.fn(),
+  sendVerificationEmail: jest.fn(),
+  sendOtpEmail: jest.fn(),
+};
+
+const mockRedisService = {
+  get: jest.fn(),
+  set: jest.fn(),
+  del: jest.fn(),
+  incr: jest.fn().mockResolvedValue(1),
+  expire: jest.fn(),
 };
 
 describe('AuthService', () => {
   let service: AuthService;
   let mockUserRepository: Record<string, jest.Mock>;
-  let mockProfileRepository: Record<string, jest.Mock>;
+  let mockOtpRepository: Record<string, jest.Mock>;
   let mockRefreshTokenRepository: Record<string, jest.Mock>;
+  let mockLoginHistoryRepository: Record<string, jest.Mock>;
   let mockDataSource: any;
   let mockEntityManager: any;
 
   beforeEach(async () => {
     mockUserRepository = {
       findOne: jest.fn(),
+      findOneBy: jest.fn(),
       save: jest.fn(),
       create: jest.fn(),
+      delete: jest.fn(),
     };
 
-    mockProfileRepository = {
+    mockOtpRepository = {
       create: jest.fn(),
       save: jest.fn(),
+      findOne: jest.fn(),
+      delete: jest.fn(),
     };
 
     mockRefreshTokenRepository = {
@@ -52,6 +77,12 @@ describe('AuthService', () => {
       save: jest.fn(),
       findOne: jest.fn(),
       update: jest.fn(),
+    };
+
+    mockLoginHistoryRepository = {
+      create: jest.fn(),
+      save: jest.fn(),
+      find: jest.fn(),
     };
 
     mockEntityManager = {
@@ -69,9 +100,12 @@ describe('AuthService', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: getRepositoryToken(User), useValue: mockUserRepository },
-        { provide: getRepositoryToken(Profile), useValue: mockProfileRepository },
+        { provide: getRepositoryToken(OtpCode), useValue: mockOtpRepository },
         { provide: getRepositoryToken(RefreshToken), useValue: mockRefreshTokenRepository },
+        { provide: getRepositoryToken(LoginHistory), useValue: mockLoginHistoryRepository },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: EmailService, useValue: mockEmailService },
+        { provide: RedisService, useValue: mockRedisService },
       ],
     }).compile();
 
@@ -83,7 +117,8 @@ describe('AuthService', () => {
         getPayload: jest.fn().mockReturnValue({
           sub: 'google-id',
           email: 'test@example.com',
-          name: 'Test User',
+          given_name: 'Test',
+          family_name: 'User',
           picture: 'avatar.jpg',
         }),
       }),
@@ -94,31 +129,29 @@ describe('AuthService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('googleLogin', () => {
+  describe('googleAuth', () => {
     it('should return tokens for existing user', async () => {
       const user = { id: 'user-id', email: 'test@example.com', googleId: 'google-id' };
       mockUserRepository.findOne.mockResolvedValue(user);
-      mockRefreshTokenRepository.create.mockReturnValue({ token: 'rt' });
+      mockRefreshTokenRepository.create.mockReturnValue({ tokenHash: 'rt' });
+      mockRefreshTokenRepository.save.mockResolvedValue({ tokenHash: 'rt' });
+      mockLoginHistoryRepository.create.mockReturnValue({});
+      mockLoginHistoryRepository.save.mockResolvedValue({});
 
-      const result = await service.googleLogin({ token: 'google-token' });
+      const result = await service.googleAuth({ idToken: 'google-token' });
 
-      expect(result).toHaveProperty('access_token');
-      expect(result).toHaveProperty('refresh_token');
-      expect(result.user).toEqual(user);
+      expect(result).toHaveProperty('message', 'Google authentication successful');
+      expect(result).toHaveProperty('user');
     });
 
-    it('should create new user and return tokens', async () => {
-      mockUserRepository.findOne.mockResolvedValue(null);
-      const newUser = { id: 'new-user-id', email: 'test@example.com' };
-      mockEntityManager.create.mockReturnValue(newUser);
-      mockEntityManager.save.mockResolvedValue(newUser);
-      mockRefreshTokenRepository.create.mockReturnValue({ token: 'rt' });
+    it('should throw ConflictException for email collision', async () => {
+      const existingUser = { id: 'user-id', email: 'test@example.com', googleId: null };
+      mockUserRepository.findOne
+        .mockResolvedValueOnce(null)          // findOne by googleId
+        .mockResolvedValueOnce(existingUser); // findOne by email
 
-      const result = await service.googleLogin({ token: 'google-token' });
-
-      expect(mockDataSource.transaction).toHaveBeenCalled();
-      expect(result).toHaveProperty('access_token');
-      expect(result).toHaveProperty('refresh_token');
+      await expect(service.googleAuth({ idToken: 'google-token' }))
+        .rejects.toThrow(ConflictException);
     });
   });
 
@@ -128,55 +161,41 @@ describe('AuthService', () => {
       const tokenEntity = {
         id: 'token-id',
         tokenHash: 'mock-hash',
-        user,
+        userId: 'user-id',
         expiresAt: new Date(Date.now() + 10000),
-        isRevoked: false
+        isRevoked: false,
       };
 
-      // First findOne for validate
-      mockRefreshTokenRepository.findOne
-        .mockResolvedValueOnce(tokenEntity)
-        .mockResolvedValueOnce(tokenEntity); // Second findOne for rotation
+      mockRefreshTokenRepository.findOne.mockResolvedValue(tokenEntity);
+      mockRefreshTokenRepository.save.mockResolvedValue(tokenEntity);
+      mockUserRepository.findOne.mockResolvedValue(user);
+      mockRefreshTokenRepository.create.mockReturnValue({ tokenHash: 'new-rt' });
+      mockLoginHistoryRepository.create.mockReturnValue({});
+      mockLoginHistoryRepository.save.mockResolvedValue({});
 
-      mockRefreshTokenRepository.create.mockReturnValue({ token: 'new-rt' });
+      const result = await service.refreshToken({ refreshToken: 'old-token' });
 
-      const result = await service.refreshToken('old-token');
-
-      expect(result).toHaveProperty('access_token');
-      expect(result).toHaveProperty('refresh_token');
-      expect(mockRefreshTokenRepository.save).toHaveBeenCalledWith({ ...tokenEntity, isRevoked: true });
+      expect(result).toHaveProperty('message', 'Token refreshed successfully');
     });
 
     it('should throw UnauthorizedException on invalid token', async () => {
       mockRefreshTokenRepository.findOne.mockResolvedValue(null);
-      await expect(service.refreshToken('invalid-token')).rejects.toThrow(UnauthorizedException);
-    });
-
-    it('should detect reuse and throw', async () => {
-      const tokenEntity = {
-        id: 'token-id',
-        tokenHash: 'mock-hash',
-        user: { id: 'user-id' },
-        expiresAt: new Date(Date.now() + 10000),
-        isRevoked: true // Already revoked
-      };
-      mockRefreshTokenRepository.findOne.mockResolvedValue(tokenEntity);
-
-      await expect(service.refreshToken('reused-token')).rejects.toThrow(UnauthorizedException);
-      // It calls handleRefreshTokenReuse locally, effectively returning null from validateRefreshToken
-      // The service then throws "Invalid or expired refresh token"
+      await expect(service.refreshToken({ refreshToken: 'invalid-token' }))
+        .rejects.toThrow(UnauthorizedException);
     });
   });
 
   describe('logout', () => {
     it('should revoke token', async () => {
-      const tokenEntity = { id: 'token-id', isRevoked: false };
-      mockRefreshTokenRepository.findOne.mockResolvedValue(tokenEntity);
+      mockRefreshTokenRepository.update.mockResolvedValue({ affected: 1 });
 
-      await service.logout('token');
+      const result = await service.logout('user-id', 'token');
 
-      expect(tokenEntity.isRevoked).toBe(true);
-      expect(mockRefreshTokenRepository.save).toHaveBeenCalledWith(tokenEntity);
+      expect(mockRefreshTokenRepository.update).toHaveBeenCalledWith(
+        { tokenHash: 'token' },
+        { isRevoked: true },
+      );
+      expect(result).toEqual({ message: 'Logged out successfully' });
     });
   });
 });

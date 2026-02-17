@@ -9,6 +9,7 @@ import { SupabaseModule } from './supabase/supabase.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { FarmsModule } from './farms/farms.module';
 import { AuthModule } from './auth/auth.module';
+import { RedisModule } from './redis/redis.module';
 import { PondsModule } from './ponds/ponds.module';
 import { CropsModule } from './crops/crops.module';
 import { WaterQualityModule } from './water-quality/water-quality.module';
@@ -69,6 +70,7 @@ import { FeedingTrayChecksModule } from './feeding-tray-checks/feeding-tray-chec
     ProfilesModule,
     FarmsModule,
     AuthModule,
+    RedisModule,
     PondsModule,
     CropsModule,
     WaterQualityModule,

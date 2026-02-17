@@ -6,7 +6,9 @@ import { useAuth } from '../../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export const RegisterScreen = () => {
-    const [name, setName] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -23,7 +25,7 @@ export const RegisterScreen = () => {
     };
 
     const handleRegister = async () => {
-        if (!name || !email || !password || !confirmPassword) {
+        if (!firstName || !lastName || !username || !email || !password || !confirmPassword) {
             setError('Please fill in all fields');
             return;
         }
@@ -42,7 +44,7 @@ export const RegisterScreen = () => {
         setError('');
 
         try {
-            await register({ name, email, password });
+            await register({ firstName, lastName, username, email, password });
             // Navigation is handled by AuthContext state change usually, 
             // but if email verification is required, we might show a message or navigate to a verification screen.
             // For now, let's assume auto-login or state update handles it.
@@ -67,10 +69,29 @@ export const RegisterScreen = () => {
 
                     <View style={styles.formContainer}>
                         <TextInput
-                            label="Full Name"
-                            value={name}
-                            onChangeText={setName}
+                            label="First Name"
+                            value={firstName}
+                            onChangeText={setFirstName}
                             mode="outlined"
+                            style={styles.input}
+                            error={!!error}
+                        />
+
+                        <TextInput
+                            label="Last Name"
+                            value={lastName}
+                            onChangeText={setLastName}
+                            mode="outlined"
+                            style={styles.input}
+                            error={!!error}
+                        />
+
+                        <TextInput
+                            label="Username"
+                            value={username}
+                            onChangeText={setUsername}
+                            mode="outlined"
+                            autoCapitalize="none"
                             style={styles.input}
                             error={!!error}
                         />

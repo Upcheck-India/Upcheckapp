@@ -3,15 +3,20 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { SupabaseService } from '../supabase.service';
 import { EmailService } from '../email.service';
+import { User } from './user.entity';
+import { OtpCode } from './otp-code.entity';
+import { RefreshToken } from './refresh-token.entity';
+import { LoginHistory } from './login-history.entity';
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([User, OtpCode, RefreshToken, LoginHistory]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -28,7 +33,6 @@ import { EmailService } from '../email.service';
   providers: [
     AuthService,
     JwtStrategy,
-    SupabaseService,
     EmailService,
     {
       provide: APP_GUARD,

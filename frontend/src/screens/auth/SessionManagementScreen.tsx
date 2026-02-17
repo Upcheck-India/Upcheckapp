@@ -3,8 +3,8 @@ import { View, StyleSheet, Alert, FlatList, TouchableOpacity } from 'react-nativ
 import { Text, Card, IconButton, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { AuthService } from '../../services/auth';
-import { useAuthStore } from '../../store/authStore';
+import { api } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface Session {
@@ -18,7 +18,7 @@ interface Session {
 }
 
 const SessionManagementScreen = ({ navigation }: any) => {
-    const { accessToken, logoutAllDevices } = useAuthStore();
+    const { logoutAllDevices } = useAuth();
     const [sessions, setSessions] = useState<Session[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -28,8 +28,8 @@ const SessionManagementScreen = ({ navigation }: any) => {
 
     const fetchSessions = async () => {
         try {
-            const data = await AuthService.getSessions(accessToken!);
-            setSessions(data);
+            const response = await api.get('/auth/sessions');
+            setSessions(response.data);
         } catch (error: any) {
             Alert.alert('Error', error.message || 'Failed to load sessions');
         } finally {
@@ -48,7 +48,7 @@ const SessionManagementScreen = ({ navigation }: any) => {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await AuthService.revokeSession(accessToken!, sessionId);
+                            await api.delete(`/auth/sessions/${sessionId}`);
                             setSessions(prev => prev.filter(s => s.id !== sessionId));
                         } catch (error: any) {
                             Alert.alert('Error', error.message || 'Failed to revoke session');

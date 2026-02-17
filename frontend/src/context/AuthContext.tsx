@@ -9,11 +9,16 @@ import { Platform } from 'react-native';
 WebBrowser.maybeCompleteAuthSession();
 
 interface AuthContextType extends AuthState {
-    login: (data: any) => Promise<void>;
+    login: (data: any) => Promise<any>;
     register: (data: any) => Promise<void>;
     logout: () => Promise<void>;
     signInWithGoogle: () => Promise<void>;
+    linkGoogle: () => Promise<void>;
     checkAuth: () => Promise<void>;
+    logoutAllDevices: () => Promise<void>;
+    loginWith2FA: (tempToken: string, code: string) => Promise<void>;
+    requestOtpLogin: (email: string) => Promise<any>;
+    verifyOtpLogin: (email: string, otp: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,6 +29,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading: true,
         isAuthenticated: false,
     });
+
+    const [isLinking, setIsLinking] = useState(false);
 
     const [request, response, promptAsync] = Google.useAuthRequest({
         androidClientId: process.env.EXPO_PUBLIC_ANDROID_CLIENT_ID,
@@ -65,19 +72,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const response = await api.post<LoginResponse>('/auth/google', { idToken });
             const { user, accessToken, refreshToken } = response.data;
 
-            await AsyncStorage.setItem('accessToken', accessToken);
-            await AsyncStorage.setItem('refreshToken', refreshToken);
-            await AsyncStorage.setItem('user', JSON.stringify(user));
+            if (user && accessToken && refreshToken) {
+                await AsyncStorage.setItem('accessToken', accessToken);
+                await AsyncStorage.setItem('refreshToken', refreshToken);
+                await AsyncStorage.setItem('user', JSON.stringify(user));
 
-            setState({
-                user,
-                isAuthenticated: true,
-                isLoading: false,
-            });
-        } catch (error) {
+                setState({
+                    user,
+                    isAuthenticated: true,
+                    isLoading: false,
+                });
+            } else {
+                throw new Error('Invalid Google login response');
+            }
+        } catch (error: any) {
             console.error('Google backend auth error:', error);
             setState((prev) => ({ ...prev, isLoading: false }));
-            alert('Google authentication failed');
+            if (error.response && error.response.status === 409) {
+                alert('Account exists with this email. Please log in with password and link Google account from settings.');
+            } else {
+                alert('Google authentication failed');
+            }
+        }
+    };
+
+    const handleLinkGoogle = async (idToken: string) => {
+        setIsLinking(false); // Reset state
+        try {
+            await api.post('/auth/google/link', { idToken });
+            alert('Google account linked successfully!');
+            // Optionally refresh user profile to get the googleId
+            // checkAuth(); // Or manually update state
+        } catch (error: any) {
+            console.error('Link Google error:', error);
+            if (error.response && error.response.status === 409) {
+                alert('This Google account is already linked to another user.');
+            } else {
+                alert('Failed to link Google account.');
+            }
         }
     };
 
@@ -88,7 +120,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         if (response?.type === 'success') {
             const { id_token } = response.params;
-            handleGoogleLogin(id_token);
+            if (id_token) {
+                if (isLinking) {
+                    handleLinkGoogle(id_token);
+                } else {
+                    handleGoogleLogin(id_token);
+                }
+            }
+        } else if (response?.type === 'cancel' || response?.type === 'dismiss') {
+            setIsLinking(false); // Reset if cancelled
         }
     }, [response, handleGoogleLogin]); // Added handleGoogleLogin to dependencies
 
@@ -96,17 +136,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setState((prev) => ({ ...prev, isLoading: true }));
         try {
             const response = await api.post<LoginResponse>('/auth/login', data);
+
+            if (response.data.requires2fa) {
+                setState((prev) => ({ ...prev, isLoading: false }));
+                return response.data;
+            }
+
             const { user, accessToken, refreshToken } = response.data;
 
-            await AsyncStorage.setItem('accessToken', accessToken);
-            await AsyncStorage.setItem('refreshToken', refreshToken);
-            await AsyncStorage.setItem('user', JSON.stringify(user));
+            if (user && accessToken && refreshToken) {
+                await AsyncStorage.setItem('accessToken', accessToken);
+                await AsyncStorage.setItem('refreshToken', refreshToken);
+                await AsyncStorage.setItem('user', JSON.stringify(user));
 
-            setState({
-                user,
-                isAuthenticated: true,
-                isLoading: false,
-            });
+                setState({
+                    user,
+                    isAuthenticated: true,
+                    isLoading: false,
+                });
+            } else {
+                throw new Error("Invalid login response");
+            }
         } catch (error) {
             setState((prev) => ({ ...prev, isLoading: false }));
             throw error;
@@ -120,15 +170,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const response = await api.post<LoginResponse>('/auth/register', data);
             const { user, accessToken, refreshToken } = response.data;
 
-            await AsyncStorage.setItem('accessToken', accessToken);
-            await AsyncStorage.setItem('refreshToken', refreshToken);
-            await AsyncStorage.setItem('user', JSON.stringify(user));
+            if (user && accessToken && refreshToken) {
+                await AsyncStorage.setItem('accessToken', accessToken);
+                await AsyncStorage.setItem('refreshToken', refreshToken);
+                await AsyncStorage.setItem('user', JSON.stringify(user));
 
-            setState({
-                user,
-                isAuthenticated: true,
-                isLoading: false,
-            });
+                setState({
+                    user,
+                    isAuthenticated: true,
+                    isLoading: false,
+                });
+            } else {
+                throw new Error("Invalid register response");
+            }
         } catch (error) {
             setState((prev) => ({ ...prev, isLoading: false }));
             throw error;
@@ -136,10 +190,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const signInWithGoogle = async () => {
+        setIsLinking(false);
         try {
             await promptAsync();
         } catch (error) {
             console.error('Google sign in error:', error);
+            throw error;
+        }
+    };
+
+    const linkGoogle = async () => {
+        setIsLinking(true);
+        try {
+            await promptAsync();
+        } catch (error) {
+            console.error('Google link error:', error);
+            setIsLinking(false);
             throw error;
         }
     };
@@ -160,6 +226,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
+    const logoutAllDevices = async () => {
+        try {
+            await api.post('/auth/logout-all');
+        } finally {
+            await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
+            setState({
+                user: null,
+                isAuthenticated: false,
+                isLoading: false,
+            });
+        }
+    };
+
+    const loginWith2FA = async (tempToken: string, code: string) => {
+        setState((prev) => ({ ...prev, isLoading: true }));
+        try {
+            const response = await api.post<LoginResponse>('/auth/2fa/login', { tempToken, token: code });
+            const { user, accessToken, refreshToken } = response.data;
+
+            if (user && accessToken && refreshToken) {
+                await AsyncStorage.setItem('accessToken', accessToken);
+                await AsyncStorage.setItem('refreshToken', refreshToken);
+                await AsyncStorage.setItem('user', JSON.stringify(user));
+
+                setState({
+                    user,
+                    isAuthenticated: true,
+                    isLoading: false,
+                });
+            } else {
+                throw new Error('Invalid 2FA login response');
+            }
+        } catch (error) {
+            setState((prev) => ({ ...prev, isLoading: false }));
+            throw error;
+        }
+    };
+
+    const requestOtpLogin = async (email: string) => {
+        setState((prev) => ({ ...prev, isLoading: true }));
+        try {
+            const response = await api.post('/auth/login/otp/request', { email });
+            setState((prev) => ({ ...prev, isLoading: false }));
+            return response.data;
+        } catch (error) {
+            setState((prev) => ({ ...prev, isLoading: false }));
+            throw error;
+        }
+    };
+
+    const verifyOtpLogin = async (email: string, otp: string) => {
+        setState((prev) => ({ ...prev, isLoading: true }));
+        try {
+            const response = await api.post<LoginResponse>('/auth/login/otp/verify', { email, otp });
+            const { user, accessToken, refreshToken } = response.data;
+
+            if (user && accessToken && refreshToken) {
+                await AsyncStorage.setItem('accessToken', accessToken);
+                await AsyncStorage.setItem('refreshToken', refreshToken);
+                await AsyncStorage.setItem('user', JSON.stringify(user));
+
+                setState({
+                    user,
+                    isAuthenticated: true,
+                    isLoading: false,
+                });
+            } else {
+                throw new Error('Invalid OTP login response');
+            }
+        } catch (error) {
+            setState((prev) => ({ ...prev, isLoading: false }));
+            throw error;
+        }
+    };
+
     return (
         <AuthContext.Provider
             value={{
@@ -167,8 +308,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 login,
                 register,
                 logout,
+                logoutAllDevices,
                 signInWithGoogle,
+                linkGoogle,
                 checkAuth,
+                loginWith2FA,
+                requestOtpLogin,
+                verifyOtpLogin,
             }}
         >
             {children}

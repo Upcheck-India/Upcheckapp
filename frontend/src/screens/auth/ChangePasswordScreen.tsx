@@ -4,9 +4,9 @@ import { Text, TextInput, ProgressBar, HelperText } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/Colors';
-import { AuthService } from '../../services/auth';
+import { useAuth } from '../../context/AuthContext';
+import { api } from '../../services/api';
 import { GradientButton } from '../../components/GradientButton';
-import { useAuthStore } from '../../store/authStore';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 function getPasswordStrength(password: string): { score: number; label: string; color: string } {
@@ -32,7 +32,7 @@ const PASSWORD_RULES = [
 ];
 
 const ChangePasswordScreen = ({ navigation }: any) => {
-    const { accessToken, logout } = useAuthStore();
+    const { logout } = useAuth();
     const [oldPassword, setOldPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -68,7 +68,7 @@ const ChangePasswordScreen = ({ navigation }: any) => {
 
         setLoading(true);
         try {
-            await AuthService.changePassword(accessToken!, oldPassword, newPassword);
+            await api.post('/auth/change-password', { oldPassword, newPassword });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert(
                 'Success',

@@ -1,11 +1,12 @@
-
+import { Reflector } from '@nestjs/core';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
 describe('JwtAuthGuard', () => {
   let guard: JwtAuthGuard;
 
   beforeEach(() => {
-    guard = new JwtAuthGuard();
+    const reflector = new Reflector();
+    guard = new JwtAuthGuard(reflector);
   });
 
   it('should be defined', () => {

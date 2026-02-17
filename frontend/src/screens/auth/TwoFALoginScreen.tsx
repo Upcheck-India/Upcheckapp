@@ -5,14 +5,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/Colors';
 import { GradientButton } from '../../components/GradientButton';
-import { useAuthStore } from '../../store/authStore';
+import { useAuth } from '../../context/AuthContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 type Mode = 'totp' | 'backup';
 
 const TwoFALoginScreen = ({ route }: any) => {
     const { tempToken } = route.params;
-    const { loginWith2FA } = useAuthStore();
+    const { loginWith2FA } = useAuth();
     const [mode, setMode] = useState<Mode>('totp');
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);

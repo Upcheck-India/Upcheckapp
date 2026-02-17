@@ -59,7 +59,7 @@ const secStyles = StyleSheet.create({
 
 const ProfileScreen = () => {
     const navigation = useNavigation<any>();
-    const { user, logout } = useAuth();
+    const { user, logout, linkGoogle } = useAuth();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
     const [editModalVisible, setEditModalVisible] = useState(false);
@@ -193,6 +193,9 @@ const ProfileScreen = () => {
                             <SecurityRow icon="lock-outline" title="Change Password" onPress={() => navigation.navigate('ChangePassword')} />
                             <SecurityRow icon="shield-lock-outline" title="Two-Factor Authentication" onPress={() => navigation.navigate('TwoFASetup')} />
                             <SecurityRow icon="cellphone-link" title="Active Sessions" onPress={() => navigation.navigate('SessionManagement')} />
+                            {!user?.googleId && (
+                                <SecurityRow icon="google" title="Link Google Account" onPress={linkGoogle} />
+                            )}
                         </Card.Content>
                     </Card>
 
