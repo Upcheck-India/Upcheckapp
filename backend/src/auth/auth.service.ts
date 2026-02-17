@@ -169,12 +169,17 @@ export class AuthService {
         };
     }
 
-    private loadPrivateKey(): Buffer {
+    private loadPrivateKey(): Buffer | string {
+        // Prefer env var (for cloud deployments like Render), fallback to file
+        const envPrivateKey = process.env.JWT_PRIVATE_KEY;
+        if (envPrivateKey) {
+            return envPrivateKey.replace(/\\n/g, '\n');
+        }
         const privateKeyPath = path.join(process.cwd(), 'secrets', 'private.pem');
         try {
             return fs.readFileSync(privateKeyPath);
         } catch (error) {
-            throw new Error('Internal server error: private key not found');
+            throw new Error('Internal server error: private key not found. Set JWT_PRIVATE_KEY env var or provide secrets/private.pem');
         }
     }
 

@@ -13,13 +13,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         private configService: ConfigService,
         private authService: AuthService,
     ) {
-        const publicKeyPath = path.join(process.cwd(), 'secrets', 'public.pem');
-        let publicKey: Buffer;
-        try {
-            publicKey = fs.readFileSync(publicKeyPath);
-        } catch (error) {
-            console.error(`Failed to load public key at ${publicKeyPath}`, error);
-            throw new Error('Internal server error: public key not found');
+        // Load public key: prefer env var (for cloud deployments like Render), fallback to file
+        const envPublicKey = process.env.JWT_PUBLIC_KEY;
+        let publicKey: string | Buffer;
+        if (envPublicKey) {
+            publicKey = envPublicKey.replace(/\\n/g, '\n');
+        } else {
+            const publicKeyPath = path.join(process.cwd(), 'secrets', 'public.pem');
+            try {
+                publicKey = fs.readFileSync(publicKeyPath);
+            } catch (error) {
+                console.error(`Failed to load public key at ${publicKeyPath}`, error);
+                throw new Error('Internal server error: public key not found. Set JWT_PUBLIC_KEY env var or provide secrets/public.pem');
+            }
         }
 
         super({
