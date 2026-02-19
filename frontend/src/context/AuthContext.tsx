@@ -167,7 +167,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // ── Email / Password Login ───────────────────────────────────────────────
     const login = async (data: any) => {
-        setState((prev) => ({ ...prev, isLoading: true }));
         const email = ((data.email ?? data.emailOrPhone) as string | undefined ?? '').trim().toLowerCase();
         console.log(LOG, 'login() called — email:', email, '| password length:', data.password?.length ?? 0);
         try {
@@ -183,14 +182,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return authData;
         } catch (err: any) {
             console.error(LOG, 'login() catch:', err.message);
-            setState((prev) => ({ ...prev, isLoading: false }));
             throw new Error(friendlyLoginError(err.message ?? ''));
         }
     };
 
     // ── Email / Password Register ────────────────────────────────────────────
     const register = async (data: any) => {
-        setState((prev) => ({ ...prev, isLoading: true }));
         const email = ((data.email ?? '') as string).trim().toLowerCase();
         console.log(LOG, 'register() called — email:', email, '| username:', data.username);
         try {
@@ -221,19 +218,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 return { requiresEmailConfirmation: false, email };
             } else {
                 console.log(LOG, 'register() — email confirmation is ENABLED, user must verify inbox before logging in');
-                setState((prev) => ({ ...prev, isLoading: false }));
                 return { requiresEmailConfirmation: true, email };
             }
         } catch (err: any) {
             console.error(LOG, 'register() catch:', err.message);
-            setState((prev) => ({ ...prev, isLoading: false }));
             throw new Error(friendlyRegisterError(err.message ?? ''));
         }
     };
 
     // ── Google OAuth ─────────────────────────────────────────────────────────
     const signInWithGoogle = async () => {
-        setState((prev) => ({ ...prev, isLoading: true }));
         try {
             const redirectUrl = Linking.createURL('auth');
             console.log(LOG, 'signInWithGoogle() — redirectUrl:', redirectUrl);
@@ -280,9 +274,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (err: any) {
             console.error(LOG, 'signInWithGoogle() catch:', err.message);
             throw new Error(err.message ?? 'Google sign-in failed. Please try again.');
-        } finally {
-            console.log(LOG, 'signInWithGoogle() finally — resetting isLoading');
-            setState((prev) => ({ ...prev, isLoading: false }));
         }
     };
 
@@ -306,23 +297,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // ── OTP / Magic Link Login ───────────────────────────────────────────────
     const requestOtpLogin = async (email: string) => {
-        setState((prev) => ({ ...prev, isLoading: true }));
         try {
             const { error } = await supabase.auth.signInWithOtp({
                 email: email.trim().toLowerCase(),
                 options: { shouldCreateUser: false },
             });
             if (error) throw error;
-            setState((prev) => ({ ...prev, isLoading: false }));
             return { message: 'A login code has been sent to your email.' };
         } catch (err: any) {
-            setState((prev) => ({ ...prev, isLoading: false }));
             throw new Error(err.message ?? 'Failed to send login code. Please try again.');
         }
     };
 
     const verifyOtpLogin = async (email: string, otp: string) => {
-        setState((prev) => ({ ...prev, isLoading: true }));
         try {
             const { error } = await supabase.auth.verifyOtp({
                 email: email.trim().toLowerCase(),
@@ -332,7 +319,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (error) throw error;
             // onAuthStateChange fires and sets isAuthenticated: true
         } catch (err: any) {
-            setState((prev) => ({ ...prev, isLoading: false }));
             throw new Error(err.message ?? 'Invalid or expired code. Please try again.');
         }
     };
