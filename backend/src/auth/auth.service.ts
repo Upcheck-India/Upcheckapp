@@ -55,9 +55,9 @@ export class AuthService {
         private configService: ConfigService,
         private redisService: RedisService,
     ) {
-        this.googleClient = new OAuth2Client(
-            this.configService.get('GOOGLE_CLIENT_ID'),
-        );
+        // Initialize with web client ID, but we'll verify against all platform IDs
+        const webClientId = this.configService.get('GOOGLE_CLIENT_ID_WEB') || this.configService.get('GOOGLE_CLIENT_ID');
+        this.googleClient = new OAuth2Client(webClientId);
     }
 
     // ==================== Registration ====================
@@ -65,18 +65,16 @@ export class AuthService {
     async register(registerDto: RegisterDto, ipAddress?: string, userAgent?: string) {
         const { email, password, firstName, lastName, username, phoneNumber } = registerDto;
 
-        const existingEmail = await this.userRepository.findOne({ where: { email } });
+        // Optimize uniqueness checks with parallel queries
+        const [existingEmail, existingUsername, existingPhone] = await Promise.all([
+            this.userRepository.findOne({ where: { email } }),
+            this.userRepository.findOne({ where: { username } }),
+            phoneNumber ? this.userRepository.findOne({ where: { phone: phoneNumber } }) : Promise.resolve(null),
+        ]);
+
         if (existingEmail) throw new ConflictException('Email already registered');
-
-        const existingUsername = await this.userRepository.findOne({ where: { username } });
         if (existingUsername) throw new ConflictException('Username already taken');
-
-        if (phoneNumber) {
-            const existingPhone = await this.userRepository.findOne({ where: { phone: phoneNumber } });
-            if (existingPhone) throw new ConflictException('Phone number already registered');
-        }
-
-        this.validatePasswordStrength(password);
+        if (existingPhone) throw new ConflictException('Phone number already registered');
 
         this.validatePasswordStrength(password);
 
@@ -94,12 +92,30 @@ export class AuthService {
             emailVerified: false,
         });
 
-        await this.userRepository.save(user);
+        try {
+            await this.userRepository.save(user);
+        } catch (error: any) {
+            // Handle unique constraint violations from database
+            if (error.code === '23505') { // PostgreSQL unique violation
+                if (error.constraint?.includes('email')) {
+                    throw new ConflictException('Email already registered');
+                } else if (error.constraint?.includes('username')) {
+                    throw new ConflictException('Username already taken');
+                } else if (error.constraint?.includes('phone')) {
+                    throw new ConflictException('Phone number already registered');
+                }
+            }
+            throw error;
+        }
 
-        const code = await this.generateOtp(user.id, 'email_verify');
-        await this.emailService.sendOtpEmail(email, code, firstName);
-
+        // Generate tokens first (critical path)
         const { accessToken, refreshToken } = await this.generateTokens(user, ipAddress, userAgent);
+
+        // Send verification email asynchronously (non-blocking - don't fail registration if email fails)
+        const code = await this.generateOtp(user.id, 'email_verify');
+        this.emailService.sendOtpEmail(email, code, firstName).catch(err => {
+            this.logger.error(`Failed to send verification email to ${email}: ${err.message}`);
+        });
 
         return {
             message: 'Registration successful. Please verify your email.',
@@ -283,7 +299,10 @@ export class AuthService {
         }
 
         const code = await this.generateOtp(user.id, 'login');
-        await this.emailService.sendOtpEmail(user.email, code, user.firstName || undefined);
+        // Send OTP email asynchronously (non-blocking)
+        this.emailService.sendOtpEmail(user.email, code, user.firstName || undefined).catch(err => {
+            this.logger.error(`Failed to send OTP email to ${user.email}: ${err.message}`);
+        });
 
         return {
             message: `Verification code sent to ${dto.email}`,
@@ -319,9 +338,21 @@ export class AuthService {
 
     async googleAuth(googleAuthDto: GoogleAuthDto, ipAddress?: string, userAgent?: string) {
         try {
+            // Get all possible client IDs
+            const clientIds = [
+                this.configService.get('GOOGLE_CLIENT_ID_WEB'),
+                this.configService.get('GOOGLE_CLIENT_ID_IOS'),
+                this.configService.get('GOOGLE_CLIENT_ID_ANDROID'),
+                this.configService.get('GOOGLE_CLIENT_ID'), // Fallback for backwards compatibility
+            ].filter(Boolean);
+
+            if (clientIds.length === 0) {
+                throw new Error('No Google Client IDs configured');
+            }
+
             const ticket = await this.googleClient.verifyIdToken({
                 idToken: googleAuthDto.idToken,
-                audience: this.configService.get('GOOGLE_CLIENT_ID'),
+                audience: clientIds,
             });
             const payload = ticket.getPayload();
             if (!payload || !payload.email) throw new BadRequestException('Invalid Google token');
@@ -354,7 +385,10 @@ export class AuthService {
                         verificationLevel: 'basic',
                     });
                     await this.userRepository.save(user);
-                    await this.emailService.sendWelcomeEmail(email, firstName);
+                    // Send welcome email asynchronously (non-blocking)
+                    this.emailService.sendWelcomeEmail(email, firstName).catch(err => {
+                        this.logger.error(`Failed to send welcome email to ${email}: ${err.message}`);
+                    });
                 }
             }
 
@@ -373,9 +407,17 @@ export class AuthService {
 
     async linkGoogleAccount(userId: string, googleAuthDto: GoogleAuthDto) {
         try {
+            // Get all possible client IDs
+            const clientIds = [
+                this.configService.get('GOOGLE_CLIENT_ID_WEB'),
+                this.configService.get('GOOGLE_CLIENT_ID_IOS'),
+                this.configService.get('GOOGLE_CLIENT_ID_ANDROID'),
+                this.configService.get('GOOGLE_CLIENT_ID'), // Fallback for backwards compatibility
+            ].filter(Boolean);
+
             const ticket = await this.googleClient.verifyIdToken({
                 idToken: googleAuthDto.idToken,
-                audience: this.configService.get('GOOGLE_CLIENT_ID'),
+                audience: clientIds,
             });
             const payload = ticket.getPayload();
             if (!payload) throw new BadRequestException('Invalid Google token');
@@ -418,7 +460,10 @@ export class AuthService {
         }
 
         const code = await this.generateOtp(user.id, 'password_reset');
-        await this.emailService.sendOtpEmail(user.email, code, user.firstName || undefined);
+        // Send password reset email asynchronously (non-blocking)
+        this.emailService.sendOtpEmail(user.email, code, user.firstName || undefined).catch(err => {
+            this.logger.error(`Failed to send password reset email to ${user.email}: ${err.message}`);
+        });
 
         return { message: 'Verification code sent to your email' };
     }
@@ -448,7 +493,10 @@ export class AuthService {
         if (!tokenRecord.user) {
             tokenRecord.user = await this.userRepository.findOneByOrFail({ id: tokenRecord.userId });
         }
-        await this.emailService.sendPasswordChangedNotification(tokenRecord.user.email, tokenRecord.user.firstName || undefined);
+        // Send password changed notification asynchronously (non-blocking)
+        this.emailService.sendPasswordChangedNotification(tokenRecord.user.email, tokenRecord.user.firstName || undefined).catch(err => {
+            this.logger.error(`Failed to send password changed notification to ${tokenRecord.user.email}: ${err.message}`);
+        });
 
         return { message: 'Password reset successful' };
     }
@@ -473,7 +521,10 @@ export class AuthService {
 
         await this.refreshTokenRepository.update({ userId: user.id }, { isRevoked: true });
 
-        await this.emailService.sendPasswordChangedNotification(user.email, user.firstName || undefined);
+        // Send password changed notification asynchronously (non-blocking)
+        this.emailService.sendPasswordChangedNotification(user.email, user.firstName || undefined).catch(err => {
+            this.logger.error(`Failed to send password changed notification to ${user.email}: ${err.message}`);
+        });
 
         return { message: 'Password changed successfully' };
     }
@@ -598,7 +649,10 @@ export class AuthService {
 
         const user = await this.userRepository.findOne({ where: { id: tokenRecord.userId } });
         if (user) {
-            await this.emailService.sendWelcomeEmail(user.email, user.firstName || undefined);
+            // Send welcome email asynchronously (non-blocking)
+            this.emailService.sendWelcomeEmail(user.email, user.firstName || undefined).catch(err => {
+                this.logger.error(`Failed to send welcome email to ${user.email}: ${err.message}`);
+            });
         }
 
         return { message: 'Email verified successfully', user: user ? this.sanitizeUser(user) : null };
@@ -611,7 +665,10 @@ export class AuthService {
         if (user.emailVerified) throw new BadRequestException('Email already verified');
 
         const code = await this.generateOtp(user.id, 'email_verify');
-        await this.emailService.sendVerificationEmail(email, code, user.firstName || undefined);
+        // Send verification email asynchronously (non-blocking)
+        this.emailService.sendVerificationEmail(email, code, user.firstName || undefined).catch(err => {
+            this.logger.error(`Failed to send verification email to ${email}: ${err.message}`);
+        });
         return { message: 'Verification email sent' };
     }
 

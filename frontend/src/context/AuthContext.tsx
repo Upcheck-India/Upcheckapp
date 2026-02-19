@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import Constants from 'expo-constants';
 import { api } from '../services/api'; // Correct import path
 import { User, AuthState, LoginResponse } from '../types/auth';
 import { Platform } from 'react-native';
@@ -166,7 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const register = async (data: any) => {
         setState((prev) => ({ ...prev, isLoading: true }));
         try {
-            // Assuming RegisterResponse is similar to LoginResponse or LoginResponse is intended
+            // Ensure data matches backend DTO: { email, username, password, firstName, lastName, phoneNumber? }
             const response = await api.post<LoginResponse>('/auth/register', data);
             const { user, accessToken, refreshToken } = response.data;
 

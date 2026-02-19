@@ -42,11 +42,11 @@ function authHeader(token: string) {
 export const AuthService = {
 
     // ─── Google Login ────────────────────────────────────────────
-    async googleLogin(token: string) {
+    async googleLogin(idToken: string) {
         const response = await safeFetch(`${API_BASE_URL}/auth/google`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token }),
+            body: JSON.stringify({ idToken }),
         });
         return handleResponse(response, 'Google login failed');
     },

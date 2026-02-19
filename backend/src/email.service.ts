@@ -16,14 +16,28 @@ export class EmailService {
         user: this.configService.get('SMTP_USER'),
         pass: this.configService.get('SMTP_PASS'),
       },
+      pool: true, // Use connection pooling
+      maxConnections: 5,
+      maxMessages: 100,
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000, // 10 seconds
+      socketTimeout: 30000, // 30 seconds
+      tls: {
+        rejectUnauthorized: true,
+      },
     });
 
-    // Verify connection on startup
-    this.transporter.verify().then(() => {
+    // Verify connection on startup (async, don't block)
+    this.verifyConnection();
+  }
+
+  private async verifyConnection() {
+    try {
+      await this.transporter.verify();
       this.logger.log('SMTP connection established successfully');
-    }).catch((err) => {
+    } catch (err: any) {
       this.logger.warn(`SMTP connection failed: ${err.message}. Emails will be logged but not sent.`);
-    });
+    }
   }
 
   private get senderEmail(): string {
