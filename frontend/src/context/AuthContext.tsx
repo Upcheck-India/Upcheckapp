@@ -63,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            // Always set isLoading:false so no spinner stays indefinitely
             if (session?.user) {
                 setState({
                     user: convertSupabaseUser(session.user),
@@ -211,6 +212,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (data?.url) {
                 await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
             }
+            // Browser closed — onAuthStateChange will fire if login succeeded.
+            // Always reset isLoading here so the spinner doesn't stay forever
+            // if the user cancelled or the deep link was already handled.
+            setState((prev) => ({ ...prev, isLoading: false }));
         } catch (error: any) {
             setState((prev) => ({ ...prev, isLoading: false }));
             throw new Error(error.message || 'Google sign-in failed');
