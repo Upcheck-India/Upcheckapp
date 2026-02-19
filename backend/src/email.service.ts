@@ -1,78 +1,31 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+
+const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private transporter: nodemailer.Transporter;
-
-  private isConfigured: boolean = false;
+  private readonly apiKey: string;
+  private readonly isConfigured: boolean;
 
   constructor(private configService: ConfigService) {
-    const smtpUser = this.configService.get<string>('SMTP_USER');
-    const smtpPass = this.configService.get<string>('SMTP_PASS');
+    this.apiKey = this.configService.get<string>('BREVO_API_KEY', '');
+    this.isConfigured = !!this.apiKey;
 
-    if (!smtpUser || !smtpPass) {
-      this.logger.warn('SMTP_USER or SMTP_PASS not set — emails will be logged but not sent.');
-      this.transporter = null as any;
-      return;
-    }
-
-    this.isConfigured = true;
-
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get<string>('SMTP_HOST', 'smtp-relay.brevo.com'),
-      port: parseInt(this.configService.get<string>('SMTP_PORT', '587'), 10),
-      // For Brevo on port 587: secure=false + STARTTLS (default). For port 465: secure=true.
-      secure: this.configService.get<string>('SMTP_SECURE', 'false') === 'true',
-      auth: {
-        user: smtpUser,   // Your Brevo account login email
-        pass: smtpPass,   // Your Brevo SMTP API key (NOT account password)
-      },
-      // Do NOT use pool:true — causes persistent connection issues on Render/Brevo
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 30000,
-      tls: {
-        rejectUnauthorized: false, // Brevo occasionally uses intermediate certs
-      },
-    });
-
-    // Verify connection on startup (async, don't block)
-    this.verifyConnection();
-  }
-
-  private async verifyConnection() {
-    try {
-      await this.transporter.verify();
-      this.logger.log('SMTP connection established successfully');
-    } catch (err: any) {
-      this.logger.warn(`SMTP connection failed: ${err.message}. Check SMTP_USER / SMTP_PASS in env vars.`);
-      this.isConfigured = false;
-    }
-  }
-
-  private async sendMail(options: nodemailer.SendMailOptions): Promise<boolean> {
-    if (!this.isConfigured || !this.transporter) {
-      this.logger.warn(`Email not sent (SMTP not configured): ${options.subject}`);
-      return false;
-    }
-    try {
-      await this.transporter.sendMail(options);
-      return true;
-    } catch (err: any) {
-      this.logger.error(`Failed to send email "${options.subject}" to ${options.to}: ${err.message}`);
-      return false;
+    if (!this.isConfigured) {
+      this.logger.warn('BREVO_API_KEY not set — emails will be logged but not sent.');
+    } else {
+      this.logger.log('Brevo HTTP API email service ready.');
     }
   }
 
   private get senderEmail(): string {
-    return this.configService.get('SMTP_SENDER_EMAIL', this.configService.get('EMAIL_FROM', 'noreply@upcheck.in'));
+    return this.configService.get('SMTP_SENDER_EMAIL', 'noreply@upcheck.in');
   }
 
   private get senderName(): string {
-    return this.configService.get('SMTP_SENDER_NAME', this.configService.get('EMAIL_FROM_NAME', 'Upcheck'));
+    return this.configService.get('SMTP_SENDER_NAME', 'Upcheck');
   }
 
   private get appName(): string {
@@ -80,13 +33,38 @@ export class EmailService {
   }
 
   private async sendEmail(to: string, subject: string, html: string): Promise<void> {
-    await this.sendMail({
-      from: `"${this.senderName}" <${this.senderEmail}>`,
-      to,
+    if (!this.isConfigured) {
+      this.logger.warn(`Email not sent (BREVO_API_KEY missing): to=${to} subject=${subject}`);
+      return;
+    }
+
+    const body = {
+      sender: { name: this.senderName, email: this.senderEmail },
+      to: [{ email: to }],
       subject,
-      html,
-    });
-    this.logger.log(`Email sent to ${to}: ${subject}`);
+      htmlContent: html,
+    };
+
+    try {
+      const res = await fetch(BREVO_API_URL, {
+        method: 'POST',
+        headers: {
+          'api-key': this.apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        this.logger.error(`Brevo API error ${res.status} sending to ${to}: ${text}`);
+      } else {
+        this.logger.log(`Email sent via Brevo API to ${to}: ${subject}`);
+      }
+    } catch (err: any) {
+      this.logger.error(`Brevo API fetch failed to ${to}: ${err.message}`);
+    }
   }
 
   async sendVerificationEmail(email: string, token: string, name?: string) {
