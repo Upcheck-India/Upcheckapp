@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 import { RootStackParamList } from './types';
@@ -64,11 +64,7 @@ import InventoryScreen from '../screens/features/inventory/InventoryScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
-    const { isLoading, isAuthenticated, checkAuth } = useAuth(); // Changed to useAuth
-
-    useEffect(() => {
-        checkAuth();
-    }, []);
+    const { isLoading, isAuthenticated } = useAuth();
 
     // Show loading screen while checking auth state
     if (isLoading) {

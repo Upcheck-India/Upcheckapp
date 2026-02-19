@@ -1,9 +1,8 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../services/supabase';
-import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 import { User, AuthState } from '../types/auth';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -23,6 +22,64 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// ---------------------------------------------------------------------------
+// Supabase uses PKCE by default. After Google OAuth or email verification,
+// the redirect URL contains  ?code=xxxx  — NOT ?access_token=xxxx.
+// We must call exchangeCodeForSession() to exchange it for real tokens.
+// onAuthStateChange fires automatically after a successful exchange so we
+// never need to call setState() manually after this.
+// ---------------------------------------------------------------------------
+async function processAuthUrl(rawUrl: string): Promise<void> {
+    if (!rawUrl) return;
+    try {
+        if (rawUrl.includes('code=')) {
+            const { error } = await supabase.auth.exchangeCodeForSession(rawUrl);
+            if (error) console.error('[Auth] exchangeCodeForSession error:', error.message);
+        } else if (rawUrl.includes('access_token=')) {
+            const parsed = Linking.parse(rawUrl);
+            const access_token = (parsed.queryParams?.access_token as string) ?? '';
+            const refresh_token = (parsed.queryParams?.refresh_token as string) ?? '';
+            if (access_token) {
+                const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+                if (error) console.error('[Auth] setSession error:', error.message);
+            }
+        }
+    } catch (err: any) {
+        console.error('[Auth] processAuthUrl error:', err.message);
+    }
+}
+
+function friendlyLoginError(msg: string): string {
+    if (msg.includes('Invalid login credentials')) return 'Incorrect email or password. Please try again.';
+    if (msg.includes('Email not confirmed')) return 'Email not verified. Check your inbox for a confirmation link before signing in.';
+    if (msg.includes('Too many requests')) return 'Too many attempts. Please wait a few minutes and try again.';
+    if (msg.includes('User not found')) return 'No account found with that email.';
+    return msg || 'Login failed. Please try again.';
+}
+
+function friendlyRegisterError(msg: string): string {
+    if (msg.includes('already registered') || msg.includes('User already registered')) return 'An account already exists with this email. Try signing in instead.';
+    if (msg.includes('Password should be')) return 'Password must be at least 6 characters long.';
+    if (msg.includes('valid email')) return 'Please enter a valid email address.';
+    return msg || 'Registration failed. Please try again.';
+}
+
+function convertSupabaseUser(u: SupabaseUser): User {
+    const meta = u.user_metadata ?? {};
+    const fullName: string = meta.full_name ?? meta.name ?? '';
+    const parts = fullName.split(' ');
+    return {
+        id: u.id,
+        email: u.email ?? '',
+        username: meta.username ?? u.email?.split('@')[0] ?? '',
+        firstName: meta.firstName ?? parts[0] ?? '',
+        lastName: meta.lastName ?? parts.slice(1).join(' ') ?? '',
+        emailVerified: u.email_confirmed_at != null,
+        authProvider: u.app_metadata?.provider ?? 'email',
+        verificationLevel: 'basic',
+    } as User;
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [state, setState] = useState<AuthState>({
         user: null,
@@ -30,279 +87,173 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: false,
     });
 
-    // Helper to convert Supabase user to app User type
-    const convertSupabaseUser = (supabaseUser: SupabaseUser): User => {
-        return {
-            id: supabaseUser.id,
-            email: supabaseUser.email || '',
-            username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || '',
-            firstName: supabaseUser.user_metadata?.firstName || '',
-            lastName: supabaseUser.user_metadata?.lastName || '',
-            emailVerified: supabaseUser.email_confirmed_at != null,
-            authProvider: supabaseUser.app_metadata?.provider || 'email',
-            verificationLevel: 'basic',
-        } as User;
-    };
-
-    // Initialize auth state from Supabase
+    // ── onAuthStateChange is the SINGLE source of truth for auth state ──────
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session?.user) {
-                setState({
-                    user: convertSupabaseUser(session.user),
-                    isAuthenticated: true,
-                    isLoading: false,
-                });
-            } else {
-                setState({
-                    user: null,
-                    isAuthenticated: false,
-                    isLoading: false,
-                });
-            }
+            setState({
+                user: session?.user ? convertSupabaseUser(session.user) : null,
+                isAuthenticated: !!session?.user,
+                isLoading: false,
+            });
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            // Always set isLoading:false so no spinner stays indefinitely
-            if (session?.user) {
-                setState({
-                    user: convertSupabaseUser(session.user),
-                    isAuthenticated: true,
-                    isLoading: false,
-                });
-            } else {
-                setState({
-                    user: null,
-                    isAuthenticated: false,
-                    isLoading: false,
-                });
-            }
+            setState({
+                user: session?.user ? convertSupabaseUser(session.user) : null,
+                isAuthenticated: !!session?.user,
+                isLoading: false,
+            });
         });
 
         return () => subscription.unsubscribe();
     }, []);
 
-    // Handle deep link OAuth redirects
+    // ── Deep link handler — covers email verification links and OAuth when   ──
+    // ── the app is opened/resumed from a background state.                  ──
+    // ── Note: openAuthSessionAsync in signInWithGoogle intercepts in-app    ──
+    // ── browser redirects directly, so we call processAuthUrl there too.    ──
     useEffect(() => {
-        const handleDeepLink = async (event: { url: string }) => {
-            const url = Linking.parse(event.url);
-            
-            if (url.path === 'auth' || url.queryParams?.access_token) {
-                const accessToken = url.queryParams?.access_token as string;
-                const refreshToken = url.queryParams?.refresh_token as string;
-                
-                if (accessToken) {
-                    const { data, error } = await supabase.auth.setSession({
-                        access_token: accessToken,
-                        refresh_token: refreshToken,
-                    });
-                    
-                    if (error) {
-                        console.error('Error setting session from deep link:', error);
-                    } else if (data.user) {
-                        setState({
-                            user: convertSupabaseUser(data.user),
-                            isAuthenticated: true,
-                            isLoading: false,
-                        });
-                    }
-                }
-            }
-        };
-
-        Linking.getInitialURL().then((url) => {
-            if (url) handleDeepLink({ url });
-        });
-
-        const subscription = Linking.addEventListener('url', handleDeepLink);
-        return () => subscription.remove();
+        Linking.getInitialURL().then((url) => { if (url) processAuthUrl(url); });
+        const sub = Linking.addEventListener('url', (e) => processAuthUrl(e.url));
+        return () => sub.remove();
     }, []);
 
     const checkAuth = async () => {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-            setState({
-                user: convertSupabaseUser(session.user),
-                isAuthenticated: true,
-                isLoading: false,
-            });
-        } else {
-            setState({
-                user: null,
-                isAuthenticated: false,
-                isLoading: false,
-            });
-        }
+        setState({
+            user: session?.user ? convertSupabaseUser(session.user) : null,
+            isAuthenticated: !!session?.user,
+            isLoading: false,
+        });
     };
 
-
+    // ── Email / Password Login ───────────────────────────────────────────────
     const login = async (data: any) => {
         setState((prev) => ({ ...prev, isLoading: true }));
+        const email = ((data.email ?? data.emailOrPhone) as string | undefined ?? '').trim().toLowerCase();
         try {
-            // Screen may send emailOrPhone or email — handle both
-            const email = data.email || data.emailOrPhone;
             const { data: authData, error } = await supabase.auth.signInWithPassword({
                 email,
                 password: data.password,
             });
-
             if (error) throw error;
-
-            if (authData.user) {
-                setState({
-                    user: convertSupabaseUser(authData.user),
-                    isAuthenticated: true,
-                    isLoading: false,
-                });
-            }
-
+            // onAuthStateChange fires automatically and sets isAuthenticated: true
             return authData;
-        } catch (error: any) {
+        } catch (err: any) {
             setState((prev) => ({ ...prev, isLoading: false }));
-            // Supabase errors have .message directly (not .response.data.message)
-            throw new Error(error.message || 'Login failed');
+            throw new Error(friendlyLoginError(err.message ?? ''));
         }
     };
 
+    // ── Email / Password Register ────────────────────────────────────────────
     const register = async (data: any) => {
         setState((prev) => ({ ...prev, isLoading: true }));
+        const email = ((data.email ?? '') as string).trim().toLowerCase();
         try {
             const { data: authData, error } = await supabase.auth.signUp({
-                email: data.email,
+                email,
                 password: data.password,
                 options: {
                     data: {
-                        firstName: data.firstName,
-                        lastName: data.lastName,
-                        username: data.username,
+                        firstName: data.firstName ?? '',
+                        lastName: data.lastName ?? '',
+                        username: data.username ?? '',
                     },
                 },
             });
-
             if (error) throw error;
 
-            // If session exists, user is signed in immediately (email confirm disabled)
-            if (authData.session && authData.user) {
-                setState({
-                    user: convertSupabaseUser(authData.user),
-                    isAuthenticated: true,
-                    isLoading: false,
-                });
+            if (authData.session) {
+                // Email confirmation is disabled in Supabase — user signed in immediately.
+                // onAuthStateChange fires and navigates to Main automatically.
+                return { requiresEmailConfirmation: false, email };
             } else {
-                // Email confirmation required — user was created but not signed in yet
+                // Email confirmation is enabled — tell user to check inbox.
                 setState((prev) => ({ ...prev, isLoading: false }));
-                // Signal the screen that verification email was sent
-                return { requiresEmailConfirmation: true, email: data.email };
+                return { requiresEmailConfirmation: true, email };
             }
-        } catch (error: any) {
+        } catch (err: any) {
             setState((prev) => ({ ...prev, isLoading: false }));
-            throw new Error(error.message || 'Registration failed');
+            throw new Error(friendlyRegisterError(err.message ?? ''));
         }
     };
 
+    // ── Google OAuth ─────────────────────────────────────────────────────────
     const signInWithGoogle = async () => {
         setState((prev) => ({ ...prev, isLoading: true }));
         try {
             const redirectUrl = Linking.createURL('auth');
-            
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: redirectUrl,
-                    queryParams: {
-                        access_type: 'offline',
-                        prompt: 'consent',
-                    },
+                    queryParams: { access_type: 'offline', prompt: 'consent' },
                 },
             });
-
             if (error) throw error;
 
             if (data?.url) {
-                await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+                // openAuthSessionAsync intercepts the redirect — it does NOT fire
+                // the Linking event listener, so we must handle the result URL here.
+                const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+                if (result.type === 'success' && result.url) {
+                    await processAuthUrl(result.url);
+                }
             }
-            // Browser closed — onAuthStateChange will fire if login succeeded.
-            // Always reset isLoading here so the spinner doesn't stay forever
-            // if the user cancelled or the deep link was already handled.
+        } catch (err: any) {
+            throw new Error(err.message ?? 'Google sign-in failed. Please try again.');
+        } finally {
+            // Always clear loading — onAuthStateChange updates isAuthenticated
             setState((prev) => ({ ...prev, isLoading: false }));
-        } catch (error: any) {
-            setState((prev) => ({ ...prev, isLoading: false }));
-            throw new Error(error.message || 'Google sign-in failed');
         }
     };
 
+    // ── Misc Auth ────────────────────────────────────────────────────────────
     const linkGoogle = async () => {
-        // Supabase doesn't support linking OAuth providers after initial sign up
-        // This would need custom implementation or use Supabase's linkIdentity API
-        console.log('Link Google - not implemented with Supabase');
-        alert('Google account linking is not available with current auth setup');
+        alert('Google account linking is not available in the current setup.');
     };
 
     const logout = async () => {
-        try {
-            await supabase.auth.signOut();
-        } finally {
-            setState({
-                user: null,
-                isAuthenticated: false,
-                isLoading: false,
-            });
-        }
+        await supabase.auth.signOut();
+        // onAuthStateChange fires with null session → isAuthenticated: false
     };
 
-    const logoutAllDevices = async () => {
-        // Supabase signs out current session only
-        // For all devices, you'd need to call Supabase admin API from backend
-        await logout();
+    const logoutAllDevices = async () => { await logout(); };
+
+    const loginWith2FA = async (_tempToken: string, _code: string) => {
+        throw new Error('Two-factor authentication is not configured.');
     };
 
-    const loginWith2FA = async (tempToken: string, code: string) => {
-        // Supabase handles 2FA differently - this is for backward compatibility
-        console.log('2FA login - not fully implemented with Supabase');
-        throw new Error('2FA is not configured for Supabase auth');
-    };
-
+    // ── OTP / Magic Link Login ───────────────────────────────────────────────
     const requestOtpLogin = async (email: string) => {
         setState((prev) => ({ ...prev, isLoading: true }));
         try {
             const { error } = await supabase.auth.signInWithOtp({
-                email,
-                options: {
-                    shouldCreateUser: false,
-                },
+                email: email.trim().toLowerCase(),
+                options: { shouldCreateUser: false },
             });
-
             if (error) throw error;
-
             setState((prev) => ({ ...prev, isLoading: false }));
-            return { message: 'OTP sent to email' };
-        } catch (error: any) {
+            return { message: 'A login code has been sent to your email.' };
+        } catch (err: any) {
             setState((prev) => ({ ...prev, isLoading: false }));
-            throw new Error(error.message || 'Failed to send OTP');
+            throw new Error(err.message ?? 'Failed to send login code. Please try again.');
         }
     };
 
     const verifyOtpLogin = async (email: string, otp: string) => {
         setState((prev) => ({ ...prev, isLoading: true }));
         try {
-            const { data, error } = await supabase.auth.verifyOtp({
-                email,
-                token: otp,
+            const { error } = await supabase.auth.verifyOtp({
+                email: email.trim().toLowerCase(),
+                token: otp.trim(),
                 type: 'email',
             });
-
             if (error) throw error;
-
-            if (data.user) {
-                setState({
-                    user: convertSupabaseUser(data.user),
-                    isAuthenticated: true,
-                    isLoading: false,
-                });
-            }
-        } catch (error: any) {
+            // onAuthStateChange fires and sets isAuthenticated: true
+        } catch (err: any) {
             setState((prev) => ({ ...prev, isLoading: false }));
-            throw new Error(error.message || 'Invalid OTP');
+            throw new Error(err.message ?? 'Invalid or expired code. Please try again.');
         }
     };
 
