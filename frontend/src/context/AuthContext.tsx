@@ -131,6 +131,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // ── Note: openAuthSessionAsync in signInWithGoogle intercepts in-app    ──
     // ── browser redirects directly, so we call processAuthUrl there too.    ──
     useEffect(() => {
+        // Log the redirect URL so the user knows exactly what to add in Supabase
+        const devRedirectUrl = Linking.createURL('auth');
+        console.log(LOG, '════════════════════════════════════════════');
+        console.log(LOG, '⚠  SUPABASE REDIRECT URL CHECK');
+        console.log(LOG, '   Add this EXACT URL to:');
+        console.log(LOG, '   Supabase Dashboard → Auth → URL Configuration → Redirect URLs');
+        console.log(LOG, '  ', devRedirectUrl);
+        console.log(LOG, '   Also add:  upcheckapp://auth  (for production builds)');
+        console.log(LOG, '════════════════════════════════════════════');
+
         Linking.getInitialURL().then((url) => {
             console.log(LOG, 'getInitialURL():', url ?? 'null');
             if (url) processAuthUrl(url);
