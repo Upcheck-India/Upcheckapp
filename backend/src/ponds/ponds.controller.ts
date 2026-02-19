@@ -17,6 +17,11 @@ export class PondsController {
         return this.pondsService.create(createPondDto, req.user.id);
     }
 
+    @Get('mine')
+    findAllForUser(@Request() req) {
+        return this.pondsService.findAllForUser(req.user.id);
+    }
+
     @Get()
     findAll(
         @Query('farmId') farmId: string,

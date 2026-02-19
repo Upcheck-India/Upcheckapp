@@ -14,22 +14,28 @@ export interface Alert {
 
 export const AlertsService = {
     async fetchAlerts(unreadOnly = false): Promise<Alert[]> {
-        const response = await apiClient.get('/alerts' + (unreadOnly ? '?unread=true' : ''));
-        return response.data;
+        try {
+            const result = await apiClient.get('/alerts/me' + (unreadOnly ? '?unreadOnly=true' : ''));
+            return Array.isArray(result) ? result : [];
+        } catch {
+            return [];
+        }
     },
 
-    async markAsRead(id: string): Promise<Alert> {
-        const response = await apiClient.patch(`/alerts/${id}/read`);
-        return response.data;
+    async markAsRead(id: string): Promise<void> {
+        await apiClient.patch(`/alerts/${id}/read`);
     },
 
-    async markAllAsRead(): Promise<{ success: true }> {
-        const response = await apiClient.post('/alerts/read-all');
-        return response.data;
+    async markAllAsRead(): Promise<void> {
+        await apiClient.patch('/alerts/me/read-all');
     },
 
     async getUnreadCount(): Promise<number> {
-        const response = await apiClient.get('/alerts/unread-count');
-        return response.data;
+        try {
+            const result = await apiClient.get('/alerts/me/count') as any;
+            return typeof result === 'number' ? result : (result?.count ?? 0);
+        } catch {
+            return 0;
+        }
     }
 };

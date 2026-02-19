@@ -31,7 +31,17 @@ const PASSWORD_RULES = [
 ];
 
 const ChangePasswordScreen = ({ navigation }: any) => {
-    const { logout, changePassword } = useAuth();
+    const { logout, changePassword, forgotPassword, user } = useAuth();
+
+    // Step 1: verify current credentials
+    const [step, setStep] = useState<1 | 2>(1);
+    const [currentEmail, setCurrentEmail] = useState(user?.email ?? '');
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [secureCurrentPw, setSecureCurrentPw] = useState(true);
+    const [verifying, setVerifying] = useState(false);
+    const [verifyError, setVerifyError] = useState('');
+
+    // Step 2: new password
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [secureNew, setSecureNew] = useState(true);
@@ -44,81 +54,89 @@ const ChangePasswordScreen = ({ navigation }: any) => {
     const allRulesPassed = PASSWORD_RULES.every(r => r.test(newPassword));
     const confirmMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
 
-    const newError = submitted && !newPassword ? 'New password is required' : '';
-    const confirmError = submitted && !confirmPassword ? 'Please confirm your new password' : '';
+    const handleVerifyCurrentPassword = async () => {
+        if (!currentEmail.trim() || !currentPassword) {
+            setVerifyError('Please enter your email and current password.');
+            return;
+        }
+        setVerifying(true);
+        setVerifyError('');
+        try {
+            const { supabase } = await import('../../services/supabase');
+            const { error } = await supabase.auth.signInWithPassword({ email: currentEmail.trim().toLowerCase(), password: currentPassword });
+            if (error) throw error;
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setStep(2);
+        } catch (e: any) {
+            setVerifyError(e.message || 'Incorrect email or password.');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        } finally {
+            setVerifying(false);
+        }
+    };
+
+    const handleForgotPassword = async () => {
+        const email = currentEmail.trim() || user?.email;
+        if (!email) { Alert.alert('Email required', 'Enter your email address above first.'); return; }
+        try {
+            await forgotPassword(email);
+            Alert.alert('Reset email sent', `Check your inbox at ${email} for a password reset link.`);
+        } catch (e: any) { Alert.alert('Error', e.message); }
+    };
 
     const handleChangePassword = async () => {
         setSubmitted(true);
         setServerError('');
-
-        if (!newPassword || !confirmPassword) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            return;
-        }
-        if (!allRulesPassed || confirmMismatch) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            return;
-        }
-
+        if (!newPassword || !confirmPassword) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); return; }
+        if (!allRulesPassed || confirmMismatch) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); return; }
         setLoading(true);
         try {
             await changePassword(newPassword);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert(
-                'Success',
-                'Password changed successfully. Please sign in again.',
-                [{ text: 'OK', onPress: () => logout() }]
-            );
+            Alert.alert('Password Changed', 'Your password has been updated. Please sign in again.', [{ text: 'OK', onPress: () => logout() }]);
         } catch (error: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             setServerError(error.message || 'Failed to change password');
-        } finally {
-            setLoading(false);
-        }
+        } finally { setLoading(false); }
     };
 
     return (
         <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={{ flex: 1 }}
-            >
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                 <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                    <Text variant="headlineMedium" style={styles.title}>Change Password</Text>
-                    <Text style={styles.subtitle}>
-                        Choose a strong password with at least 8 characters including uppercase, lowercase, number, and special character.
-                    </Text>
+                    {/* Step indicators */}
+                    <View style={styles.stepRow}>
+                        <View style={[styles.stepDot, step >= 1 && styles.stepDotActive]} />
+                        <View style={styles.stepLine} />
+                        <View style={[styles.stepDot, step >= 2 && styles.stepDotActive]} />
+                    </View>
 
-                    {serverError ? (
-                        <View style={styles.errorBanner}>
-                            <MaterialCommunityIcons name="alert-circle" size={18} color={Colors.error} />
-                            <Text style={styles.errorBannerText}>{serverError}</Text>
-                        </View>
-                    ) : null}
+                    {step === 1 ? (
+                        <>
+                            <Text variant="headlineMedium" style={styles.title}>Verify Identity</Text>
+                            <Text style={styles.subtitle}>Confirm your current email and password before setting a new one.</Text>
 
-                    <TextInput
-                        label="New Password"
-                        value={newPassword}
-                        onChangeText={setNewPassword}
-                        secureTextEntry={secureNew}
-                        returnKeyType="next"
-                        onSubmitEditing={() => confirmRef.current?.focus()}
-                        mode="outlined"
-                        style={styles.input}
-                        left={<TextInput.Icon icon="lock-plus" />}
-                        right={
-                            <TextInput.Icon
-                                icon={secureNew ? 'eye-off' : 'eye'}
-                                onPress={() => setSecureNew(!secureNew)}
-                            />
-                        }
-                        outlineColor={newError ? Colors.error : Colors.border}
-                        activeOutlineColor={newError ? Colors.error : Colors.primary}
-                        error={!!newError}
-                    />
-                    {newError ? (
-                        <HelperText type="error" style={styles.helperText}>{newError}</HelperText>
-                    ) : null}
+                            {verifyError ? <View style={styles.errorBanner}><MaterialCommunityIcons name="alert-circle" size={18} color={Colors.error} /><Text style={styles.errorBannerText}>{verifyError}</Text></View> : null}
+
+                            <TextInput label="Email" value={currentEmail} onChangeText={setCurrentEmail} mode="outlined" style={styles.input} keyboardType="email-address" autoCapitalize="none" left={<TextInput.Icon icon="email-outline" />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
+                            <TextInput label="Current Password" value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry={secureCurrentPw} mode="outlined" style={styles.input} left={<TextInput.Icon icon="lock-outline" />} right={<TextInput.Icon icon={secureCurrentPw ? 'eye-off' : 'eye'} onPress={() => setSecureCurrentPw(!secureCurrentPw)} />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} onSubmitEditing={handleVerifyCurrentPassword} returnKeyType="done" />
+
+                            <GradientButton title="Verify & Continue" onPress={handleVerifyCurrentPassword} loading={verifying} disabled={verifying} icon="arrow-right" style={styles.button} />
+
+                            <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotRow}>
+                                <MaterialCommunityIcons name="help-circle-outline" size={16} color={Colors.primary} />
+                                <Text style={styles.forgotText}>Forgot your password? Send reset email</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <>
+                            <Text variant="headlineMedium" style={styles.title}>New Password</Text>
+                            <Text style={styles.subtitle}>Choose a strong new password.</Text>
+
+                            {serverError ? <View style={styles.errorBanner}><MaterialCommunityIcons name="alert-circle" size={18} color={Colors.error} /><Text style={styles.errorBannerText}>{serverError}</Text></View> : null}
+
+                            <TextInput label="New Password" value={newPassword} onChangeText={setNewPassword} secureTextEntry={secureNew} returnKeyType="next" onSubmitEditing={() => confirmRef.current?.focus()} mode="outlined" style={styles.input} left={<TextInput.Icon icon="lock-plus" />} right={<TextInput.Icon icon={secureNew ? 'eye-off' : 'eye'} onPress={() => setSecureNew(!secureNew)} />} outlineColor={Colors.border} activeOutlineColor={Colors.primary} />
+                            {submitted && !newPassword ? <HelperText type="error">New password is required</HelperText> : null}
 
                     {newPassword.length > 0 && (
                         <View style={styles.passwordFeedback}>
@@ -173,14 +191,9 @@ const ChangePasswordScreen = ({ navigation }: any) => {
                         <HelperText type="error" style={styles.helperText}>{confirmError}</HelperText>
                     ) : null}
 
-                    <GradientButton
-                        title="Change Password"
-                        onPress={handleChangePassword}
-                        loading={loading}
-                        disabled={loading}
-                        icon="lock-reset"
-                        style={styles.button}
-                    />
+                            <GradientButton title="Change Password" onPress={handleChangePassword} loading={loading} disabled={loading} icon="lock-reset" style={styles.button} />
+                        </>
+                    )}
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -266,9 +279,13 @@ const styles = StyleSheet.create({
     ruleTextPassed: {
         color: Colors.textSecondary,
     },
-    button: {
-        marginTop: 12,
-    },
+    button: { marginTop: 12 },
+    stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+    stepDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.lightGrey },
+    stepDotActive: { backgroundColor: Colors.primary },
+    stepLine: { width: 40, height: 2, backgroundColor: Colors.lightGrey, marginHorizontal: 8 },
+    forgotRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 16, gap: 6 },
+    forgotText: { color: Colors.primary, fontSize: 13, fontWeight: '500' },
 });
 
 export default ChangePasswordScreen;

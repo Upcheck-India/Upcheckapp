@@ -119,6 +119,19 @@ export class PondsService {
     }
 
     /**
+     * Return all ponds belonging to any farm owned by the given user.
+     */
+    async findAllForUser(userId: string): Promise<Pond[]> {
+        return this.pondsRepository
+            .createQueryBuilder('pond')
+            .innerJoin('farms', 'farm', 'farm.id = pond.farm_id AND farm.user_id = :userId AND farm.deleted_at IS NULL', { userId })
+            .leftJoinAndSelect('pond.activeCycle', 'activeCycle')
+            .where('pond.status != :archived', { archived: 'archived' })
+            .orderBy('pond.name', 'ASC')
+            .getMany();
+    }
+
+    /**
      * List ponds for a farm with optional filtering, search, sorting, and pagination.
      */
     async findAll(

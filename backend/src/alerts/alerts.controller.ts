@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request } from '@nestjs/common';
 import { AlertsService } from './alerts.service';
 import { CreateAlertDto } from './dto/create-alert.dto';
 
@@ -12,6 +12,21 @@ export class AlertsController {
     @Post()
     create(@Body() createDto: CreateAlertDto) {
         return this.alertsService.create(createDto);
+    }
+
+    @Get('me')
+    findMine(@Request() req, @Query('unreadOnly') unreadOnly?: string) {
+        return this.alertsService.findByUser(req.user.id, unreadOnly === 'true');
+    }
+
+    @Get('me/count')
+    getMineUnreadCount(@Request() req) {
+        return this.alertsService.getUnreadCount(req.user.id);
+    }
+
+    @Patch('me/read-all')
+    markMineAllAsRead(@Request() req) {
+        return this.alertsService.markAllAsRead(req.user.id);
     }
 
     @Get('user/:userId')

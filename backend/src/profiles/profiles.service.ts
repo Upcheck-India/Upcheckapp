@@ -37,11 +37,28 @@ export class ProfilesService {
         let profile = await this.profilesRepository.findOneBy({ id });
         if (!profile) {
             const generated = username || `user_${id.replace(/-/g, '').substring(0, 10)}`;
-            profile = this.profilesRepository.create({ id, email, fullName: fullName || '', username: generated });
-            await this.profilesRepository.save(profile);
-        } else if (!profile.email && email) {
-            profile.email = email;
-            await this.profilesRepository.save(profile);
+            try {
+                profile = this.profilesRepository.create({ id, email, fullName: fullName || '', username: generated });
+                await this.profilesRepository.save(profile);
+            } catch (err: any) {
+                if (err?.message?.includes('email') || err?.code === '42703') {
+                    profile = this.profilesRepository.create({ id, fullName: fullName || '', username: generated });
+                    await this.profilesRepository.save(profile);
+                } else if (err?.code === '23505') {
+                    const clean = `${generated}_${id.substring(0, 4)}`;
+                    profile = this.profilesRepository.create({ id, email, fullName: fullName || '', username: clean });
+                    await this.profilesRepository.save(profile);
+                } else {
+                    throw err;
+                }
+            }
+        } else {
+            if (!profile.email && email) {
+                try {
+                    profile.email = email;
+                    await this.profilesRepository.save(profile);
+                } catch { /* email column may not exist yet */ }
+            }
         }
         return profile;
     }

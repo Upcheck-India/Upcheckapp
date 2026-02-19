@@ -148,7 +148,7 @@ const DashboardScreen = () => {
                         />
                         <QuickActionCard
                             title="Shrimp"
-                            icon="shrimp"
+                            icon="fish"
                             gradientColors={[Colors.gradientMiddle, Colors.gradientEnd]}
                             onPress={() => navigation.navigate('ShrimpCalculator')}
                         />

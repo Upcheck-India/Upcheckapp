@@ -27,8 +27,8 @@ export const PondService = {
 
     async fetchAllUserPonds(): Promise<Pond[]> {
         try {
-            const response = await apiClient.get('/ponds');
-            return response.ponds || response; // Handle { ponds: [], total: ... } or just []
+            const result = await apiClient.get('/ponds/mine');
+            return Array.isArray(result) ? result : [];
         } catch (error) {
             console.error('Error fetching all user ponds:', error);
             throw error;

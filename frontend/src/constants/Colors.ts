@@ -43,6 +43,7 @@ export const Colors = {
     gradientEnd: '#0088CC',   // Deep blue (bottom of logo)
     gradientMiddle: '#00A5CC', // Middle transition
 
+    primaryContainer: '#E0F7FA',
     // Semantic aliases (for consistent usage)
     cardBackground: '#FFFFFF',
     modalBackground: '#FFFFFF',
