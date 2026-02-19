@@ -1,51 +1,48 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth.service';
 
-import * as fs from 'fs';
-import * as path from 'path';
-
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
+    private readonly logger = new Logger(JwtStrategy.name);
+
     constructor(
         private configService: ConfigService,
         private authService: AuthService,
     ) {
-        // Load public key: prefer env var (for cloud deployments like Render), fallback to file
-        const envPublicKey = process.env.JWT_PUBLIC_KEY;
-        let publicKey: string | Buffer;
-        if (envPublicKey) {
-            publicKey = envPublicKey.replace(/\\n/g, '\n');
-        } else {
-            const publicKeyPath = path.join(process.cwd(), 'secrets', 'public.pem');
-            try {
-                publicKey = fs.readFileSync(publicKeyPath);
-            } catch (error) {
-                console.error(`Failed to load public key at ${publicKeyPath}`, error);
-                throw new Error('Internal server error: public key not found. Set JWT_PUBLIC_KEY env var or provide secrets/public.pem');
-            }
+        // Supabase JWTs are HS256, signed with the project's JWT secret.
+        // Find it at: Supabase Dashboard → Settings → API → JWT Secret
+        // Add SUPABASE_JWT_SECRET to your Render environment variables.
+        const supabaseJwtSecret = configService.get<string>('SUPABASE_JWT_SECRET');
+        if (!supabaseJwtSecret) {
+            throw new Error('SUPABASE_JWT_SECRET is not set. Add it to your environment variables.');
         }
 
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: publicKey,
-            algorithms: ['RS256'],
+            secretOrKey: supabaseJwtSecret,
+            algorithms: ['HS256'],
         });
     }
 
     async validate(payload: any) {
-        const user = await this.authService.validateUser(payload.sub);
-
-        if (!user) {
-            throw new UnauthorizedException();
+        // payload.sub = Supabase user UUID (same as public.users.id after trigger sync)
+        // payload.email = user email
+        // payload.role = 'authenticated'
+        try {
+            const user = await this.authService.validateUser(payload.sub);
+            if (user) return user;
+        } catch (err) {
+            // User not yet in public.users (trigger hasn't run, or backfill pending).
+            // Fall through to return minimal payload so the request isn't rejected.
+            this.logger.warn(`User ${payload.sub} not found in public.users — using JWT payload. Run supabase_setup.sql to backfill.`);
         }
 
-        return {
-            id: payload.sub,
-            email: payload.email,
-        };
+        // Minimal user object from verified JWT payload — JWT signature is already validated.
+        if (!payload.sub) throw new UnauthorizedException();
+        return { id: payload.sub, email: payload.email };
     }
 }

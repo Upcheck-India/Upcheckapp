@@ -1,77 +1,45 @@
 import { Config } from '../constants/Config';
-import { useAuthStore } from '../store/authStore';
+import { supabase } from './supabase';
 
 const API_BASE_URL = Config.API_BASE_URL;
 
-// ─── Token refresh lock to prevent concurrent refresh calls ──────
-let isRefreshing = false;
-let refreshPromise: Promise<string | null> | null = null;
-
-async function getValidAccessToken(): Promise<string | null> {
-    const { accessToken, refreshAccessToken } = useAuthStore.getState();
-
-    if (accessToken) {
-        // Quick check: is the JWT likely expired? (decode exp without library)
-        try {
-            const payload = JSON.parse(atob(accessToken.split('.')[1]));
-            const expiresAt = payload.exp * 1000;
-            // Refresh if token expires within 60 seconds
-            if (expiresAt - Date.now() > 60_000) {
-                return accessToken;
-            }
-        } catch {
-            // If decode fails, use the token as-is and let the server decide
-            return accessToken;
-        }
-    }
-
-    // Token is expired or missing — attempt refresh
-    if (!isRefreshing) {
-        isRefreshing = true;
-        refreshPromise = refreshAccessToken().finally(() => {
-            isRefreshing = false;
-            refreshPromise = null;
-        });
-    }
-
-    return refreshPromise;
+// ─── Get valid Supabase JWT for backend API calls ─────────────────
+// If the token is close to expiry, Supabase auto-refreshes it.
+async function getAccessToken(): Promise<string | null> {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token ?? null;
 }
 
-function getAuthHeaders(token: string | null) {
+function buildHeaders(token: string | null): Record<string, string> {
     return {
         'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 }
 
-// ─── Request with automatic retry on 401 ─────────────────────────
+// ─── Core request — uses Supabase JWT, retries once after refresh ─
 async function request(method: string, endpoint: string, body?: any): Promise<any> {
-    let token = await getValidAccessToken();
+    let token = await getAccessToken();
+
     let response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method,
-        headers: getAuthHeaders(token),
+        headers: buildHeaders(token),
         ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
 
-    // If 401, try refreshing token once and retry
+    // On 401, attempt one Supabase session refresh then retry.
+    // NEVER call supabase.auth.signOut() here — that would log the user out.
     if (response.status === 401) {
-        const { refreshAccessToken } = useAuthStore.getState();
-        token = await refreshAccessToken();
+        const { data } = await supabase.auth.refreshSession();
+        token = data.session?.access_token ?? null;
 
         if (token) {
             response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method,
-                headers: getAuthHeaders(token),
+                headers: buildHeaders(token),
                 ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
             });
         }
-    }
-
-    // If still unauthorized after refresh, force logout
-    if (response.status === 401) {
-        const { logout } = useAuthStore.getState();
-        await logout();
-        throw new Error('Session expired. Please login again.');
     }
 
     if (!response.ok) {
@@ -79,16 +47,15 @@ async function request(method: string, endpoint: string, body?: any): Promise<an
         throw new Error(errorData.message || `API Error: ${response.status} ${response.statusText}`);
     }
 
-    // Handle empty responses (204 No Content, etc.)
     const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
+    if (contentType?.includes('application/json')) {
         return response.json();
     }
     return {};
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// ─── API Client with auto token refresh ───────────────────────────
+// ─── API Client ────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════
 export const apiClient = {
     get: (endpoint: string) => request('GET', endpoint),
