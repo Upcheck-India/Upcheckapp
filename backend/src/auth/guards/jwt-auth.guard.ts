@@ -1,17 +1,25 @@
 import { Injectable, ExecutionContext, Logger, UnauthorizedException, CanActivate } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { SupabaseAuthService } from '../supabase-auth.service';
-import { AuthService } from '../auth.service';
+import { ConfigService } from '@nestjs/config';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
     private readonly logger = new Logger(JwtAuthGuard.name);
+    private readonly supabase: SupabaseClient;
 
     constructor(
         private reflector: Reflector,
-        private supabaseAuthService: SupabaseAuthService,
-        private authService: AuthService,
-    ) {}
+        configService: ConfigService,
+    ) {
+        // Build a self-contained Supabase admin client.
+        // ConfigService is globally available — no circular-dependency risk.
+        const url = configService.get<string>('SUPABASE_URL') ?? '';
+        const key = configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+        this.supabase = createClient(url, key, {
+            auth: { autoRefreshToken: false, persistSession: false },
+        });
+    }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const req = context.switchToHttp().getRequest();
@@ -30,28 +38,25 @@ export class JwtAuthGuard implements CanActivate {
 
         const authHeader: string | undefined = req.headers?.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            this.logger.warn(`[NO AUTH HEADER] ${method} ${url} — missing or malformed Authorization header`);
+            this.logger.warn(`[NO AUTH HEADER] ${method} ${url} — missing Authorization header`);
             throw new UnauthorizedException('No bearer token provided');
         }
 
         const token = authHeader.substring(7);
-        this.logger.log(`[GUARD] ${method} ${url} — verifying token via Supabase admin (alg-agnostic)`);
+        this.logger.log(`[GUARD] ${method} ${url} — verifying via supabase.auth.getUser() (alg-agnostic)`);
 
         try {
-            // verifyAccessToken calls supabase.auth.getUser(token) on the server side.
-            // This works regardless of JWT algorithm (HS256 or ES256).
-            const supabaseUser = await this.supabaseAuthService.verifyAccessToken(token);
-            this.logger.log(`[GUARD] token valid — sub: ${supabaseUser.id} | email: ${supabaseUser.email}`);
-
-            // Try to load the full user from public.users; fall back to Supabase user object.
-            let appUser: any;
-            try {
-                appUser = await this.authService.validateUser(supabaseUser.id);
-            } catch (dbErr: any) {
-                this.logger.warn(`[GUARD] DB lookup failed: ${dbErr.message} — using Supabase user as fallback`);
+            // supabase.auth.getUser() validates the JWT on Supabase's servers.
+            // Works for both HS256 (legacy) and ES256 (new projects) automatically.
+            const { data, error } = await this.supabase.auth.getUser(token);
+            if (error || !data.user) {
+                throw new UnauthorizedException(error?.message ?? 'Invalid or expired token');
             }
 
-            req.user = appUser ?? { id: supabaseUser.id, email: supabaseUser.email };
+            const supabaseUser = data.user;
+            this.logger.log(`[GUARD] token valid — sub: ${supabaseUser.id} | email: ${supabaseUser.email}`);
+
+            req.user = { id: supabaseUser.id, email: supabaseUser.email };
             this.logger.log(`[AUTH OK] ${method} ${url} — req.user.id: ${req.user.id}`);
             return true;
         } catch (err: any) {

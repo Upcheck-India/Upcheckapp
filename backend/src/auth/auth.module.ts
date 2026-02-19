@@ -6,7 +6,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { EmailService } from '../email.service';
 import { User } from './user.entity';
@@ -35,7 +34,6 @@ import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
   controllers: [AuthController, SupabaseAuthController],
   providers: [
     AuthService,
-    JwtStrategy,
     EmailService,
     SupabaseAuthService,
     SupabaseAuthGuard,
@@ -44,6 +42,6 @@ import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
       useClass: JwtAuthGuard,
     },
   ],
-  exports: [AuthService, JwtStrategy, PassportModule, SupabaseAuthService],
+  exports: [AuthService, PassportModule, SupabaseAuthService],
 })
 export class AuthModule { }
