@@ -7,23 +7,35 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
 
+  private isConfigured: boolean = false;
+
   constructor(private configService: ConfigService) {
+    const smtpUser = this.configService.get<string>('SMTP_USER');
+    const smtpPass = this.configService.get<string>('SMTP_PASS');
+
+    if (!smtpUser || !smtpPass) {
+      this.logger.warn('SMTP_USER or SMTP_PASS not set — emails will be logged but not sent.');
+      this.transporter = null as any;
+      return;
+    }
+
+    this.isConfigured = true;
+
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get('SMTP_HOST', 'smtp-relay.brevo.com'),
-      port: parseInt(this.configService.get('SMTP_PORT', '587'), 10),
-      secure: this.configService.get('SMTP_SECURE', 'false') === 'true',
+      host: this.configService.get<string>('SMTP_HOST', 'smtp-relay.brevo.com'),
+      port: parseInt(this.configService.get<string>('SMTP_PORT', '587'), 10),
+      // For Brevo on port 587: secure=false + STARTTLS (default). For port 465: secure=true.
+      secure: this.configService.get<string>('SMTP_SECURE', 'false') === 'true',
       auth: {
-        user: this.configService.get('SMTP_USER'),
-        pass: this.configService.get('SMTP_PASS'),
+        user: smtpUser,   // Your Brevo account login email
+        pass: smtpPass,   // Your Brevo SMTP API key (NOT account password)
       },
-      pool: true, // Use connection pooling
-      maxConnections: 5,
-      maxMessages: 100,
-      connectionTimeout: 10000, // 10 seconds
-      greetingTimeout: 10000, // 10 seconds
-      socketTimeout: 30000, // 30 seconds
+      // Do NOT use pool:true — causes persistent connection issues on Render/Brevo
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+      socketTimeout: 30000,
       tls: {
-        rejectUnauthorized: true,
+        rejectUnauthorized: false, // Brevo occasionally uses intermediate certs
       },
     });
 
@@ -36,7 +48,22 @@ export class EmailService {
       await this.transporter.verify();
       this.logger.log('SMTP connection established successfully');
     } catch (err: any) {
-      this.logger.warn(`SMTP connection failed: ${err.message}. Emails will be logged but not sent.`);
+      this.logger.warn(`SMTP connection failed: ${err.message}. Check SMTP_USER / SMTP_PASS in env vars.`);
+      this.isConfigured = false;
+    }
+  }
+
+  private async sendMail(options: nodemailer.SendMailOptions): Promise<boolean> {
+    if (!this.isConfigured || !this.transporter) {
+      this.logger.warn(`Email not sent (SMTP not configured): ${options.subject}`);
+      return false;
+    }
+    try {
+      await this.transporter.sendMail(options);
+      return true;
+    } catch (err: any) {
+      this.logger.error(`Failed to send email "${options.subject}" to ${options.to}: ${err.message}`);
+      return false;
     }
   }
 
@@ -52,19 +79,14 @@ export class EmailService {
     return this.configService.get('APP_NAME', 'Upcheck');
   }
 
-  private async sendMail(to: string, subject: string, html: string): Promise<void> {
-    try {
-      await this.transporter.sendMail({
-        from: `"${this.senderName}" <${this.senderEmail}>`,
-        to,
-        subject,
-        html,
-      });
-      this.logger.log(`Email sent to ${to}: ${subject}`);
-    } catch (error) {
-      this.logger.error(`Failed to send email to ${to}: ${error.message}`);
-      // Don't throw — email failures should not block auth flows
-    }
+  private async sendEmail(to: string, subject: string, html: string): Promise<void> {
+    await this.sendMail({
+      from: `"${this.senderName}" <${this.senderEmail}>`,
+      to,
+      subject,
+      html,
+    });
+    this.logger.log(`Email sent to ${to}: ${subject}`);
   }
 
   async sendVerificationEmail(email: string, token: string, name?: string) {
@@ -106,7 +128,7 @@ export class EmailService {
         </body>
       </html>`;
 
-    await this.sendMail(email, `Verify your email address - ${this.appName}`, html);
+    await this.sendEmail(email, `Verify your email address - ${this.appName}`, html);
   }
 
   async sendPasswordResetEmail(email: string, token: string, name?: string) {
@@ -148,7 +170,7 @@ export class EmailService {
         </body>
       </html>`;
 
-    await this.sendMail(email, `Reset your password - ${this.appName}`, html);
+    await this.sendEmail(email, `Reset your password - ${this.appName}`, html);
   }
 
   async sendWelcomeEmail(email: string, name?: string) {
@@ -182,7 +204,7 @@ export class EmailService {
         </body>
       </html>`;
 
-    await this.sendMail(email, `Welcome to ${this.appName}! 🎉`, html);
+    await this.sendEmail(email, `Welcome to ${this.appName}! 🎉`, html);
   }
 
   async sendPasswordChangedNotification(email: string, name?: string) {
@@ -218,7 +240,7 @@ export class EmailService {
         </body>
       </html>`;
 
-    await this.sendMail(email, `Your password has been changed - ${this.appName}`, html);
+    await this.sendEmail(email, `Your password has been changed - ${this.appName}`, html);
   }
 
   async sendOtpEmail(email: string, code: string, name?: string) {
@@ -252,6 +274,6 @@ export class EmailService {
         </body>
       </html>`;
 
-    await this.sendMail(email, `Your Verification Code - ${this.appName}`, html);
+    await this.sendEmail(email, `Your Verification Code - ${this.appName}`, html);
   }
 }
