@@ -2,7 +2,7 @@ import { Controller, Post, Get, Body, UseGuards, Req, UnauthorizedException, Bad
 import { SupabaseAuthService } from './supabase-auth.service';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
-import { User } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
 
 @Controller('auth/supabase')
 export class SupabaseAuthController {
