@@ -10,10 +10,23 @@ export const LoginScreen = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
 
     const navigation = useNavigation<any>();
     const { login, signInWithGoogle } = useAuth();
     const theme = useTheme();
+
+    const handleGoogleSignIn = async () => {
+        setGoogleLoading(true);
+        setError('');
+        try {
+            await signInWithGoogle();
+        } catch (err: any) {
+            setError(err.message || 'Google sign-in failed. Please try again.');
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
 
     const handleLogin = async () => {
         if (!emailOrPhone || !password) {
@@ -101,7 +114,9 @@ export const LoginScreen = () => {
 
                     <Button
                         mode="outlined"
-                        onPress={signInWithGoogle}
+                        onPress={handleGoogleSignIn}
+                        loading={googleLoading}
+                        disabled={loading || googleLoading}
                         style={styles.googleButton}
                         icon="google"
                     >

@@ -15,10 +15,23 @@ export const RegisterScreen = () => {
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [loading, setLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
 
     const navigation = useNavigation<any>();
     const { register, signInWithGoogle } = useAuth();
     const theme = useTheme();
+
+    const handleGoogleSignUp = async () => {
+        setGoogleLoading(true);
+        setError('');
+        try {
+            await signInWithGoogle();
+        } catch (err: any) {
+            setError(err.message || 'Google sign-up failed. Please try again.');
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
 
     const validatePassword = (pwd: string) => {
         // Basic validation, backend does detailed validation
@@ -158,7 +171,9 @@ export const RegisterScreen = () => {
 
                         <Button
                             mode="outlined"
-                            onPress={signInWithGoogle}
+                            onPress={handleGoogleSignUp}
+                            loading={googleLoading}
+                            disabled={loading || googleLoading}
                             style={styles.googleButton}
                             icon="google"
                         >

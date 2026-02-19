@@ -62,10 +62,14 @@ async function processAuthUrl(rawUrl: string): Promise<void> {
 }
 
 function friendlyLoginError(msg: string): string {
-    if (msg.includes('Invalid login credentials')) return 'Incorrect email or password. Please try again.';
-    if (msg.includes('Email not confirmed')) return 'Email not verified. Check your inbox for a confirmation link before signing in.';
-    if (msg.includes('Too many requests')) return 'Too many attempts. Please wait a few minutes and try again.';
-    if (msg.includes('User not found')) return 'No account found with that email.';
+    if (msg.includes('Invalid login credentials'))
+        return 'Incorrect email or password. If you created your account with Google, tap "Sign in with Google" instead.';
+    if (msg.includes('Email not confirmed'))
+        return 'Email not verified. Check your inbox for a confirmation link before signing in.';
+    if (msg.includes('Too many requests'))
+        return 'Too many attempts. Please wait a few minutes and try again.';
+    if (msg.includes('User not found'))
+        return 'No account found with that email.';
     return msg || 'Login failed. Please try again.';
 }
 
@@ -252,13 +256,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.log(LOG, 'openAuthSessionAsync result — type:', result.type, '| url:', (result as any).url ?? 'none');
                 if (result.type === 'success' && (result as any).url) {
                     await processAuthUrl((result as any).url);
-                } else if (result.type === 'cancel') {
-                    console.warn(LOG, 'Google OAuth cancelled by user');
-                } else if (result.type === 'dismiss') {
-                    console.warn(LOG, 'Google OAuth browser dismissed');
+                } else {
+                    // cancel or dismiss — check if session was somehow already set
+                    const { data: { session } } = await supabase.auth.getSession();
+                    console.log(LOG, 'OAuth non-success: session check after cancel/dismiss —', session ? 'SESSION EXISTS' : 'no session');
+                    if (!session) {
+                        if (result.type === 'cancel' || result.type === 'dismiss') {
+                            console.warn(LOG, 'Google OAuth did not complete — type:', result.type);
+                            throw new Error(
+                                'Google sign-in did not complete.\n\n' +
+                                'If you saw an error in the browser, the redirect URL may not be registered in Supabase.' +
+                                ' Contact support or try again.'
+                            );
+                        }
+                    } else {
+                        console.log(LOG, 'OAuth cancel but session exists — user is now authenticated');
+                    }
                 }
             } else {
                 console.error(LOG, 'signInWithOAuth returned no URL!');
+                throw new Error('Failed to start Google sign-in. Please try again.');
             }
         } catch (err: any) {
             console.error(LOG, 'signInWithGoogle() catch:', err.message);
