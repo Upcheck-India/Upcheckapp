@@ -1,11 +1,10 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Google from 'expo-auth-session/providers/google';
+import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
-import Constants from 'expo-constants';
-import { api } from '../services/api'; // Correct import path
-import { User, AuthState, LoginResponse } from '../types/auth';
-import { Platform } from 'react-native';
+import { supabase } from '../services/supabase';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { User, AuthState } from '../types/auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -31,22 +30,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: false,
     });
 
-    const [isLinking, setIsLinking] = useState(false);
+    // Helper to convert Supabase user to app User type
+    const convertSupabaseUser = (supabaseUser: SupabaseUser): User => {
+        return {
+            id: supabaseUser.id,
+            email: supabaseUser.email || '',
+            username: supabaseUser.user_metadata?.username || supabaseUser.email?.split('@')[0] || '',
+            firstName: supabaseUser.user_metadata?.firstName || '',
+            lastName: supabaseUser.user_metadata?.lastName || '',
+            emailVerified: supabaseUser.email_confirmed_at != null,
+            authProvider: supabaseUser.app_metadata?.provider || 'email',
+            verificationLevel: 'basic',
+        } as User;
+    };
 
-    const [request, response, promptAsync] = Google.useAuthRequest({
-        androidClientId: process.env.EXPO_PUBLIC_ANDROID_CLIENT_ID,
-        iosClientId: process.env.EXPO_PUBLIC_IOS_CLIENT_ID,
-        webClientId: process.env.EXPO_PUBLIC_WEB_CLIENT_ID,
-    });
-
-    const checkAuth = async () => {
-        try {
-            const token = await AsyncStorage.getItem('accessToken');
-            const userStr = await AsyncStorage.getItem('user');
-
-            if (token && userStr) {
+    // Initialize auth state from Supabase
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user) {
                 setState({
-                    user: JSON.parse(userStr),
+                    user: convertSupabaseUser(session.user),
                     isAuthenticated: true,
                     isLoading: false,
                 });
@@ -57,8 +60,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     isLoading: false,
                 });
             }
-        } catch (error) {
-            console.error('Check auth error:', error);
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session?.user) {
+                setState({
+                    user: convertSupabaseUser(session.user),
+                    isAuthenticated: true,
+                    isLoading: false,
+                });
+            } else {
+                setState({
+                    user: null,
+                    isAuthenticated: false,
+                    isLoading: false,
+                });
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    // Handle deep link OAuth redirects
+    useEffect(() => {
+        const handleDeepLink = async (event: { url: string }) => {
+            const url = Linking.parse(event.url);
+            
+            if (url.path === 'auth' || url.queryParams?.access_token) {
+                const accessToken = url.queryParams?.access_token as string;
+                const refreshToken = url.queryParams?.refresh_token as string;
+                
+                if (accessToken) {
+                    const { data, error } = await supabase.auth.setSession({
+                        access_token: accessToken,
+                        refresh_token: refreshToken,
+                    });
+                    
+                    if (error) {
+                        console.error('Error setting session from deep link:', error);
+                    } else if (data.user) {
+                        setState({
+                            user: convertSupabaseUser(data.user),
+                            isAuthenticated: true,
+                            isLoading: false,
+                        });
+                    }
+                }
+            }
+        };
+
+        Linking.getInitialURL().then((url) => {
+            if (url) handleDeepLink({ url });
+        });
+
+        const subscription = Linking.addEventListener('url', handleDeepLink);
+        return () => subscription.remove();
+    }, []);
+
+    const checkAuth = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+            setState({
+                user: convertSupabaseUser(session.user),
+                isAuthenticated: true,
+                isLoading: false,
+            });
+        } else {
             setState({
                 user: null,
                 isAuthenticated: false,
@@ -67,158 +134,100 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const handleGoogleLogin = async (idToken: string) => {
-        setState((prev) => ({ ...prev, isLoading: true }));
-        try {
-            const response = await api.post<LoginResponse>('/auth/google', { idToken });
-            const { user, accessToken, refreshToken } = response.data;
-
-            if (user && accessToken && refreshToken) {
-                await AsyncStorage.setItem('accessToken', accessToken);
-                await AsyncStorage.setItem('refreshToken', refreshToken);
-                await AsyncStorage.setItem('user', JSON.stringify(user));
-
-                setState({
-                    user,
-                    isAuthenticated: true,
-                    isLoading: false,
-                });
-            } else {
-                throw new Error('Invalid Google login response');
-            }
-        } catch (error: any) {
-            console.error('Google backend auth error:', error);
-            setState((prev) => ({ ...prev, isLoading: false }));
-            if (error.response && error.response.status === 409) {
-                alert('Account exists with this email. Please log in with password and link Google account from settings.');
-            } else {
-                alert('Google authentication failed');
-            }
-        }
-    };
-
-    const handleLinkGoogle = async (idToken: string) => {
-        setIsLinking(false); // Reset state
-        try {
-            await api.post('/auth/google/link', { idToken });
-            alert('Google account linked successfully!');
-            // Optionally refresh user profile to get the googleId
-            // checkAuth(); // Or manually update state
-        } catch (error: any) {
-            console.error('Link Google error:', error);
-            if (error.response && error.response.status === 409) {
-                alert('This Google account is already linked to another user.');
-            } else {
-                alert('Failed to link Google account.');
-            }
-        }
-    };
-
-    useEffect(() => {
-        checkAuth();
-    }, []);
-
-    useEffect(() => {
-        if (response?.type === 'success') {
-            const { id_token } = response.params;
-            if (id_token) {
-                if (isLinking) {
-                    handleLinkGoogle(id_token);
-                } else {
-                    handleGoogleLogin(id_token);
-                }
-            }
-        } else if (response?.type === 'cancel' || response?.type === 'dismiss') {
-            setIsLinking(false); // Reset if cancelled
-        }
-    }, [response, handleGoogleLogin]); // Added handleGoogleLogin to dependencies
 
     const login = async (data: any) => {
         setState((prev) => ({ ...prev, isLoading: true }));
         try {
-            const response = await api.post<LoginResponse>('/auth/login', data);
+            const { data: authData, error } = await supabase.auth.signInWithPassword({
+                email: data.email,
+                password: data.password,
+            });
 
-            if (response.data.requires2fa) {
-                setState((prev) => ({ ...prev, isLoading: false }));
-                return response.data;
-            }
+            if (error) throw error;
 
-            const { user, accessToken, refreshToken } = response.data;
-
-            if (user && accessToken && refreshToken) {
-                await AsyncStorage.setItem('accessToken', accessToken);
-                await AsyncStorage.setItem('refreshToken', refreshToken);
-                await AsyncStorage.setItem('user', JSON.stringify(user));
-
+            if (authData.user) {
                 setState({
-                    user,
+                    user: convertSupabaseUser(authData.user),
                     isAuthenticated: true,
                     isLoading: false,
                 });
-            } else {
-                throw new Error("Invalid login response");
             }
-        } catch (error) {
+
+            return authData;
+        } catch (error: any) {
             setState((prev) => ({ ...prev, isLoading: false }));
-            throw error;
+            throw new Error(error.message || 'Login failed');
         }
     };
 
     const register = async (data: any) => {
         setState((prev) => ({ ...prev, isLoading: true }));
         try {
-            // Ensure data matches backend DTO: { email, username, password, firstName, lastName, phoneNumber? }
-            const response = await api.post<LoginResponse>('/auth/register', data);
-            const { user, accessToken, refreshToken } = response.data;
+            const { data: authData, error } = await supabase.auth.signUp({
+                email: data.email,
+                password: data.password,
+                options: {
+                    data: {
+                        firstName: data.firstName,
+                        lastName: data.lastName,
+                        username: data.username,
+                    },
+                },
+            });
 
-            if (user && accessToken && refreshToken) {
-                await AsyncStorage.setItem('accessToken', accessToken);
-                await AsyncStorage.setItem('refreshToken', refreshToken);
-                await AsyncStorage.setItem('user', JSON.stringify(user));
+            if (error) throw error;
 
+            if (authData.user) {
                 setState({
-                    user,
+                    user: convertSupabaseUser(authData.user),
                     isAuthenticated: true,
                     isLoading: false,
                 });
-            } else {
-                throw new Error("Invalid register response");
             }
-        } catch (error) {
+        } catch (error: any) {
             setState((prev) => ({ ...prev, isLoading: false }));
-            throw error;
+            throw new Error(error.message || 'Registration failed');
         }
     };
 
     const signInWithGoogle = async () => {
-        setIsLinking(false);
+        setState((prev) => ({ ...prev, isLoading: true }));
         try {
-            await promptAsync();
-        } catch (error) {
-            console.error('Google sign in error:', error);
-            throw error;
+            const redirectUrl = Linking.createURL('auth');
+            
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: redirectUrl,
+                    queryParams: {
+                        access_type: 'offline',
+                        prompt: 'consent',
+                    },
+                },
+            });
+
+            if (error) throw error;
+
+            if (data?.url) {
+                await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+            }
+        } catch (error: any) {
+            setState((prev) => ({ ...prev, isLoading: false }));
+            throw new Error(error.message || 'Google sign-in failed');
         }
     };
 
     const linkGoogle = async () => {
-        setIsLinking(true);
-        try {
-            await promptAsync();
-        } catch (error) {
-            console.error('Google link error:', error);
-            setIsLinking(false);
-            throw error;
-        }
+        // Supabase doesn't support linking OAuth providers after initial sign up
+        // This would need custom implementation or use Supabase's linkIdentity API
+        console.log('Link Google - not implemented with Supabase');
+        alert('Google account linking is not available with current auth setup');
     };
 
     const logout = async () => {
         try {
-            const refreshToken = await AsyncStorage.getItem('refreshToken');
-            if (refreshToken) {
-                await api.post('/auth/logout', { refreshToken }).catch(() => { });
-            }
+            await supabase.auth.signOut();
         } finally {
-            await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
             setState({
                 user: null,
                 isAuthenticated: false,
@@ -228,77 +237,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const logoutAllDevices = async () => {
-        try {
-            await api.post('/auth/logout-all');
-        } finally {
-            await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
-            setState({
-                user: null,
-                isAuthenticated: false,
-                isLoading: false,
-            });
-        }
+        // Supabase signs out current session only
+        // For all devices, you'd need to call Supabase admin API from backend
+        await logout();
     };
 
     const loginWith2FA = async (tempToken: string, code: string) => {
-        setState((prev) => ({ ...prev, isLoading: true }));
-        try {
-            const response = await api.post<LoginResponse>('/auth/2fa/login', { tempToken, token: code });
-            const { user, accessToken, refreshToken } = response.data;
-
-            if (user && accessToken && refreshToken) {
-                await AsyncStorage.setItem('accessToken', accessToken);
-                await AsyncStorage.setItem('refreshToken', refreshToken);
-                await AsyncStorage.setItem('user', JSON.stringify(user));
-
-                setState({
-                    user,
-                    isAuthenticated: true,
-                    isLoading: false,
-                });
-            } else {
-                throw new Error('Invalid 2FA login response');
-            }
-        } catch (error) {
-            setState((prev) => ({ ...prev, isLoading: false }));
-            throw error;
-        }
+        // Supabase handles 2FA differently - this is for backward compatibility
+        console.log('2FA login - not fully implemented with Supabase');
+        throw new Error('2FA is not configured for Supabase auth');
     };
 
     const requestOtpLogin = async (email: string) => {
         setState((prev) => ({ ...prev, isLoading: true }));
         try {
-            const response = await api.post('/auth/login/otp/request', { email });
+            const { error } = await supabase.auth.signInWithOtp({
+                email,
+                options: {
+                    shouldCreateUser: false,
+                },
+            });
+
+            if (error) throw error;
+
             setState((prev) => ({ ...prev, isLoading: false }));
-            return response.data;
-        } catch (error) {
+            return { message: 'OTP sent to email' };
+        } catch (error: any) {
             setState((prev) => ({ ...prev, isLoading: false }));
-            throw error;
+            throw new Error(error.message || 'Failed to send OTP');
         }
     };
 
     const verifyOtpLogin = async (email: string, otp: string) => {
         setState((prev) => ({ ...prev, isLoading: true }));
         try {
-            const response = await api.post<LoginResponse>('/auth/login/otp/verify', { email, otp });
-            const { user, accessToken, refreshToken } = response.data;
+            const { data, error } = await supabase.auth.verifyOtp({
+                email,
+                token: otp,
+                type: 'email',
+            });
 
-            if (user && accessToken && refreshToken) {
-                await AsyncStorage.setItem('accessToken', accessToken);
-                await AsyncStorage.setItem('refreshToken', refreshToken);
-                await AsyncStorage.setItem('user', JSON.stringify(user));
+            if (error) throw error;
 
+            if (data.user) {
                 setState({
-                    user,
+                    user: convertSupabaseUser(data.user),
                     isAuthenticated: true,
                     isLoading: false,
                 });
-            } else {
-                throw new Error('Invalid OTP login response');
             }
-        } catch (error) {
+        } catch (error: any) {
             setState((prev) => ({ ...prev, isLoading: false }));
-            throw error;
+            throw new Error(error.message || 'Invalid OTP');
         }
     };
 
