@@ -3,7 +3,7 @@
     "name": "upcheck",
     "slug": "upcheck",
     "version": "1.0.0",
-    "scheme": "upcheck",
+    "scheme": "upcheckapp",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -23,6 +23,21 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "upcheckapp"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
@@ -40,7 +55,7 @@
       "googleClientIdIos": "557249592391-smcje08fcv71hh1vjhmshhvnklpmd7lo.apps.googleusercontent.com",
       "googleClientIdAndroid": "557249592391-omumak2q0qnor86nj47m93ln4fsn8uv3.apps.googleusercontent.com"
     },
-    "owner": "kiransekar",
+    "owner": "utpl-in",
     "plugins": [
       "expo-font"
     ]
