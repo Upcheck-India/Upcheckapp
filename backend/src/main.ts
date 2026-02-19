@@ -14,12 +14,12 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
-  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:8081';
+  const corsOrigin = process.env.CORS_ORIGIN || '*';
   app.enableCors({
     origin: corsOrigin === '*' ? true : corsOrigin.split(','),
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
+    credentials: corsOrigin !== '*',
   });
   app.setGlobalPrefix('api');
 
@@ -29,6 +29,9 @@ async function bootstrap() {
     transform: true,
   }));
 
-  await app.listen(process.env.PORT ?? 8080);
+  const port = process.env.PORT ?? 8080;
+  await app.listen(port, '0.0.0.0');
+  console.log(`Backend listening on 0.0.0.0:${port}`);
+  console.log(`CORS origin: ${corsOrigin}`);
 }
 bootstrap();
