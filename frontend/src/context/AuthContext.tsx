@@ -7,6 +7,8 @@ import { User, AuthState } from '../types/auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
+const LOG = '[AuthContext]';
+
 interface AuthContextType extends AuthState {
     login: (data: any) => Promise<any>;
     register: (data: any) => Promise<{ requiresEmailConfirmation: boolean; email: string } | void>;
@@ -30,22 +32,32 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // never need to call setState() manually after this.
 // ---------------------------------------------------------------------------
 async function processAuthUrl(rawUrl: string): Promise<void> {
-    if (!rawUrl) return;
+    console.log(LOG, 'processAuthUrl called, rawUrl:', rawUrl);
+    if (!rawUrl) { console.warn(LOG, 'processAuthUrl: empty URL, skipping'); return; }
     try {
         if (rawUrl.includes('code=')) {
-            const { error } = await supabase.auth.exchangeCodeForSession(rawUrl);
-            if (error) console.error('[Auth] exchangeCodeForSession error:', error.message);
+            console.log(LOG, 'processAuthUrl: PKCE code detected, calling exchangeCodeForSession');
+            const { data, error } = await supabase.auth.exchangeCodeForSession(rawUrl);
+            if (error) {
+                console.error(LOG, 'exchangeCodeForSession ERROR:', error.message, error);
+            } else {
+                console.log(LOG, 'exchangeCodeForSession SUCCESS, user:', data.session?.user?.email, 'session expires:', data.session?.expires_at);
+            }
         } else if (rawUrl.includes('access_token=')) {
+            console.log(LOG, 'processAuthUrl: access_token detected (implicit flow), calling setSession');
             const parsed = Linking.parse(rawUrl);
             const access_token = (parsed.queryParams?.access_token as string) ?? '';
             const refresh_token = (parsed.queryParams?.refresh_token as string) ?? '';
             if (access_token) {
                 const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-                if (error) console.error('[Auth] setSession error:', error.message);
+                if (error) console.error(LOG, 'setSession ERROR:', error.message);
+                else console.log(LOG, 'setSession SUCCESS');
             }
+        } else {
+            console.warn(LOG, 'processAuthUrl: URL contains neither code= nor access_token=, URL:', rawUrl);
         }
     } catch (err: any) {
-        console.error('[Auth] processAuthUrl error:', err.message);
+        console.error(LOG, 'processAuthUrl EXCEPTION:', err.message, err);
     }
 }
 
@@ -89,20 +101,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // ── onAuthStateChange is the SINGLE source of truth for auth state ──────
     useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        console.log(LOG, 'AuthProvider mounted — calling getSession()');
+        supabase.auth.getSession().then(({ data: { session }, error }) => {
+            if (error) console.error(LOG, 'getSession() ERROR:', error.message);
+            console.log(LOG, 'getSession() result — user:', session?.user?.email ?? 'none', '| session:', session ? 'EXISTS' : 'NULL');
             setState({
                 user: session?.user ? convertSupabaseUser(session.user) : null,
                 isAuthenticated: !!session?.user,
                 isLoading: false,
             });
+            console.log(LOG, 'Initial state set — isAuthenticated:', !!session?.user);
         });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            console.log(LOG, 'onAuthStateChange fired — event:', event, '| user:', session?.user?.email ?? 'none', '| isAuthenticated:', !!session?.user);
             setState({
                 user: session?.user ? convertSupabaseUser(session.user) : null,
                 isAuthenticated: !!session?.user,
                 isLoading: false,
             });
+            console.log(LOG, 'State updated after onAuthStateChange — isAuthenticated:', !!session?.user);
         });
 
         return () => subscription.unsubscribe();
@@ -113,8 +131,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // ── Note: openAuthSessionAsync in signInWithGoogle intercepts in-app    ──
     // ── browser redirects directly, so we call processAuthUrl there too.    ──
     useEffect(() => {
-        Linking.getInitialURL().then((url) => { if (url) processAuthUrl(url); });
-        const sub = Linking.addEventListener('url', (e) => processAuthUrl(e.url));
+        Linking.getInitialURL().then((url) => {
+            console.log(LOG, 'getInitialURL():', url ?? 'null');
+            if (url) processAuthUrl(url);
+        });
+        const sub = Linking.addEventListener('url', (e) => {
+            console.log(LOG, 'Linking url event:', e.url);
+            processAuthUrl(e.url);
+        });
         return () => sub.remove();
     }, []);
 
@@ -131,15 +155,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const login = async (data: any) => {
         setState((prev) => ({ ...prev, isLoading: true }));
         const email = ((data.email ?? data.emailOrPhone) as string | undefined ?? '').trim().toLowerCase();
+        console.log(LOG, 'login() called — email:', email, '| password length:', data.password?.length ?? 0);
         try {
             const { data: authData, error } = await supabase.auth.signInWithPassword({
                 email,
                 password: data.password,
             });
-            if (error) throw error;
-            // onAuthStateChange fires automatically and sets isAuthenticated: true
+            if (error) {
+                console.error(LOG, 'signInWithPassword ERROR:', error.message, '| status:', error.status, '| code:', (error as any).code);
+                throw error;
+            }
+            console.log(LOG, 'signInWithPassword SUCCESS — user:', authData.user?.email, '| session:', authData.session ? 'EXISTS' : 'NULL');
             return authData;
         } catch (err: any) {
+            console.error(LOG, 'login() catch:', err.message);
             setState((prev) => ({ ...prev, isLoading: false }));
             throw new Error(friendlyLoginError(err.message ?? ''));
         }
@@ -149,6 +178,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const register = async (data: any) => {
         setState((prev) => ({ ...prev, isLoading: true }));
         const email = ((data.email ?? '') as string).trim().toLowerCase();
+        console.log(LOG, 'register() called — email:', email, '| username:', data.username);
         try {
             const { data: authData, error } = await supabase.auth.signUp({
                 email,
@@ -161,18 +191,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     },
                 },
             });
-            if (error) throw error;
+            if (error) {
+                console.error(LOG, 'signUp ERROR:', error.message, '| status:', error.status);
+                throw error;
+            }
+            console.log(LOG, 'signUp result — user:', authData.user?.email, '| user.id:', authData.user?.id, '| session:', authData.session ? 'EXISTS (email confirm OFF)' : 'NULL (email confirm ON)', '| identities count:', authData.user?.identities?.length);
+
+            if (authData.user && authData.user.identities && authData.user.identities.length === 0) {
+                console.warn(LOG, 'signUp: identities is empty — user already exists with this email but may not be confirmed');
+                throw new Error('An account already exists with this email. Try signing in instead.');
+            }
 
             if (authData.session) {
-                // Email confirmation is disabled in Supabase — user signed in immediately.
-                // onAuthStateChange fires and navigates to Main automatically.
+                console.log(LOG, 'register() — email confirmation is DISABLED, user is signed in immediately');
                 return { requiresEmailConfirmation: false, email };
             } else {
-                // Email confirmation is enabled — tell user to check inbox.
+                console.log(LOG, 'register() — email confirmation is ENABLED, user must verify inbox before logging in');
                 setState((prev) => ({ ...prev, isLoading: false }));
                 return { requiresEmailConfirmation: true, email };
             }
         } catch (err: any) {
+            console.error(LOG, 'register() catch:', err.message);
             setState((prev) => ({ ...prev, isLoading: false }));
             throw new Error(friendlyRegisterError(err.message ?? ''));
         }
@@ -183,6 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setState((prev) => ({ ...prev, isLoading: true }));
         try {
             const redirectUrl = Linking.createURL('auth');
+            console.log(LOG, 'signInWithGoogle() — redirectUrl:', redirectUrl);
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
@@ -190,20 +230,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     queryParams: { access_type: 'offline', prompt: 'consent' },
                 },
             });
-            if (error) throw error;
+            if (error) {
+                console.error(LOG, 'signInWithOAuth ERROR:', error.message);
+                throw error;
+            }
+            console.log(LOG, 'signInWithOAuth result — OAuth URL generated:', data?.url ? 'YES' : 'NO');
 
             if (data?.url) {
-                // openAuthSessionAsync intercepts the redirect — it does NOT fire
-                // the Linking event listener, so we must handle the result URL here.
+                console.log(LOG, 'Opening browser with OAuth URL, waiting for redirect back to:', redirectUrl);
                 const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-                if (result.type === 'success' && result.url) {
-                    await processAuthUrl(result.url);
+                console.log(LOG, 'openAuthSessionAsync result — type:', result.type, '| url:', (result as any).url ?? 'none');
+                if (result.type === 'success' && (result as any).url) {
+                    await processAuthUrl((result as any).url);
+                } else if (result.type === 'cancel') {
+                    console.warn(LOG, 'Google OAuth cancelled by user');
+                } else if (result.type === 'dismiss') {
+                    console.warn(LOG, 'Google OAuth browser dismissed');
                 }
+            } else {
+                console.error(LOG, 'signInWithOAuth returned no URL!');
             }
         } catch (err: any) {
+            console.error(LOG, 'signInWithGoogle() catch:', err.message);
             throw new Error(err.message ?? 'Google sign-in failed. Please try again.');
         } finally {
-            // Always clear loading — onAuthStateChange updates isAuthenticated
+            console.log(LOG, 'signInWithGoogle() finally — resetting isLoading');
             setState((prev) => ({ ...prev, isLoading: false }));
         }
     };
@@ -214,8 +265,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const logout = async () => {
-        await supabase.auth.signOut();
-        // onAuthStateChange fires with null session → isAuthenticated: false
+        console.log(LOG, 'logout() called');
+        const { error } = await supabase.auth.signOut();
+        if (error) console.error(LOG, 'signOut ERROR:', error.message);
+        else console.log(LOG, 'signOut SUCCESS — onAuthStateChange will fire');
     };
 
     const logoutAllDevices = async () => { await logout(); };

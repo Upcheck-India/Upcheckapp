@@ -29,20 +29,27 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     async validate(payload: any) {
-        // payload.sub = Supabase user UUID (same as public.users.id after trigger sync)
-        // payload.email = user email
-        // payload.role = 'authenticated'
-        try {
-            const user = await this.authService.validateUser(payload.sub);
-            if (user) return user;
-        } catch (err) {
-            // User not yet in public.users (trigger hasn't run, or backfill pending).
-            // Fall through to return minimal payload so the request isn't rejected.
-            this.logger.warn(`User ${payload.sub} not found in public.users — using JWT payload. Run supabase_setup.sql to backfill.`);
+        this.logger.log(`validate() — sub: ${payload?.sub} | email: ${payload?.email} | role: ${payload?.role} | aud: ${payload?.aud} | exp: ${payload?.exp ? new Date(payload.exp * 1000).toISOString() : 'none'}`);
+
+        if (!payload?.sub) {
+            this.logger.error('validate() — JWT payload has no sub field! Rejecting.');
+            throw new UnauthorizedException('Invalid token: missing sub');
         }
 
-        // Minimal user object from verified JWT payload — JWT signature is already validated.
-        if (!payload.sub) throw new UnauthorizedException();
+        try {
+            const user = await this.authService.validateUser(payload.sub);
+            if (user) {
+                this.logger.log(`validate() — found user in public.users: id=${user.id} email=${user.email}`);
+                return user;
+            } else {
+                this.logger.warn(`validate() — user ${payload.sub} NOT found in public.users. Run supabase_setup.sql backfill. Falling back to JWT payload.`);
+            }
+        } catch (err: any) {
+            this.logger.error(`validate() — DB lookup threw: ${err.message}. Falling back to JWT payload.`);
+        }
+
+        // JWT signature already verified by passport-jwt — safe to trust payload.
+        this.logger.log(`validate() — returning minimal user from JWT payload for sub: ${payload.sub}`);
         return { id: payload.sub, email: payload.email };
     }
 }
