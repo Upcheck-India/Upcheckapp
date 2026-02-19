@@ -31,7 +31,7 @@ export const LoginScreen = () => {
                 return;
             }
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Login failed. Please try again.');
+            setError(err.message || 'Login failed. Please try again.');
         } finally {
             setLoading(false);
         }

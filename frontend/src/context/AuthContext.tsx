@@ -10,7 +10,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 interface AuthContextType extends AuthState {
     login: (data: any) => Promise<any>;
-    register: (data: any) => Promise<void>;
+    register: (data: any) => Promise<{ requiresEmailConfirmation: boolean; email: string } | void>;
     logout: () => Promise<void>;
     signInWithGoogle: () => Promise<void>;
     linkGoogle: () => Promise<void>;
@@ -139,8 +139,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const login = async (data: any) => {
         setState((prev) => ({ ...prev, isLoading: true }));
         try {
+            // Screen may send emailOrPhone or email — handle both
+            const email = data.email || data.emailOrPhone;
             const { data: authData, error } = await supabase.auth.signInWithPassword({
-                email: data.email,
+                email,
                 password: data.password,
             });
 
@@ -157,6 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return authData;
         } catch (error: any) {
             setState((prev) => ({ ...prev, isLoading: false }));
+            // Supabase errors have .message directly (not .response.data.message)
             throw new Error(error.message || 'Login failed');
         }
     };
@@ -178,12 +181,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (error) throw error;
 
-            if (authData.user) {
+            // If session exists, user is signed in immediately (email confirm disabled)
+            if (authData.session && authData.user) {
                 setState({
                     user: convertSupabaseUser(authData.user),
                     isAuthenticated: true,
                     isLoading: false,
                 });
+            } else {
+                // Email confirmation required — user was created but not signed in yet
+                setState((prev) => ({ ...prev, isLoading: false }));
+                // Signal the screen that verification email was sent
+                return { requiresEmailConfirmation: true, email: data.email };
             }
         } catch (error: any) {
             setState((prev) => ({ ...prev, isLoading: false }));

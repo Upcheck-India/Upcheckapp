@@ -13,6 +13,7 @@ export const RegisterScreen = () => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
     const [loading, setLoading] = useState(false);
 
     const navigation = useNavigation<any>();
@@ -44,12 +45,12 @@ export const RegisterScreen = () => {
         setError('');
 
         try {
-            await register({ firstName, lastName, username, email, password });
-            // Navigation is handled by AuthContext state change usually, 
-            // but if email verification is required, we might show a message or navigate to a verification screen.
-            // For now, let's assume auto-login or state update handles it.
+            const result = await register({ firstName, lastName, username, email, password });
+            if (result?.requiresEmailConfirmation) {
+                setSuccessMessage(`Account created! Check ${result.email} for a verification link before logging in.`);
+            }
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Registration failed. Please try again.');
+            setError(err.message || 'Registration failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -134,6 +135,10 @@ export const RegisterScreen = () => {
                             <Text style={styles.errorText}>{error}</Text>
                         ) : null}
 
+                        {successMessage ? (
+                            <Text style={styles.successText}>{successMessage}</Text>
+                        ) : null}
+
                         <Button
                             mode="contained"
                             onPress={handleRegister}
@@ -215,6 +220,14 @@ const styles = StyleSheet.create({
     },
     errorText: {
         color: 'red',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    successText: {
+        color: '#2e7d32',
+        backgroundColor: '#e8f5e9',
+        borderRadius: 6,
+        padding: 12,
         marginBottom: 16,
         textAlign: 'center',
     },
