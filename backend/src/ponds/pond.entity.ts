@@ -42,10 +42,10 @@ export class Pond {
     @Column({ name: 'display_name', type: 'varchar', length: 100, nullable: true })
     displayName: string;
 
-    @Column({ name: 'geometry_type', type: 'varchar', length: 20 })
+    @Column({ name: 'geometry_type', type: 'varchar', length: 20, nullable: true })
     geometryType: string;
 
-    @Column({ name: 'construction_type', type: 'varchar', length: 20 })
+    @Column({ name: 'construction_type', type: 'varchar', length: 20, nullable: true })
     constructionType: string;
 
     @Column({ name: 'length_m', type: 'numeric', nullable: true })
@@ -57,13 +57,13 @@ export class Pond {
     @Column({ name: 'diameter_m', type: 'numeric', nullable: true })
     diameterM: number;
 
-    @Column({ name: 'depth_m', type: 'numeric' })
+    @Column({ name: 'depth_m', type: 'numeric', nullable: true })
     depthM: number;
 
     @Column({ name: 'channel_count', type: 'int', nullable: true })
     channelCount: number;
 
-    @Column({ name: 'calculated_area_m2', type: 'numeric' })
+    @Column({ name: 'calculated_area_m2', type: 'numeric', nullable: true })
     calculatedAreaM2: number;
 
     @Column({ name: 'override_area_m2', type: 'numeric', nullable: true })
