@@ -13,6 +13,9 @@ import { User } from './user.entity';
 import { OtpCode } from './otp-code.entity';
 import { RefreshToken } from './refresh-token.entity';
 import { LoginHistory } from './login-history.entity';
+import { SupabaseAuthService } from './supabase-auth.service';
+import { SupabaseAuthController } from './supabase-auth.controller';
+import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 
 @Module({
   imports: [
@@ -29,16 +32,18 @@ import { LoginHistory } from './login-history.entity';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, SupabaseAuthController],
   providers: [
     AuthService,
     JwtStrategy,
     EmailService,
+    SupabaseAuthService,
+    SupabaseAuthGuard,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
   ],
-  exports: [AuthService, JwtStrategy, PassportModule],
+  exports: [AuthService, JwtStrategy, PassportModule, SupabaseAuthService],
 })
 export class AuthModule { }
