@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
-import { api } from '../../services/api';
 import { GradientButton } from '../../components/GradientButton';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -32,24 +31,19 @@ const PASSWORD_RULES = [
 ];
 
 const ChangePasswordScreen = ({ navigation }: any) => {
-    const { logout } = useAuth();
-    const [oldPassword, setOldPassword] = useState('');
+    const { logout, changePassword } = useAuth();
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [secureOld, setSecureOld] = useState(true);
     const [secureNew, setSecureNew] = useState(true);
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [serverError, setServerError] = useState('');
-    const newRef = useRef<any>(null);
     const confirmRef = useRef<any>(null);
 
     const passwordStrength = getPasswordStrength(newPassword);
     const allRulesPassed = PASSWORD_RULES.every(r => r.test(newPassword));
     const confirmMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
-    const sameAsOld = newPassword.length > 0 && oldPassword.length > 0 && oldPassword === newPassword;
 
-    const oldError = submitted && !oldPassword ? 'Current password is required' : '';
     const newError = submitted && !newPassword ? 'New password is required' : '';
     const confirmError = submitted && !confirmPassword ? 'Please confirm your new password' : '';
 
@@ -57,22 +51,22 @@ const ChangePasswordScreen = ({ navigation }: any) => {
         setSubmitted(true);
         setServerError('');
 
-        if (!oldPassword || !newPassword || !confirmPassword) {
+        if (!newPassword || !confirmPassword) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             return;
         }
-        if (!allRulesPassed || confirmMismatch || sameAsOld) {
+        if (!allRulesPassed || confirmMismatch) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             return;
         }
 
         setLoading(true);
         try {
-            await api.post('/auth/change-password', { oldPassword, newPassword });
+            await changePassword(newPassword);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert(
                 'Success',
-                'Password changed successfully. Please login again.',
+                'Password changed successfully. Please sign in again.',
                 [{ text: 'OK', onPress: () => logout() }]
             );
         } catch (error: any) {
@@ -103,29 +97,6 @@ const ChangePasswordScreen = ({ navigation }: any) => {
                     ) : null}
 
                     <TextInput
-                        label="Current Password"
-                        value={oldPassword}
-                        onChangeText={setOldPassword}
-                        secureTextEntry={secureOld}
-                        returnKeyType="next"
-                        onSubmitEditing={() => newRef.current?.focus()}
-                        mode="outlined"
-                        style={styles.input}
-                        left={<TextInput.Icon icon="lock" />}
-                        right={
-                            <TextInput.Icon
-                                icon={secureOld ? 'eye-off' : 'eye'}
-                                onPress={() => setSecureOld(!secureOld)}
-                            />
-                        }
-                        outlineColor={oldError ? Colors.error : Colors.border}
-                        activeOutlineColor={oldError ? Colors.error : Colors.primary}
-                        error={!!oldError}
-                    />
-                    {oldError ? <HelperText type="error" style={styles.helperText}>{oldError}</HelperText> : null}
-
-                    <TextInput
-                        ref={newRef}
                         label="New Password"
                         value={newPassword}
                         onChangeText={setNewPassword}
@@ -141,13 +112,11 @@ const ChangePasswordScreen = ({ navigation }: any) => {
                                 onPress={() => setSecureNew(!secureNew)}
                             />
                         }
-                        outlineColor={newError || sameAsOld ? Colors.error : Colors.border}
-                        activeOutlineColor={newError || sameAsOld ? Colors.error : Colors.primary}
-                        error={!!newError || sameAsOld}
+                        outlineColor={newError ? Colors.error : Colors.border}
+                        activeOutlineColor={newError ? Colors.error : Colors.primary}
+                        error={!!newError}
                     />
-                    {sameAsOld ? (
-                        <HelperText type="error" style={styles.helperText}>Must be different from current password</HelperText>
-                    ) : newError ? (
+                    {newError ? (
                         <HelperText type="error" style={styles.helperText}>{newError}</HelperText>
                     ) : null}
 

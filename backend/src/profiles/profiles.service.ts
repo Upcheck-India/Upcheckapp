@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Profile } from './profile.entity';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -10,6 +10,7 @@ export class ProfilesService {
     constructor(
         @InjectRepository(Profile)
         private profilesRepository: Repository<Profile>,
+        private dataSource: DataSource,
     ) { }
 
     create(createProfileDto: CreateProfileDto) {
@@ -28,8 +29,31 @@ export class ProfilesService {
         return this.profilesRepository.findOneBy({ id });
     }
 
+    findByUsername(username: string) {
+        return this.profilesRepository.findOneBy({ username });
+    }
+
+    async upsert(id: string, email: string, fullName?: string, username?: string): Promise<Profile> {
+        let profile = await this.profilesRepository.findOneBy({ id });
+        if (!profile) {
+            const generated = username || `user_${id.replace(/-/g, '').substring(0, 10)}`;
+            profile = this.profilesRepository.create({ id, email, fullName: fullName || '', username: generated });
+            await this.profilesRepository.save(profile);
+        } else if (!profile.email && email) {
+            profile.email = email;
+            await this.profilesRepository.save(profile);
+        }
+        return profile;
+    }
+
     async update(id: string, updateProfileDto: UpdateProfileDto) {
         await this.profilesRepository.update(id, updateProfileDto);
         return this.findOne(id);
+    }
+
+    async deleteAccount(userId: string): Promise<void> {
+        await this.dataSource.transaction(async (manager) => {
+            await manager.query(`DELETE FROM profiles WHERE id = $1`, [userId]);
+        });
     }
 }

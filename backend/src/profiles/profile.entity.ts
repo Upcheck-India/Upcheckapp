@@ -8,6 +8,9 @@ export class Profile {
     @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
     updatedAt: Date;
 
+    @Column({ type: 'text', nullable: true })
+    email: string;
+
     @Column({ type: 'text', unique: true, nullable: true })
     username: string;
 

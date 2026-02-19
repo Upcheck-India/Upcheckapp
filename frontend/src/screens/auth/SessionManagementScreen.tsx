@@ -1,251 +1,98 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Alert, FlatList, TouchableOpacity } from 'react-native';
-import { Text, Card, IconButton, ActivityIndicator } from 'react-native-paper';
+import { View, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { Text, Card, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
-import { api } from '../../services/api';
+import { supabase } from '../../services/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-interface Session {
-    id: string;
-    ipAddress: string;
-    deviceType: string;
-    deviceOs: string;
-    browser: string;
-    createdAt: string;
-    lastActiveAt?: string;
-}
-
 const SessionManagementScreen = ({ navigation }: any) => {
-    const { logoutAllDevices } = useAuth();
-    const [sessions, setSessions] = useState<Session[]>([]);
+    const { logout, user } = useAuth();
+    const [session, setSession] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchSessions();
+        supabase.auth.getSession().then(({ data }) => {
+            setSession(data.session);
+            setLoading(false);
+        });
     }, []);
 
-    const fetchSessions = async () => {
-        try {
-            const response = await api.get('/auth/sessions');
-            setSessions(response.data);
-        } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to load sessions');
-        } finally {
-            setLoading(false);
-        }
-    };
+    const formatDate = (ts: number) => new Date(ts * 1000).toLocaleString(undefined, {
+        month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
 
-    const handleRevoke = async (sessionId: string) => {
+    const handleSignOutAll = () => {
         Alert.alert(
-            'Revoke Session',
-            'Are you sure? The device will be logged out.',
+            'Sign Out All Devices',
+            'This will sign you out from this device. Supabase sessions on other devices will expire naturally.',
             [
                 { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Revoke',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await api.delete(`/auth/sessions/${sessionId}`);
-                            setSessions(prev => prev.filter(s => s.id !== sessionId));
-                        } catch (error: any) {
-                            Alert.alert('Error', error.message || 'Failed to revoke session');
-                        }
-                    }
-                }
+                { text: 'Sign Out', style: 'destructive', onPress: async () => { await logout(); } },
             ]
-        );
-    };
-
-    const handleLogoutAll = () => {
-        Alert.alert(
-            'Logout All Devices',
-            'This will sign you out from ALL devices including this one. You will need to login again.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Logout All',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await logoutAllDevices();
-                        } catch (error: any) {
-                            Alert.alert('Error', error.message || 'Failed to logout all devices');
-                        }
-                    }
-                }
-            ]
-        );
-    };
-
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString(undefined, {
-            month: 'short', day: 'numeric', year: 'numeric',
-            hour: '2-digit', minute: '2-digit',
-        });
-    };
-
-    const renderItem = ({ item }: { item: Session }) => {
-        const iconName = item.deviceType === 'mobile' ? 'cellphone' : 'monitor';
-
-        return (
-            <Card style={styles.card}>
-                <Card.Content style={styles.cardContent}>
-                    <View style={styles.iconContainer}>
-                        <MaterialCommunityIcons name={iconName} size={32} color={Colors.primary} />
-                    </View>
-                    <View style={styles.infoContainer}>
-                        <Text style={styles.deviceName}>{item.deviceOs} - {item.browser}</Text>
-                        <Text style={styles.ipAddress}>IP: {item.ipAddress || 'Unknown'}</Text>
-                        {item.lastActiveAt && (
-                            <Text style={styles.date}>Last active: {formatDate(item.lastActiveAt)}</Text>
-                        )}
-                        <Text style={styles.date}>Created: {formatDate(item.createdAt)}</Text>
-                    </View>
-                    <IconButton
-                        icon="close-circle"
-                        iconColor={Colors.error}
-                        onPress={() => handleRevoke(item.id)}
-                    />
-                </Card.Content>
-            </Card>
         );
     };
 
     if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
-            </View>
-        );
+        return <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary} /></View>;
     }
 
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <View style={styles.headerRow}>
-                    <Text variant="headlineSmall" style={styles.title}>Active Sessions</Text>
-                    <Text style={styles.countBadge}>{sessions.length}</Text>
-                </View>
-                {sessions.length > 1 && (
-                    <TouchableOpacity style={styles.logoutAllButton} onPress={handleLogoutAll}>
-                        <MaterialCommunityIcons name="logout" size={18} color={Colors.error} />
-                        <Text style={styles.logoutAllText}>Logout All Devices</Text>
-                    </TouchableOpacity>
-                )}
+                <Text variant="headlineSmall" style={styles.title}>Active Sessions</Text>
             </View>
-            <FlatList
-                data={sessions}
-                renderItem={renderItem}
-                keyExtractor={item => item.id}
-                contentContainerStyle={styles.listContent}
-                ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <MaterialCommunityIcons name="devices" size={48} color={Colors.grey} />
-                        <Text style={styles.emptyText}>No active sessions found.</Text>
-                    </View>
-                }
-            />
+
+            <View style={styles.content}>
+                <Card style={styles.card}>
+                    <Card.Content style={styles.cardContent}>
+                        <MaterialCommunityIcons name="cellphone" size={36} color={Colors.primary} style={{ marginRight: 16 }} />
+                        <View style={styles.info}>
+                            <Text style={styles.deviceName}>This Device</Text>
+                            <Text style={styles.detail}>{user?.email}</Text>
+                            {session?.created_at && (
+                                <Text style={styles.detail}>Signed in: {new Date(session.created_at).toLocaleString()}</Text>
+                            )}
+                            {session?.expires_at && (
+                                <Text style={styles.detail}>Expires: {formatDate(session.expires_at)}</Text>
+                            )}
+                            <Text style={[styles.detail, { color: Colors.success }]}>● Active</Text>
+                        </View>
+                    </Card.Content>
+                </Card>
+
+                <View style={styles.noteBox}>
+                    <MaterialCommunityIcons name="information-outline" size={18} color={Colors.textSecondary} />
+                    <Text style={styles.noteText}>
+                        Session management across multiple devices is handled by Supabase Auth. Signing out here ends your current session.
+                    </Text>
+                </View>
+
+                <TouchableOpacity style={styles.signOutAllBtn} onPress={handleSignOutAll} activeOpacity={0.7}>
+                    <MaterialCommunityIcons name="logout" size={18} color={Colors.error} />
+                    <Text style={styles.signOutAllText}>Sign Out This Device</Text>
+                </TouchableOpacity>
+            </View>
         </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Colors.background,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    header: {
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: Colors.border,
-    },
-    headerRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    title: {
-        fontWeight: 'bold',
-        color: Colors.text,
-    },
-    countBadge: {
-        marginLeft: 8,
-        backgroundColor: Colors.primary,
-        color: Colors.textLight,
-        fontSize: 13,
-        fontWeight: '700',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 12,
-        overflow: 'hidden',
-    },
-    logoutAllButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 12,
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        backgroundColor: Colors.errorLight,
-        borderRadius: 8,
-        alignSelf: 'flex-start',
-    },
-    logoutAllText: {
-        color: Colors.error,
-        fontSize: 14,
-        fontWeight: '600',
-        marginLeft: 6,
-    },
-    listContent: {
-        padding: 16,
-    },
-    card: {
-        marginBottom: 12,
-        backgroundColor: Colors.surface,
-        borderRadius: 12,
-    },
-    cardContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    iconContainer: {
-        marginRight: 16,
-    },
-    infoContainer: {
-        flex: 1,
-    },
-    deviceName: {
-        fontWeight: 'bold',
-        fontSize: 15,
-        color: Colors.text,
-    },
-    ipAddress: {
-        color: Colors.textSecondary,
-        fontSize: 13,
-        marginTop: 2,
-    },
-    date: {
-        color: Colors.textSecondary,
-        fontSize: 12,
-        marginTop: 2,
-    },
-    emptyContainer: {
-        alignItems: 'center',
-        marginTop: 48,
-    },
-    emptyText: {
-        textAlign: 'center',
-        marginTop: 12,
-        color: Colors.textSecondary,
-        fontSize: 15,
-    },
+    container: { flex: 1, backgroundColor: Colors.background },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    header: { padding: 16, borderBottomWidth: 1, borderBottomColor: Colors.border },
+    title: { fontWeight: 'bold', color: Colors.text },
+    content: { padding: 16 },
+    card: { marginBottom: 16, backgroundColor: Colors.surface, borderRadius: 12 },
+    cardContent: { flexDirection: 'row', alignItems: 'flex-start' },
+    info: { flex: 1 },
+    deviceName: { fontWeight: 'bold', fontSize: 15, color: Colors.text, marginBottom: 4 },
+    detail: { color: Colors.textSecondary, fontSize: 13, marginTop: 2 },
+    noteBox: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: Colors.surface, padding: 12, borderRadius: 8, marginBottom: 16, gap: 8 },
+    noteText: { flex: 1, color: Colors.textSecondary, fontSize: 13, lineHeight: 18 },
+    signOutAllBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 8, borderWidth: 1, borderColor: Colors.error },
+    signOutAllText: { color: Colors.error, fontWeight: '600', marginLeft: 8 },
 });
 
 export default SessionManagementScreen;

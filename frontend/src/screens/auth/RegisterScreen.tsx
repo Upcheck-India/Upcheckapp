@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { Text, TextInput, Button, HelperText, useTheme } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { apiClient } from '../../services/apiClient';
 
 export const RegisterScreen = () => {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [username, setUsername] = useState('');
+    const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -16,10 +18,26 @@ export const RegisterScreen = () => {
     const [successMessage, setSuccessMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const navigation = useNavigation<any>();
     const { register, signInWithGoogle } = useAuth();
     const theme = useTheme();
+
+    useEffect(() => {
+        if (!username || username.length < 3) { setUsernameStatus('idle'); return; }
+        setUsernameStatus('checking');
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(async () => {
+            try {
+                const result = await apiClient.get(`/profiles/check-username/${username.trim().toLowerCase()}`) as any;
+                setUsernameStatus(result?.available ? 'available' : 'taken');
+            } catch {
+                setUsernameStatus('idle');
+            }
+        }, 500);
+        return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    }, [username]);
 
     const handleGoogleSignUp = async () => {
         setGoogleLoading(true);
@@ -41,6 +59,11 @@ export const RegisterScreen = () => {
     const handleRegister = async () => {
         if (!firstName || !lastName || !username || !email || !password || !confirmPassword) {
             setError('Please fill in all fields');
+            return;
+        }
+
+        if (usernameStatus === 'taken') {
+            setError('That username is already taken. Please choose another.');
             return;
         }
 
@@ -103,12 +126,23 @@ export const RegisterScreen = () => {
                         <TextInput
                             label="Username"
                             value={username}
-                            onChangeText={setUsername}
+                            onChangeText={(v) => setUsername(v.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                             mode="outlined"
                             autoCapitalize="none"
                             style={styles.input}
-                            error={!!error}
+                            error={usernameStatus === 'taken'}
+                            right={
+                                usernameStatus === 'checking' ? <TextInput.Icon icon="loading" /> :
+                                usernameStatus === 'available' ? <TextInput.Icon icon="check-circle" color="green" /> :
+                                usernameStatus === 'taken' ? <TextInput.Icon icon="close-circle" color="red" /> : undefined
+                            }
                         />
+                        {usernameStatus === 'available' && (
+                            <HelperText type="info" visible style={{ color: 'green', marginTop: -8, marginBottom: 4 }}>Username is available</HelperText>
+                        )}
+                        {usernameStatus === 'taken' && (
+                            <HelperText type="error" visible style={{ marginTop: -8, marginBottom: 4 }}>Username is already taken</HelperText>
+                        )}
 
                         <TextInput
                             label="Email"

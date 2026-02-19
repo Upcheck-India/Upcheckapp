@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
 import { Text, TextInput, Button, useTheme } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
-import { api } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export const ForgotPasswordScreen = () => {
@@ -13,9 +13,10 @@ export const ForgotPasswordScreen = () => {
 
     const navigation = useNavigation<any>();
     const theme = useTheme();
+    const { forgotPassword } = useAuth();
 
     const handleReset = async () => {
-        if (!email) {
+        if (!email.trim()) {
             setError('Please enter your email address');
             return;
         }
@@ -25,12 +26,10 @@ export const ForgotPasswordScreen = () => {
         setSuccess('');
 
         try {
-            await api.post('/auth/forgot-password', { email });
-            setSuccess('If an account exists with this email, you will receive password reset instructions.');
+            await forgotPassword(email);
+            setSuccess('Check your inbox — we sent a password reset link to ' + email.trim().toLowerCase() + '.');
         } catch (err: any) {
-            // For security, we might ideally show generic message, allowing retry if error is transient
-            // But here we show error for debugging or valid validation errors
-            setError(err.response?.data?.message || 'Request failed. Please try again.');
+            setError(err.message || 'Request failed. Please try again.');
         } finally {
             setLoading(false);
         }

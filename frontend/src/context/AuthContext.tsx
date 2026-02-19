@@ -4,6 +4,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../services/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { User, AuthState } from '../types/auth';
+import { Config } from '../constants/Config';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -20,6 +21,10 @@ interface AuthContextType extends AuthState {
     loginWith2FA: (tempToken: string, code: string) => Promise<void>;
     requestOtpLogin: (email: string) => Promise<any>;
     verifyOtpLogin: (email: string, otp: string) => Promise<void>;
+    forgotPassword: (email: string) => Promise<void>;
+    changePassword: (newPassword: string) => Promise<void>;
+    deleteAccount: () => Promise<void>;
+    isOAuthUser: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -295,6 +300,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Two-factor authentication is not configured.');
     };
 
+    const forgotPassword = async (email: string) => {
+        const redirectTo = Linking.createURL('reset-password');
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo });
+        if (error) throw new Error(error.message);
+    };
+
+    const changePassword = async (newPassword: string) => {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw new Error(error.message);
+    };
+
+    const deleteAccount = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) throw new Error('Not authenticated');
+        const res = await fetch(
+            `${Config.API_BASE_URL}/profiles/me`,
+            { method: 'DELETE', headers: { Authorization: `Bearer ${session.access_token}` } }
+        );
+        if (!res.ok && res.status !== 204) throw new Error('Failed to delete account data');
+        await supabase.auth.signOut();
+    };
+
+    const isOAuthUser = state.user?.authProvider === 'google';
+
     // ── OTP / Magic Link Login ───────────────────────────────────────────────
     const requestOtpLogin = async (email: string) => {
         try {
@@ -337,6 +366,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 loginWith2FA,
                 requestOtpLogin,
                 verifyOtpLogin,
+                forgotPassword,
+                changePassword,
+                deleteAccount,
+                isOAuthUser,
             }}
         >
             {children}

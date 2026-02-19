@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, ForbiddenException, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, ForbiddenException, Logger, HttpCode, HttpStatus } from '@nestjs/common';
 import { ProfilesService } from './profiles.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Public } from '../auth/decorators/auth.decorators';
 
 @Controller('profiles')
 @UseGuards(JwtAuthGuard)
@@ -23,12 +24,33 @@ export class ProfilesController {
         return this.profilesService.findAll();
     }
 
+    @Public()
+    @Get('check-username/:username')
+    async checkUsername(@Param('username') username: string) {
+        const existing = await this.profilesService.findByUsername(username);
+        return { available: !existing };
+    }
+
+    @Get('me')
+    async findMe(@Request() req) {
+        const { id, email } = req.user;
+        this.logger.log(`GET /profiles/me — user.id: ${id}`);
+        return this.profilesService.upsert(id, email);
+    }
+
     @Get(':id')
     async findOne(@Param('id') id: string, @Request() req) {
         this.logger.log(`GET /profiles/${id} — req.user: ${JSON.stringify(req.user)}`);
-        const result = await this.profilesService.findOne(id);
-        this.logger.log(`GET /profiles/${id} — result: ${result ? 'found' : 'NOT FOUND (null)'}`);
+        const result = await this.profilesService.upsert(id, req.user?.email ?? '');
+        this.logger.log(`GET /profiles/${id} — result: ${result ? 'found/created' : 'ERROR'}`);
         return result;
+    }
+
+    @Delete('me')
+    @HttpCode(HttpStatus.NO_CONTENT)
+    async deleteMe(@Request() req) {
+        this.logger.log(`DELETE /profiles/me — user.id: ${req.user.id}`);
+        await this.profilesService.deleteAccount(req.user.id);
     }
 
     @Patch(':id')
