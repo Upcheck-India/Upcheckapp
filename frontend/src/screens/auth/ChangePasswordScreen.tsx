@@ -53,6 +53,7 @@ const ChangePasswordScreen = ({ navigation }: any) => {
     const passwordStrength = getPasswordStrength(newPassword);
     const allRulesPassed = PASSWORD_RULES.every(r => r.test(newPassword));
     const confirmMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
+    const confirmError = submitted && !confirmPassword ? 'Please confirm your password' : '';
 
     const handleVerifyCurrentPassword = async () => {
         if (!currentEmail.trim() || !currentPassword) {
@@ -62,8 +63,18 @@ const ChangePasswordScreen = ({ navigation }: any) => {
         setVerifying(true);
         setVerifyError('');
         try {
-            const { supabase } = await import('../../services/supabase');
-            const { error } = await supabase.auth.signInWithPassword({ email: currentEmail.trim().toLowerCase(), password: currentPassword });
+            // Use a temporary client with no session persistence so it does NOT
+            // fire onAuthStateChange on the global supabase client (which would
+            // reset the navigation stack to the home screen).
+            const { createClient } = await import('@supabase/supabase-js');
+            const Constants = (await import('expo-constants')).default;
+            const url = Constants.expoConfig?.extra?.supabaseUrl ?? '';
+            const key = Constants.expoConfig?.extra?.supabaseAnonKey ?? '';
+            const tempClient = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+            const { error } = await tempClient.auth.signInWithPassword({
+                email: currentEmail.trim().toLowerCase(),
+                password: currentPassword,
+            });
             if (error) throw error;
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             setStep(2);

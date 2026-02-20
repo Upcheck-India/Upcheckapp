@@ -9,6 +9,7 @@ import { sync } from './src/services/sync';
 
 import './src/i18n';
 import { AuthProvider } from './src/context/AuthContext';
+import { CartProvider } from './src/context/CartContext';
 
 // Custom theme aligned with icon colors
 const theme = {
@@ -63,11 +64,13 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <PaperProvider theme={theme}>
-          <NavigationContainer linking={linking}>
-            <RootNavigator />
-          </NavigationContainer>
-        </PaperProvider>
+        <CartProvider>
+          <PaperProvider theme={theme}>
+            <NavigationContainer linking={linking}>
+              <RootNavigator />
+            </NavigationContainer>
+          </PaperProvider>
+        </CartProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

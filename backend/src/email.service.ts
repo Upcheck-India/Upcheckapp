@@ -221,6 +221,52 @@ export class EmailService {
     await this.sendEmail(email, `Your password has been changed - ${this.appName}`, html);
   }
 
+  async sendInviteEmail(toEmail: string, inviterName: string) {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px 30px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .logo { font-size: 28px; font-weight: bold; color: #1565C0; }
+            .badge { display: inline-block; background: #e3f2fd; color: #1565C0; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
+            .cta { text-align: center; margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 12px; }
+            .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #666; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="logo">${this.appName}</div>
+              <div class="badge">You've been invited!</div>
+            </div>
+            <p>Hi there,</p>
+            <p><strong>${inviterName}</strong> thinks you'd love <strong>${this.appName}</strong> — the smart aquaculture management app for shrimp and fish farmers.</p>
+            <p>With ${this.appName} you can:</p>
+            <ul>
+              <li>Track pond water quality in real time</li>
+              <li>Monitor feeding, sampling, and harvest data</li>
+              <li>Get disease alerts and smart recommendations</li>
+              <li>Manage multiple farms and ponds in one place</li>
+            </ul>
+            <div class="cta">
+              <p style="margin:0; font-weight:600; color:#1565C0;">🚀 We're in early access — stay tuned!</p>
+              <p style="margin:8px 0 0; font-size:14px; color:#555;">${inviterName} has notified us that you're interested. We'll reach out as soon as the app is fully launched.</p>
+            </div>
+            <div class="footer">
+              <p>You received this because ${inviterName} invited you to join ${this.appName}.</p>
+              <p>&copy; ${new Date().getFullYear()} ${this.appName}. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+      </html>`;
+
+    await this.sendEmail(toEmail, `${inviterName} invited you to join ${this.appName}!`, html);
+  }
+
   async sendOtpEmail(email: string, code: string, name?: string) {
     const html = `
       <!DOCTYPE html>

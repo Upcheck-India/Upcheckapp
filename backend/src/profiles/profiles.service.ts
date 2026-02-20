@@ -33,6 +33,14 @@ export class ProfilesService {
         return this.profilesRepository.findOneBy({ username });
     }
 
+    async findPublicByUsername(username: string): Promise<Partial<Profile> | null> {
+        const profile = await this.profilesRepository.findOne({
+            where: { username },
+            select: ['id', 'username', 'fullName', 'avatarUrl', 'website', 'createdAt'] as any,
+        });
+        return profile ?? null;
+    }
+
     async upsert(id: string, email: string, fullName?: string, username?: string): Promise<Profile> {
         let profile = await this.profilesRepository.findOneBy({ id });
         if (!profile) {

@@ -23,8 +23,11 @@ interface AuthContextType extends AuthState {
     verifyOtpLogin: (email: string, otp: string) => Promise<void>;
     forgotPassword: (email: string) => Promise<void>;
     changePassword: (newPassword: string) => Promise<void>;
+    changeEmail: (newEmail: string) => Promise<void>;
+    clearPasswordRecovery: () => void;
     deleteAccount: () => Promise<void>;
     isOAuthUser: boolean;
+    isPasswordRecovery: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -107,6 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading: true,
         isAuthenticated: false,
     });
+    const [isPasswordRecovery, setIsPasswordRecovery] = React.useState(false);
 
     // ── onAuthStateChange is the SINGLE source of truth for auth state ──────
     useEffect(() => {
@@ -124,12 +128,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             console.log(LOG, 'onAuthStateChange fired — event:', event, '| user:', session?.user?.email ?? 'none', '| isAuthenticated:', !!session?.user);
+            if (event === 'PASSWORD_RECOVERY') {
+                console.log(LOG, 'PASSWORD_RECOVERY event — setting isPasswordRecovery flag');
+                setIsPasswordRecovery(true);
+                setState({
+                    user: session?.user ? convertSupabaseUser(session.user) : null,
+                    isAuthenticated: !!session?.user,
+                    isLoading: false,
+                });
+                return;
+            }
+            // Ignore TOKEN_REFRESHED and USER_UPDATED events that don't change auth status
+            // to avoid unnecessary re-renders that can reset navigation stack
+            if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+                setState(prev => ({
+                    ...prev,
+                    user: session?.user ? convertSupabaseUser(session.user) : prev.user,
+                }));
+                return;
+            }
             setState({
                 user: session?.user ? convertSupabaseUser(session.user) : null,
                 isAuthenticated: !!session?.user,
                 isLoading: false,
             });
             console.log(LOG, 'State updated after onAuthStateChange — isAuthenticated:', !!session?.user);
+
+            // For OAuth sign-ins (Google etc.), sync fullName + username to backend profile.
+            // Only runs on SIGNED_IN so it doesn't repeat on every token refresh.
+            if (event === 'SIGNED_IN' && session?.user) {
+                const provider = session.user.app_metadata?.provider ?? 'email';
+                if (provider !== 'email') {
+                    const meta = session.user.user_metadata ?? {};
+                    const fullName: string = (meta.full_name ?? meta.name ?? '').trim();
+                    const baseUsername = fullName
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '_')
+                        .replace(/^_|_$/g, '')
+                        .substring(0, 20);
+                    const suggestedUsername = baseUsername || (session.user.email?.split('@')[0] ?? '');
+                    if (fullName || suggestedUsername) {
+                        import('../services/apiClient').then(({ apiClient }) => {
+                            apiClient.get('/profiles/me').then((profile: any) => {
+                                const needsName = !profile?.fullName && fullName;
+                                const needsUsername = (!profile?.username || profile.username.startsWith('user_')) && suggestedUsername;
+                                if (needsName || needsUsername) {
+                                    const patch: any = {};
+                                    if (needsName) patch.fullName = fullName;
+                                    if (needsUsername) patch.username = suggestedUsername;
+                                    apiClient.patch(`/profiles/${session.user.id}`, patch).catch(() => {});
+                                }
+                            }).catch(() => {});
+                        });
+                    }
+                }
+            }
         });
 
         return () => subscription.unsubscribe();
@@ -324,6 +377,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (error) throw new Error(error.message);
     };
 
+    const changeEmail = async (newEmail: string) => {
+        const { error } = await supabase.auth.updateUser({ email: newEmail.trim().toLowerCase() });
+        if (error) throw new Error(error.message);
+    };
+
+    const clearPasswordRecovery = () => setIsPasswordRecovery(false);
+
     const deleteAccount = async () => {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.access_token) throw new Error('Not authenticated');
@@ -381,8 +441,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 verifyOtpLogin,
                 forgotPassword,
                 changePassword,
+                changeEmail,
+                clearPasswordRecovery,
                 deleteAccount,
                 isOAuthUser,
+                isPasswordRecovery,
             }}
         >
             {children}

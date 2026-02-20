@@ -28,6 +28,13 @@ const SettingsScreen = ({ navigation }: any) => {
     // Export
     const [exporting, setExporting] = useState(false);
 
+    // Invite Friends
+    const [inviteModalVisible, setInviteModalVisible] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviting, setInviting] = useState(false);
+    const [inviteError, setInviteError] = useState('');
+    const [inviteSuccess, setInviteSuccess] = useState(false);
+
     const handleNotificationToggle = (val: boolean) => {
         setNotificationsEnabled(val);
     };
@@ -83,6 +90,32 @@ const SettingsScreen = ({ navigation }: any) => {
         setDeleteModalVisible(true);
     };
 
+    const openInviteModal = () => {
+        setInviteEmail('');
+        setInviteError('');
+        setInviteSuccess(false);
+        setInviteModalVisible(true);
+    };
+
+    const handleSendInvite = async () => {
+        if (!inviteEmail.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(inviteEmail.trim())) {
+            setInviteError('Please enter a valid email address.');
+            return;
+        }
+        setInviting(true);
+        setInviteError('');
+        try {
+            await apiClient.post('/profiles/invite', { toEmail: inviteEmail.trim().toLowerCase() });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setInviteSuccess(true);
+        } catch (e: any) {
+            setInviteError(e.message ?? 'Failed to send invite. Try again.');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        } finally {
+            setInviting(false);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
@@ -109,6 +142,19 @@ const SettingsScreen = ({ navigation }: any) => {
                 <Divider />
 
                 <List.Section>
+                    <List.Subheader style={styles.subheader}>Share</List.Subheader>
+                    <List.Item
+                        title="Invite Friends"
+                        description="Send an email invitation to join Upcheck"
+                        left={props => <List.Icon {...props} icon="email-fast-outline" />}
+                        right={() => <MaterialCommunityIcons name="chevron-right" size={22} color={Colors.grey} />}
+                        onPress={openInviteModal}
+                    />
+                </List.Section>
+
+                <Divider />
+
+                <List.Section>
                     <List.Subheader style={styles.subheader}>Data & Account</List.Subheader>
                     <List.Item title="Export My Data" description="Download farms, ponds, profile as JSON" left={props => <List.Icon {...props} icon="download-outline" />} right={() => exporting ? <MaterialCommunityIcons name="loading" size={22} color={Colors.grey} /> : <MaterialCommunityIcons name="chevron-right" size={22} color={Colors.grey} />} onPress={handleExportData} />
                     <Divider style={{ marginHorizontal: 16 }} />
@@ -125,6 +171,48 @@ const SettingsScreen = ({ navigation }: any) => {
                         <RadioButton.Item label="Light" value="light" />
                         <RadioButton.Item label="Dark" value="dark" />
                     </RadioButton.Group>
+                </Modal>
+            </Portal>
+
+            {/* Invite Friends Modal */}
+            <Portal>
+                <Modal visible={inviteModalVisible} onDismiss={() => setInviteModalVisible(false)} contentContainerStyle={styles.modalContent}>
+                    {!inviteSuccess ? (
+                        <>
+                            <View style={{ alignItems: 'center', marginBottom: 12 }}>
+                                <MaterialCommunityIcons name="email-fast-outline" size={40} color={Colors.primary} />
+                                <Text variant="titleMedium" style={styles.modalTitle}>Invite a Friend</Text>
+                            </View>
+                            <Text style={{ color: Colors.textSecondary, fontSize: 13, marginBottom: 16, textAlign: 'center' }}>
+                                Enter their email and we'll send them a personal invite — they'll know it's from you!
+                            </Text>
+                            <TextInput
+                                label="Friend's Email"
+                                value={inviteEmail}
+                                onChangeText={v => { setInviteEmail(v); setInviteError(''); }}
+                                mode="outlined"
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                left={<TextInput.Icon icon="email-outline" />}
+                                outlineColor={inviteError ? Colors.error : Colors.border}
+                                activeOutlineColor={Colors.primary}
+                                style={styles.input}
+                            />
+                            {inviteError ? <Text style={{ color: Colors.error, fontSize: 13, marginBottom: 8 }}>{inviteError}</Text> : null}
+                            <Button mode="contained" onPress={handleSendInvite} loading={inviting} disabled={inviting} style={{ marginTop: 4 }}>Send Invite</Button>
+                            <Button mode="text" onPress={() => setInviteModalVisible(false)} style={{ marginTop: 4 }}>Cancel</Button>
+                        </>
+                    ) : (
+                        <>
+                            <MaterialCommunityIcons name="check-circle-outline" size={52} color={Colors.success} style={{ alignSelf: 'center', marginBottom: 12 }} />
+                            <Text variant="titleMedium" style={[styles.modalTitle, { color: Colors.success }]}>Invite Sent!</Text>
+                            <Text style={{ color: Colors.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
+                                An invitation email has been sent to{' '}
+                                <Text style={{ fontWeight: 'bold', color: Colors.text }}>{inviteEmail}</Text>.
+                            </Text>
+                            <Button mode="contained" onPress={() => setInviteModalVisible(false)} style={{ marginTop: 20 }}>Done</Button>
+                        </>
+                    )}
                 </Modal>
             </Portal>
 

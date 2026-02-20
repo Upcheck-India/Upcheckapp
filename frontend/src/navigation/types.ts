@@ -1,4 +1,4 @@
-import { Product } from '../services/mockProductService';
+import { Product, Order } from '../services/mockProductService';
 
 export type RootStackParamList = {
     // ─── Auth Screens ────────────────────────────────────────
@@ -52,6 +52,15 @@ export type RootStackParamList = {
     // ─── Finance ─────────────────────────────────────────────
     ExpenseEntry: { cropId?: string, pondId: string, pondName: string, cycleName?: string };
 
-    // ─── Inventory ───────────────────────────────────────────
+    // ─── Inventory ───────────────────────────────────────
     Inventory: { farmId?: string, farmName?: string };
+
+    // ─── Public Profile ───────────────────────────────────
+    PublicProfile: { username: string };
+
+    // ─── EShop ───────────────────────────────────────────
+    Cart: undefined;
+    Checkout: undefined;
+    Orders: undefined;
+    OrderDetail: { order: Order };
 };

@@ -18,6 +18,8 @@ export const RegisterScreen = () => {
     const [successMessage, setSuccessMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [securePassword, setSecurePassword] = useState(true);
+    const [secureConfirm, setSecureConfirm] = useState(true);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const navigation = useNavigation<any>();
@@ -26,9 +28,10 @@ export const RegisterScreen = () => {
 
     useEffect(() => {
         if (!username || username.length < 3) { setUsernameStatus('idle'); return; }
-        setUsernameStatus('checking');
+        setUsernameStatus('idle');
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(async () => {
+            setUsernameStatus('checking');
             try {
                 const result = await apiClient.get(`/profiles/check-username/${username.trim().toLowerCase()}`) as any;
                 setUsernameStatus(result?.available ? 'available' : 'taken');
@@ -62,8 +65,16 @@ export const RegisterScreen = () => {
             return;
         }
 
+        if (usernameStatus === 'checking') {
+            setError('Please wait — still checking username availability.');
+            return;
+        }
         if (usernameStatus === 'taken') {
             setError('That username is already taken. Please choose another.');
+            return;
+        }
+        if (username.length >= 3 && usernameStatus === 'idle') {
+            setError('Please wait for the username check to complete.');
             return;
         }
 
@@ -160,9 +171,10 @@ export const RegisterScreen = () => {
                             value={password}
                             onChangeText={setPassword}
                             mode="outlined"
-                            secureTextEntry
+                            secureTextEntry={securePassword}
                             style={styles.input}
                             error={!!error}
+                            right={<TextInput.Icon icon={securePassword ? 'eye-off' : 'eye'} onPress={() => setSecurePassword(v => !v)} />}
                         />
                         <HelperText type="info" visible={true}>
                             At least 8 characters, uppercase, lowercase, number, special char.
@@ -173,9 +185,10 @@ export const RegisterScreen = () => {
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
                             mode="outlined"
-                            secureTextEntry
+                            secureTextEntry={secureConfirm}
                             style={styles.input}
                             error={!!error}
+                            right={<TextInput.Icon icon={secureConfirm ? 'eye-off' : 'eye'} onPress={() => setSecureConfirm(v => !v)} />}
                         />
 
                         {error ? (
@@ -190,11 +203,11 @@ export const RegisterScreen = () => {
                             mode="contained"
                             onPress={handleRegister}
                             loading={loading}
-                            disabled={loading}
+                            disabled={loading || usernameStatus === 'checking'}
                             style={styles.button}
                             contentStyle={styles.buttonContent}
                         >
-                            Sign Up
+                            {usernameStatus === 'checking' ? 'Checking username…' : 'Sign Up'}
                         </Button>
 
                         <View style={styles.orContainer}>

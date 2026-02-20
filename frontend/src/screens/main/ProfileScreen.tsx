@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, TextInput as RNTextInput } from 'react-native';
-import { Text, Avatar, Button, Card, Portal, Modal, TextInput, ActivityIndicator, Divider, RadioButton } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity, TextInput as RNTextInput, Share } from 'react-native';
+import { Text, Avatar, Button, Card, Portal, Modal, TextInput, ActivityIndicator, Divider, RadioButton, HelperText } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -49,10 +49,11 @@ const LANGUAGES = [
 ];
 
 type EditingField = 'fullName' | 'username' | 'website' | 'bio' | null;
+type EmailChangeStep = 'idle' | 'form' | 'sent';
 
 const ProfileScreen = () => {
     const navigation = useNavigation<any>();
-    const { user, logout, isOAuthUser } = useAuth();
+    const { user, logout, isOAuthUser, changeEmail } = useAuth();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
     const [savingField, setSavingField] = useState<string | null>(null);
@@ -66,6 +67,12 @@ const ProfileScreen = () => {
     const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
     const [selectedLang, setSelectedLang] = useState('en');
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Email change modal
+    const [emailStep, setEmailStep] = useState<EmailChangeStep>('idle');
+    const [newEmailInput, setNewEmailInput] = useState('');
+    const [emailChangeError, setEmailChangeError] = useState('');
+    const [emailChanging, setEmailChanging] = useState(false);
 
     useFocusEffect(useCallback(() => { loadProfile(); }, [user]));
 
@@ -89,19 +96,23 @@ const ProfileScreen = () => {
     const handleUsernameChange = (v: string) => {
         const clean = v.toLowerCase().replace(/[^a-z0-9_]/g, '');
         setEditValue(clean);
-        if (clean.length < 3) { setUsernameStatus('idle'); return; }
-        setUsernameStatus('checking');
+        setUsernameStatus('idle');
+        if (clean.length < 3) return;
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(async () => {
-            try { const r = await apiClient.get(`/profiles/check-username/${clean}`) as any; setUsernameStatus(r?.available ? 'available' : 'taken'); }
-            catch { setUsernameStatus('idle'); }
-        }, 500);
+            setUsernameStatus('checking');
+            try {
+                const r = await apiClient.get(`/profiles/check-username/${clean}`) as any;
+                setUsernameStatus(r?.available ? 'available' : 'taken');
+            } catch { setUsernameStatus('idle'); }
+        }, 800);
     };
 
     const saveField = async (field: EditingField) => {
         if (!profile || !field) return;
         if (field === 'username' && usernameStatus === 'taken') { Alert.alert('Username taken', 'Choose a different username.'); return; }
         if (field === 'username' && editValue.length < 3) { Alert.alert('Too short', 'Minimum 3 characters.'); return; }
+        if (field === 'username' && usernameStatus === 'checking') { Alert.alert('Please wait', 'Still checking username availability…'); return; }
         setSavingField(field);
         try {
             await ProfileService.updateProfile(profile.id, { [field]: editValue } as any);
@@ -123,12 +134,17 @@ const ProfileScreen = () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.user?.id) throw new Error('Not authenticated');
-            const uri = result.assets[0].uri;
-            const ext = uri.split('.').pop() ?? 'jpg';
+            const asset = result.assets[0];
+            const ext = (asset.uri.split('.').pop() ?? 'jpg').toLowerCase().replace('jpeg', 'jpg');
+            const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
             const path = `avatars/${session.user.id}.${ext}`;
-            const formData = new FormData();
-            formData.append('file', { uri, name: `avatar.${ext}`, type: `image/${ext}` } as any);
-            const { error } = await supabase.storage.from('avatars').upload(path, formData as any, { upsert: true });
+            // Fetch the local file as a Blob (correct way for Supabase RN storage)
+            const fileResponse = await fetch(asset.uri);
+            const blob = await fileResponse.blob();
+            const { error } = await supabase.storage.from('avatars').upload(path, blob, {
+                contentType: mimeType,
+                upsert: true,
+            });
             if (error) throw error;
             const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
             await ProfileService.updateProfile(session.user.id, { avatarUrl: urlData.publicUrl });
@@ -136,6 +152,33 @@ const ProfileScreen = () => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (e: any) { Alert.alert('Upload failed', e.message ?? 'Could not upload image'); }
         finally { setAvatarUploading(false); }
+    };
+
+    const handleShareProfile = async () => {
+        const username = profile?.username || user?.username;
+        if (!username) { Alert.alert('No username', 'Set a username first to share your profile.'); return; }
+        const url = `upcheckapp://profile/${username}`;
+        await Share.share({
+            message: `Check out my profile on Upcheck!\n${url}`,
+            title: 'My Upcheck Profile',
+        });
+    };
+
+    const handleEmailChangeSubmit = async () => {
+        if (!newEmailInput.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(newEmailInput.trim())) {
+            setEmailChangeError('Please enter a valid email address.');
+            return;
+        }
+        setEmailChanging(true);
+        setEmailChangeError('');
+        try {
+            await changeEmail(newEmailInput.trim());
+            setEmailStep('sent');
+        } catch (e: any) {
+            setEmailChangeError(e.message ?? 'Failed to request email change.');
+        } finally {
+            setEmailChanging(false);
+        }
     };
 
     const handleSaveLanguage = async () => {
@@ -205,6 +248,10 @@ const ProfileScreen = () => {
                     <Text variant="headlineSmall" style={styles.name}>{displayName}</Text>
                     <Text style={styles.emailText}>{displayEmail}</Text>
                     {isOAuthUser && <View style={styles.oauthBadge}><MaterialCommunityIcons name="google" size={12} color="#fff" /><Text style={styles.oauthBadgeText}>Google Account</Text></View>}
+                    <TouchableOpacity style={styles.shareProfileBtn} onPress={handleShareProfile} activeOpacity={0.8}>
+                        <MaterialCommunityIcons name="share-variant-outline" size={14} color="#fff" />
+                        <Text style={styles.shareProfileBtnText}>Share Profile</Text>
+                    </TouchableOpacity>
                 </LinearGradient>
 
                 <View style={styles.content}>
@@ -215,8 +262,13 @@ const ProfileScreen = () => {
                             <Divider style={styles.divider} />
                             <EditableRow field="username" icon="at" label="Username" value={profile?.username || ''} placeholder="Tap ✏ to set a unique username" />
                             <Divider style={styles.divider} />
-                            <View style={styles.editableRow}>
-                                <View style={styles.editableRowHeader}><View style={styles.editableRowLeft}><MaterialCommunityIcons name="email-outline" size={16} color={Colors.textTertiary} /><Text style={styles.fieldLabel}>Email</Text></View></View>
+                                    <View style={styles.editableRow}>
+                                <View style={styles.editableRowHeader}>
+                                    <View style={styles.editableRowLeft}><MaterialCommunityIcons name="email-outline" size={16} color={Colors.textTertiary} /><Text style={styles.fieldLabel}>Email</Text></View>
+                                    {!isOAuthUser && <TouchableOpacity onPress={() => { setNewEmailInput(''); setEmailChangeError(''); setEmailStep('form'); }} style={styles.pencilBtn}>
+                                        <MaterialCommunityIcons name="pencil-outline" size={15} color={Colors.primary} />
+                                    </TouchableOpacity>}
+                                </View>
                                 <Text style={styles.fieldValue}>{displayEmail}</Text>
                             </View>
                             <Divider style={styles.divider} />
@@ -261,6 +313,42 @@ const ProfileScreen = () => {
                     <Button mode="text" onPress={() => setLangModalVisible(false)} style={{ marginTop: Layout.spacing.sm }}>Cancel</Button>
                 </Modal>
             </Portal>
+
+            {/* Email Change Modal */}
+            <Portal>
+                <Modal visible={emailStep !== 'idle'} onDismiss={() => setEmailStep('idle')} contentContainerStyle={styles.modalContent}>
+                    {emailStep === 'form' ? (
+                        <>
+                            <Text variant="titleMedium" style={styles.modalTitle}>Change Email</Text>
+                            <Text style={{ color: Colors.textSecondary, fontSize: 13, marginBottom: 16, textAlign: 'center' }}>Enter your new email address. A confirmation link will be sent to it.</Text>
+                            <TextInput
+                                label="New Email"
+                                value={newEmailInput}
+                                onChangeText={v => { setNewEmailInput(v); setEmailChangeError(''); }}
+                                mode="outlined"
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                left={<TextInput.Icon icon="email-outline" />}
+                                outlineColor={emailChangeError ? Colors.error : Colors.border}
+                                activeOutlineColor={Colors.primary}
+                                style={{ marginBottom: 4 }}
+                            />
+                            {emailChangeError ? <HelperText type="error">{emailChangeError}</HelperText> : null}
+                            <GradientButton title="Send Confirmation" onPress={handleEmailChangeSubmit} loading={emailChanging} disabled={emailChanging} icon="email-check-outline" style={{ marginTop: 16 }} />
+                            <Button mode="text" onPress={() => setEmailStep('idle')} style={{ marginTop: 8 }}>Cancel</Button>
+                        </>
+                    ) : (
+                        <>
+                            <MaterialCommunityIcons name="email-check-outline" size={52} color={Colors.success} style={{ alignSelf: 'center', marginBottom: 12 }} />
+                            <Text variant="titleMedium" style={[styles.modalTitle, { color: Colors.success }]}>Confirmation Sent</Text>
+                            <Text style={{ color: Colors.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>
+                                Check <Text style={{ fontWeight: 'bold', color: Colors.text }}>{newEmailInput}</Text> and click the link to confirm your new email.
+                            </Text>
+                            <Button mode="contained" onPress={() => setEmailStep('idle')} style={{ marginTop: 20 }}>Done</Button>
+                        </>
+                    )}
+                </Modal>
+            </Portal>
         </SafeAreaView>
     );
 };
@@ -277,6 +365,8 @@ const styles = StyleSheet.create({
     emailText: { color: 'rgba(255,255,255,0.85)', marginTop: 2, fontSize: 13 },
     oauthBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: Layout.radius.full, marginTop: 8 },
     oauthBadgeText: { color: '#fff', fontSize: 11, fontWeight: '600', marginLeft: 4 },
+    shareProfileBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginTop: 10, gap: 6 },
+    shareProfileBtnText: { color: '#fff', fontSize: 12, fontWeight: '600' },
     content: { padding: Layout.spacing.lg },
     card: { marginBottom: Layout.spacing.lg, backgroundColor: Colors.cardBackground, borderRadius: Layout.radius.lg },
     sectionLabel: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: Layout.spacing.md },

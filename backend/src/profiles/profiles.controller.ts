@@ -1,16 +1,20 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, ForbiddenException, Logger, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, ForbiddenException, Logger, HttpCode, HttpStatus, NotFoundException } from '@nestjs/common';
 import { ProfilesService } from './profiles.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Public } from '../auth/decorators/auth.decorators';
+import { EmailService } from '../email.service';
 
 @Controller('profiles')
 @UseGuards(JwtAuthGuard)
 export class ProfilesController {
     private readonly logger = new Logger(ProfilesController.name);
 
-    constructor(private readonly profilesService: ProfilesService) { }
+    constructor(
+        private readonly profilesService: ProfilesService,
+        private readonly emailService: EmailService,
+    ) { }
 
     @Post()
     create(@Body() createProfileDto: CreateProfileDto) {
@@ -29,6 +33,22 @@ export class ProfilesController {
     async checkUsername(@Param('username') username: string) {
         const existing = await this.profilesService.findByUsername(username);
         return { available: !existing };
+    }
+
+    @Public()
+    @Get('public/:username')
+    async findPublicByUsername(@Param('username') username: string) {
+        const profile = await this.profilesService.findPublicByUsername(username);
+        if (!profile) throw new NotFoundException('Profile not found');
+        return profile;
+    }
+
+    @Post('invite')
+    async inviteFriend(@Body() body: { toEmail: string }, @Request() req) {
+        const inviterProfile = await this.profilesService.findOne(req.user.id);
+        const inviterName = inviterProfile?.fullName || inviterProfile?.username || req.user.email;
+        await this.emailService.sendInviteEmail(body.toEmail, inviterName);
+        return { success: true };
     }
 
     @Get('me')

@@ -11,6 +11,7 @@ export const LoginScreen = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [securePassword, setSecurePassword] = useState(true);
 
     const navigation = useNavigation<any>();
     const { login, signInWithGoogle } = useAuth();
@@ -77,9 +78,10 @@ export const LoginScreen = () => {
                         value={password}
                         onChangeText={setPassword}
                         mode="outlined"
-                        secureTextEntry
+                        secureTextEntry={securePassword}
                         style={styles.input}
                         error={!!error}
+                        right={<TextInput.Icon icon={securePassword ? 'eye-off' : 'eye'} onPress={() => setSecurePassword(v => !v)} />}
                     />
 
                     <TouchableOpacity

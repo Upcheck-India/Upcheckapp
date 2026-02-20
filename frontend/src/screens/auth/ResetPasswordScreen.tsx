@@ -2,11 +2,11 @@ import React, { useState, useRef } from 'react';
 import { View, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text, TextInput, ProgressBar, HelperText } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Linking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '../../constants/Colors';
 import { GradientButton } from '../../components/GradientButton';
-import { api } from '../../services/api';
+import { supabase } from '../../services/supabase';
+import { useAuth } from '../../context/AuthContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 // ─── Password Strength Calculator ────────────────────────────────
@@ -32,39 +32,8 @@ const PASSWORD_RULES = [
     { label: 'Special character (@$!%*?&)', test: (p: string) => /[@$!%*?&]/.test(p) },
 ];
 
-const ResetPasswordScreen = ({ route, navigation }: any) => {
-    // Expecting token and refreshToken specific args from deep link
-    // or manually entered if we provide that option
-    const [token, setToken] = useState(route.params?.token || '');
-
-    // Handle deep link hash parsing if params are missing (common with Supabase implicit flow)
-    React.useEffect(() => {
-        const handleDeepLink = async () => {
-            // If we already have params via navigation linking, great.
-            if (token) return;
-
-            const url = await Linking.getInitialURL();
-            if (url) {
-                // Manual parsing to be safe for hash fragments
-                if (url.includes('#')) {
-                    const hash = url.split('#')[1];
-                    // Simple parsing without URLSearchParams polyfill reliance
-                    const params = hash.split('&').reduce((acc: any, part) => {
-                        const [key, value] = part.split('=');
-                        acc[decodeURIComponent(key)] = decodeURIComponent(value);
-                        return acc;
-                    }, {});
-
-                    if (params.token) setToken(params.token);
-                }
-
-                // Also check query params if expo-linking parsed them differently
-                const { queryParams } = Linking.parse(url);
-                if (queryParams?.token && !token) setToken(queryParams.token as string);
-            }
-        };
-        handleDeepLink();
-    }, []);
+const ResetPasswordScreen = ({ navigation }: any) => {
+    const { clearPasswordRecovery } = useAuth();
 
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -93,22 +62,18 @@ const ResetPasswordScreen = ({ route, navigation }: any) => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             return;
         }
-        if (!token) {
-            setServerError('Invalid or expired reset link. Please request a new one.');
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            return;
-        }
 
         setLoading(true);
         try {
-            await api.post('/auth/reset-password', { token, newPassword });
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            if (error) throw new Error(error.message);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert('Success', 'Password has been reset. Please login with your new password.', [
-                { text: 'OK', onPress: () => navigation.navigate('Login') }
+            Alert.alert('Password Updated', 'Your password has been set successfully.', [
+                { text: 'OK', onPress: () => clearPasswordRecovery() }
             ]);
         } catch (error: any) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            setServerError(error.response?.data?.message || error.message || 'Failed to reset password');
+            setServerError(error.message || 'Failed to reset password. The link may have expired.');
         } finally {
             setLoading(false);
         }

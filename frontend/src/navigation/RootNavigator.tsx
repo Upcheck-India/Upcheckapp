@@ -19,6 +19,7 @@ import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import ChangePasswordScreen from '../screens/auth/ChangePasswordScreen';
 import SessionManagementScreen from '../screens/auth/SessionManagementScreen';
 import SettingsScreen from '../screens/main/SettingsScreen';
+import PublicProfileScreen from '../screens/main/PublicProfileScreen';
 
 // Feature Screens
 import MineralCalculatorScreen from '../screens/features/MineralCalculatorScreen';
@@ -30,6 +31,10 @@ import PondManagementScreen from '../screens/features/PondManagementScreen';
 import PondDetailScreen from '../screens/features/PondDetailScreen';
 import CycleManagementScreen from '../screens/features/CycleManagementScreen';
 import ProductDetailScreen from '../screens/features/ProductDetailScreen';
+import CartScreen from '../screens/features/CartScreen';
+import CheckoutScreen from '../screens/features/CheckoutScreen';
+import OrdersScreen from '../screens/features/OrdersScreen';
+import OrderDetailScreen from '../screens/features/OrderDetailScreen';
 
 // Calculators
 import CalculatorsMenuScreen from '../screens/features/calculators/CalculatorsMenuScreen';
@@ -64,7 +69,7 @@ import InventoryScreen from '../screens/features/inventory/InventoryScreen';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
-    const { isLoading, isAuthenticated } = useAuth();
+    const { isLoading, isAuthenticated, isPasswordRecovery } = useAuth();
 
     // Show loading screen while checking auth state
     if (isLoading) {
@@ -88,17 +93,19 @@ const RootNavigator = () => {
                 contentStyle: { backgroundColor: Colors.background },
             }}
         >
+            {/* ─── Password Recovery (always available, shown over whatever stack) */}
+            {isPasswordRecovery ? (
+                <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ headerShown: true, title: 'Set New Password' }} />
+            ) : null}
+
             {/* ─── Auth Screens (unauthenticated) ─────────────────── */}
-            {!isAuthenticated ? (
+            {!isAuthenticated && !isPasswordRecovery ? (
                 <>
                     <Stack.Screen name="Login" component={LoginScreen} />
                     <Stack.Screen name="Register" component={RegisterScreen} />
-                    {/* Phone and 2FA are not in current plan, commenting out to avoid errors if implementations are missing or broken
-                    <Stack.Screen name="PhoneLogin" component={PhoneLoginScreen} />
-                    <Stack.Screen name="TwoFALogin" component={TwoFALoginScreen} options={{ presentation: 'modal' }} />
-                    */}
                     <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
                     <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+                    <Stack.Screen name="PublicProfile" component={PublicProfileScreen} options={{ headerShown: true, title: 'Profile' }} />
                 </>
             ) : null}
 
@@ -153,6 +160,15 @@ const RootNavigator = () => {
 
                     {/* ─── Inventory ───────────────────────────────────────── */}
                     <Stack.Screen name="Inventory" component={InventoryScreen} options={{ headerShown: true, title: 'Inventory' }} />
+
+                    {/* ─── EShop ───────────────────────────────────────────── */}
+                    <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
+                    <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: false }} />
+                    <Stack.Screen name="Orders" component={OrdersScreen} options={{ headerShown: false }} />
+                    <Stack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ headerShown: false }} />
+
+                    {/* ─── Public Profile ──────────────────────────────────── */}
+                    <Stack.Screen name="PublicProfile" component={PublicProfileScreen} options={{ headerShown: true, title: 'Profile' }} />
                 </>
             ) : null}
         </Stack.Navigator>
