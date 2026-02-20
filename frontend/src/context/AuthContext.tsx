@@ -236,10 +236,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             const redirectUrl = Linking.createURL('auth');
             console.log(LOG, 'signInWithGoogle() — redirectUrl:', redirectUrl);
+
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: redirectUrl,
+                    skipBrowserRedirect: true, // Required for React Native — we open the browser manually
                     queryParams: { access_type: 'offline', prompt: 'consent' },
                 },
             });
@@ -247,35 +249,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.error(LOG, 'signInWithOAuth ERROR:', error.message);
                 throw error;
             }
-            console.log(LOG, 'signInWithOAuth result — OAuth URL generated:', data?.url ? 'YES' : 'NO');
-
-            if (data?.url) {
-                console.log(LOG, 'Opening browser with OAuth URL, waiting for redirect back to:', redirectUrl);
-                const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-                console.log(LOG, 'openAuthSessionAsync result — type:', result.type, '| url:', (result as any).url ?? 'none');
-                if (result.type === 'success' && (result as any).url) {
-                    await processAuthUrl((result as any).url);
-                } else {
-                    // cancel or dismiss — check if session was somehow already set
-                    const { data: { session } } = await supabase.auth.getSession();
-                    console.log(LOG, 'OAuth non-success: session check after cancel/dismiss —', session ? 'SESSION EXISTS' : 'no session');
-                    if (!session) {
-                        if (result.type === 'cancel' || result.type === 'dismiss') {
-                            console.warn(LOG, 'Google OAuth did not complete — type:', result.type);
-                            throw new Error(
-                                'Google sign-in did not complete.\n\n' +
-                                'If you saw an error in the browser, the redirect URL may not be registered in Supabase.' +
-                                ' Contact support or try again.'
-                            );
-                        }
-                    } else {
-                        console.log(LOG, 'OAuth cancel but session exists — user is now authenticated');
-                    }
-                }
-            } else {
-                console.error(LOG, 'signInWithOAuth returned no URL!');
+            if (!data?.url) {
                 throw new Error('Failed to start Google sign-in. Please try again.');
             }
+            console.log(LOG, 'signInWithOAuth result — OAuth URL generated: YES');
+            console.log(LOG, 'Opening browser — redirectUrl:', redirectUrl);
+
+            const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+            console.log(LOG, 'openAuthSessionAsync result — type:', result.type, '| url:', (result as any).url ?? 'none');
+
+            if (result.type === 'success' && (result as any).url) {
+                // iOS / direct browser capture: URL returned directly
+                await processAuthUrl((result as any).url);
+                return;
+            }
+
+            // Android path: browser dismisses when OS opens the app via deep link.
+            // The useEffect Linking listener fires with code= and calls exchangeCodeForSession.
+            // We wait up to 4 s for onAuthStateChange to establish the session.
+            console.log(LOG, 'Browser dismissed (Android deep-link path) — waiting for session…');
+            let waited = 0;
+            let sessionFound = false;
+            while (waited < 4000) {
+                await new Promise(r => setTimeout(r, 500));
+                waited += 500;
+                const { data: { session: s } } = await supabase.auth.getSession();
+                if (s) { sessionFound = true; break; }
+            }
+            if (sessionFound) {
+                console.log(LOG, 'Session established after deep-link');
+                return;
+            }
+            // Truly cancelled or Supabase redirect URL not registered
+            console.warn(LOG, 'No session after waiting — result.type:', result.type);
+            throw new Error(
+                result.type === 'cancel'
+                    ? 'Google sign-in was cancelled.'
+                    : 'Google sign-in failed. Make sure the redirect URL is registered in Supabase:\n' + redirectUrl
+            );
         } catch (err: any) {
             console.error(LOG, 'signInWithGoogle() catch:', err.message);
             throw new Error(err.message ?? 'Google sign-in failed. Please try again.');
