@@ -12,6 +12,8 @@ import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 
 const DEFAULT_ADDRESS = 'Farm Plot 14, Aqua Zone, Nellore, AP – 524002';
+const PLATFORM_FEE = 9.99; // INR
+const GST_RATE = 0.18;     // 18% GST on platform fee
 
 const AVAILABLE_COUPONS = [
     { code: 'AQUA10', description: '10% off · Min ₹500' },
@@ -28,10 +30,15 @@ const CheckoutScreen = () => {
     const [couponError, setCouponError] = useState('');
     const [couponApplied, setCouponApplied] = useState<Coupon | null>(coupon);
     const [placing, setPlacing] = useState(false);
+    const [paymentMethod, setPaymentMethod] = useState<'upi' | 'gpay' | 'paytm' | 'cod'>('cod');
+    const [upiId, setUpiId] = useState('');
+    const [tipInput, setTipInput] = useState('0');
+    const [tipAmount, setTipAmount] = useState(0);
 
     const deliveryFee = subtotal >= 2000 ? 0 : 149;
     const discountAmt = couponApplied ? MockProductService.calculateDiscount(couponApplied, subtotal) : 0;
-    const total = subtotal - discountAmt + deliveryFee;
+    const platformGst = Number((PLATFORM_FEE * GST_RATE).toFixed(2));
+    const total = subtotal - discountAmt + deliveryFee + PLATFORM_FEE + platformGst + tipAmount;
 
     const handleApplyCoupon = () => {
         setCouponError('');
@@ -74,6 +81,18 @@ const CheckoutScreen = () => {
         } finally {
             setPlacing(false);
         }
+    };
+
+    const handleQuickTip = (value: number) => {
+        setTipAmount(value);
+        setTipInput(value ? String(value) : '0');
+    };
+
+    const handleTipInputChange = (text: string) => {
+        const sanitized = text.replace(/[^0-9]/g, '');
+        setTipInput(sanitized);
+        const numeric = parseInt(sanitized || '0', 10);
+        setTipAmount(Number.isNaN(numeric) ? 0 : numeric);
     };
 
     return (
@@ -194,9 +213,19 @@ const CheckoutScreen = () => {
                         </Text>
                     </View>
                     <View style={styles.breakdownRow}>
-                        <Text style={styles.breakdownLabel}>GST (18%)</Text>
-                        <Text style={styles.breakdownValue}>Included</Text>
+                        <Text style={styles.breakdownLabel}>Platform Service Fee</Text>
+                        <Text style={styles.breakdownValue}>₹{PLATFORM_FEE.toFixed(2)}</Text>
                     </View>
+                    <View style={styles.breakdownRow}>
+                        <Text style={styles.breakdownLabel}>GST (18%) on platform fee</Text>
+                        <Text style={styles.breakdownValue}>₹{platformGst.toFixed(2)}</Text>
+                    </View>
+                    {tipAmount > 0 && (
+                        <View style={styles.breakdownRow}>
+                            <Text style={styles.breakdownLabel}>Tip / Donation</Text>
+                            <Text style={styles.breakdownValue}>₹{tipAmount.toLocaleString()}</Text>
+                        </View>
+                    )}
                     <Divider style={{ marginVertical: 10 }} />
                     <View style={styles.breakdownRow}>
                         <Text style={styles.totalLabel}>Total Payable</Text>
@@ -209,17 +238,123 @@ const CheckoutScreen = () => {
                     )}
                 </View>
 
+                {/* Tips & Donations */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <MaterialCommunityIcons name="hand-heart" size={18} color={Colors.primary} />
+                        <Text style={styles.sectionTitle}>Tips & Donations (optional)</Text>
+                    </View>
+                    <Text style={styles.tipsSubtitle}>Support the platform and aquaculture education by adding a small tip.</Text>
+                    <View style={styles.tipChipsRow}>
+                        {[0, 10, 25, 50].map(v => (
+                            <TouchableOpacity
+                                key={v}
+                                style={[styles.tipChip, tipAmount === v && styles.tipChipActive]}
+                                onPress={() => handleQuickTip(v)}
+                            >
+                                <Text style={[styles.tipChipText, tipAmount === v && styles.tipChipTextActive]}>
+                                    {v === 0 ? 'No tip' : `₹${v}`}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                    <View style={styles.tipInputRow}>
+                        <Text style={styles.tipInputLabel}>Custom amount</Text>
+                        <View style={styles.tipInputWrapper}>
+                            <Text style={styles.tipCurrency}>₹</Text>
+                            <RNTextInput
+                                style={styles.tipInput}
+                                keyboardType="numeric"
+                                value={tipInput}
+                                onChangeText={handleTipInputChange}
+                            />
+                        </View>
+                    </View>
+                </View>
+
                 {/* Payment Info */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <MaterialCommunityIcons name="credit-card-outline" size={18} color={Colors.primary} />
                         <Text style={styles.sectionTitle}>Payment</Text>
                     </View>
-                    <View style={styles.paymentRow}>
+                    <TouchableOpacity
+                        style={[styles.paymentRow, paymentMethod === 'upi' && styles.paymentRowActive]}
+                        onPress={() => setPaymentMethod('upi')}
+                    >
+                        <MaterialCommunityIcons name="bank-transfer" size={20} color={Colors.textSecondary} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.paymentText}>UPI ID</Text>
+                            <Text style={styles.paymentSubText}>Pay via any UPI app using your UPI ID</Text>
+                        </View>
+                        <MaterialCommunityIcons
+                            name={paymentMethod === 'upi' ? 'radiobox-marked' : 'radiobox-blank'}
+                            size={20}
+                            color={Colors.primary}
+                        />
+                    </TouchableOpacity>
+                    {paymentMethod === 'upi' && (
+                        <View style={styles.upiInputRow}>
+                            <Text style={styles.upiLabel}>Your UPI ID</Text>
+                            <RNTextInput
+                                style={styles.upiInput}
+                                placeholder="name@bank"
+                                placeholderTextColor={Colors.textTertiary}
+                                autoCapitalize="none"
+                                value={upiId}
+                                onChangeText={setUpiId}
+                            />
+                            <Text style={styles.upiHint}>Payment is mocked — we will not actually charge this UPI ID.</Text>
+                        </View>
+                    )}
+
+                    <TouchableOpacity
+                        style={[styles.paymentRow, paymentMethod === 'gpay' && styles.paymentRowActive]}
+                        onPress={() => setPaymentMethod('gpay')}
+                    >
+                        <MaterialCommunityIcons name="google" size={20} color={Colors.textSecondary} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.paymentText}>Google Pay</Text>
+                            <Text style={styles.paymentSubText}>Mocked payment via Google Pay</Text>
+                        </View>
+                        <MaterialCommunityIcons
+                            name={paymentMethod === 'gpay' ? 'radiobox-marked' : 'radiobox-blank'}
+                            size={20}
+                            color={Colors.primary}
+                        />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.paymentRow, paymentMethod === 'paytm' && styles.paymentRowActive]}
+                        onPress={() => setPaymentMethod('paytm')}
+                    >
+                        <MaterialCommunityIcons name="wallet-outline" size={20} color={Colors.textSecondary} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.paymentText}>Paytm</Text>
+                            <Text style={styles.paymentSubText}>Mocked payment via Paytm wallet/UPI</Text>
+                        </View>
+                        <MaterialCommunityIcons
+                            name={paymentMethod === 'paytm' ? 'radiobox-marked' : 'radiobox-blank'}
+                            size={20}
+                            color={Colors.primary}
+                        />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.paymentRow, paymentMethod === 'cod' && styles.paymentRowActive]}
+                        onPress={() => setPaymentMethod('cod')}
+                    >
                         <MaterialCommunityIcons name="cash" size={20} color={Colors.textSecondary} />
-                        <Text style={styles.paymentText}>Cash on Delivery (COD)</Text>
-                        <View style={styles.paymentBadge}><Text style={styles.paymentBadgeText}>Selected</Text></View>
-                    </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.paymentText}>Cash on Delivery (COD)</Text>
+                            <Text style={styles.paymentSubText}>Pay in cash when the order is delivered</Text>
+                        </View>
+                        <MaterialCommunityIcons
+                            name={paymentMethod === 'cod' ? 'radiobox-marked' : 'radiobox-blank'}
+                            size={20}
+                            color={Colors.primary}
+                        />
+                    </TouchableOpacity>
                 </View>
             </ScrollView>
 
@@ -230,7 +365,7 @@ const CheckoutScreen = () => {
                         title={`Place Order — ₹${total.toLocaleString()}`}
                         icon="check-circle"
                         onPress={handlePlaceOrder}
-                        disabled={!address.trim()}
+                        disabled={!address.trim() || (paymentMethod === 'upi' && !upiId.trim())}
                     />
                 }
             </View>
@@ -270,10 +405,27 @@ const styles = StyleSheet.create({
     totalLabel: { fontSize: 15, fontWeight: '700', color: Colors.text },
     totalValue: { fontSize: 16, fontWeight: '700', color: Colors.primary },
     savingsText: { fontSize: 12, color: Colors.success, marginTop: 6 },
-    paymentRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    paymentText: { flex: 1, fontSize: 14, color: Colors.text },
-    paymentBadge: { backgroundColor: Colors.primaryContainer, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4 },
-    paymentBadgeText: { fontSize: 11, color: Colors.primary, fontWeight: '700' },
+    // Payment
+    paymentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.divider },
+    paymentRowActive: { backgroundColor: Colors.primaryContainer, borderRadius: Layout.radius.md, paddingHorizontal: 8, marginHorizontal: -8, borderBottomWidth: 0 },
+    paymentText: { fontSize: 14, fontWeight: '600', color: Colors.text },
+    paymentSubText: { fontSize: 11, color: Colors.textTertiary, marginTop: 1 },
+    upiInputRow: { backgroundColor: Colors.surfaceVariant, borderRadius: Layout.radius.md, padding: 12, marginTop: 6, marginBottom: 4 },
+    upiLabel: { fontSize: 12, color: Colors.textTertiary, marginBottom: 6, fontWeight: '600' },
+    upiInput: { borderWidth: 1, borderColor: Colors.border, borderRadius: Layout.radius.md, paddingHorizontal: 12, paddingVertical: 8, fontSize: 14, color: Colors.text, backgroundColor: Colors.surface },
+    upiHint: { fontSize: 11, color: Colors.textTertiary, marginTop: 6, fontStyle: 'italic' },
+    // Tips
+    tipsSubtitle: { fontSize: 12, color: Colors.textSecondary, marginBottom: 12, lineHeight: 17 },
+    tipChipsRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+    tipChip: { flex: 1, paddingVertical: 8, borderRadius: Layout.radius.md, backgroundColor: Colors.surfaceVariant, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
+    tipChipActive: { backgroundColor: Colors.primaryContainer, borderColor: Colors.primary },
+    tipChipText: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
+    tipChipTextActive: { color: Colors.primary },
+    tipInputRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    tipInputLabel: { fontSize: 13, color: Colors.textSecondary },
+    tipInputWrapper: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: Colors.border, borderRadius: Layout.radius.md, paddingHorizontal: 10, backgroundColor: Colors.surface },
+    tipCurrency: { fontSize: 14, color: Colors.textSecondary, marginRight: 4 },
+    tipInput: { fontSize: 14, color: Colors.text, minWidth: 60, paddingVertical: 7 },
     footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.divider, ...Layout.shadow.xl },
 });
 
