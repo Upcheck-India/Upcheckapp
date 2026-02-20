@@ -32,6 +32,7 @@ export interface Product {
     productSpecs: SpecItem[];
     discount?: number;
     tags?: string[];
+    deliveryUnavailable?: boolean;
 }
 
 export interface CartItem {
@@ -61,8 +62,10 @@ export interface Order {
     subtotal: number;
     discount: number;
     deliveryFee: number;
+    gst: number;
     total: number;
     couponCode?: string;
+    paymentMethod: string;
     status: OrderStatus;
     placedAt: string;
     estimatedDelivery: string;
@@ -339,6 +342,32 @@ const PRODUCTS: Product[] = [
         tags: ['out of stock', 'monitoring'],
     },
     {
+        id: '10',
+        name: 'Liquid Oxygen Supplement',
+        category: 'Chemicals',
+        price: 980,
+        currency: '₹',
+        imageUrl: 'https://picsum.photos/300/300?random=30',
+        description: 'Concentrated liquid oxygen supplement for emergency aeration and oxygen boost in shrimp ponds during critical DO crash situations. Requires special handling during transport.',
+        rating: 4.0,
+        reviewCount: 34,
+        inStock: true,
+        stockQty: 80,
+        unit: '5 L can',
+        deliveryUnavailable: true,
+        seller: SELLERS.biofarm,
+        universalSpecs: UNIVERSAL_SPECS,
+        productSpecs: [
+            { label: 'O₂ Concentration', value: '≥ 30% w/v' },
+            { label: 'Form', value: 'Liquid concentrate' },
+            { label: 'Dose', value: '1–2 L / acre' },
+            { label: 'Application', value: 'Dilute 1:10, broadcast' },
+            { label: 'Onset', value: '15–30 minutes' },
+            { label: 'Storage', value: 'Cool, away from heat' },
+        ],
+        tags: ['emergency', 'hazmat'],
+    },
+    {
         id: '9',
         name: 'EDTA Disodium Salt',
         category: 'Chemicals',
@@ -396,19 +425,28 @@ export const MockProductService = {
         return coupon.discount;
     },
 
-    placeOrder: async (items: CartItem[], coupon: Coupon | null, address: string): Promise<Order> => {
+    placeOrder: async (
+        items: CartItem[],
+        coupon: Coupon | null,
+        address: string,
+        paymentMethod = 'cod',
+        gst = 0,
+    ): Promise<Order> => {
         await new Promise(resolve => setTimeout(resolve, 800));
         const subtotal = items.reduce((sum, ci) => sum + ci.product.price * ci.qty, 0);
         const discountAmt = coupon ? MockProductService.calculateDiscount(coupon, subtotal) : 0;
         const deliveryFee = subtotal >= 2000 ? 0 : 149;
+        const PLATFORM_FEE = 9.99;
         const order: Order = {
             id: `UC${Date.now().toString().slice(-8)}`,
             items: items.map(ci => ({ product: ci.product, qty: ci.qty, price: ci.product.price })),
             subtotal,
             discount: discountAmt,
             deliveryFee,
-            total: subtotal - discountAmt + deliveryFee,
+            gst,
+            total: subtotal - discountAmt + deliveryFee + PLATFORM_FEE + gst,
             couponCode: coupon?.code,
+            paymentMethod,
             status: 'placed',
             placedAt: new Date().toISOString(),
             estimatedDelivery: new Date(Date.now() + 3 * 86400000).toISOString(),

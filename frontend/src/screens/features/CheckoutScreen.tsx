@@ -37,8 +37,11 @@ const CheckoutScreen = () => {
 
     const deliveryFee = subtotal >= 2000 ? 0 : 149;
     const discountAmt = couponApplied ? MockProductService.calculateDiscount(couponApplied, subtotal) : 0;
-    const platformGst = Number((PLATFORM_FEE * GST_RATE).toFixed(2));
-    const total = subtotal - discountAmt + deliveryFee + PLATFORM_FEE + platformGst + tipAmount;
+    const taxableProducts = Math.max(subtotal - discountAmt, 0);
+    const gstOnProducts = Number((taxableProducts * GST_RATE).toFixed(2));
+    const gstOnPlatform = Number((PLATFORM_FEE * GST_RATE).toFixed(2));
+    const totalGst = gstOnProducts + gstOnPlatform;
+    const total = subtotal - discountAmt + deliveryFee + PLATFORM_FEE + totalGst + tipAmount;
 
     const handleApplyCoupon = () => {
         setCouponError('');
@@ -72,11 +75,12 @@ const CheckoutScreen = () => {
     const handlePlaceOrder = async () => {
         setPlacing(true);
         try {
-            const order = await MockProductService.placeOrder(items, couponApplied, address);
+            const order = await MockProductService.placeOrder(items, couponApplied, address, paymentMethod, totalGst);
             clearCart();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             navigation.replace('OrderDetail', { order });
-        } catch (e) {
+        } catch (e: unknown) {
+            console.warn('[CheckoutScreen] placeOrder failed:', e);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         } finally {
             setPlacing(false);
@@ -89,9 +93,9 @@ const CheckoutScreen = () => {
     };
 
     const handleTipInputChange = (text: string) => {
-        const sanitized = text.replace(/[^0-9]/g, '');
+        const sanitized = text.replaceAll(/\D/g, '');
         setTipInput(sanitized);
-        const numeric = parseInt(sanitized || '0', 10);
+        const numeric = Number.parseInt(sanitized || '0', 10);
         setTipAmount(Number.isNaN(numeric) ? 0 : numeric);
     };
 
@@ -217,8 +221,12 @@ const CheckoutScreen = () => {
                         <Text style={styles.breakdownValue}>₹{PLATFORM_FEE.toFixed(2)}</Text>
                     </View>
                     <View style={styles.breakdownRow}>
+                        <Text style={styles.breakdownLabel}>GST (18%) on products</Text>
+                        <Text style={styles.breakdownValue}>₹{gstOnProducts.toFixed(2)}</Text>
+                    </View>
+                    <View style={styles.breakdownRow}>
                         <Text style={styles.breakdownLabel}>GST (18%) on platform fee</Text>
-                        <Text style={styles.breakdownValue}>₹{platformGst.toFixed(2)}</Text>
+                        <Text style={styles.breakdownValue}>₹{gstOnPlatform.toFixed(2)}</Text>
                     </View>
                     {tipAmount > 0 && (
                         <View style={styles.breakdownRow}>

@@ -69,6 +69,12 @@ const ProductDetailScreen = () => {
                         <Text style={[styles.metaText, { color: product.inStock ? Colors.success : Colors.error, fontWeight: '600' }]}>
                             {product.inStock ? (product.stockQty && product.stockQty < 20 ? `Only ${product.stockQty} left!` : 'In Stock') : 'Out of Stock'}
                         </Text>
+                        {product.inStock && product.deliveryUnavailable && (
+                            <View style={styles.deliveryUnavailableBadge}>
+                                <MaterialCommunityIcons name="map-marker-off" size={11} color={Colors.warning} />
+                                <Text style={styles.deliveryUnavailableText}>Not deliverable to your location</Text>
+                            </View>
+                        )}
                     </View>
 
                     {/* Price */}
@@ -149,10 +155,25 @@ const ProductDetailScreen = () => {
             </ScrollView>
 
             <View style={styles.footer}>
-                {product.inStock
-                    ? <GradientButton title={`Add ${qty > 1 ? qty + '× ' : ''}to Cart — ${product.currency}${(product.price * qty).toLocaleString()}`} icon="cart-plus" onPress={handleAddToCart} />
-                    : <View style={styles.oosBanner}><MaterialCommunityIcons name="cart-off" size={18} color={Colors.textSecondary} /><Text style={styles.oosText}>Out of Stock — Currently Unavailable</Text></View>
-                }
+                {!product.inStock && (
+                    <View style={styles.oosBanner}>
+                        <MaterialCommunityIcons name="cart-off" size={18} color={Colors.textSecondary} />
+                        <Text style={styles.oosText}>Out of Stock — Currently Unavailable</Text>
+                    </View>
+                )}
+                {product.inStock && product.deliveryUnavailable && (
+                    <View style={styles.deliveryUnavailableFooter}>
+                        <MaterialCommunityIcons name="map-marker-off" size={18} color={Colors.warning} />
+                        <Text style={styles.deliveryUnavailableFooterText}>Delivery not available at your location</Text>
+                    </View>
+                )}
+                {product.inStock && !product.deliveryUnavailable && (
+                    <GradientButton
+                        title={`Add ${qty > 1 ? qty + '× ' : ''}to Cart — ${product.currency}${(product.price * qty).toLocaleString()}`}
+                        icon="cart-plus"
+                        onPress={handleAddToCart}
+                    />
+                )}
             </View>
 
             <Snackbar visible={snackVisible} onDismiss={() => setSnackVisible(false)} duration={2200} style={{ backgroundColor: Colors.success }}>
@@ -212,6 +233,10 @@ const styles = StyleSheet.create({
     footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: Layout.spacing.lg, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.divider, ...Layout.shadow.xl },
     oosBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, backgroundColor: Colors.surfaceVariant, borderRadius: Layout.radius.md },
     oosText: { color: Colors.textSecondary, fontSize: 13 },
+    deliveryUnavailableBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.warningLight ?? '#FFF3E0', paddingHorizontal: 8, paddingVertical: 3, borderRadius: Layout.radius.full },
+    deliveryUnavailableText: { fontSize: 11, color: Colors.warning, fontWeight: '600' },
+    deliveryUnavailableFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, backgroundColor: '#FFF3E0', borderRadius: Layout.radius.md },
+    deliveryUnavailableFooterText: { color: Colors.warning, fontSize: 13, fontWeight: '600' },
 });
 
 export default ProductDetailScreen;

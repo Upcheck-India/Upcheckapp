@@ -19,6 +19,13 @@ const TRACKING_STEPS: { status: OrderStatus; label: string; icon: string }[] = [
 
 const STATUS_ORDER = TRACKING_STEPS.map(s => s.status);
 
+const PAYMENT_LABELS: Record<string, string> = {
+    cod:   'Cash on Delivery',
+    upi:   'UPI',
+    gpay:  'Google Pay',
+    paytm: 'Paytm',
+};
+
 const OrderDetailScreen = () => {
     const navigation = useNavigation<any>();
     const route = useRoute<any>();
@@ -163,6 +170,12 @@ const OrderDetailScreen = () => {
                             {order.deliveryFee === 0 ? 'FREE' : `₹${order.deliveryFee}`}
                         </Text>
                     </View>
+                    {order.gst > 0 && (
+                        <View style={styles.priceRow}>
+                            <Text style={styles.priceLabel}>GST (18%)</Text>
+                            <Text style={styles.priceValue}>₹{order.gst.toFixed(2)}</Text>
+                        </View>
+                    )}
                     <Divider style={{ marginVertical: 8 }} />
                     <View style={styles.priceRow}>
                         <Text style={styles.totalLabel}>Total Paid</Text>
@@ -170,7 +183,7 @@ const OrderDetailScreen = () => {
                     </View>
                     <View style={styles.priceRow}>
                         <Text style={styles.priceLabel}>Payment Method</Text>
-                        <Text style={styles.priceValue}>Cash on Delivery</Text>
+                        <Text style={styles.priceValue}>{PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod}</Text>
                     </View>
                 </View>
 

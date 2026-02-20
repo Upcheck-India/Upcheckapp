@@ -58,7 +58,7 @@ const EShopScreen = () => {
     };
 
     const handleAddToCart = (product: Product) => {
-        if (!product.inStock) return;
+        if (!product.inStock || product.deliveryUnavailable) return;
         addItem(product);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     };
@@ -73,13 +73,19 @@ const EShopScreen = () => {
                 activeOpacity={0.85}
             >
                 <View style={styles.imageContainer}>
-                    <Image source={{ uri: item.imageUrl }} style={[styles.productImage, !item.inStock && { opacity: 0.5 }]} />
-                    {discount > 0 && item.inStock && (
+                    <Image source={{ uri: item.imageUrl }} style={[styles.productImage, (!item.inStock || item.deliveryUnavailable) && { opacity: 0.5 }]} />
+                    {discount > 0 && item.inStock && !item.deliveryUnavailable && (
                         <View style={styles.discountBadge}><Text style={styles.discountText}>{discount}% OFF</Text></View>
                     )}
                     {!item.inStock && (
                         <View style={styles.outOfStockOverlay}>
                             <Text style={styles.outOfStockText}>Out of Stock</Text>
+                        </View>
+                    )}
+                    {item.inStock && item.deliveryUnavailable && (
+                        <View style={styles.deliveryUnavailableOverlay}>
+                            <MaterialCommunityIcons name="map-marker-off" size={12} color="#fff" />
+                            <Text style={styles.outOfStockText}>Not in your area</Text>
                         </View>
                     )}
                 </View>
@@ -96,12 +102,17 @@ const EShopScreen = () => {
                     <Text style={styles.price}>{item.currency}{item.price.toLocaleString()}</Text>
                     {originalPrice && <Text style={styles.originalPrice}>{item.currency}{originalPrice.toLocaleString()}</Text>}
                     <TouchableOpacity
-                        style={[styles.addCartBtn, !item.inStock && styles.addCartBtnDisabled]}
+                        style={[styles.addCartBtn, (!item.inStock || item.deliveryUnavailable) && styles.addCartBtnDisabled]}
                         onPress={() => handleAddToCart(item)}
-                        disabled={!item.inStock}
+                        disabled={!item.inStock || !!item.deliveryUnavailable}
                     >
-                        <MaterialCommunityIcons name={item.inStock ? 'cart-plus' : 'cart-off'} size={14} color="#fff" />
-                        <Text style={styles.addCartText}>{item.inStock ? 'Add' : 'Unavailable'}</Text>
+                        <MaterialCommunityIcons
+                            name={!item.inStock ? 'cart-off' : item.deliveryUnavailable ? 'map-marker-off' : 'cart-plus'}
+                            size={14} color="#fff"
+                        />
+                        <Text style={styles.addCartText}>
+                            {!item.inStock ? 'Unavailable' : item.deliveryUnavailable ? 'No delivery' : 'Add'}
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </TouchableOpacity>
@@ -212,6 +223,7 @@ const styles = StyleSheet.create({
     discountText: { color: '#fff', fontSize: 10, fontWeight: '700' },
     outOfStockOverlay: { position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
     outOfStockText: { color: '#fff', fontWeight: '700', fontSize: 11, backgroundColor: Colors.error, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4 },
+    deliveryUnavailableOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(80,40,0,0.72)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 4 },
     cardBody: { padding: 10 },
     productName: { fontSize: 13, color: Colors.text, lineHeight: 18, height: 36, marginBottom: 2 },
     unitText: { fontSize: 10, color: Colors.textTertiary, marginBottom: 4 },
