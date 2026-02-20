@@ -234,14 +234,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // ── Google OAuth ─────────────────────────────────────────────────────────
     const signInWithGoogle = async () => {
         try {
-            const redirectUrl = Linking.createURL('auth');
+            // Use the static custom scheme URL.
+            // Chrome Custom Tab's internal BroadcastReceiver intercepts this redirect
+            // before Android's OS-level intent routing, so it works in Expo Go too.
+            // Dynamic exp://IP:PORT URLs are problematic because Chrome Custom Tab may
+            // hand them off to Expo Go as a new experience instead of intercepting them.
+            const redirectUrl = 'upcheckapp://auth';
             console.log(LOG, 'signInWithGoogle() — redirectUrl:', redirectUrl);
 
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
                     redirectTo: redirectUrl,
-                    skipBrowserRedirect: true, // Required for React Native — we open the browser manually
+                    skipBrowserRedirect: true,
                     queryParams: { access_type: 'offline', prompt: 'consent' },
                 },
             });
@@ -253,39 +258,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 throw new Error('Failed to start Google sign-in. Please try again.');
             }
             console.log(LOG, 'signInWithOAuth result — OAuth URL generated: YES');
-            console.log(LOG, 'Opening browser — redirectUrl:', redirectUrl);
 
             const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
             console.log(LOG, 'openAuthSessionAsync result — type:', result.type, '| url:', (result as any).url ?? 'none');
 
             if (result.type === 'success' && (result as any).url) {
-                // iOS / direct browser capture: URL returned directly
                 await processAuthUrl((result as any).url);
                 return;
             }
 
-            // Android path: browser dismisses when OS opens the app via deep link.
-            // The useEffect Linking listener fires with code= and calls exchangeCodeForSession.
-            // We wait up to 4 s for onAuthStateChange to establish the session.
-            console.log(LOG, 'Browser dismissed (Android deep-link path) — waiting for session…');
+            // Fallback: Chrome Custom Tab may have dismissed instead of intercepting
+            // (older Android). Wait up to 5 s for the Linking event to fire and
+            // exchangeCodeForSession to complete via the useEffect listener.
+            console.log(LOG, 'Browser dismissed — waiting up to 5 s for Linking event + session…');
             let waited = 0;
             let sessionFound = false;
-            while (waited < 4000) {
+            while (waited < 5000) {
                 await new Promise(r => setTimeout(r, 500));
                 waited += 500;
                 const { data: { session: s } } = await supabase.auth.getSession();
                 if (s) { sessionFound = true; break; }
             }
             if (sessionFound) {
-                console.log(LOG, 'Session established after deep-link');
+                console.log(LOG, 'Session established via Linking fallback');
                 return;
             }
-            // Truly cancelled or Supabase redirect URL not registered
             console.warn(LOG, 'No session after waiting — result.type:', result.type);
             throw new Error(
                 result.type === 'cancel'
                     ? 'Google sign-in was cancelled.'
-                    : 'Google sign-in failed. Make sure the redirect URL is registered in Supabase:\n' + redirectUrl
+                    : 'Google sign-in failed. Please try again.'
             );
         } catch (err: any) {
             console.error(LOG, 'signInWithGoogle() catch:', err.message);
