@@ -2,7 +2,7 @@ import axios from 'axios';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = Constants.expoConfig?.extra?.apiUrl
+const API_URL = Constants.expoConfig?.extra?.apiBaseUrl
     || process.env.EXPO_PUBLIC_API_URL
     || 'http://localhost:8080/api';
 
