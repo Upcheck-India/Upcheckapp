@@ -2,7 +2,9 @@ import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
-import { SupabaseAuthService } from '../supabase-auth.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from '../user.entity';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -10,7 +12,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     constructor(
         private configService: ConfigService,
-        private supabaseAuthService: SupabaseAuthService,
+        @InjectRepository(User)
+        private usersRepository: Repository<User>,
     ) {
         // Supabase JWTs are HS256, signed with the project's JWT secret.
         // Find it at: Supabase Dashboard → Settings → API → JWT Secret
@@ -37,12 +40,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         }
 
         try {
-            const user = await this.supabaseAuthService.getUserById(payload.sub);
+            const user = await this.usersRepository.findOne({ where: { id: payload.sub } });
             if (user) {
-                this.logger.log(`validate() — found user in Supabase public.users: id=${user.id} email=${user.email}`);
+                this.logger.log(`validate() — found user in local database: id=${user.id} email=${user.email}`);
                 return user;
             } else {
-                this.logger.warn(`validate() — user ${payload.sub} NOT found. Falling back to JWT payload.`);
+                this.logger.warn(`validate() — user ${payload.sub} NOT found locally. Falling back to JWT payload.`);
             }
         } catch (err: any) {
             this.logger.error(`validate() — DB lookup threw: ${err.message}. Falling back to JWT payload.`);

@@ -3,10 +3,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } f
 import { AlertsService } from './alerts.service';
 import { CreateAlertDto } from './dto/create-alert.dto';
 
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
 @Controller('alerts')
-@UseGuards(JwtAuthGuard)
 export class AlertsController {
     constructor(private readonly alertsService: AlertsService) { }
 

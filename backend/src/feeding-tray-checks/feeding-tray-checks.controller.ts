@@ -2,10 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } f
 import { FeedingTrayChecksService } from './feeding-tray-checks.service';
 import { CreateFeedingTrayCheckDto } from './dto/create-feeding-tray-check.dto';
 import { UpdateFeedingTrayCheckDto } from './dto/update-feeding-tray-check.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
 @Controller('feeding-tray-checks')
-@UseGuards(JwtAuthGuard)
 export class FeedingTrayChecksController {
     constructor(private readonly feedingTrayChecksService: FeedingTrayChecksService) { }
 

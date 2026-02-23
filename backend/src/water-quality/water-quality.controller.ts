@@ -5,12 +5,10 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Ba
 import { WaterQualityService } from './water-quality.service';
 import { CreateWaterQualityRecordDto } from './dto/create-water-quality-record.dto';
 import { UpdateWaterQualityRecordDto } from './dto/update-water-quality-record.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PageOptionsDto } from '../common/dto/page-options.dto';
 import { PageDto } from '../common/dto/page.dto';
 
 @Controller('water-quality')
-@UseGuards(JwtAuthGuard)
 export class WaterQualityController {
     constructor(private readonly waterQualityService: WaterQualityService) { }
 

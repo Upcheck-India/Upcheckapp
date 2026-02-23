@@ -5,10 +5,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Ba
 import { CropsService } from './crops.service';
 import { CreateCropDto } from './dto/create-crop.dto';
 import { UpdateCropDto } from './dto/update-crop.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
 @Controller('crops')
-@UseGuards(JwtAuthGuard)
 export class CropsController {
     constructor(private readonly cropsService: CropsService) { }
 

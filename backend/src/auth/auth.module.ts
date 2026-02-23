@@ -7,16 +7,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { EmailService } from '../email.service';
 import { User } from './user.entity';
-import { OtpCode } from './otp-code.entity';
-import { RefreshToken } from './refresh-token.entity';
-import { LoginHistory } from './login-history.entity';
 import { SupabaseAuthService } from './supabase-auth.service';
 import { SupabaseAuthController } from './supabase-auth.controller';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, OtpCode, RefreshToken, LoginHistory]),
+    TypeOrmModule.forFeature([User]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -3,10 +3,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Re
 import { SamplingService } from './sampling.service';
 import { CreateSamplingDto } from './dto/create-sampling.dto';
 import { UpdateSamplingDto } from './dto/update-sampling.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
 @Controller('sampling')
-@UseGuards(JwtAuthGuard)
 export class SamplingController {
     constructor(private readonly samplingService: SamplingService) { }
 

@@ -3,12 +3,10 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode,
 import { ProfilesService } from './profiles.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Public } from '../auth/decorators/auth.decorators';
 import { EmailService } from '../email.service';
 
 @Controller('profiles')
-@UseGuards(JwtAuthGuard)
 export class ProfilesController {
     private readonly logger = new Logger(ProfilesController.name);
 

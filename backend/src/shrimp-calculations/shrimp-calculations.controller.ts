@@ -1,6 +1,5 @@
 import { Controller, Post, Body, Get, Query, UseGuards } from '@nestjs/common';
 import { ShrimpCalculationsService } from './shrimp-calculations.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
     CalculateFcrDto,
     CalculateAdgDto,
@@ -12,7 +11,6 @@ import {
 import { CultivationPerformanceDto, FreeAmmoniaDto, ProductDosageDto } from './dto/advanced-calculations.dto';
 
 @Controller('shrimp-calculations')
-@UseGuards(JwtAuthGuard)
 export class ShrimpCalculationsController {
     constructor(private readonly calculationsService: ShrimpCalculationsService) { }
 

@@ -2,10 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } f
 import { TreatmentsService } from './treatments.service';
 import { CreateTreatmentDto } from './dto/create-treatment.dto';
 import { UpdateTreatmentDto } from './dto/update-treatment.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
 @Controller('treatments')
-@UseGuards(JwtAuthGuard)
 export class TreatmentsController {
     constructor(private readonly treatmentsService: TreatmentsService) { }
 

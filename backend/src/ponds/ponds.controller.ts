@@ -9,10 +9,7 @@ import { PondsService } from './ponds.service';
 import { CreatePondDto } from './dto/create-pond.dto';
 import { UpdatePondDto } from './dto/update-pond.dto';
 import { PageOptionsDto } from '../common/dto/page-options.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
 @Controller('ponds')
-@UseGuards(JwtAuthGuard)
 export class PondsController {
     constructor(private readonly pondsService: PondsService) { }
 

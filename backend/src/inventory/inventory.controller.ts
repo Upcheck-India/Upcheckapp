@@ -5,10 +5,7 @@ import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
 import { PageOptionsDto } from '../common/dto/page-options.dto';
 import { PageDto } from '../common/dto/page.dto';
 
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
 @Controller('inventory')
-@UseGuards(JwtAuthGuard)
 export class InventoryController {
     constructor(private readonly inventoryService: InventoryService) { }
 

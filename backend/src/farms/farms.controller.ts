@@ -5,10 +5,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@n
 import { FarmsService } from './farms.service';
 import { CreateFarmDto } from './dto/create-farm.dto';
 import { UpdateFarmDto } from './dto/update-farm.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
 @Controller('farms')
-@UseGuards(JwtAuthGuard)
 export class FarmsController {
     constructor(private readonly farmsService: FarmsService) { }
 
