@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Request } from '@nestjs/common';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
 import { AlertsService } from './alerts.service';
 import { CreateAlertDto } from './dto/create-alert.dto';
 
@@ -15,18 +16,18 @@ export class AlertsController {
     }
 
     @Get('me')
-    findMine(@Request() req, @Query('unreadOnly') unreadOnly?: string) {
-        return this.alertsService.findByUser(req.user.id, unreadOnly === 'true');
+    findMine(@CurrentUser() user, @Query('unreadOnly') unreadOnly?: string) {
+        return this.alertsService.findByUser(user.id, unreadOnly === 'true');
     }
 
     @Get('me/count')
-    getMineUnreadCount(@Request() req) {
-        return this.alertsService.getUnreadCount(req.user.id);
+    getMineUnreadCount(@CurrentUser() user) {
+        return this.alertsService.getUnreadCount(user.id);
     }
 
     @Patch('me/read-all')
-    markMineAllAsRead(@Request() req) {
-        return this.alertsService.markAllAsRead(req.user.id);
+    markMineAllAsRead(@CurrentUser() user) {
+        return this.alertsService.markAllAsRead(user.id);
     }
 
     @Get('user/:userId')

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards, Req, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { SupabaseAuthService } from './supabase-auth.service';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -6,7 +6,7 @@ import type { User } from '@supabase/supabase-js';
 
 @Controller('auth/supabase')
 export class SupabaseAuthController {
-    constructor(private supabaseAuthService: SupabaseAuthService) {}
+    constructor(private supabaseAuthService: SupabaseAuthService) { }
 
     // ==================== Email/Password Auth ====================
 
@@ -90,7 +90,7 @@ export class SupabaseAuthController {
     @UseGuards(SupabaseAuthGuard)
     async signout(@Req() request: any) {
         const token = request.headers.authorization?.substring(7); // Remove 'Bearer '
-        
+
         if (!token) {
             throw new UnauthorizedException('No token provided');
         }

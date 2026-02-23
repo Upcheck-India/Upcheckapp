@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConflictException } from '@nestjs/common';
@@ -24,6 +25,7 @@ describe('PondNamingService', () => {
 
         const module: TestingModule = await Test.createTestingModule({
             providers: [
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
                 PondNamingService,
                 {
                     provide: getRepositoryToken(Pond),

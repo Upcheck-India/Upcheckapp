@@ -8,6 +8,8 @@ import { UpdateFeedRecordDto } from './dto/update-feed-record.dto';
 import { PondsService } from '../ponds/ponds.service';
 
 import { InventoryService } from '../inventory/inventory.service';
+import { PageOptionsDto } from '../common/dto/page-options.dto';
+import { PageMetaDto, PageDto } from '../common/dto/page.dto';
 
 @Injectable()
 export class FeedRecordsService {
@@ -28,29 +30,34 @@ export class FeedRecordsService {
         }
 
         const record = this.recordsRepository.create({
-            ...createDto,
+            pondId: createDto.pondId,
             cropId: pond.activeCycleId,
+            feedType: createDto.feedType,
+            feedBrand: createDto.feedBrand,
+            quantityKg: createDto.quantityKg,
+            feedingTime: createDto.feedingTime,
+            feedingMethod: createDto.feedingMethod,
+            waterTemperature: createDto.waterTemperature,
+            notes: createDto.notes,
+            inventoryItemId: createDto.inventoryItemId,
         });
         return this.recordsRepository.save(record);
     }
 
-    async findAll(pondId?: string, options?: { skip?: number; take?: number }) {
-        const take = options?.take || 50;
-        const skip = options?.skip || 0;
+    async findAll(pondId?: string, pageOptionsDto?: PageOptionsDto): Promise<PageDto<FeedRecord>> {
+        const skip = pageOptionsDto?.skip || 0;
+        const take = pageOptionsDto?.take || 10;
+        const order = pageOptionsDto?.order || 'DESC';
 
-        if (pondId) {
-            return this.recordsRepository.findAndCount({
-                where: { pondId },
-                order: { recordedAt: 'DESC' },
-                take,
-                skip,
-            });
-        }
-        return this.recordsRepository.findAndCount({
-            order: { recordedAt: 'DESC' },
+        const [items, itemCount] = await this.recordsRepository.findAndCount({
+            where: pondId ? { pondId } : {},
+            order: { recordedAt: order },
             take,
             skip,
         });
+
+        const pageMetaDto = new PageMetaDto({ itemCount, pageOptionsDto: pageOptionsDto || { page: 1, take } });
+        return new PageDto(items, pageMetaDto);
     }
 
     findOne(id: string) {

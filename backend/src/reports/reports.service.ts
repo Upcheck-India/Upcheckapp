@@ -4,6 +4,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { FeedRecordsService } from '../feed-records/feed-records.service';
 import { HarvestsService } from '../harvests/harvests.service';
 import { ExpensesService } from '../finances/expenses.service';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class ReportsService {
@@ -13,6 +14,7 @@ export class ReportsService {
         private readonly feedRecordsService: FeedRecordsService,
         private readonly harvestsService: HarvestsService,
         private readonly expensesService: ExpensesService,
+        private readonly redisService: RedisService,
     ) { }
 
     async getDashboardSummary(userId: string, farmId?: string) {
@@ -25,24 +27,37 @@ export class ReportsService {
             };
         }
 
-        // 1. Active Ponds
-        // Handle paginated response structure { ponds, total, ... }
-        const result = await this.pondsService.findAll(farmId, userId);
-        const ponds = result.ponds || [];
-        const activePonds = ponds.filter(p => p.activeCycleId);
+        const cacheKey = `dashboard_summary:${userId}:${farmId}`;
+        const cachedData = await this.redisService.get(cacheKey);
 
-        // 2. Low Stock Alerts
-        const lowStockItems = await this.inventoryService.getLowStock(farmId);
+        if (cachedData) {
+            return JSON.parse(cachedData);
+        }
 
-        // 3. Feed Usage Today
-        const todayFeedUsage = await this.feedRecordsService.getDailyFeedUsage(farmId, new Date());
+        // Execute independent queries concurrently
+        const [
+            activePondsCount,
+            totalPondsCount,
+            lowStockAlerts,
+            todayFeedUsage,
+        ] = await Promise.all([
+            this.pondsService.countActivePonds(farmId),
+            this.pondsService.countTotalPonds(farmId),
+            this.inventoryService.countLowStock(farmId),
+            this.feedRecordsService.getDailyFeedUsage(farmId, new Date()),
+        ]);
 
-        return {
-            activePondsCount: activePonds.length,
-            totalPondsCount: ponds.length,
-            lowStockAlerts: lowStockItems.length,
+        const summaryData = {
+            activePondsCount,
+            totalPondsCount,
+            lowStockAlerts,
             todayFeedUsage,
         };
+
+        // Cache the dashboard summary for 5 minutes (300 seconds)
+        await this.redisService.set(cacheKey, JSON.stringify(summaryData), 'EX', 300);
+
+        return summaryData;
     }
 
     async getCycleAnalysis(cycleId: string) {

@@ -5,6 +5,8 @@ import { WaterQualityRecord } from './water-quality-record.entity';
 import { CreateWaterQualityRecordDto } from './dto/create-water-quality-record.dto';
 import { UpdateWaterQualityRecordDto } from './dto/update-water-quality-record.dto';
 import { PondsService } from '../ponds/ponds.service';
+import { PageOptionsDto } from '../common/dto/page-options.dto';
+import { PageMetaDto, PageDto } from '../common/dto/page.dto';
 
 @Injectable()
 export class WaterQualityService {
@@ -22,25 +24,24 @@ export class WaterQualityService {
         return this.recordsRepository.save(record);
     }
 
-    async findAll(pondId: string, userId: string) {
+    async findAll(pondId: string, userId: string, pageOptionsDto?: PageOptionsDto): Promise<PageDto<WaterQualityRecord>> {
         if (!pondId) {
-            // If no pondId is provided, we can't easily filter by user unless we join all the way to farms.
-            // For now, let's enforce pondId requirement or implement a more complex query.
-            // Given the context, it seems reasonable to require pondId or return [] if not provided/handle globally.
-            // However, to be safe and consistent, let's require pondId for now as per the controller usage pattern, or return empty list.
-            // But wait, the controller had optional pondId. If strict user isolation is needed, we should query:
-            // records where pond.farm.userId = userId.
-            // For simplicity and performance, let's assume the client always filters by pondId because fetching ALL records for a user across all ponds is a heavy dashboard query we might not have yet.
-            return [];
+            return new PageDto([], new PageMetaDto({ itemCount: 0, pageOptionsDto: pageOptionsDto || { page: 1, take: 10 } }));
         }
 
-        // Verify user owns the pond
-        await this.pondsService.verifyOwner(pondId, userId);
+        const skip = pageOptionsDto?.skip || 0;
+        const take = pageOptionsDto?.take || 10;
+        const order = pageOptionsDto?.order || 'DESC';
 
-        return this.recordsRepository.find({
+        const [items, itemCount] = await this.recordsRepository.findAndCount({
             where: { pondId },
-            order: { recordedAt: 'DESC' },
+            order: { recordedAt: order },
+            take,
+            skip,
         });
+
+        const pageMetaDto = new PageMetaDto({ itemCount, pageOptionsDto: pageOptionsDto || { page: 1, take } });
+        return new PageDto(items, pageMetaDto);
     }
 
     async findByPond(pondId: string, userId: string, startDate?: Date, endDate?: Date) {

@@ -35,4 +35,9 @@ export class CreateFarmDto {
     @IsOptional()
     @IsArray()
     boundary?: { latitude: number, longitude: number }[];
+
+    @IsString()
+    @IsOptional()
+    qrCodeUrl?: string;
+
 }

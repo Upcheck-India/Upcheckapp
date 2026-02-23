@@ -20,9 +20,13 @@ export class ExpensesService {
         const pond = await this.pondsService.findOne(createDto.pondId, userId);
 
         const expense = this.expensesRepository.create({
-            ...createDto,
-            userId,
+            pondId: createDto.pondId,
             cropId: createDto.cropId || pond.activeCycleId, // Auto-link to active cycle if exists
+            amount: createDto.amount,
+            category: createDto.category,
+            description: createDto.description,
+            date: createDto.date,
+            userId,
         });
 
         return this.expensesRepository.save(expense);

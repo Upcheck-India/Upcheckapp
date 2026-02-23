@@ -1,4 +1,5 @@
-import { Controller, Get, Query, Param, UseGuards, Request } from '@nestjs/common';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -8,8 +9,8 @@ export class ReportsController {
     constructor(private readonly reportsService: ReportsService) { }
 
     @Get('dashboard')
-    async getDashboardSummary(@Request() req, @Query('farmId') farmId?: string) {
-        return this.reportsService.getDashboardSummary(req.user.id, farmId);
+    async getDashboardSummary(@CurrentUser() user, @Query('farmId') farmId?: string) {
+        return this.reportsService.getDashboardSummary(user.id, farmId);
     }
 
     @Get('cycle/:id/analysis')

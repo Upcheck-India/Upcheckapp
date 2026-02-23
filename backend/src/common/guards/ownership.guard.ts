@@ -1,0 +1,86 @@
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { DataSource } from 'typeorm';
+import { OWNS_RESOURCE_KEY, OwnsResourceOptions } from '../decorators/owns-resource.decorator';
+
+@Injectable()
+export class OwnershipGuard implements CanActivate {
+    constructor(
+        private reflector: Reflector,
+        private dataSource: DataSource
+    ) { }
+
+    async canActivate(context: ExecutionContext): Promise<boolean> {
+        const options = this.reflector.getAllAndOverride<OwnsResourceOptions>(
+            OWNS_RESOURCE_KEY,
+            [context.getHandler(), context.getClass()]
+        );
+
+        if (!options) {
+            return true; // No decorator means no ownership check required
+        }
+
+        const request = context.switchToHttp().getRequest();
+        const user = request.user;
+
+        // Find the resource ID in params, then body, then query
+        const resourceId = request.params[options.paramName] ||
+            (request.body && request.body[options.paramName]) ||
+            (request.query && request.query[options.paramName]);
+
+        if (!user || !user.id) {
+            throw new ForbiddenException('User is not authenticated or id is missing');
+        }
+
+        if (!resourceId) {
+            throw new NotFoundException(`Resource ID (${options.paramName}) missing in request`);
+        }
+
+        // We use the entity metadata to dynamically fetch and check ownership
+        const entityMetadata = this.dataSource.getMetadata(options.entityType);
+        if (!entityMetadata) {
+            throw new Error(`Entity ${options.entityType} not found in TypeORM`);
+        }
+
+        const repository = this.dataSource.getRepository(options.entityType);
+
+        // Parse the ownerPath to automatically load relations
+        // e.g. 'farm.userId' -> load ['farm']
+        // e.g. 'pond.farm.userId' -> load ['pond', 'pond.farm']
+        const pathParts = options.ownerPath.split('.');
+        const relations: string[] = [];
+        let currentRelation = '';
+
+        for (let i = 0; i < pathParts.length - 1; i++) {
+            currentRelation = currentRelation ? `${currentRelation}.${pathParts[i]}` : pathParts[i];
+            relations.push(currentRelation);
+        }
+
+        // Find the record by ID, including necessary relations
+        const findOptions: any = { where: { id: resourceId } };
+        if (relations.length > 0) {
+            findOptions.relations = relations;
+        }
+
+        const record = await repository.findOne(findOptions);
+
+        if (!record) {
+            throw new NotFoundException(`Resource of type ${options.entityType} not found`);
+        }
+
+        // Resolve the actual owner ID from the object path
+        let actualOwnerId: any = record;
+        for (const part of pathParts) {
+            if (actualOwnerId) {
+                actualOwnerId = actualOwnerId[part];
+            }
+        }
+
+        // Check ownership
+        if (actualOwnerId !== user.id) {
+            throw new ForbiddenException(`You do not have permission to access this ${options.entityType}`);
+        }
+
+        return true;
+    }
+}

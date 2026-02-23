@@ -7,6 +7,7 @@ import { FeedRecordsModule } from '../feed-records/feed-records.module';
 import { HarvestsModule } from '../harvests/harvests.module';
 import { FinancesModule } from '../finances/finances.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
     imports: [
@@ -15,7 +16,8 @@ import { InventoryModule } from '../inventory/inventory.module';
         FeedRecordsModule,
         HarvestsModule,
         FinancesModule,
-        InventoryModule
+        InventoryModule,
+        RedisModule
     ],
     controllers: [ReportsController],
     providers: [ReportsService],

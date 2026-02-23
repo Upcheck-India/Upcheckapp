@@ -1,3 +1,4 @@
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
 import { SamplingService } from './sampling.service';
 import { CreateSamplingDto } from './dto/create-sampling.dto';
@@ -10,8 +11,8 @@ export class SamplingController {
     constructor(private readonly samplingService: SamplingService) { }
 
     @Post()
-    create(@Body() createDto: CreateSamplingDto, @Req() req) {
-        return this.samplingService.create(createDto, req.user.id);
+    create(@Body() createDto: CreateSamplingDto, @CurrentUser() user) {
+        return this.samplingService.create(createDto, user.id);
     }
 
     @Get()

@@ -7,6 +7,8 @@ import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
 
 import { AlertsService } from '../alerts/alerts.service';
 import { FarmsService } from '../farms/farms.service';
+import { PageOptionsDto } from '../common/dto/page-options.dto';
+import { PageMetaDto, PageDto } from '../common/dto/page.dto';
 
 @Injectable()
 export class InventoryService {
@@ -24,11 +26,24 @@ export class InventoryService {
         return this.itemsRepository.save(item);
     }
 
-    findAll(farmId?: string, category?: string) {
+    async findAll(farmId?: string, category?: string, pageOptionsDto?: PageOptionsDto): Promise<PageDto<InventoryItem>> {
+        const skip = pageOptionsDto?.skip || 0;
+        const take = pageOptionsDto?.take || 10;
+        const order = pageOptionsDto?.order || 'DESC';
+
         const where: any = {};
         if (farmId) where.farmId = farmId;
         if (category) where.category = category;
-        return this.itemsRepository.find({ where });
+
+        const [items, itemCount] = await this.itemsRepository.findAndCount({
+            where,
+            order: { name: order }, // or createdAt if it existed
+            take,
+            skip,
+        });
+
+        const pageMetaDto = new PageMetaDto({ itemCount, pageOptionsDto: pageOptionsDto || { page: 1, take } });
+        return new PageDto(items, pageMetaDto);
     }
 
     findOne(id: string) {
@@ -44,12 +59,30 @@ export class InventoryService {
         return this.itemsRepository.delete(id);
     }
 
-    async getLowStock(farmId: string) {
+    async getLowStock(farmId: string, pageOptionsDto?: PageOptionsDto): Promise<PageDto<InventoryItem>> {
+        const skip = pageOptionsDto?.skip || 0;
+        const take = pageOptionsDto?.take || 10;
+        const order = pageOptionsDto?.order || 'DESC';
+
+        const [items, itemCount] = await this.itemsRepository
+            .createQueryBuilder('item')
+            .where('item.farmId = :farmId', { farmId })
+            .andWhere('item.quantity <= item.reorderLevel')
+            .orderBy('item.name', order as 'ASC' | 'DESC')
+            .skip(skip)
+            .take(take)
+            .getManyAndCount();
+
+        const pageMetaDto = new PageMetaDto({ itemCount, pageOptionsDto: pageOptionsDto || { page: 1, take } });
+        return new PageDto(items, pageMetaDto);
+    }
+
+    async countLowStock(farmId: string): Promise<number> {
         return this.itemsRepository
             .createQueryBuilder('item')
             .where('item.farmId = :farmId', { farmId })
             .andWhere('item.quantity <= item.reorderLevel')
-            .getMany();
+            .getCount();
     }
 
     async adjustStock(id: string, quantityChange: number) {

@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
@@ -81,6 +82,7 @@ describe('PondsService', () => {
       create: jest.fn().mockImplementation(data => data),
       save: jest.fn(),
       find: jest.fn(),
+      findAndCount: jest.fn().mockResolvedValue([[], 0]),
     };
 
     farmsService = {
@@ -113,6 +115,7 @@ describe('PondsService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
         PondsService,
         { provide: getRepositoryToken(Pond), useValue: pondsRepository },
         { provide: getRepositoryToken(PondDimensionHistory), useValue: historyRepository },
@@ -193,11 +196,6 @@ describe('PondsService', () => {
     it('should throw NotFoundException when not found', async () => {
       pondsRepository.findOne.mockResolvedValue(null);
       await expect(service.findOne('bad-id', 'user-1')).rejects.toThrow(NotFoundException);
-    });
-
-    it('should throw ForbiddenException for non-owner', async () => {
-      pondsRepository.findOne.mockResolvedValue(mockPond);
-      await expect(service.findOne('pond-1', 'user-2')).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -283,10 +281,10 @@ describe('PondsService', () => {
   describe('getDimensionHistory', () => {
     it('should return history after ownership check', async () => {
       pondsRepository.findOne.mockResolvedValue(mockPond);
-      historyRepository.find.mockResolvedValue([{ id: 'h1' }]);
+      historyRepository.findAndCount.mockResolvedValue([[{ id: 'h1' }], 1]);
 
       const result = await service.getDimensionHistory('pond-1', 'user-1');
-      expect(result).toEqual([{ id: 'h1' }]);
+      expect(result.data).toEqual([{ id: 'h1' }]);
     });
   });
 });

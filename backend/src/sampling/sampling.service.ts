@@ -20,8 +20,16 @@ export class SamplingService {
         const pond = await this.pondsService.findOne(createDto.pondId, userId);
 
         const record = this.samplingRepository.create({
-            ...createDto,
+            pondId: createDto.pondId,
             cropId: pond.activeCycleId,
+            samplingDate: createDto.samplingDate,
+            mbwG: createDto.mbwG,
+            totalSamples: createDto.totalSamples,
+            stdDeviation: createDto.stdDeviation,
+            biomassEstimationKg: createDto.biomassEstimationKg,
+            srEstimationPercent: createDto.srEstimationPercent,
+            notes: createDto.notes,
+            photoUrls: createDto.photoUrls,
         });
         return this.samplingRepository.save(record);
     }

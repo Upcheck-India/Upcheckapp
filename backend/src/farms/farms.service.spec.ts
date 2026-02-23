@@ -1,8 +1,9 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { FarmsService } from './farms.service';
 import { Farm } from './farm.entity';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 
 describe('FarmsService', () => {
   let service: FarmsService;
@@ -37,6 +38,7 @@ describe('FarmsService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
         FarmsService,
         { provide: getRepositoryToken(Farm), useValue: repository },
       ],
@@ -48,33 +50,6 @@ describe('FarmsService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
-
-  // ── verifyOwnership ────────────────────────────────────────
-
-  describe('verifyOwnership', () => {
-    it('should return farm when user is owner', async () => {
-      repository.findOneBy.mockResolvedValue(mockFarm);
-      const result = await service.verifyOwnership('farm-1', 'user-1');
-      expect(result).toEqual(mockFarm);
-    });
-
-    it('should throw NotFoundException when farm not found', async () => {
-      repository.findOneBy.mockResolvedValue(null);
-      await expect(service.verifyOwnership('bad-id', 'user-1')).rejects.toThrow(NotFoundException);
-    });
-
-    it('should throw NotFoundException for soft-deleted farm', async () => {
-      repository.findOneBy.mockResolvedValue({ ...mockFarm, deletedAt: new Date() });
-      await expect(service.verifyOwnership('farm-1', 'user-1')).rejects.toThrow(NotFoundException);
-    });
-
-    it('should throw ForbiddenException when user is not owner', async () => {
-      repository.findOneBy.mockResolvedValue(mockFarm);
-      await expect(service.verifyOwnership('farm-1', 'user-2')).rejects.toThrow(ForbiddenException);
-    });
-  });
-
-  // ── create ─────────────────────────────────────────────────
 
   describe('create', () => {
     it('should create farm with auto-generated farm code', async () => {
@@ -101,8 +76,6 @@ describe('FarmsService', () => {
     });
   });
 
-  // ── findAll ────────────────────────────────────────────────
-
   describe('findAll', () => {
     it('should return all farms for user', async () => {
       repository.find.mockResolvedValue([mockFarm]);
@@ -112,31 +85,40 @@ describe('FarmsService', () => {
     });
   });
 
-  // ── update ─────────────────────────────────────────────────
-
-  describe('update', () => {
-    it('should update farm after verifying ownership', async () => {
+  describe('findOne', () => {
+    it('should return farm', async () => {
       repository.findOneBy.mockResolvedValue(mockFarm);
-      repository.update.mockResolvedValue(undefined);
-
-      const result = await service.update('farm-1', { name: 'Updated' }, 'user-1');
-      expect(repository.update).toHaveBeenCalledWith('farm-1', { name: 'Updated' });
+      const result = await service.findOne('farm-1');
+      expect(result).toEqual(mockFarm);
     });
 
-    it('should throw ForbiddenException for non-owner', async () => {
-      repository.findOneBy.mockResolvedValue(mockFarm);
-      await expect(service.update('farm-1', { name: 'X' }, 'user-2')).rejects.toThrow(ForbiddenException);
+    it('should throw NotFoundException when farm not found', async () => {
+      repository.findOneBy.mockResolvedValue(null);
+      await expect(service.findOne('bad-id')).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException for soft-deleted farm', async () => {
+      repository.findOneBy.mockResolvedValue({ ...mockFarm, deletedAt: new Date() });
+      await expect(service.findOne('farm-1')).rejects.toThrow(NotFoundException);
     });
   });
 
-  // ── remove (soft delete) ───────────────────────────────────
+  describe('update', () => {
+    it('should update farm', async () => {
+      repository.findOneBy.mockResolvedValue(mockFarm);
+      repository.update.mockResolvedValue(undefined);
+
+      const result = await service.update('farm-1', { name: 'Updated' });
+      expect(repository.update).toHaveBeenCalledWith('farm-1', { name: 'Updated' });
+    });
+  });
 
   describe('remove', () => {
     it('should soft-delete farm with deletedAt', async () => {
       repository.findOneBy.mockResolvedValue(mockFarm);
       repository.update.mockResolvedValue(undefined);
 
-      const result = await service.remove('farm-1', 'user-1');
+      const result = await service.remove('farm-1');
       expect(repository.update).toHaveBeenCalledWith('farm-1', expect.objectContaining({
         deletedAt: expect.any(Date),
       }));

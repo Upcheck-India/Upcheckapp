@@ -4,8 +4,6 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { EmailService } from '../email.service';
 import { User } from './user.entity';
@@ -31,9 +29,8 @@ import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
       }),
     }),
   ],
-  controllers: [AuthController, SupabaseAuthController],
+  controllers: [SupabaseAuthController],
   providers: [
-    AuthService,
     EmailService,
     SupabaseAuthService,
     SupabaseAuthGuard,
@@ -42,6 +39,6 @@ import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
       useClass: JwtAuthGuard,
     },
   ],
-  exports: [AuthService, PassportModule, SupabaseAuthService],
+  exports: [PassportModule, SupabaseAuthService],
 })
 export class AuthModule { }

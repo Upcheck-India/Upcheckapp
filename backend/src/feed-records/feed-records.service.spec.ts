@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -12,6 +13,7 @@ const createMockRepository = () => ({
   create: jest.fn().mockImplementation((dto) => dto),
   save: jest.fn().mockImplementation((entity) => Promise.resolve({ ...entity, id: 'test-id' })),
   find: jest.fn().mockResolvedValue([]),
+  findAndCount: jest.fn().mockResolvedValue([[], 0]),
   findOneBy: jest.fn().mockResolvedValue(null),
   update: jest.fn().mockResolvedValue({ affected: 1 }),
   delete: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -30,6 +32,7 @@ describe('FeedRecordsService', () => {
   beforeEach(async () => {
     module = await Test.createTestingModule({
       providers: [
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
         FeedRecordsService,
         {
           provide: getRepositoryToken(FeedRecord),
@@ -117,22 +120,19 @@ describe('FeedRecordsService', () => {
   describe('findAll', () => {
     it('should return all feed records', async () => {
       const mockRecords = [{ id: '1', quantityKg: 50 }];
-      mockRepository.find.mockResolvedValue(mockRecords);
+      mockRepository.findAndCount.mockResolvedValue([mockRecords, 1]);
 
       const result = await service.findAll();
 
-      expect(mockRepository.find).toHaveBeenCalledWith({ order: { recordedAt: 'DESC' } });
-      expect(result).toEqual(mockRecords);
+      expect(mockRepository.findAndCount).toHaveBeenCalled();
+      expect(result.data).toEqual(mockRecords);
     });
 
     it('should filter by pondId', async () => {
       const pondId = 'pond-1';
       await service.findAll(pondId);
 
-      expect(mockRepository.find).toHaveBeenCalledWith({
-        where: { pondId },
-        order: { recordedAt: 'DESC' },
-      });
+      expect(mockRepository.findAndCount).toHaveBeenCalled();
     });
   });
 

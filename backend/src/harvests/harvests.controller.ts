@@ -1,3 +1,4 @@
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Controller, Get, Post, Body, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
 import { HarvestsService } from './harvests.service';
 import { CreateHarvestDto } from './dto/create-harvest.dto';
@@ -9,8 +10,8 @@ export class HarvestsController {
     constructor(private readonly harvestsService: HarvestsService) { }
 
     @Post()
-    create(@Body() createDto: CreateHarvestDto, @Req() req) {
-        return this.harvestsService.create(createDto, req.user.id);
+    create(@Body() createDto: CreateHarvestDto, @CurrentUser() user) {
+        return this.harvestsService.create(createDto, user.id);
     }
 
     @Get()

@@ -64,7 +64,14 @@ export class FarmsService {
         const farmCode = createFarmDto.farmCode || await this.generateFarmCode();
 
         const farm = this.farmsRepository.create({
-            ...createFarmDto,
+            name: createFarmDto.name,
+            areaHectares: createFarmDto.areaHectares,
+            address: createFarmDto.address,
+            longitude: createFarmDto.longitude,
+            latitude: createFarmDto.latitude,
+            waterSourceType: createFarmDto.waterSourceType as any,
+            qrCodeUrl: createFarmDto.qrCodeUrl,
+            privacySetting: createFarmDto.privacySetting as any,
             userId,
             farmCode,
         });
@@ -77,18 +84,18 @@ export class FarmsService {
         });
     }
 
-    async findOne(id: string, userId: string) {
-        return this.verifyOwnership(id, userId);
+    async findOne(id: string) {
+        const farm = await this.farmsRepository.findOneBy({ id });
+        if (!farm || farm.deletedAt) throw new NotFoundException(`Farm with ID ${id} not found`);
+        return farm;
     }
 
-    async update(id: string, updateFarmDto: UpdateFarmDto, userId: string) {
-        await this.verifyOwnership(id, userId);
+    async update(id: string, updateFarmDto: UpdateFarmDto) {
         await this.farmsRepository.update(id, updateFarmDto);
-        return this.verifyOwnership(id, userId);
+        return this.findOne(id);
     }
 
-    async remove(id: string, userId: string) {
-        await this.verifyOwnership(id, userId);
+    async remove(id: string) {
         // Soft delete
         await this.farmsRepository.update(id, { deletedAt: new Date() });
         return { message: 'Farm archived successfully' };

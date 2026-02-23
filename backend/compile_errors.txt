@@ -1,0 +1,20 @@
+src/auth/guards/jwt-auth.guard.spec.ts(9,13): error TS2554: Expected 2 arguments, but got 1.
+src/auth/strategies/jwt.strategy.ts(5,29): error TS2307: Cannot find module '../auth.service' or its corresponding type declarations.
+src/auth/supabase-auth.controller.ts(95,23): error TS2304: Cannot find name 'UnauthorizedException'.
+src/common/guards/ownership.guard.ts(56,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'never'.
+src/farms/farms.controller.spec.ts(54,57): error TS2554: Expected 1 arguments, but got 2.
+src/farms/farms.controller.spec.ts(60,49): error TS2554: Expected 1 arguments, but got 2.
+src/farms/farms.controller.spec.ts(65,49): error TS2554: Expected 1 arguments, but got 2.
+src/farms/farms.controller.spec.ts(71,84): error TS2554: Expected 2 arguments, but got 3.
+src/farms/farms.controller.spec.ts(78,56): error TS2554: Expected 1 arguments, but got 2.
+src/farms/farms.service.ts(73,38): error TS2339: Property 'qrCodeUrl' does not exist on type 'CreateFarmDto'.
+src/feed-records/feed-records.controller.ts(16,58): error TS2304: Cannot find name 'user'.
+src/finances/expenses.controller.ts(13,55): error TS2304: Cannot find name 'user'.
+src/harvests/harvests.controller.ts(13,55): error TS2304: Cannot find name 'user'.
+src/ponds/ponds.service.spec.ts(219,53): error TS2353: Object literal may only specify known properties, and 'changeReason' does not exist in type 'UpdatePondDto'.
+src/ponds/ponds.service.ts(234,45): error TS2339: Property 'changeReason' does not exist on type 'UpdatePondDto'.
+src/ponds/ponds.service.ts(252,21): error TS2339: Property 'changeReason' does not exist on type 'UpdatePondDto'.
+src/ponds/ponds.service.ts(257,46): error TS2339: Property 'activeCycleId' does not exist on type 'UpdatePondDto'.
+src/ponds/ponds.service.ts(260,21): error TS2339: Property 'changeReason' does not exist on type 'UpdatePondDto'.
+src/ponds/ponds.service.ts(263,46): error TS2339: Property 'activeCycleId' does not exist on type 'UpdatePondDto'.
+src/sampling/sampling.controller.ts(14,55): error TS2304: Cannot find name 'user'.
