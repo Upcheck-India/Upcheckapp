@@ -5,7 +5,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 import { feedApi } from '../../api/feedRecords';
 
 export const FeedLogScreen = ({ route, navigation }: any) => {
@@ -64,7 +64,7 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Feed Entry</Text>
                 <View style={{ width: 40 }} />
@@ -82,12 +82,12 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                         <Switch
                             value={fasting}
                             onValueChange={setFasting}
-                            trackColor={{ false: Colors.border, true: Colors.primaryLight }}
-                            thumbColor={fasting ? Colors.primary : '#f4f3f4'}
+                            trackColor={{ false: theme.roles.light.borderDefault, true: theme.roles.light.infoBg }}
+                            thumbColor={fasting ? theme.roles.light.primary : '#f4f3f4'}
                         />
                     </View>
 
-                    <View style={[styles.dateInput, { marginTop: spacing.md }]}>
+                    <View style={[styles.dateInput, { marginTop: theme.spacing[4] }]}>
                         <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
                     </View>
                 </Card>
@@ -164,39 +164,39 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.md,
+        paddingVertical: theme.spacing[4],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
-        backgroundColor: Colors.surface,
+        borderBottomColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surface,
     },
     backBtn: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
     },
     title: {
-        ...typography.h3,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
     },
     content: {
-        padding: spacing.md,
-        paddingBottom: spacing.xxl,
+        padding: theme.spacing[4],
+        paddingBottom: theme.spacing[12],
     },
     subtitle: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
-        marginBottom: spacing.md,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[4],
     },
     card: {
-        marginBottom: spacing.lg,
+        marginBottom: theme.spacing[6],
     },
     sectionTitle: {
-        ...typography.h4,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
         marginBottom: 4,
     },
     labelDesc: {
-        ...typography.bodySmall,
-        color: Colors.textSecondary,
-        marginBottom: spacing.sm,
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[3],
     },
     fastingRow: {
         flexDirection: 'row',
@@ -204,13 +204,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     dateInput: {
-        paddingTop: spacing.md,
+        paddingTop: theme.spacing[4],
         borderTopWidth: 1,
-        borderTopColor: Colors.divider,
+        borderTopColor: theme.roles.light.borderDefault,
     },
     trayGrid: {
         flexDirection: 'row',
-        gap: spacing.md,
+        gap: theme.spacing[4],
     },
     trayItem: {
         flex: 1,
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
         textAlignVertical: 'top',
     },
     saveBtn: {
-        marginTop: spacing.md,
-        marginBottom: spacing.xl,
+        marginTop: theme.spacing[4],
+        marginBottom: theme.spacing[8],
     },
 });

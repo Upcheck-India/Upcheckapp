@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 
 export const ProfileScreen = ({ navigation }: any) => {
     // Mock user profile data
@@ -22,13 +22,13 @@ export const ProfileScreen = ({ navigation }: any) => {
                 <View style={styles.headerTop}>
                     <Text style={styles.headerTitle}>Profile</Text>
                     <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-                        <MaterialCommunityIcons name="cog" size={24} color={Colors.surface} />
+                        <MaterialCommunityIcons name="cog" size={24} color={theme.roles.light.surface} />
                     </TouchableOpacity>
                 </View>
 
                 <View style={styles.profileInfoContainer}>
                     <View style={styles.avatarContainer}>
-                        <MaterialCommunityIcons name="account" size={48} color={Colors.primary} />
+                        <MaterialCommunityIcons name="account" size={48} color={theme.roles.light.primary} />
                     </View>
                     <Text style={styles.userName}>{userProfile.name}</Text>
                     <Text style={styles.userRole}>{userProfile.role}</Text>
@@ -38,7 +38,7 @@ export const ProfileScreen = ({ navigation }: any) => {
             <ScrollView contentContainerStyle={styles.content}>
                 <Card style={styles.infoCard}>
                     <View style={styles.infoRow}>
-                        <MaterialCommunityIcons name="email" size={20} color={Colors.textSecondary} />
+                        <MaterialCommunityIcons name="email" size={20} color={theme.roles.light.textSecondary} />
                         <View style={styles.infoTextContainer}>
                             <Text style={styles.infoLabel}>Email Address</Text>
                             <Text style={styles.infoValue}>{userProfile.email}</Text>
@@ -46,7 +46,7 @@ export const ProfileScreen = ({ navigation }: any) => {
                     </View>
 
                     <View style={styles.infoRow}>
-                        <MaterialCommunityIcons name="calendar" size={20} color={Colors.textSecondary} />
+                        <MaterialCommunityIcons name="calendar" size={20} color={theme.roles.light.textSecondary} />
                         <View style={styles.infoTextContainer}>
                             <Text style={styles.infoLabel}>Member Since</Text>
                             <Text style={styles.infoValue}>{new Date(userProfile.joinedAt).toLocaleDateString()}</Text>
@@ -54,7 +54,7 @@ export const ProfileScreen = ({ navigation }: any) => {
                     </View>
 
                     <View style={[styles.infoRow, styles.noBorder]}>
-                        <MaterialCommunityIcons name="water" size={20} color={Colors.textSecondary} />
+                        <MaterialCommunityIcons name="water" size={20} color={theme.roles.light.textSecondary} />
                         <View style={styles.infoTextContainer}>
                             <Text style={styles.infoLabel}>Farms Managed</Text>
                             <Text style={styles.infoValue}>{userProfile.farmsManaged}</Text>
@@ -75,22 +75,22 @@ export const ProfileScreen = ({ navigation }: any) => {
 
 const styles = StyleSheet.create({
     headerBackground: {
-        backgroundColor: Colors.primary,
-        paddingTop: spacing.xxl,
-        paddingBottom: spacing.xl,
-        borderBottomLeftRadius: radius.xl,
-        borderBottomRightRadius: radius.xl,
+        backgroundColor: theme.roles.light.primary,
+        paddingTop: theme.spacing[12],
+        paddingBottom: theme.spacing[8],
+        borderBottomLeftRadius: theme.radius.xl,
+        borderBottomRightRadius: theme.radius.xl,
     },
     headerTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: spacing.md,
-        marginBottom: spacing.md,
+        paddingHorizontal: theme.spacing[4],
+        marginBottom: theme.spacing[4],
     },
     headerTitle: {
-        ...typography.h3,
-        color: Colors.surface,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.surface,
     },
     profileInfoContainer: {
         alignItems: 'center',
@@ -99,10 +99,10 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: Colors.surface,
+        backgroundColor: theme.roles.light.surface,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: spacing.sm,
+        marginBottom: theme.spacing[3],
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
@@ -110,47 +110,47 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     userName: {
-        ...typography.h2,
-        color: Colors.surface,
+        ...theme.typeScale.h2,
+        color: theme.roles.light.surface,
         marginBottom: 4,
     },
     userRole: {
-        ...typography.bodyMedium,
-        color: Colors.surface + 'CC', // 80% opacity
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.surface + 'CC', // 80% opacity
     },
     content: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
     },
     infoCard: {
-        padding: spacing.md,
-        marginBottom: spacing.lg,
-        marginTop: -spacing.md, // Overlap the header slightly
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[6],
+        marginTop: -theme.spacing[4], // Overlap the header slightly
     },
     infoRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        paddingVertical: spacing.md,
+        paddingVertical: theme.spacing[4],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
+        borderBottomColor: theme.roles.light.borderDefault,
     },
     noBorder: {
         borderBottomWidth: 0,
         paddingBottom: 0,
     },
     infoTextContainer: {
-        marginLeft: spacing.md,
+        marginLeft: theme.spacing[4],
     },
     infoLabel: {
-        ...typography.labelSmall,
-        color: Colors.textSecondary,
+        ...theme.typeScale.labelSmall,
+        color: theme.roles.light.textSecondary,
         marginBottom: 2,
     },
     infoValue: {
-        ...typography.bodyLarge,
-        color: Colors.textPrimary,
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textPrimary,
         fontWeight: '500',
     },
     editBtn: {
-        marginTop: spacing.md,
+        marginTop: theme.spacing[4],
     },
 });

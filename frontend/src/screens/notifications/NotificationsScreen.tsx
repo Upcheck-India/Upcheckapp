@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 
 interface Notification {
     id: string;
@@ -55,10 +55,10 @@ export const NotificationsScreen = ({ navigation }: any) => {
 
     const getIconColor = (type: Notification['type']) => {
         switch (type) {
-            case 'alert': return Colors.error;
-            case 'info': return Colors.info;
-            case 'success': return Colors.success;
-            default: return Colors.primary;
+            case 'alert': return theme.roles.light.dangerText;
+            case 'info': return theme.roles.light.infoBorder;
+            case 'success': return theme.roles.light.successText;
+            default: return theme.roles.light.primary;
         }
     };
 
@@ -92,11 +92,11 @@ export const NotificationsScreen = ({ navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Notifications</Text>
                 <TouchableOpacity onPress={markAllAsRead} style={styles.actionBtn}>
-                    <MaterialCommunityIcons name="check-all" size={24} color={Colors.primary} />
+                    <MaterialCommunityIcons name="check-all" size={24} color={theme.roles.light.primary} />
                 </TouchableOpacity>
             </View>
 
@@ -107,7 +107,7 @@ export const NotificationsScreen = ({ navigation }: any) => {
                 contentContainerStyle={styles.listContent}
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
-                        <MaterialCommunityIcons name="bell-outline" size={64} color={Colors.border} />
+                        <MaterialCommunityIcons name="bell-outline" size={64} color={theme.roles.light.borderDefault} />
                         <Text style={styles.emptyTitle}>All Caught Up!</Text>
                         <Text style={styles.emptyText}>You have no new notifications.</Text>
                     </View>
@@ -122,56 +122,56 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.md,
-        backgroundColor: Colors.surface,
+        paddingVertical: theme.spacing[4],
+        backgroundColor: theme.roles.light.surface,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
+        borderBottomColor: theme.roles.light.borderDefault,
     },
-    backBtn: { padding: spacing.md },
-    actionBtn: { padding: spacing.md },
-    title: { ...typography.h3, color: Colors.textPrimary },
+    backBtn: { padding: theme.spacing[4] },
+    actionBtn: { padding: theme.spacing[4] },
+    title: { ...theme.typeScale.h3, color: theme.roles.light.textPrimary },
     listContent: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
     },
     card: {
         flexDirection: 'row',
-        padding: spacing.md,
-        marginBottom: spacing.sm,
-        backgroundColor: Colors.surface,
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[3],
+        backgroundColor: theme.roles.light.surface,
     },
     unreadCard: {
-        backgroundColor: Colors.primary + '05', // Very light primary tint
+        backgroundColor: theme.roles.light.primary + '05', // Very light primary tint
     },
     iconContainer: {
-        marginRight: spacing.md,
+        marginRight: theme.spacing[4],
         marginTop: 2,
     },
     contentContainer: {
         flex: 1,
     },
     titleText: {
-        ...typography.bodyLarge,
-        color: Colors.textPrimary,
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textPrimary,
         marginBottom: 4,
     },
     unreadText: {
         fontWeight: 'bold',
     },
     messageText: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
-        marginBottom: spacing.xs,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[2],
     },
     dateText: {
-        ...typography.labelSmall,
-        color: Colors.textDisabled,
+        ...theme.typeScale.labelSmall,
+        color: theme.roles.light.textDisabled,
     },
     unreadDot: {
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: Colors.primary,
-        marginTop: spacing.sm,
+        backgroundColor: theme.roles.light.primary,
+        marginTop: theme.spacing[3],
     },
     emptyState: {
         alignItems: 'center',
@@ -179,13 +179,13 @@ const styles = StyleSheet.create({
         paddingTop: 80,
     },
     emptyTitle: {
-        ...typography.h4,
-        color: Colors.textPrimary,
-        marginTop: spacing.md,
-        marginBottom: spacing.xs,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginTop: theme.spacing[4],
+        marginBottom: theme.spacing[2],
     },
     emptyText: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
     },
 });

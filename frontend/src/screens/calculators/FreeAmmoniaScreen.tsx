@@ -5,7 +5,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 import { calculatorsApi, FreeAmmoniaResponse } from '../../api/calculators';
 
 export const FreeAmmoniaScreen = ({ navigation }: any) => {
@@ -43,7 +43,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Free Ammonia Calculator</Text>
                 <View style={{ width: 40 }} />
@@ -77,10 +77,10 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                         <MaterialCommunityIcons
                             name={result.toxicLevel ? "alert-circle" : "check-circle"}
                             size={48}
-                            color={result.toxicLevel ? Colors.error : Colors.success}
+                            color={result.toxicLevel ? theme.roles.light.dangerText : theme.roles.light.successText}
                             style={styles.resultIcon}
                         />
-                        <Text style={[styles.resultLabel, { color: result.toxicLevel ? Colors.error : Colors.success }]}>
+                        <Text style={[styles.resultLabel, { color: result.toxicLevel ? theme.roles.light.dangerText : theme.roles.light.successText }]}>
                             Free Ammonia (NH₃) Limit
                         </Text>
                         <Text style={styles.resultValue}>{result.freeAmmonia.toFixed(4)} mg/L</Text>
@@ -102,77 +102,77 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.md,
+        paddingVertical: theme.spacing[4],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
-        backgroundColor: Colors.surface,
+        borderBottomColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surface,
     },
     backBtn: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
     },
     title: {
-        ...typography.h3,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
     },
     content: {
-        padding: spacing.md,
-        paddingBottom: spacing.xxl,
+        padding: theme.spacing[4],
+        paddingBottom: theme.spacing[12],
     },
     card: {
-        marginBottom: spacing.lg,
+        marginBottom: theme.spacing[6],
     },
     sectionTitle: {
-        ...typography.h4,
-        color: Colors.textPrimary,
-        marginBottom: spacing.md,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[4],
     },
     row: {
         flexDirection: 'row',
-        gap: spacing.md,
+        gap: theme.spacing[4],
     },
     halfCol: {
         flex: 1,
     },
     calcBtn: {
-        marginTop: spacing.md,
+        marginTop: theme.spacing[4],
     },
     resultBox: {
-        padding: spacing.xl,
-        borderRadius: radius.md,
+        padding: theme.spacing[8],
+        borderRadius: theme.radius.md,
         alignItems: 'center',
         borderWidth: 2,
-        marginTop: spacing.md,
+        marginTop: theme.spacing[4],
     },
     resultBoxSafe: {
-        backgroundColor: Colors.success + '15',
-        borderColor: Colors.success,
+        backgroundColor: theme.roles.light.successText + '15',
+        borderColor: theme.roles.light.successText,
     },
     resultBoxToxic: {
-        backgroundColor: Colors.error + '15',
-        borderColor: Colors.error,
+        backgroundColor: theme.roles.light.dangerText + '15',
+        borderColor: theme.roles.light.dangerText,
     },
     resultIcon: {
-        marginBottom: spacing.sm,
+        marginBottom: theme.spacing[3],
     },
     resultLabel: {
-        ...typography.h4,
-        marginBottom: spacing.xs,
+        ...theme.typeScale.h4,
+        marginBottom: theme.spacing[2],
     },
     resultValue: {
         fontSize: 40,
         fontWeight: '700',
-        color: Colors.textPrimary,
-        marginBottom: spacing.md,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[4],
     },
     toxicText: {
-        ...typography.bodyMedium,
-        color: Colors.error,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.dangerText,
         textAlign: 'center',
         fontWeight: '600',
     },
     safeText: {
-        ...typography.bodyMedium,
-        color: Colors.success,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.successText,
         textAlign: 'center',
         fontWeight: '600',
     },

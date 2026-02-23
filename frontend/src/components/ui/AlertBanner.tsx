@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Colors, typography, spacing } from '../../theme';
+import { theme } from '../../theme';
 
 interface AlertBannerProps {
     title: string;
@@ -22,35 +22,35 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({
         switch (type) {
             case 'critical':
                 return {
-                    bg: Colors.statusCriticalBg,
-                    text: Colors.statusCriticalText,
-                    border: Colors.error,
-                    defaultIcon: 'alert-circle' as const,
+                    icon: 'alert-circle',
+                    bg: theme.roles.light.dangerBg,
+                    text: theme.roles.light.dangerText,
+                    border: theme.roles.light.dangerBorder,
                 };
             case 'info':
                 return {
-                    bg: Colors.statusInfoBg,
-                    text: Colors.statusInfoText,
-                    border: Colors.info,
-                    defaultIcon: 'information' as const,
+                    icon: 'information',
+                    bg: theme.roles.light.infoBg,
+                    text: theme.roles.light.infoText,
+                    border: theme.roles.light.infoBorder,
                 };
             case 'warning':
             default:
                 return {
-                    bg: Colors.statusWarningBg,
-                    text: Colors.statusWarningText,
-                    border: Colors.warning,
-                    defaultIcon: 'alert' as const,
+                    icon: 'alert',
+                    bg: theme.roles.light.warningBg,
+                    text: theme.roles.light.warningText,
+                    border: theme.roles.light.warningBorder,
                 };
         }
     };
 
     const config = getConfig();
-    const iconName = icon || config.defaultIcon;
+    const iconName = icon || config.icon;
 
     return (
         <View style={[styles.container, { backgroundColor: config.bg, borderLeftColor: config.border }, style]}>
-            <MaterialCommunityIcons name={iconName} size={24} color={config.border} style={styles.icon} />
+            <MaterialCommunityIcons name={iconName as keyof typeof MaterialCommunityIcons.glyphMap} size={24} color={config.border} style={styles.iconContainer} />
             <View style={styles.content}>
                 <Text style={[styles.title, { color: config.border }]}>{title}</Text>
                 {message && <Text style={[styles.message, { color: config.text }]}>{message}</Text>}
@@ -62,22 +62,26 @@ export const AlertBanner: React.FC<AlertBannerProps> = ({
 const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
-        padding: spacing.md,
-        borderLeftWidth: 4,
-        marginBottom: spacing.md,
+        paddingHorizontal: theme.tokens.alertBanner.paddingH,
+        paddingVertical: theme.tokens.alertBanner.paddingV,
+        borderRadius: theme.tokens.alertBanner.borderRadius,
+        borderLeftWidth: theme.tokens.alertBanner.borderLeftWidth,
+        marginBottom: theme.spacing[4],
     },
-    icon: {
-        marginRight: spacing.sm,
+    iconContainer: {
+        marginRight: theme.spacing[3],
         marginTop: 2,
     },
     content: {
         flex: 1,
     },
     title: {
-        ...typography.labelLarge,
-        marginBottom: 2,
+        fontFamily: 'DMSans-SemiBold',
+        fontSize: 14,
+        marginBottom: theme.spacing[1],
     },
     message: {
-        ...typography.bodyMedium,
+        fontFamily: theme.tokens.alertBanner.fontFamily,
+        fontSize: theme.tokens.alertBanner.fontSize,
     },
 });

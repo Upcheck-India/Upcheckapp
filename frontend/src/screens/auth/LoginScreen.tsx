@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, Alert } from 'react-native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
 
@@ -35,7 +35,7 @@ export const LoginScreen = ({ navigation }: any) => {
     };
 
     return (
-        <ScreenWrapper backgroundColor={Colors.primary} keyboardAvoiding>
+        <ScreenWrapper backgroundColor={theme.roles.light.primary} keyboardAvoiding>
             <View style={styles.header}>
                 <Text style={styles.logo}>🦐</Text>
                 <Text style={styles.title}>UpCheck</Text>
@@ -107,44 +107,44 @@ const styles = StyleSheet.create({
     },
     logo: {
         fontSize: 56,
-        marginBottom: spacing.sm,
+        marginBottom: theme.spacing[3],
     },
     title: {
-        ...typography.h1,
-        color: Colors.textInverse,
-        marginBottom: spacing.xs,
+        ...theme.typeScale.h1,
+        color: theme.roles.light.textInverse,
+        marginBottom: theme.spacing[2],
     },
     subtitle: {
-        ...typography.bodyMedium,
+        ...theme.typeScale.bodyMedium,
         color: 'rgba(255,255,255,0.8)',
     },
     card: {
-        backgroundColor: Colors.surface,
-        borderTopLeftRadius: radius.xl,
-        borderTopRightRadius: radius.xl,
-        padding: spacing.lg,
-        paddingTop: spacing.xl,
+        backgroundColor: theme.roles.light.surface,
+        borderTopLeftRadius: theme.radius.xl,
+        borderTopRightRadius: theme.radius.xl,
+        padding: theme.spacing[6],
+        paddingTop: theme.spacing[8],
         flex: 1,
     },
     errorBanner: {
-        backgroundColor: Colors.statusCriticalBg,
-        borderRadius: radius.sm,
-        padding: spacing.md,
-        marginBottom: spacing.md,
+        backgroundColor: theme.roles.light.dangerBg,
+        borderRadius: theme.radius.sm,
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[4],
         borderLeftWidth: 3,
-        borderLeftColor: Colors.error,
+        borderLeftColor: theme.roles.light.dangerText,
     },
     errorText: {
-        ...typography.bodySmall,
-        color: Colors.error,
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.dangerText,
     },
     signInBtn: {
-        marginTop: spacing.sm,
-        marginBottom: spacing.sm,
+        marginTop: theme.spacing[3],
+        marginBottom: theme.spacing[3],
     },
     divider: {
         height: 1,
-        backgroundColor: Colors.divider,
-        marginVertical: spacing.md,
+        backgroundColor: theme.roles.light.borderDefault,
+        marginVertical: theme.spacing[4],
     },
 });

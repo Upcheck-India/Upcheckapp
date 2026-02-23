@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Colors } from '../theme';
+import { theme } from '../theme';
 
 // Import screens
 import { HomeScreen } from '../screens/main/HomeScreen';
@@ -22,17 +22,20 @@ export const MainNavigator = () => {
         <Tab.Navigator
             screenOptions={{
                 headerShown: false,
-                tabBarActiveTintColor: Colors.primary,
-                tabBarInactiveTintColor: Colors.textSecondary,
+                tabBarActiveTintColor: theme.tokens.tabBar.activeColor,
+                tabBarInactiveTintColor: theme.tokens.tabBar.inactiveColor,
                 tabBarStyle: {
-                    backgroundColor: Colors.surface,
-                    borderTopColor: Colors.divider,
-                    paddingBottom: 4,
-                    height: 60,
+                    backgroundColor: theme.roles.light.surface,
+                    borderTopWidth: 1,
+                    borderTopColor: theme.roles.light.borderDefault,
+                    paddingTop: 8,
+                    paddingBottom: 8,
+                    height: 64,
+                    ...theme.shadows.md,
                 },
                 tabBarLabelStyle: {
-                    fontSize: 12,
-                    fontWeight: '500',
+                    fontFamily: theme.tokens.tabBar.labelFontFamily,
+                    fontSize: theme.tokens.tabBar.labelFontSize,
                 },
             }}
         >

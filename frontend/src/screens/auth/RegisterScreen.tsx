@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Alert } from 'react-native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
 
@@ -53,7 +53,7 @@ export const RegisterScreen = ({ navigation }: any) => {
                     <Button
                         title="Back to Login"
                         onPress={() => navigation.navigate('Login')}
-                        style={{ marginTop: spacing.lg }}
+                        style={{ marginTop: theme.spacing[6] }}
                     />
                 </View>
             </ScreenWrapper>
@@ -133,7 +133,7 @@ export const RegisterScreen = ({ navigation }: any) => {
                 title="Create Account"
                 onPress={handleRegister}
                 loading={isLoading}
-                style={{ marginTop: spacing.sm }}
+                style={{ marginTop: theme.spacing[3] }}
             />
 
             <GoogleLoginButton onPress={googleLogin} loading={isLoading} />
@@ -142,7 +142,7 @@ export const RegisterScreen = ({ navigation }: any) => {
                 title="Already have an account? Sign In"
                 onPress={() => navigation.navigate('Login')}
                 variant="text"
-                style={{ marginTop: spacing.md }}
+                style={{ marginTop: theme.spacing[4] }}
             />
         </ScreenWrapper>
     );
@@ -150,48 +150,48 @@ export const RegisterScreen = ({ navigation }: any) => {
 
 const styles = StyleSheet.create({
     header: {
-        paddingTop: spacing.xl,
-        paddingBottom: spacing.lg,
+        paddingTop: theme.spacing[8],
+        paddingBottom: theme.spacing[6],
     },
     title: {
-        ...typography.h1,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h1,
+        color: theme.roles.light.textPrimary,
     },
     subtitle: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
-        marginTop: spacing.xs,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        marginTop: theme.spacing[2],
     },
     errorBanner: {
-        backgroundColor: Colors.statusCriticalBg,
-        borderRadius: radius.sm,
-        padding: spacing.md,
-        marginBottom: spacing.md,
+        backgroundColor: theme.roles.light.dangerBg,
+        borderRadius: theme.radius.sm,
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[4],
         borderLeftWidth: 3,
-        borderLeftColor: Colors.error,
+        borderLeftColor: theme.roles.light.dangerText,
     },
     errorText: {
-        ...typography.bodySmall,
-        color: Colors.error,
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.dangerText,
     },
     successContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: spacing.xl,
+        padding: theme.spacing[8],
     },
     successIcon: {
         fontSize: 64,
-        marginBottom: spacing.md,
+        marginBottom: theme.spacing[4],
     },
     successTitle: {
-        ...typography.h2,
-        color: Colors.textPrimary,
-        marginBottom: spacing.sm,
+        ...theme.typeScale.h2,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[3],
     },
     successText: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
         textAlign: 'center',
         lineHeight: 22,
     },

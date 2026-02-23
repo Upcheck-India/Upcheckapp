@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 
 export const SettingsScreen = ({ navigation }: any) => {
     const [offlineSync, setOfflineSync] = useState(true);
@@ -20,7 +20,7 @@ export const SettingsScreen = ({ navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Settings</Text>
                 <View style={{ width: 40 }} />
@@ -32,7 +32,7 @@ export const SettingsScreen = ({ navigation }: any) => {
 
                     <View style={styles.settingRow}>
                         <View style={styles.settingInfo}>
-                            <MaterialCommunityIcons name="cloud-sync" size={24} color={Colors.primary} />
+                            <MaterialCommunityIcons name="cloud-sync" size={24} color={theme.roles.light.primary} />
                             <View style={styles.settingTextContainer}>
                                 <Text style={styles.settingLabel}>Offline Sync</Text>
                                 <Text style={styles.settingDesc}>Cache data for offline usage</Text>
@@ -41,7 +41,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                         <Switch
                             value={offlineSync}
                             onValueChange={setOfflineSync}
-                            trackColor={{ false: Colors.border, true: Colors.primary }}
+                            trackColor={{ false: theme.roles.light.borderDefault, true: theme.roles.light.primary }}
                         />
                     </View>
                 </Card>
@@ -51,7 +51,7 @@ export const SettingsScreen = ({ navigation }: any) => {
 
                     <View style={styles.settingRow}>
                         <View style={styles.settingInfo}>
-                            <MaterialCommunityIcons name="bell-ring" size={24} color={Colors.primary} />
+                            <MaterialCommunityIcons name="bell-ring" size={24} color={theme.roles.light.primary} />
                             <View style={styles.settingTextContainer}>
                                 <Text style={styles.settingLabel}>Push Notifications</Text>
                                 <Text style={styles.settingDesc}>Alerts for water quality & feeding</Text>
@@ -60,13 +60,13 @@ export const SettingsScreen = ({ navigation }: any) => {
                         <Switch
                             value={pushNotifications}
                             onValueChange={setPushNotifications}
-                            trackColor={{ false: Colors.border, true: Colors.primary }}
+                            trackColor={{ false: theme.roles.light.borderDefault, true: theme.roles.light.primary }}
                         />
                     </View>
 
                     <View style={[styles.settingRow, styles.noBottomBorder]}>
                         <View style={styles.settingInfo}>
-                            <MaterialCommunityIcons name="email" size={24} color={Colors.primary} />
+                            <MaterialCommunityIcons name="email" size={24} color={theme.roles.light.primary} />
                             <View style={styles.settingTextContainer}>
                                 <Text style={styles.settingLabel}>Email Summaries</Text>
                                 <Text style={styles.settingDesc}>Weekly performance reports</Text>
@@ -75,7 +75,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                         <Switch
                             value={emailAlerts}
                             onValueChange={setEmailAlerts}
-                            trackColor={{ false: Colors.border, true: Colors.primary }}
+                            trackColor={{ false: theme.roles.light.borderDefault, true: theme.roles.light.primary }}
                         />
                     </View>
                 </Card>
@@ -84,11 +84,11 @@ export const SettingsScreen = ({ navigation }: any) => {
                     <Text style={styles.sectionTitle}>About Upcheck</Text>
                     <TouchableOpacity style={styles.linkRow}>
                         <Text style={styles.linkLabel}>Privacy Policy</Text>
-                        <MaterialCommunityIcons name="chevron-right" size={20} color={Colors.textSecondary} />
+                        <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textSecondary} />
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.linkRow}>
                         <Text style={styles.linkLabel}>Terms of Service</Text>
-                        <MaterialCommunityIcons name="chevron-right" size={20} color={Colors.textSecondary} />
+                        <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textSecondary} />
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.linkRow, styles.noBottomBorder]}>
                         <Text style={styles.linkLabel}>App Version</Text>
@@ -112,34 +112,34 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.md,
-        backgroundColor: Colors.surface,
+        paddingVertical: theme.spacing[4],
+        backgroundColor: theme.roles.light.surface,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
+        borderBottomColor: theme.roles.light.borderDefault,
     },
-    backBtn: { padding: spacing.md },
-    title: { ...typography.h3, color: Colors.textPrimary },
+    backBtn: { padding: theme.spacing[4] },
+    title: { ...theme.typeScale.h3, color: theme.roles.light.textPrimary },
     content: {
-        padding: spacing.md,
-        paddingBottom: spacing.xxl,
+        padding: theme.spacing[4],
+        paddingBottom: theme.spacing[12],
     },
     section: {
-        marginBottom: spacing.md,
-        padding: spacing.md,
+        marginBottom: theme.spacing[4],
+        padding: theme.spacing[4],
     },
     sectionTitle: {
-        ...typography.h4,
-        color: Colors.textPrimary,
-        marginBottom: spacing.md,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[4],
     },
     settingRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.sm,
+        paddingVertical: theme.spacing[3],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
-        marginBottom: spacing.sm,
+        borderBottomColor: theme.roles.light.borderDefault,
+        marginBottom: theme.spacing[3],
     },
     noBottomBorder: {
         borderBottomWidth: 0,
@@ -152,36 +152,36 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     settingTextContainer: {
-        marginLeft: spacing.md,
+        marginLeft: theme.spacing[4],
         flex: 1,
     },
     settingLabel: {
-        ...typography.bodyLarge,
-        color: Colors.textPrimary,
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textPrimary,
         fontWeight: '500',
     },
     settingDesc: {
-        ...typography.bodySmall,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
     },
     linkRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: spacing.md,
+        paddingVertical: theme.spacing[4],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
+        borderBottomColor: theme.roles.light.borderDefault,
     },
     linkLabel: {
-        ...typography.bodyLarge,
-        color: Colors.textPrimary,
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textPrimary,
     },
     versionText: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
     },
     logoutBtn: {
-        marginTop: spacing.md,
-        borderColor: Colors.error,
+        marginTop: theme.spacing[4],
+        borderColor: theme.roles.light.dangerText,
     },
 });

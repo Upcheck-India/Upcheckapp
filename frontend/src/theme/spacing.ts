@@ -1,27 +1,19 @@
-import { ViewStyle } from 'react-native';
-
-// Design System — Spacing (§2.3)
 export const spacing = {
-    xs: 4,
-    sm: 8,
-    md: 16,
-    lg: 24,
-    xl: 32,
-    xxl: 48,
-} as const;
-
-// Border Radius (§2.4)
-export const radius = {
-    sm: 6,
-    md: 12,
-    lg: 16,
-    xl: 24,
-    full: 999,
-} as const;
-
-// Elevation / Shadows (§2.5)
-export const shadows: Record<string, ViewStyle> = {
-    sm: { elevation: 2, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } },
-    md: { elevation: 4, shadowColor: '#000', shadowOpacity: 0.10, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
-    lg: { elevation: 8, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 } },
+    px: 1, // hairline
+    0.5: 2, // 0.5 × 4
+    1: 4, // xs — icon padding, chip inner
+    1.5: 6,
+    2: 8, // sm — tight gap between related elements
+    2.5: 10,
+    3: 12, // md-sm — input vertical padding
+    4: 16, // md — standard content padding
+    5: 20,
+    6: 24, // lg — card padding, section gap
+    7: 28,
+    8: 32, // xl — major section separation
+    10: 40,
+    12: 48, // xxl — screen top padding
+    16: 64,
+    20: 80,
+    24: 96,
 };

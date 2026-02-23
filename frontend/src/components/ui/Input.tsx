@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TextInputProps, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Colors, typography, radius, spacing } from '../../theme';
+import { theme } from '../../theme';
 
 interface InputProps extends TextInputProps {
     label: string;
@@ -9,7 +9,9 @@ interface InputProps extends TextInputProps {
     hint?: string;
     required?: boolean;
     leftIcon?: keyof typeof MaterialCommunityIcons.glyphMap;
+    rightIcon?: keyof typeof MaterialCommunityIcons.glyphMap;
     isPassword?: boolean;
+    multiline?: boolean;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -18,108 +20,157 @@ export const Input: React.FC<InputProps> = ({
     hint,
     required = false,
     leftIcon,
+    rightIcon,
     isPassword = false,
-    style,
+    multiline = false,
     ...props
 }) => {
     const [isFocused, setIsFocused] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
     return (
         <View style={styles.container}>
-            <Text style={styles.label}>
-                {label}
-                {required && <Text style={styles.required}> *</Text>}
-            </Text>
+            <View style={styles.labelHeader}>
+                <Text style={styles.label}>
+                    {label}
+                </Text>
+                {required && <Text style={styles.requiredAsterisk}>*</Text>}
+            </View>
 
             <View
                 style={[
                     styles.inputContainer,
-                    isFocused && styles.inputFocused,
-                    error && styles.inputError,
+                    isFocused && styles.inputContainerFocused,
+                    error && styles.inputContainerError,
                 ]}
             >
                 {leftIcon && (
-                    <MaterialCommunityIcons
-                        name={leftIcon}
-                        size={20}
-                        color={isFocused ? Colors.primary : Colors.textSecondary}
-                        style={styles.leftIcon}
-                    />
+                    <View style={styles.leftIconContainer}>
+                        <MaterialCommunityIcons
+                            name={leftIcon}
+                            size={20}
+                            color={isFocused ? theme.tokens.input.iconColorFocus : theme.tokens.input.iconColor}
+                        />
+                    </View>
                 )}
 
                 <TextInput
-                    style={[styles.input, style]}
-                    placeholderTextColor={Colors.textDisabled}
+                    style={[
+                        styles.input,
+                        leftIcon && styles.inputWithLeftIcon,
+                        (isPassword || rightIcon) && styles.inputWithRightIcon,
+                        multiline && styles.textArea
+                    ]}
+                    placeholderTextColor={theme.tokens.input.placeholderColor}
+                    secureTextEntry={isPassword && !isPasswordVisible}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
-                    secureTextEntry={isPassword && !showPassword}
+                    multiline={multiline}
                     {...props}
                 />
 
                 {isPassword && (
-                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                    <TouchableOpacity
+                        style={styles.rightIconContainer}
+                        onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+                        activeOpacity={0.7}
+                    >
                         <MaterialCommunityIcons
-                            name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                            name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
                             size={20}
-                            color={Colors.textSecondary}
+                            color={theme.tokens.input.placeholderColor}
                         />
                     </TouchableOpacity>
                 )}
+
+                {rightIcon && !isPassword && (
+                    <View style={styles.rightIconContainer}>
+                        <MaterialCommunityIcons
+                            name={rightIcon}
+                            size={20}
+                            color={isFocused ? theme.tokens.input.iconColorFocus : theme.tokens.input.iconColor}
+                        />
+                    </View>
+                )}
             </View>
 
-            {error && <Text style={styles.error}>{error}</Text>}
-            {hint && !error && <Text style={styles.hint}>{hint}</Text>}
+            {error || hint ? (
+                <Text style={[styles.helperText, error && styles.errorText]}>
+                    {error || hint}
+                </Text>
+            ) : null}
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        marginBottom: spacing.md,
+        marginBottom: theme.spacing[4],
+    },
+    labelHeader: {
+        flexDirection: 'row',
+        marginBottom: theme.spacing[1.5],
+        alignItems: 'center',
     },
     label: {
-        ...typography.labelMedium,
-        color: Colors.textPrimary,
-        marginBottom: spacing.xs,
+        fontFamily: theme.tokens.input.labelFontFamily,
+        fontSize: theme.tokens.input.labelFontSize,
+        color: theme.tokens.input.labelColor,
     },
-    required: {
-        color: Colors.error,
+    requiredAsterisk: {
+        color: theme.tokens.input.errorColor,
+        marginLeft: theme.spacing[0.5],
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderWidth: 1.5,
-        borderColor: Colors.border,
-        borderRadius: radius.md,
-        backgroundColor: Colors.surface,
-        paddingHorizontal: spacing.md,
+        backgroundColor: theme.tokens.input.bgDefault,
+        borderWidth: theme.tokens.input.borderWidth,
+        borderColor: theme.tokens.input.borderColor,
+        borderRadius: theme.tokens.input.borderRadius,
+        minHeight: theme.tokens.input.height,
     },
-    inputFocused: {
-        borderColor: Colors.primary,
+    inputContainerFocused: {
+        borderColor: theme.tokens.input.borderColorFocus,
+        backgroundColor: theme.tokens.input.bgFocused,
     },
-    inputError: {
-        borderColor: Colors.error,
+    inputContainerError: {
+        borderColor: theme.tokens.input.borderColorError,
     },
-    leftIcon: {
-        marginRight: spacing.sm,
+    leftIconContainer: {
+        paddingLeft: theme.tokens.input.paddingH,
+        justifyContent: 'center',
+    },
+    rightIconContainer: {
+        paddingRight: theme.tokens.input.paddingH,
+        justifyContent: 'center',
     },
     input: {
         flex: 1,
-        ...typography.bodyMedium,
-        color: Colors.textPrimary,
-        paddingVertical: spacing.md - 2,
+        paddingHorizontal: theme.tokens.input.paddingH,
+        paddingVertical: theme.tokens.input.paddingV,
+        fontFamily: theme.tokens.input.fontFamily,
+        fontSize: theme.tokens.input.fontSize,
+        color: theme.tokens.input.textColor,
     },
-    eyeIcon: {
-        padding: spacing.xs,
+    inputWithLeftIcon: {
+        paddingLeft: theme.spacing[2],
     },
-    error: {
-        ...typography.bodySmall,
-        color: Colors.error,
-        marginTop: spacing.xs,
+    inputWithRightIcon: {
+        paddingRight: theme.spacing[2],
     },
-    hint: {
-        ...typography.caption,
-        marginTop: spacing.xs,
+    textArea: {
+        textAlignVertical: 'top',
+        minHeight: 100,
+    },
+    helperText: {
+        fontFamily: theme.tokens.input.fontFamily,
+        fontSize: theme.tokens.input.helperFontSize,
+        color: theme.tokens.input.helperColor,
+        marginTop: theme.spacing[1],
+        marginLeft: theme.spacing[1],
+    },
+    errorText: {
+        color: theme.tokens.input.errorColor,
     },
 });

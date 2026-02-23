@@ -3,7 +3,7 @@ import { View, StyleSheet, Alert } from 'react-native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Colors, spacing } from '../../theme';
+import { Colors, spacing, theme } from '../../theme';
 import { farmsApi } from '../../api/farms';
 
 export const CreateFarmScreen = ({ navigation }: any) => {
@@ -75,9 +75,9 @@ export const CreateFarmScreen = ({ navigation }: any) => {
 
 const styles = StyleSheet.create({
     formContainer: {
-        paddingTop: spacing.md,
+        paddingTop: theme.spacing[4],
     },
     saveBtn: {
-        marginTop: spacing.lg,
+        marginTop: theme.spacing[6],
     },
 });

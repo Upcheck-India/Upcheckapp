@@ -5,7 +5,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 import { pondsApi } from '../../api/ponds';
 
 export const CreatePondScreen = ({ route, navigation }: any) => {
@@ -93,7 +93,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                         <MaterialCommunityIcons
                             name="rectangle-outline"
                             size={24}
-                            color={shape === 'rectangular' ? Colors.primary : Colors.textSecondary}
+                            color={shape === 'rectangular' ? theme.roles.light.primary : theme.roles.light.textSecondary}
                         />
                         <Text style={[styles.toggleText, shape === 'rectangular' && styles.toggleTextActive]}>Rectangular</Text>
                     </TouchableOpacity>
@@ -105,7 +105,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                         <MaterialCommunityIcons
                             name="circle-outline"
                             size={24}
-                            color={shape === 'circular' ? Colors.primary : Colors.textSecondary}
+                            color={shape === 'circular' ? theme.roles.light.primary : theme.roles.light.textSecondary}
                         />
                         <Text style={[styles.toggleText, shape === 'circular' && styles.toggleTextActive]}>Circular</Text>
                     </TouchableOpacity>
@@ -144,64 +144,64 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
 
 const styles = StyleSheet.create({
     formContainer: {
-        paddingTop: spacing.md,
+        paddingTop: theme.spacing[4],
     },
     row: {
         flexDirection: 'row',
-        gap: spacing.md,
+        gap: theme.spacing[4],
     },
     halfCol: {
         flex: 1,
     },
     label: {
-        ...typography.labelMedium,
-        color: Colors.textPrimary,
-        marginBottom: spacing.xs,
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[2],
     },
     toggleRow: {
         flexDirection: 'row',
-        gap: spacing.md,
-        marginBottom: spacing.lg,
+        gap: theme.spacing[4],
+        marginBottom: theme.spacing[6],
     },
     toggleBtn: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: spacing.sm,
-        paddingVertical: spacing.md,
-        backgroundColor: Colors.surface,
+        gap: theme.spacing[3],
+        paddingVertical: theme.spacing[4],
+        backgroundColor: theme.roles.light.surface,
         borderWidth: 1.5,
-        borderColor: Colors.border,
-        borderRadius: radius.md,
+        borderColor: theme.roles.light.borderDefault,
+        borderRadius: theme.radius.md,
     },
     toggleActive: {
-        borderColor: Colors.primary,
-        backgroundColor: Colors.primaryLight + '10',
+        borderColor: theme.roles.light.primary,
+        backgroundColor: theme.roles.light.infoBg,
     },
     toggleText: {
-        ...typography.labelMedium,
-        color: Colors.textSecondary,
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.textSecondary,
     },
     toggleTextActive: {
-        color: Colors.primary,
+        color: theme.roles.light.primary,
     },
     previewCard: {
         alignItems: 'center',
-        paddingVertical: spacing.lg,
-        marginTop: spacing.sm,
-        marginBottom: spacing.xl,
+        paddingVertical: theme.spacing[6],
+        marginTop: theme.spacing[3],
+        marginBottom: theme.spacing[8],
     },
     previewLabel: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
         marginBottom: 4,
     },
     previewValue: {
-        ...typography.h2,
-        color: Colors.primary,
+        ...theme.typeScale.h2,
+        color: theme.roles.light.primary,
     },
     saveBtn: {
-        marginTop: spacing.md,
+        marginTop: theme.spacing[4],
     },
 });

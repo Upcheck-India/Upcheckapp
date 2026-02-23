@@ -7,7 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { MetricCard } from '../../components/ui/MetricCard';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 import { cropsApi, Crop } from '../../api/crops';
 
 export const CycleDetailScreen = ({ route, navigation }: any) => {
@@ -69,7 +69,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
         <ScreenWrapper>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Cycle Details</Text>
                 <View style={{ width: 40 }} />
@@ -136,7 +136,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                             onPress={handleCloseCycle}
                             variant="outlined"
                             style={[styles.actionBtn, styles.dangerBtn]}
-                            textStyle={{ color: Colors.error }}
+                            textStyle={{ color: theme.roles.light.dangerText }}
                         />
                     </View>
                 )}
@@ -150,73 +150,73 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.md,
+        paddingVertical: theme.spacing[4],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
-        marginBottom: spacing.md,
+        borderBottomColor: theme.roles.light.borderDefault,
+        marginBottom: theme.spacing[4],
     },
     backBtn: {
-        padding: spacing.xs,
+        padding: theme.spacing[2],
     },
     title: {
-        ...typography.h3,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
     },
     content: {
-        paddingBottom: spacing.xxl,
+        paddingBottom: theme.spacing[12],
     },
     statusRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.sm,
-        marginBottom: spacing.lg,
+        gap: theme.spacing[3],
+        marginBottom: theme.spacing[6],
     },
     label: {
-        ...typography.labelMedium,
-        color: Colors.textSecondary,
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.textSecondary,
     },
     sectionCard: {
-        marginBottom: spacing.lg,
+        marginBottom: theme.spacing[6],
     },
     sectionTitle: {
-        ...typography.h4,
-        color: Colors.textPrimary,
-        marginBottom: spacing.md,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[4],
     },
     row: {
         flexDirection: 'row',
-        marginBottom: spacing.md,
+        marginBottom: theme.spacing[4],
     },
     col: {
         flex: 1,
     },
     infoLabel: {
-        ...typography.bodySmall,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
         marginBottom: 4,
     },
     infoValue: {
-        ...typography.bodyLarge,
-        color: Colors.textPrimary,
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textPrimary,
     },
     sectionHeading: {
-        ...typography.h4,
-        color: Colors.textPrimary,
-        marginBottom: spacing.sm,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[3],
     },
     metricsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: spacing.sm,
-        marginBottom: spacing.xl,
+        gap: theme.spacing[3],
+        marginBottom: theme.spacing[8],
     },
     actionContainer: {
-        marginTop: spacing.md,
+        marginTop: theme.spacing[4],
     },
     actionBtn: {
-        marginBottom: spacing.md,
+        marginBottom: theme.spacing[4],
     },
     dangerBtn: {
-        borderColor: Colors.error,
+        borderColor: theme.roles.light.dangerText,
     },
 });

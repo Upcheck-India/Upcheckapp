@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
 import { LineChart } from '../../../components/charts/LineChart';
-import { Colors, typography, spacing, radius } from '../../../theme';
+import { theme } from '../../../theme';
 import { waterQualityApi, WaterQualityRecord } from '../../../api/waterQuality';
 import { getParameterStatus, getStatusColor, getStatusIcon } from '../../../constants/ranges';
 
@@ -98,7 +98,7 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Water Quality History</Text>
                 <View style={{ width: 40 }} />
@@ -109,21 +109,21 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
                     style={[styles.tab, activeTab === 'list' && styles.activeTab]}
                     onPress={() => setActiveTab('list')}
                 >
-                    <MaterialCommunityIcons name="format-list-bulleted" size={20} color={activeTab === 'list' ? Colors.primary : Colors.textSecondary} />
+                    <MaterialCommunityIcons name="format-list-bulleted" size={20} color={activeTab === 'list' ? theme.roles.light.primary : theme.roles.light.textSecondary} />
                     <Text style={[styles.tabText, activeTab === 'list' && styles.activeTabText]}>List View</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[styles.tab, activeTab === 'chart' && styles.activeTab]}
                     onPress={() => setActiveTab('chart')}
                 >
-                    <MaterialCommunityIcons name="chart-line" size={20} color={activeTab === 'chart' ? Colors.primary : Colors.textSecondary} />
+                    <MaterialCommunityIcons name="chart-line" size={20} color={activeTab === 'chart' ? theme.roles.light.primary : theme.roles.light.textSecondary} />
                     <Text style={[styles.tabText, activeTab === 'chart' && styles.activeTabText]}>Chart View</Text>
                 </TouchableOpacity>
             </View>
 
             {isLoading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator size="large" color={Colors.primary} />
+                    <ActivityIndicator size="large" color={theme.roles.light.primary} />
                 </View>
             ) : activeTab === 'list' ? (
                 <FlatList
@@ -172,53 +172,53 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.md,
-        backgroundColor: Colors.surface,
+        paddingVertical: theme.spacing[4],
+        backgroundColor: theme.roles.light.surface,
     },
-    backBtn: { padding: spacing.md },
-    title: { ...typography.h3, color: Colors.textPrimary },
+    backBtn: { padding: theme.spacing[4] },
+    title: { ...theme.typeScale.h3, color: theme.roles.light.textPrimary },
     tabsContainer: {
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
-        backgroundColor: Colors.surface,
+        borderBottomColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surface,
     },
     tab: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: spacing.md,
-        gap: spacing.sm,
+        paddingVertical: theme.spacing[4],
+        gap: theme.spacing[3],
         borderBottomWidth: 2,
         borderBottomColor: 'transparent',
     },
     activeTab: {
-        borderBottomColor: Colors.primary,
+        borderBottomColor: theme.roles.light.primary,
     },
     tabText: {
-        ...typography.labelLarge,
-        color: Colors.textSecondary,
+        ...theme.typeScale.labelLarge,
+        color: theme.roles.light.textSecondary,
     },
     activeTabText: {
-        color: Colors.primary,
+        color: theme.roles.light.primary,
         fontWeight: '700',
     },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    listContent: { padding: spacing.md },
+    listContent: { padding: theme.spacing[4] },
     card: {
-        marginBottom: spacing.sm,
-        padding: spacing.md,
+        marginBottom: theme.spacing[3],
+        padding: theme.spacing[4],
     },
     cardHeader: {
-        marginBottom: spacing.sm,
+        marginBottom: theme.spacing[3],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
-        paddingBottom: spacing.xs,
+        borderBottomColor: theme.roles.light.borderDefault,
+        paddingBottom: theme.spacing[2],
     },
     dateText: {
-        ...typography.labelMedium,
-        color: Colors.primary,
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.primary,
     },
     metricsGrid: {
         flexDirection: 'row',
@@ -227,20 +227,20 @@ const styles = StyleSheet.create({
     },
     metricItem: {
         width: '48%',
-        marginBottom: spacing.sm,
+        marginBottom: theme.spacing[3],
     },
     metricLabel: {
-        ...typography.bodySmall,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
     },
     valRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.xs,
+        gap: theme.spacing[2],
     },
     metricVal: {
-        ...typography.bodyLarge,
-        color: Colors.textPrimary,
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textPrimary,
         fontWeight: '600',
     },
     dot: {
@@ -248,32 +248,32 @@ const styles = StyleSheet.create({
         height: 8,
         borderRadius: 4,
     },
-    emptyState: { padding: spacing.xl, alignItems: 'center' },
-    emptyText: { ...typography.bodyMedium, color: Colors.textSecondary },
+    emptyState: { padding: theme.spacing[8], alignItems: 'center' },
+    emptyText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
     chartContainer: {
         flex: 1,
-        padding: spacing.md,
+        padding: theme.spacing[4],
         alignItems: 'center',
     },
     metricSelectors: {
         flexDirection: 'row',
-        gap: spacing.sm,
-        marginBottom: spacing.lg,
+        gap: theme.spacing[3],
+        marginBottom: theme.spacing[6],
     },
     pill: {
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        borderRadius: radius.full,
-        backgroundColor: Colors.border,
+        paddingHorizontal: theme.spacing[4],
+        paddingVertical: theme.spacing[3],
+        borderRadius: theme.radius.full,
+        backgroundColor: theme.roles.light.borderDefault,
     },
     activePill: {
-        backgroundColor: Colors.primary,
+        backgroundColor: theme.roles.light.primary,
     },
     pillText: {
-        ...typography.labelMedium,
-        color: Colors.textSecondary,
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.textSecondary,
     },
     activePillText: {
-        color: Colors.surface,
+        color: theme.roles.light.surface,
     },
 });

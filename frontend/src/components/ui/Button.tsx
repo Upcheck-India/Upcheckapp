@@ -1,6 +1,7 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, StyleProp } from 'react-native';
-import { Colors, typography, radius, spacing } from '../../theme';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, StyleProp, View } from 'react-native';
+import { theme } from '../../theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface ButtonProps {
     title: string;
@@ -25,28 +26,16 @@ export const Button: React.FC<ButtonProps> = ({
 }) => {
     const isDisabled = disabled || loading;
 
-    return (
-        <TouchableOpacity
-            onPress={onPress}
-            disabled={isDisabled}
-            activeOpacity={0.7}
-            style={[
-                styles.base,
-                variant === 'primary' && styles.primary,
-                variant === 'outlined' && styles.outlined,
-                variant === 'text' && styles.text,
-                isDisabled && styles.disabled,
-                style,
-            ]}
-        >
+    const renderContent = () => (
+        <>
             {loading ? (
                 <ActivityIndicator
                     size="small"
-                    color={variant === 'primary' ? Colors.textInverse : Colors.primary}
+                    color={variant === 'primary' ? theme.roles.light.textInverse : theme.roles.light.primary}
                 />
             ) : (
                 <>
-                    {icon}
+                    {icon && <View style={styles.iconContainer}>{icon}</View>}
                     <Text
                         style={[
                             styles.label,
@@ -61,49 +50,95 @@ export const Button: React.FC<ButtonProps> = ({
                     </Text>
                 </>
             )}
+        </>
+    );
+
+    if (variant === 'primary') {
+        return (
+            <TouchableOpacity
+                onPress={onPress}
+                disabled={isDisabled}
+                activeOpacity={0.8}
+                style={[styles.container, style, !isDisabled && theme.shadows.brandGlow]}
+            >
+                <LinearGradient
+                    colors={(isDisabled ? [theme.roles.light.borderDefault, theme.roles.light.borderDefault] : theme.gradients.brand.colors) as [string, string, ...string[]]}
+                    start={theme.gradients.brand.start}
+                    end={theme.gradients.brand.end}
+                    style={styles.primaryGradient}
+                >
+                    {renderContent()}
+                </LinearGradient>
+            </TouchableOpacity>
+        );
+    }
+
+    return (
+        <TouchableOpacity
+            onPress={onPress}
+            disabled={isDisabled}
+            activeOpacity={0.7}
+            style={[
+                styles.container,
+                styles.base,
+                variant === 'outlined' && styles.outlined,
+                variant === 'text' && styles.text,
+                isDisabled && styles.disabled,
+                style,
+            ]}
+        >
+            {renderContent()}
         </TouchableOpacity>
     );
 };
 
 const styles = StyleSheet.create({
+    container: {
+        borderRadius: theme.tokens.button.radiusPrimary,
+    },
+    primaryGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: theme.tokens.button.paddingH,
+        borderRadius: theme.tokens.button.radiusPrimary,
+        height: theme.tokens.button.heightMd,
+    },
     base: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: spacing.md - 2,
-        paddingHorizontal: spacing.lg,
-        borderRadius: radius.md,
-        gap: spacing.sm,
-        minHeight: 48,
-    },
-    primary: {
-        backgroundColor: Colors.primary,
+        paddingHorizontal: theme.tokens.button.paddingH,
+        height: theme.tokens.button.heightMd,
     },
     outlined: {
         backgroundColor: 'transparent',
         borderWidth: 1.5,
-        borderColor: Colors.primary,
+        borderColor: theme.roles.light.primary,
     },
     text: {
         backgroundColor: 'transparent',
-        paddingHorizontal: spacing.sm,
+        paddingHorizontal: theme.spacing[2],
     },
     disabled: {
         opacity: 0.5,
     },
     label: {
-        ...typography.labelLarge,
+        ...theme.typeScale.labelLarge,
+    },
+    iconContainer: {
+        marginRight: theme.spacing[2],
     },
     primaryLabel: {
-        color: Colors.textInverse,
+        color: theme.roles.light.textInverse,
     },
     outlinedLabel: {
-        color: Colors.primary,
+        color: theme.roles.light.primary,
     },
     textLabel: {
-        color: Colors.primary,
+        color: theme.roles.light.primary,
     },
     disabledLabel: {
-        color: Colors.textDisabled,
+        color: theme.roles.light.textDisabled,
     },
 });

@@ -5,7 +5,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { FAB } from '../../components/ui/FAB';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 import { farmsApi, Farm } from '../../api/farms';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -45,7 +45,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
             <Card style={styles.card}>
                 <View style={styles.cardHeader}>
                     <View style={styles.iconContainer}>
-                        <MaterialCommunityIcons name="barn" size={24} color={Colors.primary} />
+                        <MaterialCommunityIcons name="barn" size={24} color={theme.roles.light.primary} />
                     </View>
                     <View style={styles.cardTitleContainer}>
                         <Text style={styles.farmName}>{item.name}</Text>
@@ -55,7 +55,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
                             </Text>
                         )}
                     </View>
-                    <MaterialCommunityIcons name="chevron-right" size={24} color={Colors.textDisabled} />
+                    <MaterialCommunityIcons name="chevron-right" size={24} color={theme.roles.light.textDisabled} />
                 </View>
                 <View style={styles.cardFooter}>
                     <Text style={styles.statsText}>
@@ -78,7 +78,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
                 keyExtractor={(item) => item.id}
                 renderItem={renderFarmCard}
                 contentContainerStyle={styles.listContent}
-                refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[Colors.primary]} />}
+                refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[theme.roles.light.primary]} />}
                 ListEmptyComponent={
                     !isLoading ? (
                         <EmptyState
@@ -98,54 +98,54 @@ export const FarmsListScreen = ({ navigation }: any) => {
 
 const styles = StyleSheet.create({
     listContent: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
         paddingBottom: 100, // Space for FAB
     },
     card: {
-        marginBottom: spacing.md,
+        marginBottom: theme.spacing[4],
         padding: 0,
         overflow: 'hidden',
     },
     cardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: spacing.md,
+        padding: theme.spacing[4],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
+        borderBottomColor: theme.roles.light.borderDefault,
     },
     iconContainer: {
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: Colors.primaryLight + '30',
+        backgroundColor: theme.roles.light.infoBg,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: spacing.md,
+        marginRight: theme.spacing[4],
     },
     cardTitleContainer: {
         flex: 1,
     },
     farmName: {
-        ...typography.h3,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
         marginBottom: 2,
     },
     farmLocation: {
-        ...typography.bodySmall,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
     },
     cardFooter: {
         flexDirection: 'row',
-        padding: spacing.md,
-        backgroundColor: Colors.surfaceVariant,
-        gap: spacing.lg,
+        padding: theme.spacing[4],
+        backgroundColor: theme.roles.light.surfaceVariant,
+        gap: theme.spacing[6],
     },
     statsText: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
     },
     statsValue: {
-        ...typography.labelLarge,
-        color: Colors.textPrimary,
+        ...theme.typeScale.labelLarge,
+        color: theme.roles.light.textPrimary,
     },
 });

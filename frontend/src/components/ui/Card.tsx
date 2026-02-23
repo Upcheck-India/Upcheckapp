@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle, StyleProp } from 'react-native';
-import { Colors, radius, spacing, shadows } from '../../theme';
+import { theme } from '../../theme';
 
 interface CardProps {
     children: React.ReactNode;
@@ -26,18 +26,22 @@ export const Card: React.FC<CardProps> = ({ children, style, variant = 'elevated
 
 const styles = StyleSheet.create({
     base: {
-        borderRadius: radius.lg,
-        padding: spacing.md,
-        backgroundColor: Colors.surface,
+        backgroundColor: theme.tokens.card.bgDefault,
+        borderRadius: theme.tokens.card.borderRadius,
+        paddingHorizontal: theme.tokens.card.paddingH,
+        paddingVertical: theme.tokens.card.paddingV,
+        ...theme.shadows.sm,
     },
     elevated: {
-        ...shadows.sm,
+        ...theme.shadows.md,
     },
     outlined: {
-        borderWidth: 1,
-        borderColor: Colors.border,
+        borderWidth: theme.tokens.card.borderWidth,
+        borderColor: theme.tokens.card.borderColor,
+        ...theme.shadows.none,
     },
     flat: {
-        backgroundColor: Colors.surfaceVariant,
+        backgroundColor: theme.tokens.card.bgTinted,
+        ...theme.shadows.none,
     },
 });

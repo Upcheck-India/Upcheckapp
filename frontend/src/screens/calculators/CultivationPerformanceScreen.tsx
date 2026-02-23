@@ -6,7 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { MetricCard } from '../../components/ui/MetricCard';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 import { calculatorsApi, CultivationPerformanceResponse } from '../../api/calculators';
 
 export const CultivationPerformanceScreen = ({ navigation }: any) => {
@@ -55,7 +55,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Performance Calculator</Text>
                 <TouchableOpacity onPress={clearForm} style={styles.backBtn}>
@@ -131,50 +131,50 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.md,
+        paddingVertical: theme.spacing[4],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
-        backgroundColor: Colors.surface,
+        borderBottomColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surface,
     },
     backBtn: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
     },
     clearText: {
-        ...typography.labelMedium,
-        color: Colors.primary,
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.primary,
     },
     title: {
-        ...typography.h3,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
     },
     content: {
-        padding: spacing.md,
-        paddingBottom: spacing.xxl,
+        padding: theme.spacing[4],
+        paddingBottom: theme.spacing[12],
     },
     card: {
-        marginBottom: spacing.lg,
+        marginBottom: theme.spacing[6],
     },
     sectionTitle: {
-        ...typography.h4,
-        color: Colors.textPrimary,
-        marginBottom: spacing.md,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[4],
     },
     row: {
         flexDirection: 'row',
-        gap: spacing.md,
+        gap: theme.spacing[4],
     },
     halfCol: {
         flex: 1,
     },
     calcBtn: {
-        marginTop: spacing.sm,
+        marginTop: theme.spacing[3],
     },
     resultsContainer: {
-        marginTop: spacing.md,
+        marginTop: theme.spacing[4],
     },
     metricsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: spacing.sm,
+        gap: theme.spacing[3],
     },
 });

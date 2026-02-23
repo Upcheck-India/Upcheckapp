@@ -5,7 +5,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Colors, typography, spacing } from '../../theme';
+import { theme } from '../../theme';
 import { simulationsApi } from '../../api/simulations';
 
 export const SimulationCreateScreen = ({ navigation }: any) => {
@@ -48,7 +48,7 @@ export const SimulationCreateScreen = ({ navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>New Simulation</Text>
                 <View style={{ width: 40 }} />
@@ -101,44 +101,44 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.md,
+        paddingVertical: theme.spacing[4],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
-        backgroundColor: Colors.surface,
+        borderBottomColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surface,
     },
     backBtn: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
     },
     title: {
-        ...typography.h3,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
     },
     content: {
-        padding: spacing.md,
-        paddingBottom: spacing.xxl,
+        padding: theme.spacing[4],
+        paddingBottom: theme.spacing[12],
     },
     subtitle: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
-        marginBottom: spacing.lg,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[6],
     },
     card: {
-        marginBottom: spacing.lg,
+        marginBottom: theme.spacing[6],
     },
     sectionTitle: {
-        ...typography.h4,
-        color: Colors.textPrimary,
-        marginBottom: spacing.md,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[4],
     },
     row: {
         flexDirection: 'row',
-        gap: spacing.md,
+        gap: theme.spacing[4],
     },
     halfCol: {
         flex: 1,
     },
     runBtn: {
-        marginTop: spacing.md,
-        marginBottom: spacing.xl,
+        marginTop: theme.spacing[4],
+        marginBottom: theme.spacing[8],
     },
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet, ViewStyle, StatusBar, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '../../theme';
+import { theme } from '../../theme';
 import { OfflineIndicator } from '../ui/OfflineIndicator';
 
 interface ScreenWrapperProps {
@@ -20,7 +20,7 @@ export const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
     style,
     safeArea = true,
     padded = true,
-    backgroundColor = Colors.background,
+    backgroundColor = theme.roles.light.background,
     keyboardAvoiding = true,
 }) => {
     const Container = safeArea ? SafeAreaView : View;

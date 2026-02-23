@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput } from 'react-native';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 import { getParameterStatus, ParameterStatus } from '../../constants/ranges';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -28,10 +28,10 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
 
     const getStatusColor = () => {
         switch (status) {
-            case 'safe': return Colors.success;
-            case 'warning': return Colors.warning;
-            case 'critical': return Colors.error;
-            default: return Colors.border;
+            case 'safe': return theme.roles.light.successText;
+            case 'warning': return theme.roles.light.warningText;
+            case 'critical': return theme.roles.light.dangerText;
+            default: return theme.roles.light.borderDefault;
         }
     };
 
@@ -58,7 +58,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
                     onChangeText={onChangeText}
                     keyboardType="decimal-pad"
                     placeholder={placeholder}
-                    placeholderTextColor={Colors.textDisabled}
+                    placeholderTextColor={theme.roles.light.textDisabled}
                 />
                 {status !== 'none' && (
                     <View style={styles.iconWrapper}>
@@ -72,33 +72,33 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
 
 const styles = StyleSheet.create({
     container: {
-        marginBottom: spacing.md,
+        marginBottom: theme.spacing[4],
         flex: 1,
     },
     label: {
-        ...typography.labelMedium,
-        color: Colors.textPrimary,
-        marginBottom: spacing.xs,
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[2],
     },
     required: {
-        color: Colors.error,
+        color: theme.roles.light.dangerText,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1.5,
-        borderColor: Colors.border,
-        borderRadius: radius.md,
-        backgroundColor: Colors.surface,
+        borderColor: theme.roles.light.borderDefault,
+        borderRadius: theme.radius.md,
+        backgroundColor: theme.roles.light.surface,
     },
     input: {
         flex: 1,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.md - 2,
-        ...typography.bodyMedium,
-        color: Colors.textPrimary,
+        paddingHorizontal: theme.spacing[4],
+        paddingVertical: theme.spacing[4] - 2,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textPrimary,
     },
     iconWrapper: {
-        paddingRight: spacing.md,
+        paddingRight: theme.spacing[4],
     },
 });

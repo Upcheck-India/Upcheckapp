@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { MetricCard } from '../../components/ui/MetricCard';
 import { Card } from '../../components/ui/Card';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 
 export const SimulationResultsScreen = ({ route, navigation }: any) => {
     const { resultData } = route.params;
@@ -21,11 +21,11 @@ export const SimulationResultsScreen = ({ route, navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Simulation Results</Text>
                 <TouchableOpacity onPress={() => navigation.navigate('MainApp', { screen: 'Dashboard' })} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="home-outline" size={24} color={Colors.primary} />
+                    <MaterialCommunityIcons name="home-outline" size={24} color={theme.roles.light.primary} />
                 </TouchableOpacity>
             </View>
 
@@ -89,79 +89,79 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.md,
+        paddingVertical: theme.spacing[4],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
-        backgroundColor: Colors.surface,
+        borderBottomColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surface,
     },
     backBtn: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
     },
     title: {
-        ...typography.h3,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
     },
     content: {
-        padding: spacing.md,
-        paddingBottom: spacing.xxl,
+        padding: theme.spacing[4],
+        paddingBottom: theme.spacing[12],
     },
     summaryContainer: {
-        backgroundColor: Colors.primary,
-        padding: spacing.xl,
-        borderRadius: radius.lg,
+        backgroundColor: theme.roles.light.primary,
+        padding: theme.spacing[8],
+        borderRadius: theme.radius.lg,
         alignItems: 'center',
-        marginBottom: spacing.xl,
+        marginBottom: theme.spacing[8],
         elevation: 4,
-        shadowColor: Colors.primary,
+        shadowColor: theme.roles.light.primary,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
     },
     summaryTitle: {
-        ...typography.h4,
-        color: Colors.surface,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.surface,
         opacity: 0.9,
-        marginBottom: spacing.xs,
+        marginBottom: theme.spacing[2],
     },
     summaryValue: {
         fontSize: 56,
         fontWeight: '800',
-        color: Colors.surface,
+        color: theme.roles.light.surface,
     },
     summarySubtext: {
-        ...typography.h5,
-        color: Colors.surface,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.surface,
         opacity: 0.9,
         marginTop: -4,
     },
     sectionTitle: {
-        ...typography.h4,
-        color: Colors.textPrimary,
-        marginBottom: spacing.md,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[4],
     },
     metricsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: spacing.sm,
-        marginBottom: spacing.lg,
+        gap: theme.spacing[3],
+        marginBottom: theme.spacing[6],
     },
     inputsCard: {
-        backgroundColor: Colors.surface,
+        backgroundColor: theme.roles.light.surface,
     },
     row: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingVertical: spacing.sm,
+        paddingVertical: theme.spacing[3],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
+        borderBottomColor: theme.roles.light.borderDefault,
     },
     paramLabel: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
     },
     paramValue: {
-        ...typography.bodyMedium,
-        color: Colors.textPrimary,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textPrimary,
         fontWeight: '600',
     },
 });

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 
 const calculators = [
     {
@@ -11,7 +11,7 @@ const calculators = [
         description: 'Calculate FCR, ADG, Survival Rate, and Productivity',
         icon: 'chart-line',
         route: 'CultivationPerformance',
-        color: Colors.primary,
+        color: theme.roles.light.primary,
     },
     {
         id: 'dailyFeed',
@@ -19,7 +19,7 @@ const calculators = [
         description: 'Determine required feed based on MBW, SR and Feeding table',
         icon: 'corn',
         route: 'DailyFeedCalculator',
-        color: Colors.warning,
+        color: theme.roles.light.warningText,
     },
     {
         id: 'productAmount',
@@ -27,7 +27,7 @@ const calculators = [
         description: 'Calculate product/chemical amount based on pond volume and ppm target',
         icon: 'flask-outline',
         route: 'ProductAmount',
-        color: Colors.info,
+        color: theme.roles.light.infoBorder,
     },
     {
         id: 'freeAmmonia',
@@ -35,7 +35,7 @@ const calculators = [
         description: 'Calculate toxic free ammonia from TAN, pH, Temp and Salinity',
         icon: 'alert-decagram',
         route: 'FreeAmmonia',
-        color: Colors.error,
+        color: theme.roles.light.dangerText,
     }
 ];
 
@@ -44,7 +44,7 @@ export const CalculatorHubScreen = ({ navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Tools & Calculators</Text>
                 <View style={{ width: 40 }} />
@@ -67,7 +67,7 @@ export const CalculatorHubScreen = ({ navigation }: any) => {
                                 <Text style={styles.cardTitle}>{calc.title}</Text>
                                 <Text style={styles.cardDesc}>{calc.description}</Text>
                             </View>
-                            <MaterialCommunityIcons name="chevron-right" size={24} color={Colors.textDisabled} />
+                            <MaterialCommunityIcons name="chevron-right" size={24} color={theme.roles.light.textDisabled} />
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -81,56 +81,56 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.md,
+        paddingVertical: theme.spacing[4],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
-        backgroundColor: Colors.surface,
+        borderBottomColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surface,
     },
     backBtn: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
     },
     title: {
-        ...typography.h3,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
     },
     content: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
     },
     subtitle: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
-        marginBottom: spacing.md,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[4],
     },
     grid: {
-        gap: spacing.md,
+        gap: theme.spacing[4],
     },
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.surface,
-        padding: spacing.md,
-        borderRadius: radius.md,
+        backgroundColor: theme.roles.light.surface,
+        padding: theme.spacing[4],
+        borderRadius: theme.radius.md,
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.roles.light.borderDefault,
     },
     iconContainer: {
         width: 56,
         height: 56,
-        borderRadius: radius.md,
+        borderRadius: theme.radius.md,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: spacing.md,
+        marginRight: theme.spacing[4],
     },
     cardContent: {
         flex: 1,
     },
     cardTitle: {
-        ...typography.h5,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
         marginBottom: 4,
     },
     cardDesc: {
-        ...typography.bodySmall,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
     },
 });

@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button } from './Button';
-import { Colors, typography, spacing } from '../../theme';
+import { theme } from '../../theme';
 
 interface EmptyStateProps {
     icon?: keyof typeof MaterialCommunityIcons.glyphMap;
@@ -10,7 +10,6 @@ interface EmptyStateProps {
     subtitle?: string;
     actionLabel?: string;
     onAction?: () => void;
-    style?: ViewStyle;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
@@ -19,13 +18,14 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     subtitle,
     actionLabel,
     onAction,
-    style,
 }) => {
     return (
-        <View style={[styles.container, style]}>
-            <MaterialCommunityIcons name={icon} size={64} color={Colors.textDisabled} />
+        <View style={styles.container}>
+            <View style={styles.iconContainer}>
+                <MaterialCommunityIcons name={icon} size={64} color={theme.roles.light.textDisabled} />
+            </View>
             <Text style={styles.title}>{title}</Text>
-            {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+            {subtitle && <Text style={styles.message}>{subtitle}</Text>}
             {actionLabel && onAction && (
                 <Button
                     title={actionLabel}
@@ -43,23 +43,25 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: spacing.xl,
-        minHeight: 300,
+        padding: theme.spacing[8],
+    },
+    iconContainer: {
+        marginBottom: theme.spacing[6],
+        opacity: 0.8,
     },
     title: {
-        ...typography.h3,
-        color: Colors.textSecondary,
-        marginTop: spacing.md,
+        ...theme.typeScale.h2,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[3],
         textAlign: 'center',
     },
-    subtitle: {
-        ...typography.bodyMedium,
-        color: Colors.textDisabled,
-        marginTop: spacing.xs,
+    message: {
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textDisabled,
         textAlign: 'center',
-        maxWidth: 280,
+        marginBottom: theme.spacing[6],
     },
     button: {
-        marginTop: spacing.lg,
+        marginTop: theme.spacing[6],
     },
 });

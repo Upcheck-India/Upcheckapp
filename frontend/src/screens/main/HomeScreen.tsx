@@ -4,17 +4,17 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 
 export const HomeScreen = ({ navigation }: any) => {
     const { user, logout } = useAuthStore();
 
     const quickActions = [
-        { icon: 'barn' as const, label: 'Farms', screen: 'FarmsList', color: Colors.primary },
-        { icon: 'calculator-variant-outline' as const, label: 'Calculators', screen: 'CalculatorHub', color: Colors.info },
-        { icon: 'book-open-outline' as const, label: 'Diseases', screen: 'DiseaseList', color: Colors.warning },
-        { icon: 'chart-timeline-variant' as const, label: 'Simulate', screen: 'SimulationList', color: Colors.success },
+        { icon: 'barn' as const, label: 'Farms', screen: 'FarmsList', color: theme.roles.light.primary },
+        { icon: 'calculator-variant-outline' as const, label: 'Calculators', screen: 'CalculatorHub', color: theme.roles.light.infoBorder },
+        { icon: 'book-open-outline' as const, label: 'Diseases', screen: 'DiseaseList', color: theme.roles.light.warningText },
+        { icon: 'chart-timeline-variant' as const, label: 'Simulate', screen: 'SimulationList', color: theme.roles.light.successText },
     ];
 
     return (
@@ -27,7 +27,7 @@ export const HomeScreen = ({ navigation }: any) => {
                     </Text>
                 </View>
                 <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.avatar}>
-                    <MaterialCommunityIcons name="account-circle" size={40} color={Colors.primary} />
+                    <MaterialCommunityIcons name="account-circle" size={40} color={theme.roles.light.primary} />
                 </TouchableOpacity>
             </View>
 
@@ -52,7 +52,7 @@ export const HomeScreen = ({ navigation }: any) => {
             </View>
 
             <Card style={styles.infoCard}>
-                <MaterialCommunityIcons name="information-outline" size={20} color={Colors.info} />
+                <MaterialCommunityIcons name="information-outline" size={20} color={theme.roles.light.infoBorder} />
                 <Text style={styles.infoText}>
                     Phase 1 complete! Farm management, data entry, and calculator screens will be added in upcoming phases.
                 </Text>
@@ -62,7 +62,7 @@ export const HomeScreen = ({ navigation }: any) => {
                 title="Sign Out"
                 onPress={logout}
                 variant="outlined"
-                style={{ marginTop: spacing.xl }}
+                style={{ marginTop: theme.spacing[8] }}
             />
         </ScreenWrapper>
     );
@@ -73,16 +73,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingTop: spacing.md,
-        paddingBottom: spacing.lg,
+        paddingTop: theme.spacing[4],
+        paddingBottom: theme.spacing[6],
     },
     greeting: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
     },
     userName: {
-        ...typography.h2,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h2,
+        color: theme.roles.light.textPrimary,
     },
     avatar: {
         width: 44,
@@ -92,21 +92,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     sectionTitle: {
-        ...typography.h4,
-        color: Colors.textPrimary,
-        marginBottom: spacing.md,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[4],
     },
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: spacing.md,
-        marginBottom: spacing.lg,
+        gap: theme.spacing[4],
+        marginBottom: theme.spacing[6],
     },
     actionCard: {
         width: '47%',
-        backgroundColor: Colors.surface,
-        borderRadius: radius.lg,
-        padding: spacing.md,
+        backgroundColor: theme.roles.light.surface,
+        borderRadius: theme.radius.lg,
+        padding: theme.spacing[4],
         alignItems: 'center',
         elevation: 2,
         shadowColor: '#000',
@@ -120,23 +120,23 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: spacing.sm,
+        marginBottom: theme.spacing[3],
     },
     actionLabel: {
-        ...typography.labelLarge,
-        color: Colors.textPrimary,
+        ...theme.typeScale.labelLarge,
+        color: theme.roles.light.textPrimary,
     },
     infoCard: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        gap: spacing.sm,
-        backgroundColor: Colors.statusInfoBg,
+        gap: theme.spacing[3],
+        backgroundColor: theme.roles.light.infoBg,
         borderLeftWidth: 3,
-        borderLeftColor: Colors.info,
+        borderLeftColor: theme.roles.light.infoBorder,
     },
     infoText: {
-        ...typography.bodySmall,
-        color: Colors.statusInfoText,
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.infoText,
         flex: 1,
         lineHeight: 18,
     },

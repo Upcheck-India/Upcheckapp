@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { Button } from './Button';
+import { theme } from '../../theme';
 import { Colors, spacing } from '../../theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -16,7 +17,7 @@ export const GoogleLoginButton = ({ onPress, loading }: Props) => {
             onPress={onPress}
             loading={loading}
             variant="outlined"
-            icon={<MaterialCommunityIcons name="google" size={20} color={Colors.textPrimary} />}
+            icon={<MaterialCommunityIcons name="google" size={20} color={theme.roles.light.textPrimary} />}
             style={styles.button}
             textStyle={styles.text}
         />
@@ -25,12 +26,12 @@ export const GoogleLoginButton = ({ onPress, loading }: Props) => {
 
 const styles = StyleSheet.create({
     button: {
-        borderColor: Colors.border,
+        borderColor: theme.roles.light.borderDefault,
         borderWidth: 1,
-        backgroundColor: Colors.surface,
-        marginTop: spacing.md,
+        backgroundColor: theme.roles.light.surface,
+        marginTop: theme.spacing[4],
     },
     text: {
-        color: Colors.textPrimary,
+        color: theme.roles.light.textPrimary,
     },
 });

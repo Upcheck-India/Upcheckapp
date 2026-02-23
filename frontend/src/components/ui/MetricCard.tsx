@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Card } from './Card';
-import { Colors, typography, spacing } from '../../theme';
+import { theme } from '../../theme';
 
 interface MetricCardProps {
     label: string;
@@ -28,18 +28,20 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     style,
 }) => {
     const getStatusColor = () => {
+        if (!status) return theme.roles.light.textPrimary;
         switch (status) {
-            case 'safe': return Colors.success;
-            case 'warning': return Colors.warning;
-            case 'critical': return Colors.error;
-            default: return Colors.textPrimary;
+            case 'safe': return theme.roles.light.successText;
+            case 'warning': return theme.roles.light.warningText;
+            case 'critical': return theme.roles.light.dangerText;
+            default: return theme.roles.light.textPrimary;
         }
     };
 
-    const getTrendIconColor = () => {
-        if (trend === 'up') return Colors.success;
-        if (trend === 'down') return Colors.error;
-        return Colors.textSecondary;
+    const getTrendColor = () => {
+        if (!trend) return theme.roles.light.textSecondary;
+        if (trend === 'up') return theme.roles.light.successText;
+        if (trend === 'down') return theme.roles.light.dangerText;
+        return theme.roles.light.textSecondary;
     };
 
     const renderTrendIcon = () => {
@@ -60,13 +62,15 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             <View style={styles.footerRow}>
                 {trend && trendValue && (
                     <View style={styles.trendContainer}>
-                        <MaterialCommunityIcons name={renderTrendIcon()} size={20} color={getTrendIconColor()} />
-                        <Text style={[styles.trendValue, { color: getTrendIconColor() }]}>{trendValue}</Text>
+                        <MaterialCommunityIcons name={renderTrendIcon()} size={20} color={getTrendColor()} />
+                        <Text style={[styles.trendValue, { color: getTrendColor() }]}>{trendValue}</Text>
                     </View>
                 )}
 
-                {target !== undefined && targetLabel && (
-                    <Text style={styles.targetLabel}>{targetLabel}</Text>
+                {target !== undefined && (
+                    <Text style={styles.targetLabel}>
+                        {targetLabel || 'Target'}: {target}
+                    </Text>
                 )}
             </View>
         </Card>
@@ -75,44 +79,55 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
 const styles = StyleSheet.create({
     container: {
-        padding: spacing.md,
         flex: 1,
         minWidth: 140, // Useful if rendered in a horizontal grid
     },
     label: {
-        ...typography.labelMedium,
-        color: Colors.textSecondary,
-        marginBottom: spacing.xs,
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[1],
     },
     valueRow: {
         flexDirection: 'row',
         alignItems: 'baseline',
-        marginBottom: spacing.sm,
+        marginBottom: theme.spacing[2],
     },
     value: {
-        ...typography.numericLarge,
+        ...theme.typeScale.numericLarge,
     },
     unit: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
-        marginLeft: spacing.xs,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        marginLeft: theme.spacing[1],
     },
     footerRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        gap: spacing.sm,
+        gap: theme.spacing[2],
     },
     trendContainer: {
         flexDirection: 'row',
         alignItems: 'center',
     },
+    trendBadge: {
+        backgroundColor: theme.roles.light.surface,
+        borderRadius: theme.tokens.card.borderRadius,
+        paddingHorizontal: theme.tokens.card.paddingH,
+        paddingVertical: theme.tokens.card.paddingV,
+        ...theme.shadows.sm,
+        marginRight: theme.spacing[1.5],
+    },
     trendValue: {
-        ...typography.labelSmall,
+        ...theme.typeScale.labelSmall,
         marginLeft: 2,
     },
+    changeSubtitle: {
+        ...theme.typeScale.caption,
+        color: theme.roles.light.textSecondary,
+    },
     targetLabel: {
-        ...typography.caption,
+        ...theme.typeScale.caption,
         textAlign: 'right',
         flex: 1,
     },

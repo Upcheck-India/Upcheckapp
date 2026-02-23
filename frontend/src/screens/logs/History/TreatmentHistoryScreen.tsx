@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator }
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
-import { Colors, typography, spacing, radius } from '../../../theme';
+import { theme } from '../../../theme';
 import { treatmentsApi, TreatmentRecord } from '../../../api/treatments';
 
 export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
@@ -41,7 +41,7 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
             </View>
             <Text style={styles.productText}>{item.productName}</Text>
             <View style={styles.dosageRow}>
-                <MaterialCommunityIcons name="pill" size={16} color={Colors.textSecondary} />
+                <MaterialCommunityIcons name="pill" size={16} color={theme.roles.light.textSecondary} />
                 <Text style={styles.detailText}>{item.dosage} {item.unit}</Text>
 
                 {item.applicationMethod && (
@@ -60,14 +60,14 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Treatment History</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             {isLoading ? (
-                <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary} /></View>
+                <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
             ) : (
                 <FlatList
                     data={records}
@@ -76,7 +76,7 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
                     contentContainerStyle={styles.listContent}
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
-                            <MaterialCommunityIcons name="medical-bag" size={64} color={Colors.border} />
+                            <MaterialCommunityIcons name="medical-bag" size={64} color={theme.roles.light.borderDefault} />
                             <Text style={styles.emptyTitle}>No Treatments Logged</Text>
                             <Text style={styles.emptyText}>This pond has no recorded treatments.</Text>
                         </View>
@@ -88,23 +88,23 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.divider },
-    backBtn: { padding: spacing.md },
-    title: { ...typography.h3, color: Colors.textPrimary },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: theme.spacing[4], backgroundColor: theme.roles.light.surface, borderBottomWidth: 1, borderBottomColor: theme.roles.light.borderDefault },
+    backBtn: { padding: theme.spacing[4] },
+    title: { ...theme.typeScale.h3, color: theme.roles.light.textPrimary },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    listContent: { padding: spacing.md, paddingBottom: 100 },
-    card: { padding: spacing.md, marginBottom: spacing.sm },
-    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
-    dateText: { ...typography.labelLarge, color: Colors.textSecondary },
-    badge: { backgroundColor: Colors.info + '15', paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.full },
-    badgeText: { color: Colors.info, ...typography.labelSmall, fontWeight: '700' },
-    productText: { ...typography.h4, color: Colors.textPrimary, marginBottom: spacing.xs },
-    dosageRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
-    detailText: { ...typography.bodyMedium, color: Colors.textSecondary },
-    dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: Colors.textDisabled },
-    reasonText: { ...typography.bodyMedium, color: Colors.textPrimary, fontStyle: 'italic' },
-    notesText: { ...typography.bodySmall, color: Colors.textSecondary, marginTop: spacing.xs },
+    listContent: { padding: theme.spacing[4], paddingBottom: 100 },
+    card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[2] },
+    dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
+    badge: { backgroundColor: theme.roles.light.infoBg, paddingHorizontal: theme.spacing[3], paddingVertical: 4, borderRadius: theme.radius.full },
+    badgeText: { color: theme.roles.light.infoBorder, ...theme.typeScale.labelSmall, fontWeight: '700' },
+    productText: { ...theme.typeScale.h4, color: theme.roles.light.textPrimary, marginBottom: theme.spacing[2] },
+    dosageRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2], marginBottom: theme.spacing[3] },
+    detailText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
+    dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: theme.roles.light.textDisabled },
+    reasonText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, fontStyle: 'italic' },
+    notesText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: theme.spacing[2] },
     emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-    emptyTitle: { ...typography.h4, color: Colors.textPrimary, marginTop: spacing.md, marginBottom: spacing.xs },
-    emptyText: { ...typography.bodyMedium, color: Colors.textSecondary },
+    emptyTitle: { ...theme.typeScale.h4, color: theme.roles.light.textPrimary, marginTop: theme.spacing[4], marginBottom: theme.spacing[2] },
+    emptyText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
 });

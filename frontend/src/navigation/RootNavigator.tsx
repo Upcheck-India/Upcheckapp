@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Colors } from '../theme';
+import { theme } from '../theme';
 import { useAuthStore } from '../store/authStore';
 
 // Auth Screens
@@ -115,8 +115,8 @@ const RootNavigator = () => {
 
     if (isLoading) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background }}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.roles.light.background }}>
+                <ActivityIndicator size="large" color={theme.roles.light.primary} />
             </View>
         );
     }
@@ -126,7 +126,7 @@ const RootNavigator = () => {
             screenOptions={{
                 headerShown: false,
                 animation: 'slide_from_right',
-                contentStyle: { backgroundColor: Colors.background },
+                contentStyle: { backgroundColor: theme.roles.light.background },
             }}
         >
             {!isAuthenticated ? (
@@ -136,7 +136,7 @@ const RootNavigator = () => {
                     <Stack.Screen
                         name="ForgotPassword"
                         component={ForgotPasswordScreen}
-                        options={{ headerShown: true, title: 'Forgot Password', headerTintColor: Colors.primary }}
+                        options={{ headerShown: true, title: 'Forgot Password', headerTintColor: theme.roles.light.primary }}
                     />
                 </>
             ) : (

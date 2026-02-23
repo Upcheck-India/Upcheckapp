@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Dimensions, StyleSheet } from 'react-native';
 import { LineChart as RNLineChart } from 'react-native-chart-kit';
-import { Colors } from '../../theme';
+import { theme } from '../../theme';
 
 interface ChartProps {
     data: {
@@ -34,9 +34,9 @@ export const LineChart: React.FC<ChartProps> = ({
                 yAxisSuffix={yAxisSuffix}
                 yAxisInterval={1}
                 chartConfig={{
-                    backgroundColor: Colors.surface,
-                    backgroundGradientFrom: Colors.surface,
-                    backgroundGradientTo: Colors.surface,
+                    backgroundColor: theme.roles.light.surface,
+                    backgroundGradientFrom: theme.roles.light.surface,
+                    backgroundGradientTo: theme.roles.light.surface,
                     decimalPlaces: 1,
                     color: (opacity = 1) => `rgba(3, 218, 198, ${opacity})`, // Using primary color
                     labelColor: (opacity = 1) => `rgba(102, 102, 102, ${opacity})`,
@@ -46,7 +46,7 @@ export const LineChart: React.FC<ChartProps> = ({
                     propsForDots: {
                         r: "4",
                         strokeWidth: "2",
-                        stroke: Colors.primary
+                        stroke: theme.roles.light.primary
                     }
                 }}
                 bezier

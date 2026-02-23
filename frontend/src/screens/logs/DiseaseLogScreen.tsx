@@ -5,7 +5,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Colors, typography, spacing } from '../../theme';
+import { theme } from '../../theme';
 import { diseaseApi } from '../../api/diseases';
 
 export const DiseaseLogScreen = ({ route, navigation }: any) => {
@@ -51,7 +51,7 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Disease Entry</Text>
                 <View style={{ width: 40 }} />
@@ -109,39 +109,39 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.md,
+        paddingVertical: theme.spacing[4],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
-        backgroundColor: Colors.error + '20', // Light red tint for disease alert
+        borderBottomColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.dangerText + '20', // Light red tint for disease alert
     },
     backBtn: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
     },
     title: {
-        ...typography.h3,
-        color: Colors.error,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.dangerText,
     },
     content: {
-        padding: spacing.md,
-        paddingBottom: spacing.xxl,
+        padding: theme.spacing[4],
+        paddingBottom: theme.spacing[12],
     },
     subtitle: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
-        marginBottom: spacing.md,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[4],
     },
     card: {
-        marginBottom: spacing.lg,
+        marginBottom: theme.spacing[6],
     },
     textArea: {
         minHeight: 100,
         textAlignVertical: 'top',
     },
     saveBtn: {
-        marginTop: spacing.sm,
-        marginBottom: spacing.xl,
+        marginTop: theme.spacing[3],
+        marginBottom: theme.spacing[8],
     },
     dangerBtn: {
-        backgroundColor: Colors.error,
+        backgroundColor: theme.roles.light.dangerText,
     }
 });

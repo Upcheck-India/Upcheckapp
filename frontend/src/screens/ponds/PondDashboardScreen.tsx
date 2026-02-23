@@ -8,7 +8,7 @@ import { MetricCard } from '../../components/ui/MetricCard';
 import { AlertBanner } from '../../components/ui/AlertBanner';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/StatusBadge';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 import { pondsApi, Pond } from '../../api/ponds';
 import { cropsApi, Crop } from '../../api/crops';
 
@@ -60,20 +60,20 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <View style={styles.headerTitleContainer}>
                     <Text style={styles.headerTitle}>{pondName}</Text>
                     {pond && <StatusBadge status={pond.status === 'active' ? 'active' : 'idle'} label={pond.status} style={styles.headerBadge} />}
                 </View>
                 <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.settingsBtn}>
-                    <MaterialCommunityIcons name="cog-outline" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="cog-outline" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
             </View>
 
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[Colors.primary]} />}
+                refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[theme.roles.light.primary]} />}
             >
                 {/* Alerts / Banner Section */}
                 {activeCycle && (
@@ -104,7 +104,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                     </Card>
                 ) : (
                     <Card style={styles.emptyCycleCard}>
-                        <MaterialCommunityIcons name="water" size={48} color={Colors.textDisabled} />
+                        <MaterialCommunityIcons name="water" size={48} color={theme.roles.light.textDisabled} />
                         <Text style={styles.emptyCycleTitle}>Pond is Idle</Text>
                         <Text style={styles.emptyCycleSubtitle}>Ready for the next crop cycle.</Text>
                         <Button
@@ -121,29 +121,29 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                         <Text style={styles.sectionTitle}>Log Data</Text>
                         <View style={styles.actionGrid}>
                             <TouchableOpacity style={styles.actionItem} onPress={() => {/* Navigate to wq */ }}>
-                                <View style={[styles.actionIconBg, { backgroundColor: Colors.info + '15' }]}>
-                                    <MaterialCommunityIcons name="water-percent" size={26} color={Colors.info} />
+                                <View style={[styles.actionIconBg, { backgroundColor: theme.roles.light.infoBg }]}>
+                                    <MaterialCommunityIcons name="water-percent" size={26} color={theme.roles.light.infoBorder} />
                                 </View>
                                 <Text style={styles.actionLabel}>Water Quality</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.actionItem} onPress={() => {/* Navigate to feed */ }}>
-                                <View style={[styles.actionIconBg, { backgroundColor: Colors.warning + '15' }]}>
-                                    <MaterialCommunityIcons name="corn" size={26} color={Colors.warning} />
+                                <View style={[styles.actionIconBg, { backgroundColor: theme.roles.light.warningText + '15' }]}>
+                                    <MaterialCommunityIcons name="corn" size={26} color={theme.roles.light.warningText} />
                                 </View>
                                 <Text style={styles.actionLabel}>Feed</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.actionItem} onPress={() => {/* Navigate to sampling */ }}>
-                                <View style={[styles.actionIconBg, { backgroundColor: Colors.success + '15' }]}>
-                                    <MaterialCommunityIcons name="scale" size={26} color={Colors.success} />
+                                <View style={[styles.actionIconBg, { backgroundColor: theme.roles.light.successText + '15' }]}>
+                                    <MaterialCommunityIcons name="scale" size={26} color={theme.roles.light.successText} />
                                 </View>
                                 <Text style={styles.actionLabel}>Sampling</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.actionItem} onPress={() => {/* Navigate to treatment */ }}>
-                                <View style={[styles.actionIconBg, { backgroundColor: Colors.error + '15' }]}>
-                                    <MaterialCommunityIcons name="pill" size={26} color={Colors.error} />
+                                <View style={[styles.actionIconBg, { backgroundColor: theme.roles.light.dangerText + '15' }]}>
+                                    <MaterialCommunityIcons name="pill" size={26} color={theme.roles.light.dangerText} />
                                 </View>
                                 <Text style={styles.actionLabel}>Treatment</Text>
                             </TouchableOpacity>
@@ -160,87 +160,87 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: spacing.md,
-        backgroundColor: Colors.surface,
+        padding: theme.spacing[4],
+        backgroundColor: theme.roles.light.surface,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
+        borderBottomColor: theme.roles.light.borderDefault,
     },
     backBtn: {
-        padding: spacing.xs,
+        padding: theme.spacing[2],
     },
     settingsBtn: {
-        padding: spacing.xs,
+        padding: theme.spacing[2],
     },
     headerTitleContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: spacing.sm,
+        gap: theme.spacing[3],
     },
     headerTitle: {
-        ...typography.h3,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
     },
     headerBadge: {
         paddingVertical: 2,
         paddingHorizontal: 6,
     },
     scrollContent: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
     },
     heroCard: {
-        marginBottom: spacing.lg,
-        padding: spacing.md,
-        backgroundColor: Colors.primary,
+        marginBottom: theme.spacing[6],
+        padding: theme.spacing[4],
+        backgroundColor: theme.roles.light.primary,
     },
     heroHeader: {
-        marginBottom: spacing.md,
+        marginBottom: theme.spacing[4],
     },
     heroTitle: {
-        ...typography.h1,
-        color: Colors.textInverse,
+        ...theme.typeScale.h1,
+        color: theme.roles.light.textInverse,
     },
     heroSubtitle: {
-        ...typography.bodyMedium,
+        ...theme.typeScale.bodyMedium,
         color: 'rgba(255,255,255,0.8)',
     },
     metricsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: spacing.sm,
-        backgroundColor: Colors.surface,
-        borderRadius: radius.md,
-        padding: spacing.xs,
+        gap: theme.spacing[3],
+        backgroundColor: theme.roles.light.surface,
+        borderRadius: theme.radius.md,
+        padding: theme.spacing[2],
     },
     cycleBtn: {
-        marginTop: spacing.md,
+        marginTop: theme.spacing[4],
         borderColor: 'rgba(255,255,255,0.5)',
     },
     emptyCycleCard: {
         alignItems: 'center',
-        padding: spacing.xl,
-        marginBottom: spacing.lg,
+        padding: theme.spacing[8],
+        marginBottom: theme.spacing[6],
     },
     emptyCycleTitle: {
-        ...typography.h3,
-        color: Colors.textPrimary,
-        marginTop: spacing.md,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
+        marginTop: theme.spacing[4],
     },
     emptyCycleSubtitle: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
-        marginBottom: spacing.lg,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[6],
         textAlign: 'center',
     },
     startCycleBtn: {
         width: '100%',
     },
     quickActionsContainer: {
-        marginBottom: spacing.lg,
+        marginBottom: theme.spacing[6],
     },
     sectionTitle: {
-        ...typography.h4,
-        color: Colors.textPrimary,
-        marginBottom: spacing.md,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[4],
     },
     actionGrid: {
         flexDirection: 'row',
@@ -256,11 +256,11 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: spacing.xs,
+        marginBottom: theme.spacing[2],
     },
     actionLabel: {
-        ...typography.labelSmall,
-        color: Colors.textPrimary,
+        ...theme.typeScale.labelSmall,
+        color: theme.roles.light.textPrimary,
         textAlign: 'center',
     },
 });

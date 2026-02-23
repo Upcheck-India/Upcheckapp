@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
 import { BarChart } from '../../../components/charts/BarChart';
-import { Colors, typography, spacing, radius } from '../../../theme';
+import { theme } from '../../../theme';
 import { feedApi, FeedRecord } from '../../../api/feedRecords';
 
 export const FeedHistoryScreen = ({ route, navigation }: any) => {
@@ -72,7 +72,7 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Feed History</Text>
                 <View style={{ width: 40 }} />
@@ -80,17 +80,17 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
 
             <View style={styles.tabsContainer}>
                 <TouchableOpacity style={[styles.tab, activeTab === 'list' && styles.activeTab]} onPress={() => setActiveTab('list')}>
-                    <MaterialCommunityIcons name="format-list-bulleted" size={20} color={activeTab === 'list' ? Colors.primary : Colors.textSecondary} />
+                    <MaterialCommunityIcons name="format-list-bulleted" size={20} color={activeTab === 'list' ? theme.roles.light.primary : theme.roles.light.textSecondary} />
                     <Text style={[styles.tabText, activeTab === 'list' && styles.activeTabText]}>List</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.tab, activeTab === 'chart' && styles.activeTab]} onPress={() => setActiveTab('chart')}>
-                    <MaterialCommunityIcons name="chart-bar" size={20} color={activeTab === 'chart' ? Colors.primary : Colors.textSecondary} />
+                    <MaterialCommunityIcons name="chart-bar" size={20} color={activeTab === 'chart' ? theme.roles.light.primary : theme.roles.light.textSecondary} />
                     <Text style={[styles.tabText, activeTab === 'chart' && styles.activeTabText]}>Chart</Text>
                 </TouchableOpacity>
             </View>
 
             {isLoading ? (
-                <View style={styles.center}><ActivityIndicator size="large" color={Colors.primary} /></View>
+                <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
             ) : activeTab === 'list' ? (
                 <FlatList
                     data={records}
@@ -115,24 +115,24 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
 
 // Assuming style definitions are extremely similar to the WQ history screen styling
 const styles = StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.divider },
-    backBtn: { padding: spacing.md },
-    title: { ...typography.h3, color: Colors.textPrimary },
-    tabsContainer: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: Colors.divider, backgroundColor: Colors.surface },
-    tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md, gap: spacing.sm, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-    activeTab: { borderBottomColor: Colors.primary },
-    tabText: { ...typography.labelLarge, color: Colors.textSecondary },
-    activeTabText: { color: Colors.primary, fontWeight: '700' },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: theme.spacing[4], backgroundColor: theme.roles.light.surface, borderBottomWidth: 1, borderBottomColor: theme.roles.light.borderDefault },
+    backBtn: { padding: theme.spacing[4] },
+    title: { ...theme.typeScale.h3, color: theme.roles.light.textPrimary },
+    tabsContainer: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: theme.roles.light.borderDefault, backgroundColor: theme.roles.light.surface },
+    tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: theme.spacing[4], gap: theme.spacing[3], borderBottomWidth: 2, borderBottomColor: 'transparent' },
+    activeTab: { borderBottomColor: theme.roles.light.primary },
+    tabText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
+    activeTabText: { color: theme.roles.light.primary, fontWeight: '700' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    listContent: { padding: spacing.md },
-    card: { padding: spacing.md, marginBottom: spacing.sm },
-    rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
-    dateText: { ...typography.labelLarge, color: Colors.textPrimary },
-    amountText: { ...typography.h4, color: Colors.primary },
-    typeText: { ...typography.bodyMedium, color: Colors.textSecondary, marginTop: 4 },
-    notesText: { ...typography.bodySmall, color: Colors.textSecondary, marginTop: spacing.sm, fontStyle: 'italic' },
-    fastingBadge: { backgroundColor: Colors.warning + '20', paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.sm },
-    fastingText: { color: Colors.warning, ...typography.labelMedium },
-    chartContainer: { flex: 1, padding: spacing.md, alignItems: 'center' },
-    chartTitle: { ...typography.h4, marginBottom: spacing.lg, alignSelf: 'flex-start' },
+    listContent: { padding: theme.spacing[4] },
+    card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
+    rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[2] },
+    dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },
+    amountText: { ...theme.typeScale.h4, color: theme.roles.light.primary },
+    typeText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary, marginTop: 4 },
+    notesText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: theme.spacing[3], fontStyle: 'italic' },
+    fastingBadge: { backgroundColor: theme.roles.light.warningText + '20', paddingHorizontal: theme.spacing[3], paddingVertical: 2, borderRadius: theme.radius.sm },
+    fastingText: { color: theme.roles.light.warningText, ...theme.typeScale.labelMedium },
+    chartContainer: { flex: 1, padding: theme.spacing[4], alignItems: 'center' },
+    chartTitle: { ...theme.typeScale.h4, marginBottom: theme.spacing[6], alignSelf: 'flex-start' },
 });

@@ -7,7 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { FAB } from '../../components/ui/FAB';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { StatusBadge } from '../../components/ui/StatusBadge';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 import { pondsApi, Pond } from '../../api/ponds';
 
 export const FarmDetailScreen = ({ route, navigation }: any) => {
@@ -63,17 +63,17 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
 
                 <View style={styles.cardBody}>
                     <View style={styles.metric}>
-                        <MaterialCommunityIcons name="ruler-square" size={16} color={Colors.textSecondary} />
+                        <MaterialCommunityIcons name="ruler-square" size={16} color={theme.roles.light.textSecondary} />
                         <Text style={styles.metricText}>{item.areaMm ? `${item.areaMm.toFixed(1)} mm²` : 'N/A'}</Text>
                     </View>
                     {item.activeCycleId ? (
                         <View style={styles.metric}>
-                            <MaterialCommunityIcons name="water" size={16} color={Colors.success} />
-                            <Text style={[styles.metricText, { color: Colors.success }]}>Active Cycle</Text>
+                            <MaterialCommunityIcons name="water" size={16} color={theme.roles.light.successText} />
+                            <Text style={[styles.metricText, { color: theme.roles.light.successText }]}>Active Cycle</Text>
                         </View>
                     ) : (
                         <View style={styles.metric}>
-                            <MaterialCommunityIcons name="water-off" size={16} color={Colors.textDisabled} />
+                            <MaterialCommunityIcons name="water-off" size={16} color={theme.roles.light.textDisabled} />
                             <Text style={styles.metricText}>No Active Cycle</Text>
                         </View>
                     )}
@@ -86,7 +86,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{farmName}</Text>
                 <View style={{ width: 40 }} />
@@ -97,7 +97,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 keyExtractor={(item) => item.id}
                 renderItem={renderPondCard}
                 contentContainerStyle={styles.listContent}
-                refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[Colors.primary]} />}
+                refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[theme.roles.light.primary]} />}
                 ListEmptyComponent={
                     !isLoading ? (
                         <EmptyState
@@ -120,51 +120,51 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: spacing.md,
-        backgroundColor: Colors.surface,
+        padding: theme.spacing[4],
+        backgroundColor: theme.roles.light.surface,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
+        borderBottomColor: theme.roles.light.borderDefault,
     },
     backBtn: {
-        padding: spacing.xs,
+        padding: theme.spacing[2],
     },
     headerTitle: {
-        ...typography.h3,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
     },
     listContent: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
         paddingBottom: 100,
     },
     card: {
-        marginBottom: spacing.md,
+        marginBottom: theme.spacing[4],
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: spacing.md,
+        marginBottom: theme.spacing[4],
     },
     titleContainer: {
         flex: 1,
-        marginRight: spacing.md,
+        marginRight: theme.spacing[4],
     },
     pondName: {
-        ...typography.h3,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
         marginBottom: 4,
     },
     pondType: {
-        ...typography.bodySmall,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
         textTransform: 'capitalize',
     },
     cardBody: {
         flexDirection: 'row',
-        gap: spacing.lg,
-        paddingTop: spacing.md,
+        gap: theme.spacing[6],
+        paddingTop: theme.spacing[4],
         borderTopWidth: 1,
-        borderTopColor: Colors.divider,
+        borderTopColor: theme.roles.light.borderDefault,
     },
     metric: {
         flexDirection: 'row',
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     metricText: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
     },
 });

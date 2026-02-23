@@ -3,7 +3,7 @@ import { View, StyleSheet, Alert, ScrollView } from 'react-native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Colors, typography, spacing } from '../../theme';
+import { theme } from '../../theme';
 import { cropsApi } from '../../api/crops';
 
 export const CreateCycleScreen = ({ route, navigation }: any) => {
@@ -112,16 +112,16 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
 
 const styles = StyleSheet.create({
     formContainer: {
-        paddingTop: spacing.md,
+        paddingTop: theme.spacing[4],
     },
     row: {
         flexDirection: 'row',
-        gap: spacing.md,
+        gap: theme.spacing[4],
     },
     halfCol: {
         flex: 1,
     },
     saveBtn: {
-        marginTop: spacing.lg,
+        marginTop: theme.spacing[6],
     },
 });

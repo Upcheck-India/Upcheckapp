@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { Colors, typography, radius, spacing } from '../../theme';
+import { theme } from '../../theme';
 
-export type StatusType = 'safe' | 'warning' | 'critical' | 'info' | 'active' | 'idle';
+export type StatusType = 'safe' | 'warning' | 'critical' | 'info' | 'active' | 'idle' | 'completed' | 'harvested';
 
 interface StatusBadgeProps {
     status: StatusType;
@@ -12,28 +12,31 @@ interface StatusBadgeProps {
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, style, textStyle }) => {
-    const getColors = () => {
+    const getStatusConfig = () => {
         switch (status) {
-            case 'safe':
             case 'active':
-                return { bg: Colors.statusSafeBg, text: Colors.statusSafeText, border: Colors.statusSafeBorder };
+            case 'safe':
+                return { bg: theme.roles.light.successBg, text: theme.roles.light.successText, border: theme.roles.light.successBorder };
             case 'warning':
-                return { bg: Colors.statusWarningBg, text: Colors.statusWarningText, border: Colors.statusWarningBorder };
+                return { bg: theme.roles.light.warningBg, text: theme.roles.light.warningText, border: theme.roles.light.warningBorder };
             case 'critical':
-                return { bg: Colors.statusCriticalBg, text: Colors.statusCriticalText, border: Colors.statusCriticalBorder };
+                return { bg: theme.roles.light.dangerBg, text: theme.roles.light.dangerText, border: theme.roles.light.dangerBorder };
+            case 'completed':
             case 'info':
+                return { bg: theme.roles.light.infoBg, text: theme.roles.light.infoText, border: theme.roles.light.infoBorder };
             case 'idle':
-                return { bg: Colors.statusInfoBg, text: Colors.statusInfoText, border: Colors.statusInfoBorder };
+            case 'harvested':
             default:
-                return { bg: Colors.chipIdle, text: Colors.chipIdleText, border: Colors.border };
+                // Map the old chipIdle semantics to standard surface tones
+                return { bg: theme.roles.light.surfaceVariant, text: theme.roles.light.textSecondary, border: theme.roles.light.borderDefault };
         }
     };
 
-    const colors = getColors();
+    const colors = getStatusConfig();
 
     return (
-        <View style={[styles.badge, { backgroundColor: colors.bg, borderColor: colors.border }, style]}>
-            <Text style={[styles.text, { color: colors.text }, textStyle]}>
+        <View style={[styles.container, { backgroundColor: colors.bg, borderColor: colors.border }, style]}>
+            <Text style={[styles.label, { color: colors.text }, textStyle]}>
                 {label}
             </Text>
         </View>
@@ -41,15 +44,19 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, style, 
 };
 
 const styles = StyleSheet.create({
-    badge: {
-        paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
-        borderRadius: radius.sm,
+    container: {
+        paddingHorizontal: theme.tokens.chip.paddingH,
+        height: theme.tokens.chip.height,
+        borderRadius: theme.tokens.chip.borderRadius,
         borderWidth: 1,
         alignSelf: 'flex-start',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    text: {
-        ...typography.labelSmall,
+    label: {
+        fontFamily: theme.tokens.chip.fontFamily,
+        fontSize: theme.tokens.chip.fontSize,
+        letterSpacing: theme.tokens.chip.letterSpacing,
         textTransform: 'uppercase',
     },
 });

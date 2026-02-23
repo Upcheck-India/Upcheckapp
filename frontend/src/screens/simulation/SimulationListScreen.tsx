@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { FAB } from '../../components/ui/FAB';
-import { Colors, typography, spacing, radius } from '../../theme';
+import { theme } from '../../theme';
 import { simulationsApi, SimulationResult } from '../../api/simulations';
 
 export const SimulationListScreen = ({ navigation }: any) => {
@@ -37,15 +37,15 @@ export const SimulationListScreen = ({ navigation }: any) => {
         >
             <View style={styles.cardHeader}>
                 <Text style={styles.cardTitle}>Run {new Date(item.createdAt).toLocaleDateString()}</Text>
-                <MaterialCommunityIcons name="chevron-right" size={24} color={Colors.textDisabled} />
+                <MaterialCommunityIcons name="chevron-right" size={24} color={theme.roles.light.textDisabled} />
             </View>
             <View style={styles.statsRow}>
                 <View style={styles.stat}>
-                    <MaterialCommunityIcons name="target" size={16} color={Colors.textSecondary} />
+                    <MaterialCommunityIcons name="target" size={16} color={theme.roles.light.textSecondary} />
                     <Text style={styles.statText}>{item.targetBiomassKg.toLocaleString()} kg Target</Text>
                 </View>
                 <View style={styles.stat}>
-                    <MaterialCommunityIcons name="calendar-clock" size={16} color={Colors.textSecondary} />
+                    <MaterialCommunityIcons name="calendar-clock" size={16} color={theme.roles.light.textSecondary} />
                     <Text style={styles.statText}>{item.cultureDurationDays} DOC</Text>
                 </View>
             </View>
@@ -56,7 +56,7 @@ export const SimulationListScreen = ({ navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={Colors.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Simulations</Text>
                 <View style={{ width: 40 }} />
@@ -64,7 +64,7 @@ export const SimulationListScreen = ({ navigation }: any) => {
 
             {isLoading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator size="large" color={Colors.primary} />
+                    <ActivityIndicator size="large" color={theme.roles.light.primary} />
                 </View>
             ) : (
                 <FlatList
@@ -74,7 +74,7 @@ export const SimulationListScreen = ({ navigation }: any) => {
                     contentContainerStyle={styles.listContent}
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
-                            <MaterialCommunityIcons name="chart-timeline-variant-shimmer" size={64} color={Colors.border} />
+                            <MaterialCommunityIcons name="chart-timeline-variant-shimmer" size={64} color={theme.roles.light.borderDefault} />
                             <Text style={styles.emptyTitle}>No Simulations yet</Text>
                             <Text style={styles.emptyDesc}>Create your first forecast to plan your next cycle effectively.</Text>
                         </View>
@@ -95,17 +95,17 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: spacing.md,
+        paddingVertical: theme.spacing[4],
         borderBottomWidth: 1,
-        borderBottomColor: Colors.divider,
-        backgroundColor: Colors.surface,
+        borderBottomColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surface,
     },
     backBtn: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
     },
     title: {
-        ...typography.h3,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
     },
     center: {
         flex: 1,
@@ -113,30 +113,30 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     listContent: {
-        padding: spacing.md,
+        padding: theme.spacing[4],
         paddingBottom: 100,
     },
     card: {
-        backgroundColor: Colors.surface,
-        padding: spacing.md,
-        borderRadius: radius.md,
-        marginBottom: spacing.md,
+        backgroundColor: theme.roles.light.surface,
+        padding: theme.spacing[4],
+        borderRadius: theme.radius.md,
+        marginBottom: theme.spacing[4],
         borderWidth: 1,
-        borderColor: Colors.border,
+        borderColor: theme.roles.light.borderDefault,
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: spacing.sm,
+        marginBottom: theme.spacing[3],
     },
     cardTitle: {
-        ...typography.h4,
-        color: Colors.textPrimary,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
     },
     statsRow: {
         flexDirection: 'row',
-        gap: spacing.lg,
+        gap: theme.spacing[6],
     },
     stat: {
         flexDirection: 'row',
@@ -144,8 +144,8 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     statText: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
     },
     emptyState: {
         alignItems: 'center',
@@ -153,15 +153,15 @@ const styles = StyleSheet.create({
         paddingTop: 80,
     },
     emptyTitle: {
-        ...typography.h4,
-        color: Colors.textPrimary,
-        marginTop: spacing.md,
-        marginBottom: spacing.xs,
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginTop: theme.spacing[4],
+        marginBottom: theme.spacing[2],
     },
     emptyDesc: {
-        ...typography.bodyMedium,
-        color: Colors.textSecondary,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
         textAlign: 'center',
-        paddingHorizontal: spacing.xl,
+        paddingHorizontal: theme.spacing[8],
     },
 });
