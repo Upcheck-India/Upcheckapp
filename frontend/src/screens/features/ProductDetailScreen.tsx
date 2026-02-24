@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: Layout.spacing.lg, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.divider, ...Layout.shadow.xl },
     oosBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, backgroundColor: Colors.surfaceVariant, borderRadius: Layout.radius.md },
     oosText: { color: Colors.textSecondary, fontSize: 13 },
-    deliveryUnavailableBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.warningLight ?? '#FFF3E0', paddingHorizontal: 8, paddingVertical: 3, borderRadius: Layout.radius.full },
+    deliveryUnavailableBadge: { flexDirection: 'row', marginTop: 12, alignItems: 'center', gap: 4, backgroundColor: Colors.warningLight ?? '#FFF3E0', paddingHorizontal: 8, paddingVertical: 3, borderRadius: Layout.radius.full },
     deliveryUnavailableText: { fontSize: 11, color: Colors.warning, fontWeight: '600' },
     deliveryUnavailableFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, backgroundColor: '#FFF3E0', borderRadius: Layout.radius.md },
     deliveryUnavailableFooterText: { color: Colors.warning, fontSize: 13, fontWeight: '600' },
