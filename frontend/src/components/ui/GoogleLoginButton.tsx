@@ -2,7 +2,6 @@ import React from 'react';
 import { StyleSheet } from 'react-native';
 import { Button } from './Button';
 import { theme } from '../../theme';
-import { Colors, spacing } from '../../theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface Props {
