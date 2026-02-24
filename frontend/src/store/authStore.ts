@@ -1,148 +1,252 @@
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authApi, AuthSession } from '../api/auth';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import * as SecureStore from 'expo-secure-store';
+import type { Session, User } from '@supabase/supabase-js';
+import { authApi } from '../api/auth';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
+export type AuthStatus =
+    | 'initializing'       // app just launched, checking stored session
+    | 'unauthenticated'    // no session, show login screen
+    | 'awaiting_verification' // signed up but email not confirmed
+    | 'authenticated'      // fully logged in
+    | 'refreshing';        // access token being refreshed
+
+export interface AuthUser {
+    id: string;
+    email: string;
+    name: string;
+    avatarUrl: string | null;
+    provider: 'email' | 'google';
+    emailVerified: boolean;
+}
+
 interface AuthState {
-    isLoading: boolean;
+    // ── Core State ──
+    status: AuthStatus;
+    user: AuthUser | null;
+    session: Session | null;
+    isLoading: boolean; // Retained for compatibility with existing UI
+
+    // ── Derived (computed from session) ──
+    accessToken: string | null;
     isAuthenticated: boolean;
-    user: any | null;
-    session: AuthSession | null;
+
+    // ── Pending verification ──
+    pendingVerificationEmail: string | null;
+
+    // ── Error ──
     error: string | null;
 
-    // Actions
+    // ── Actions ──
+    setSession: (session: Session) => void;
+    setStatus: (status: AuthStatus) => void;
+    setPendingVerification: (email: string) => void;
+    clearPendingVerification: () => void;
+    setError: (error: string | null) => void;
+    clearError: () => void;
+    clearSession: () => void;
+    hydrateFromSupabaseUser: (user: User, session: Session) => void;
+
+    // ── API Actions ──
     initialize: () => Promise<void>;
     login: (email: string, password: string) => Promise<void>;
     googleLogin: () => Promise<void>;
     signup: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
     logout: () => Promise<void>;
     forgotPassword: (email: string) => Promise<void>;
-    clearError: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-    isLoading: true,
-    isAuthenticated: false,
-    user: null,
-    session: null,
-    error: null,
+const mapSupabaseUser = (user: User): AuthUser => ({
+    id: user.id,
+    email: user.email!,
+    name:
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email!.split('@')[0],
+    avatarUrl:
+        user.user_metadata?.avatar_url ||
+        user.user_metadata?.picture ||
+        null,
+    provider: (user.app_metadata?.provider as 'email' | 'google') || 'email',
+    emailVerified: !!user.email_confirmed_at,
+});
 
-    initialize: async () => {
-        try {
-            const sessionStr = await AsyncStorage.getItem('supabase_session');
-            if (sessionStr) {
-                const session = JSON.parse(sessionStr);
-                // Verify the token is still valid
-                try {
-                    const { data } = await authApi.getCurrentUser();
-                    set({ isAuthenticated: true, user: data.user, session, isLoading: false });
-                } catch {
-                    // Token expired — try refresh
+export const useAuthStore = create<AuthState>()(
+    persist(
+        (set, get) => ({
+            // Initial state
+            status: 'initializing',
+            isLoading: true,
+            user: null,
+            session: null,
+            accessToken: null,
+            isAuthenticated: false,
+            pendingVerificationEmail: null,
+            error: null,
+
+            setSession: (session) =>
+                set({
+                    session,
+                    accessToken: session.access_token,
+                    user: mapSupabaseUser(session.user),
+                    isAuthenticated: true,
+                    status: 'authenticated',
+                    error: null,
+                    isLoading: false,
+                }),
+
+            setStatus: (status) => set({ status }),
+
+            setPendingVerification: (email) =>
+                set({
+                    pendingVerificationEmail: email,
+                    status: 'awaiting_verification',
+                    isLoading: false,
+                }),
+
+            clearPendingVerification: () =>
+                set({ pendingVerificationEmail: null }),
+
+            setError: (error) => set({ error, isLoading: false }),
+            clearError: () => set({ error: null }),
+
+            clearSession: () =>
+                set({
+                    session: null,
+                    accessToken: null,
+                    user: null,
+                    isAuthenticated: false,
+                    status: 'unauthenticated',
+                    pendingVerificationEmail: null,
+                    error: null,
+                    isLoading: false,
+                }),
+
+            hydrateFromSupabaseUser: (user, session) =>
+                set({
+                    session,
+                    accessToken: session.access_token,
+                    user: mapSupabaseUser(user),
+                    isAuthenticated: true,
+                    status: 'authenticated',
+                    isLoading: false,
+                }),
+
+            initialize: async () => {
+                const state = get();
+                if (state.session) {
                     try {
-                        const { data } = await authApi.refresh(session.refresh_token);
-                        if (data.session) {
-                            await AsyncStorage.setItem('supabase_session', JSON.stringify(data.session));
-                            set({ isAuthenticated: true, user: data.user, session: data.session, isLoading: false });
-                        } else {
-                            throw new Error('No session');
-                        }
+                        const { data } = await authApi.getCurrentUser();
+                        set({
+                            isAuthenticated: true,
+                            user: mapSupabaseUser(data.user),
+                            status: 'authenticated',
+                            isLoading: false
+                        });
                     } catch {
-                        await AsyncStorage.removeItem('supabase_session');
-                        set({ isAuthenticated: false, user: null, session: null, isLoading: false });
+                        // Token might be expired, clear everything and let user re-login
+                        get().clearSession();
                     }
+                } else {
+                    set({ status: 'unauthenticated', isLoading: false });
                 }
-            } else {
-                set({ isLoading: false });
-            }
-        } catch {
-            set({ isLoading: false });
+            },
+
+            login: async (email, password) => {
+                set({ isLoading: true, error: null });
+                try {
+                    const { data } = await authApi.signin({ email, password });
+                    if (data.session) {
+                        get().setSession(data.session);
+                    }
+                } catch (err: any) {
+                    const message = err.response?.data?.message || err.message || 'Login failed';
+                    get().setError(message);
+                    throw new Error(message);
+                }
+            },
+
+            googleLogin: async () => {
+                set({ isLoading: true, error: null });
+                try {
+                    await GoogleSignin.hasPlayServices();
+                    const userInfo = await GoogleSignin.signIn();
+                    const idToken = userInfo.data?.idToken || (userInfo as any).idToken;
+                    if (!idToken) throw new Error('No ID token from Google');
+
+                    const { data } = await authApi.googleOAuth(idToken);
+                    if (data.session) {
+                        get().setSession(data.session);
+                    } else {
+                        set({ isLoading: false });
+                    }
+                } catch (err: any) {
+                    let message = 'Google sign in failed';
+                    if (err.code === statusCodes.SIGN_IN_CANCELLED) {
+                        message = 'Sign in was cancelled';
+                    } else if (err.code === statusCodes.IN_PROGRESS) {
+                        message = 'Sign in is already in progress';
+                    } else if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+                        message = 'Google Play Services not available or outdated';
+                    } else {
+                        message = err.response?.data?.message || err.message || message;
+                    }
+                    get().setError(message);
+                }
+            },
+
+            signup: async (email, password, firstName, lastName) => {
+                set({ isLoading: true, error: null });
+                try {
+                    const { data } = await authApi.signup({ email, password, firstName, lastName });
+                    if (data.session) {
+                        get().setSession(data.session);
+                    } else {
+                        get().setPendingVerification(email);
+                    }
+                } catch (err: any) {
+                    const message = err.response?.data?.message || err.message || 'Registration failed';
+                    get().setError(message);
+                    throw new Error(message);
+                }
+            },
+
+            logout: async () => {
+                try {
+                    await authApi.signout();
+                } catch {
+                    // Ignore signout error
+                }
+                get().clearSession();
+            },
+
+            forgotPassword: async (email) => {
+                set({ isLoading: true, error: null });
+                try {
+                    await authApi.forgotPassword(email);
+                    set({ isLoading: false });
+                } catch (err: any) {
+                    const message = err.response?.data?.message || err.message || 'Failed to send reset email';
+                    get().setError(message);
+                    throw new Error(message);
+                }
+            },
+        }),
+        {
+            name: 'upcheck-auth',
+            storage: createJSONStorage(() => ({
+                getItem: (key) => SecureStore.getItemAsync(key),
+                setItem: (key, value) => SecureStore.setItemAsync(key, value),
+                removeItem: (key) => SecureStore.deleteItemAsync(key),
+            })),
+            // Only persist user, session (refresh token mostly), and pending email.
+            // Do NOT persist accessToken directly as per Blueprint.
+            partialize: (state) => ({
+                user: state.user,
+                pendingVerificationEmail: state.pendingVerificationEmail,
+                session: state.session,
+            }),
         }
-    },
-
-    login: async (email, password) => {
-        set({ isLoading: true, error: null });
-        try {
-            const { data } = await authApi.signin({ email, password });
-            if (data.session) {
-                await AsyncStorage.setItem('supabase_session', JSON.stringify(data.session));
-            }
-            set({ isAuthenticated: true, user: data.user, session: data.session, isLoading: false });
-        } catch (err: any) {
-            const message = err.response?.data?.message || err.message || 'Login failed';
-            set({ error: message, isLoading: false });
-            throw new Error(message);
-        }
-    },
-
-    googleLogin: async () => {
-        set({ isLoading: true, error: null });
-        try {
-            await GoogleSignin.hasPlayServices();
-            const userInfo = await GoogleSignin.signIn();
-            const idToken = userInfo.data?.idToken || (userInfo as any).idToken;
-            if (!idToken) throw new Error('No ID token from Google');
-
-            const { data } = await authApi.googleOAuth(idToken);
-            if (data.session) {
-                await AsyncStorage.setItem('supabase_session', JSON.stringify(data.session));
-                set({ isAuthenticated: true, user: data.user, session: data.session, isLoading: false });
-            } else {
-                set({ isLoading: false });
-            }
-        } catch (err: any) {
-            let message = 'Google sign in failed';
-            if (err.code === statusCodes.SIGN_IN_CANCELLED) {
-                message = 'Sign in was cancelled';
-            } else if (err.code === statusCodes.IN_PROGRESS) {
-                message = 'Sign in is already in progress';
-            } else if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-                message = 'Google Play Services not available or outdated';
-            } else {
-                message = err.response?.data?.message || err.message || message;
-            }
-            set({ error: message, isLoading: false });
-        }
-    },
-
-    signup: async (email, password, firstName, lastName) => {
-        set({ isLoading: true, error: null });
-        try {
-            const { data } = await authApi.signup({ email, password, firstName, lastName });
-            if (data.session) {
-                await AsyncStorage.setItem('supabase_session', JSON.stringify(data.session));
-                set({ isAuthenticated: true, user: data.user, session: data.session, isLoading: false });
-            } else {
-                // Email verification required
-                set({ isLoading: false });
-            }
-        } catch (err: any) {
-            const message = err.response?.data?.message || err.message || 'Registration failed';
-            set({ error: message, isLoading: false });
-            throw new Error(message);
-        }
-    },
-
-    logout: async () => {
-        try {
-            await authApi.signout();
-        } catch {
-            // Ignore signout error
-        }
-        await AsyncStorage.removeItem('supabase_session');
-        set({ isAuthenticated: false, user: null, session: null });
-    },
-
-    forgotPassword: async (email) => {
-        set({ isLoading: true, error: null });
-        try {
-            await authApi.forgotPassword(email);
-            set({ isLoading: false });
-        } catch (err: any) {
-            const message = err.response?.data?.message || err.message || 'Failed to send reset email';
-            set({ error: message, isLoading: false });
-            throw new Error(message);
-        }
-    },
-
-    clearError: () => set({ error: null }),
-}));
+    )
+);

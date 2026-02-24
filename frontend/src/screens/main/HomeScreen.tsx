@@ -23,7 +23,7 @@ export const HomeScreen = ({ navigation }: any) => {
                 <View>
                     <Text style={styles.greeting}>Welcome back,</Text>
                     <Text style={styles.userName}>
-                        {user?.user_metadata?.firstName || user?.email?.split('@')[0] || 'Farmer'}
+                        {user?.name || user?.email?.split('@')[0] || 'Farmer'}
                     </Text>
                 </View>
                 <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.avatar}>
