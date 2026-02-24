@@ -6,13 +6,15 @@ import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
+import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 
 export const LoginScreen = ({ navigation }: any) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-    const { login, googleLogin, isLoading, error, clearError } = useAuthStore();
+    const { login, isLoading, error, clearError } = useAuthStore();
+    const { signInWithGoogle } = useGoogleAuth();
 
     const validate = (): boolean => {
         const newErrors: { email?: string; password?: string } = {};
@@ -79,7 +81,7 @@ export const LoginScreen = ({ navigation }: any) => {
                     style={styles.signInBtn}
                 />
 
-                <GoogleLoginButton onPress={googleLogin} loading={isLoading} />
+                <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
 
                 <Button
                     title="Forgot Password?"

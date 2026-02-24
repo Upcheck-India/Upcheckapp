@@ -1,8 +1,5 @@
 {
-<<<<<<< /home/kiran-sekar/UPCHECK APP/frontend/tsconfig.json
   "extends": "expo/tsconfig.base.json",
-=======
->>>>>>> /home/kiran-sekar/.windsurf/worktrees/UPCHECK APP/UPCHECK APP-d5a59507/frontend/tsconfig.json
   "compilerOptions": {
     "strict": true,
     "jsx": "react-jsx",
@@ -12,42 +9,20 @@
     "emitDecoratorMetadata": true,
     "target": "ES2020",
     "module": "ESNext",
-<<<<<<< /home/kiran-sekar/UPCHECK APP/frontend/tsconfig.json
-<<<<<<< /home/kiran-sekar/UPCHECK APP/frontend/tsconfig.json
-<<<<<<< /home/kiran-sekar/UPCHECK APP/frontend/tsconfig.json
-    "moduleResolution": "node",
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "strictPropertyInitialization": false,
-    "noImplicitAny": false
-=======
-=======
->>>>>>> /home/kiran-sekar/.windsurf/worktrees/UPCHECK APP/UPCHECK APP-061e727c/frontend/tsconfig.json
     "moduleResolution": "bundler",
-=======
-    "moduleResolution": "node",
-    "lib": ["ES2020"],
->>>>>>> /home/kiran-sekar/.windsurf/worktrees/UPCHECK APP/UPCHECK APP-d5a59507/frontend/tsconfig.json
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "strictPropertyInitialization": false,
     "noImplicitAny": false,
-<<<<<<< /home/kiran-sekar/UPCHECK APP/frontend/tsconfig.json
+    "isolatedModules": true,
+    "allowJs": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
     "lib": ["ES2020", "DOM"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
     }
-<<<<<<< /home/kiran-sekar/UPCHECK APP/frontend/tsconfig.json
->>>>>>> /home/kiran-sekar/.windsurf/worktrees/UPCHECK APP/UPCHECK APP-061e727c/frontend/tsconfig.json
-=======
->>>>>>> /home/kiran-sekar/.windsurf/worktrees/UPCHECK APP/UPCHECK APP-061e727c/frontend/tsconfig.json
-=======
-    "isolatedModules": true,
-    "allowJs": true,
-    "forceConsistentCasingInFileNames": true,
-    "noEmit": true
->>>>>>> /home/kiran-sekar/.windsurf/worktrees/UPCHECK APP/UPCHECK APP-d5a59507/frontend/tsconfig.json
   },
   "include": [
     "src/**/*"

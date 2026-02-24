@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
+import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 
 export const RegisterScreen = ({ navigation }: any) => {
     const [firstName, setFirstName] = useState('');
@@ -16,7 +17,8 @@ export const RegisterScreen = ({ navigation }: any) => {
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [success, setSuccess] = useState(false);
 
-    const { signup, googleLogin, isLoading, error, clearError } = useAuthStore();
+    const { signup, isLoading, error, clearError } = useAuthStore();
+    const { signInWithGoogle } = useGoogleAuth();
 
     const validate = (): boolean => {
         const e: Record<string, string> = {};
@@ -136,7 +138,7 @@ export const RegisterScreen = ({ navigation }: any) => {
                 style={{ marginTop: theme.spacing[3] }}
             />
 
-            <GoogleLoginButton onPress={googleLogin} loading={isLoading} />
+            <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
 
             <Button
                 title="Already have an account? Sign In"
