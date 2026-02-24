@@ -13,7 +13,7 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
     const [records, setRecords] = useState<WaterQualityRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'list' | 'chart'>('list');
-    const [chartMetric, setChartMetric] = useState<'ph' | 'do' | 'temperature'>('ph');
+    const [chartMetric, setChartMetric] = useState<'ph' | 'dissolvedOxygen' | 'temperature'>('ph');
 
     useEffect(() => {
         fetchRecords();
@@ -23,11 +23,13 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
         setIsLoading(true);
         try {
             // In a real app we'd filter by pondId here
-            const { data } = await waterQualityApi.getAll(pondId);
-            const pondRecords = data;
+            const response = await waterQualityApi.getAll(pondId);
+            const result = response.data;
+            // Backend returns PageDto { data: [...], meta: {...} }
+            const pondRecords: WaterQualityRecord[] = Array.isArray(result) ? result : (result as any).data || [];
 
             // Sort newest first
-            pondRecords.sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+            pondRecords.sort((a, b) => new Date(b.recordedAt || '').getTime() - new Date(a.recordedAt || '').getTime());
             setRecords(pondRecords);
         } catch (error) {
             console.log('Failed to fetch WQ records', error);
@@ -73,8 +75,8 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
                 <View style={styles.metricItem}>
                     <Text style={styles.metricLabel}>DO (mg/L)</Text>
                     <View style={styles.valRow}>
-                        <Text style={styles.metricVal}>{item.do || '--'}</Text>
-                        {item.do && <View style={[styles.dot, { backgroundColor: getStatusColor(getParameterStatus('do', item.do)) }]} />}
+                        <Text style={styles.metricVal}>{item.dissolvedOxygen || '--'}</Text>
+                        {item.dissolvedOxygen && <View style={[styles.dot, { backgroundColor: getStatusColor(getParameterStatus('do', item.dissolvedOxygen)) }]} />}
                     </View>
                 </View>
                 <View style={styles.metricItem}>
@@ -143,8 +145,8 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
                         <TouchableOpacity onPress={() => setChartMetric('ph')} style={[styles.pill, chartMetric === 'ph' && styles.activePill]}>
                             <Text style={[styles.pillText, chartMetric === 'ph' && styles.activePillText]}>pH</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => setChartMetric('do')} style={[styles.pill, chartMetric === 'do' && styles.activePill]}>
-                            <Text style={[styles.pillText, chartMetric === 'do' && styles.activePillText]}>DO</Text>
+                        <TouchableOpacity onPress={() => setChartMetric('dissolvedOxygen')} style={[styles.pill, chartMetric === 'dissolvedOxygen' && styles.activePill]}>
+                            <Text style={[styles.pillText, chartMetric === 'dissolvedOxygen' && styles.activePillText]}>DO</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setChartMetric('temperature')} style={[styles.pill, chartMetric === 'temperature' && styles.activePill]}>
                             <Text style={[styles.pillText, chartMetric === 'temperature' && styles.activePillText]}>Temp</Text>

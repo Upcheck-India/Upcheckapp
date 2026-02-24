@@ -60,7 +60,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
 
     const calculateDOC = (stockingDateStr: string) => {
         const start = new Date(stockingDateStr).getTime();
-        const end = cycle.closedAt ? new Date(cycle.closedAt).getTime() : new Date().getTime();
+        const end = cycle.actualHarvestDate ? new Date(cycle.actualHarvestDate).getTime() : new Date().getTime();
         const diff = Math.floor((end - start) / (1000 * 60 * 60 * 24));
         return diff >= 0 ? diff : 0;
     };
@@ -89,21 +89,21 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                     <View style={styles.row}>
                         <View style={styles.col}>
                             <Text style={styles.infoLabel}>Stocking Date</Text>
-                            <Text style={styles.infoValue}>{new Date(cycle.stockingDate).toLocaleDateString()}</Text>
+                            <Text style={styles.infoValue}>{cycle.stockingDate ? new Date(cycle.stockingDate).toLocaleDateString() : 'N/A'}</Text>
                         </View>
                         <View style={styles.col}>
                             <Text style={styles.infoLabel}>DOC</Text>
-                            <Text style={styles.infoValue}>{calculateDOC(cycle.stockingDate)} days</Text>
+                            <Text style={styles.infoValue}>{cycle.stockingDate ? calculateDOC(cycle.stockingDate) : (cycle.doc ?? 0)} days</Text>
                         </View>
                     </View>
                     <View style={styles.row}>
                         <View style={styles.col}>
                             <Text style={styles.infoLabel}>Total Seed</Text>
-                            <Text style={styles.infoValue}>{cycle.totalSeed.toLocaleString()}</Text>
+                            <Text style={styles.infoValue}>{(cycle.stockingCount ?? cycle.totalSeed)?.toLocaleString() ?? 'N/A'}</Text>
                         </View>
                         <View style={styles.col}>
                             <Text style={styles.infoLabel}>Species</Text>
-                            <Text style={styles.infoValue}>{cycle.species}</Text>
+                            <Text style={styles.infoValue}>{cycle.speciesType ?? 'N/A'}</Text>
                         </View>
                     </View>
                 </Card>
@@ -111,16 +111,16 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                 <Text style={styles.sectionHeading}>Targets vs Current</Text>
                 <View style={styles.metricsGrid}>
                     <MetricCard
-                        label="Target Survival"
-                        value={`${cycle.targetSurvivalRate || 0}%`}
+                        label="Target SR"
+                        value={`${cycle.targetSrPercent ?? 0}%`}
                     />
                     <MetricCard
-                        label="Target FCR"
-                        value={cycle.targetFcr || 'N/A'}
+                        label="Target Days"
+                        value={`${cycle.targetCultivationDays ?? 120}`}
                     />
                     <MetricCard
                         label="Target Size"
-                        value={`${cycle.targetSizeG || 0}g`}
+                        value={`${cycle.targetSize ?? 0} pcs/kg`}
                     />
                 </View>
 
@@ -128,7 +128,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                     <View style={styles.actionContainer}>
                         <Button
                             title="Record Harvest"
-                            onPress={() => {/* Connect later */ }}
+                            onPress={() => navigation.navigate('HarvestHistory', { pondId: cycle.pondId, cycleId: cycle.id })}
                             style={styles.actionBtn}
                         />
                         <Button

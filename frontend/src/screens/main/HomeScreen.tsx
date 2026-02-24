@@ -11,10 +11,10 @@ export const HomeScreen = ({ navigation }: any) => {
     const { user, logout } = useAuthStore();
 
     const quickActions = [
-        { icon: 'barn' as const, label: 'Farms', screen: 'FarmsList', color: theme.roles.light.primary },
-        { icon: 'calculator-variant-outline' as const, label: 'Calculators', screen: 'CalculatorHub', color: theme.roles.light.infoBorder },
-        { icon: 'book-open-outline' as const, label: 'Diseases', screen: 'DiseaseList', color: theme.roles.light.warningText },
-        { icon: 'chart-timeline-variant' as const, label: 'Simulate', screen: 'SimulationList', color: theme.roles.light.successText },
+        { icon: 'barn' as const, label: 'Farms', screen: 'Farms', isTab: true, color: theme.roles.light.primary },
+        { icon: 'calculator-variant-outline' as const, label: 'Calculators', screen: 'CalculatorHub', isTab: false, color: theme.roles.light.infoBorder },
+        { icon: 'chart-timeline-variant' as const, label: 'Simulate', screen: 'SimulationList', isTab: false, color: theme.roles.light.successText },
+        { icon: 'cog-outline' as const, label: 'Settings', screen: 'Settings', isTab: false, color: theme.roles.light.warningText },
     ];
 
     return (
@@ -26,7 +26,7 @@ export const HomeScreen = ({ navigation }: any) => {
                         {user?.name || user?.email?.split('@')[0] || 'Farmer'}
                     </Text>
                 </View>
-                <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.avatar}>
+                <TouchableOpacity onPress={() => navigation.getParent()?.navigate('Settings') ?? navigation.navigate('Settings')} style={styles.avatar}>
                     <MaterialCommunityIcons name="account-circle" size={40} color={theme.roles.light.primary} />
                 </TouchableOpacity>
             </View>
@@ -37,10 +37,7 @@ export const HomeScreen = ({ navigation }: any) => {
                     <TouchableOpacity
                         key={action.label}
                         style={styles.actionCard}
-                        onPress={() => {
-                            // Navigation will be connected in Phase 2+
-                            // navigation.navigate(action.screen);
-                        }}
+                        onPress={() => action.isTab ? navigation.navigate(action.screen) : navigation.getParent()?.navigate(action.screen) ?? navigation.navigate(action.screen)}
                         activeOpacity={0.7}
                     >
                         <View style={[styles.iconCircle, { backgroundColor: action.color + '15' }]}>

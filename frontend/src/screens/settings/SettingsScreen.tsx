@@ -6,14 +6,15 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 
+import { useAuthStore } from '../../store/authStore';
+
 export const SettingsScreen = ({ navigation }: any) => {
     const [offlineSync, setOfflineSync] = useState(true);
     const [pushNotifications, setPushNotifications] = useState(true);
     const [emailAlerts, setEmailAlerts] = useState(false);
 
-    // In a real app we'd dispatch a logout action
     const handleLogout = () => {
-        navigation.navigate('Auth', { screen: 'Login' });
+        useAuthStore.getState().logout();
     };
 
     return (

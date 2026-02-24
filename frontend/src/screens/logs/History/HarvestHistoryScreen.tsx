@@ -7,7 +7,7 @@ import { theme } from '../../../theme';
 import { harvestsApi, HarvestRecord } from '../../../api/harvests';
 
 export const HarvestHistoryScreen = ({ route, navigation }: any) => {
-    const { pondId, cycleId } = route.params;
+    const { pondId, cycleId, cropId } = route.params;
     const [records, setRecords] = useState<HarvestRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -20,7 +20,7 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
         try {
             const { data } = await harvestsApi.getAll();
             // Strictly map by both pond and cycle if applicable, filtering by pondId for now
-            const pondRecords = data.filter((r: HarvestRecord) => r.pondId === pondId);
+            const pondRecords = cropId ? data.filter((r: HarvestRecord) => r.cropId === cropId) : data;
             pondRecords.sort((a, b) => new Date(b.harvestDate).getTime() - new Date(a.harvestDate).getTime());
             setRecords(pondRecords);
         } catch (error) {
@@ -44,11 +44,11 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
             <View style={styles.metricsRow}>
                 <View style={styles.metricBlock}>
                     <Text style={styles.metricLabel}>Total Biomass</Text>
-                    <Text style={styles.metricValue}>{item.totalBiomassKg.toLocaleString()} <Text style={styles.metricUnit}>kg</Text></Text>
+                    <Text style={styles.metricValue}>{item.weightKg.toLocaleString()} <Text style={styles.metricUnit}>kg</Text></Text>
                 </View>
                 <View style={styles.metricBlock}>
-                    <Text style={styles.metricLabel}>ABW</Text>
-                    <Text style={styles.metricValue}>{item.abw} <Text style={styles.metricUnit}>g</Text></Text>
+                    <Text style={styles.metricLabel}>Avg Size</Text>
+                    <Text style={styles.metricValue}>{item.averageSize} <Text style={styles.metricUnit}>g</Text></Text>
                 </View>
             </View>
 
@@ -56,10 +56,10 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
                 <MaterialCommunityIcons name="cash-multiple" size={16} color={theme.roles.light.textSecondary} />
                 <Text style={styles.detailText}>Sold to: {item.buyerName}</Text>
             </View>
-            {item.pricePerKg && (
+            {item.salePriceTotal && (
                 <View style={styles.detailRow}>
                     <MaterialCommunityIcons name="currency-usd" size={16} color={theme.roles.light.textSecondary} />
-                    <Text style={styles.detailText}>Price/kg: {item.pricePerKg}</Text>
+                    <Text style={styles.detailText}>Total Sale: {item.salePriceTotal}</Text>
                 </View>
             )}
         </Card>

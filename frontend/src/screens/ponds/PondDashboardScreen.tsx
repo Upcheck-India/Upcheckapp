@@ -64,7 +64,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                 </TouchableOpacity>
                 <View style={styles.headerTitleContainer}>
                     <Text style={styles.headerTitle}>{pondName}</Text>
-                    {pond && <StatusBadge status={pond.status === 'active' ? 'active' : 'idle'} label={pond.status} style={styles.headerBadge} />}
+                    {pond && <StatusBadge status={pond.status === 'active' ? 'active' : pond.status === 'fallow' ? 'idle' : 'info'} label={pond.status} style={styles.headerBadge} />}
                 </View>
                 <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.settingsBtn}>
                     <MaterialCommunityIcons name="cog-outline" size={24} color={theme.roles.light.textPrimary} />
@@ -84,8 +84,8 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                 {activeCycle ? (
                     <Card style={styles.heroCard} variant="elevated">
                         <View style={styles.heroHeader}>
-                            <Text style={styles.heroTitle}>DOC {calculateDOC(activeCycle.stockingDate)}</Text>
-                            <Text style={styles.heroSubtitle}>Stocked {new Date(activeCycle.stockingDate).toLocaleDateString()}</Text>
+                            <Text style={styles.heroTitle}>DOC {activeCycle.stockingDate ? calculateDOC(activeCycle.stockingDate) : (activeCycle.doc ?? 0)}</Text>
+                            <Text style={styles.heroSubtitle}>{activeCycle.stockingDate ? `Stocked ${new Date(activeCycle.stockingDate).toLocaleDateString()}` : activeCycle.name}</Text>
                         </View>
 
                         <View style={styles.metricsGrid}>
@@ -120,32 +120,67 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                     <View style={styles.quickActionsContainer}>
                         <Text style={styles.sectionTitle}>Log Data</Text>
                         <View style={styles.actionGrid}>
-                            <TouchableOpacity style={styles.actionItem} onPress={() => {/* Navigate to wq */ }}>
+                            <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('WaterQualityLog', { pondId, pondName, cropId: activeCycle.id })}>
                                 <View style={[styles.actionIconBg, { backgroundColor: theme.roles.light.infoBg }]}>
                                     <MaterialCommunityIcons name="water-percent" size={26} color={theme.roles.light.infoBorder} />
                                 </View>
                                 <Text style={styles.actionLabel}>Water Quality</Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.actionItem} onPress={() => {/* Navigate to feed */ }}>
+                            <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('FeedLog', { pondId, pondName, cropId: activeCycle.id })}>
                                 <View style={[styles.actionIconBg, { backgroundColor: theme.roles.light.warningText + '15' }]}>
                                     <MaterialCommunityIcons name="corn" size={26} color={theme.roles.light.warningText} />
                                 </View>
                                 <Text style={styles.actionLabel}>Feed</Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.actionItem} onPress={() => {/* Navigate to sampling */ }}>
+                            <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('SamplingLog', { pondId, pondName, cropId: activeCycle.id })}>
                                 <View style={[styles.actionIconBg, { backgroundColor: theme.roles.light.successText + '15' }]}>
                                     <MaterialCommunityIcons name="scale" size={26} color={theme.roles.light.successText} />
                                 </View>
                                 <Text style={styles.actionLabel}>Sampling</Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.actionItem} onPress={() => {/* Navigate to treatment */ }}>
+                            <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('TreatmentLog', { pondId, pondName, cropId: activeCycle.id })}>
                                 <View style={[styles.actionIconBg, { backgroundColor: theme.roles.light.dangerText + '15' }]}>
                                     <MaterialCommunityIcons name="pill" size={26} color={theme.roles.light.dangerText} />
                                 </View>
                                 <Text style={styles.actionLabel}>Treatment</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('MortalityLog', { pondId, pondName, cropId: activeCycle.id })}>
+                                <View style={[styles.actionIconBg, { backgroundColor: '#F4433615' }]}>
+                                    <MaterialCommunityIcons name="alert-circle" size={26} color="#F44336" />
+                                </View>
+                                <Text style={styles.actionLabel}>Mortality</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('DiseaseLog', { pondId, pondName, cropId: activeCycle.id })}>
+                                <View style={[styles.actionIconBg, { backgroundColor: '#9C27B015' }]}>
+                                    <MaterialCommunityIcons name="virus" size={26} color="#9C27B0" />
+                                </View>
+                                <Text style={styles.actionLabel}>Disease</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('ChemicalLog', { pondId, pondName, cropId: activeCycle.id })}>
+                                <View style={[styles.actionIconBg, { backgroundColor: '#FF980015' }]}>
+                                    <MaterialCommunityIcons name="flask" size={26} color="#FF9800" />
+                                </View>
+                                <Text style={styles.actionLabel}>Chemical</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('PlanktonLog', { pondId, pondName, cropId: activeCycle.id })}>
+                                <View style={[styles.actionIconBg, { backgroundColor: '#4CAF5015' }]}>
+                                    <MaterialCommunityIcons name="leaf" size={26} color="#4CAF50" />
+                                </View>
+                                <Text style={styles.actionLabel}>Plankton</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.actionItem} onPress={() => navigation.navigate('MicrobiologyLog', { pondId, pondName, cropId: activeCycle.id })}>
+                                <View style={[styles.actionIconBg, { backgroundColor: '#60738015' }]}>
+                                    <MaterialCommunityIcons name="microscope" size={26} color="#607380" />
+                                </View>
+                                <Text style={styles.actionLabel}>Microbiology</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -244,11 +279,13 @@ const styles = StyleSheet.create({
     },
     actionGrid: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: theme.spacing[4],
     },
     actionItem: {
         alignItems: 'center',
-        width: '22%',
+        width: '28%',
+        marginBottom: theme.spacing[3],
     },
     actionIconBg: {
         width: 56,

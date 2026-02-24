@@ -35,21 +35,19 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
         }
 
         setIsLoading(true);
-        const recordedAt = new Date(`${date}T12:00:00Z`).toISOString(); // Default to noon for daily aggregated feed
 
-        // Convert tray states to a note string if not fasting
+        // Convert tray states to a note string
         let combinedNotes = notes;
-        if (!fasting && (tray1 || tray2 || tray3 || tray4)) {
+        if (tray1 || tray2 || tray3 || tray4) {
             combinedNotes = `Trays leftovers: [1: ${tray1 || 0}%, 2: ${tray2 || 0}%, 3: ${tray3 || 0}%, 4: ${tray4 || 0}%]. ${notes}`.trim();
         }
 
         try {
             await feedApi.create({
                 pondId,
-                recordedAt,
-                wasFasting: fasting,
-                totalAmountKg: fasting ? 0 : parseFloat(totalFeed),
-                feedType: fasting ? undefined : feedType.trim(),
+                feedType: feedType.trim() || 'Pellet',
+                quantityKg: fasting ? 0 : parseFloat(totalFeed),
+                feedingTime: date,
                 notes: combinedNotes || undefined,
             });
             navigation.goBack();

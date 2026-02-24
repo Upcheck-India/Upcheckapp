@@ -12,11 +12,8 @@ import { waterQualityApi } from '../../api/waterQuality';
 export const WaterQualityLogScreen = ({ route, navigation }: any) => {
     const { pondId, pondName } = route.params;
 
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [time, setTime] = useState(new Date().toTimeString().split(' ')[0].substring(0, 5));
-
     const [ph, setPh] = useState('');
-    const [doValue, setDoValue] = useState('');
+    const [dissolvedOxygen, setDissolvedOxygen] = useState('');
     const [temperature, setTemperature] = useState('');
     const [salinity, setSalinity] = useState('');
     const [ammonia, setAmmonia] = useState('');
@@ -30,15 +27,11 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
     const handleSave = async () => {
         setIsLoading(true);
 
-        // Combine date and time for ISO string
-        const recordedAt = new Date(`${date}T${time}:00Z`).toISOString();
-
         try {
             await waterQualityApi.create({
                 pondId,
-                recordedAt,
                 ph: ph ? parseFloat(ph) : undefined,
-                do: doValue ? parseFloat(doValue) : undefined,
+                dissolvedOxygen: dissolvedOxygen ? parseFloat(dissolvedOxygen) : undefined,
                 temperature: temperature ? parseFloat(temperature) : undefined,
                 salinity: salinity ? parseFloat(salinity) : undefined,
                 ammonia: ammonia ? parseFloat(ammonia) : undefined,
@@ -69,17 +62,6 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                 <Text style={styles.subtitle}>Logging for {pondName}</Text>
 
                 <Card style={styles.card}>
-                    <View style={styles.row}>
-                        <View style={styles.halfCol}>
-                            <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
-                        </View>
-                        <View style={styles.halfCol}>
-                            <Input label="Time" value={time} onChangeText={setTime} placeholder="HH:MM" required />
-                        </View>
-                    </View>
-                </Card>
-
-                <Card style={styles.card}>
                     <Text style={styles.sectionTitle}>Physical Parameters</Text>
                     <View style={styles.row}>
                         <ParameterInput label="Temperature" unit="°C" value={temperature} onChangeText={setTemperature} parameterKey="temperature" />
@@ -98,7 +80,7 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                     <View style={styles.row}>
                         <ParameterInput label="pH" value={ph} onChangeText={setPh} parameterKey="ph" />
                         <View style={styles.spacer} />
-                        <ParameterInput label="DO" unit="mg/L" value={doValue} onChangeText={setDoValue} parameterKey="do" />
+                        <ParameterInput label="DO" unit="mg/L" value={dissolvedOxygen} onChangeText={setDissolvedOxygen} parameterKey="do" />
                     </View>
                     <View style={styles.row}>
                         <ParameterInput label="Ammonia" unit="mg/L" value={ammonia} onChangeText={setAmmonia} parameterKey="ammonia" />

@@ -2,23 +2,24 @@ import apiClient from './client';
 
 export interface MortalityRecord {
     id: string;
-    pondId: string;
-    recordedAt: string;
-    estimatedCount: number;
-    averageWeightG?: number;
-    totalEstimatedWeightKg?: number;
-    notes?: string;
+    cropId: string;
+    recordDate: string;
+    quantity: number;
+    estimatedWeightKg?: number;
+    note?: string;
+    images?: string[];
+    createdAt?: string;
 }
 
 export interface CreateMortalityRecordDto {
-    pondId: string;
-    recordedAt: string;
-    estimatedCount: number;
-    averageWeightG?: number;
-    totalEstimatedWeightKg?: number;
-    notes?: string;
+    cropId: string;
+    recordDate: string;
+    quantity: number;
+    estimatedWeightKg?: number;
+    note?: string;
+    images?: string[];
 }
 
 export const mortalityApi = {
-    create: (data: CreateMortalityRecordDto) => apiClient.post<MortalityRecord>('/mortalities', data),
+    create: (data: CreateMortalityRecordDto) => apiClient.post<MortalityRecord>('/mortality', data),
 };

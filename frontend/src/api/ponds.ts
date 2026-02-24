@@ -4,16 +4,25 @@ export interface Pond {
     id: string;
     farmId: string;
     name: string;
-    shape: 'rectangular' | 'circular';
-    length?: number;
-    width?: number;
-    diameter?: number;
-    depth?: number;
-    areaMm?: number;
-    type: string;
-    status: 'active' | 'idle' | 'maintenance';
-    isArchived: boolean;
+    namePrefix?: string;
+    sequenceNumber?: number;
+    pondCode?: string;
+    displayName?: string;
+    geometryType?: 'rectangular' | 'circular' | 'irregular' | 'raceway';
+    constructionType?: 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
+    lengthM?: number;
+    widthM?: number;
+    diameterM?: number;
+    depthM?: number;
+    channelCount?: number;
+    calculatedAreaM2?: number;
+    overrideAreaM2?: number;
+    gpsLat?: number;
+    gpsLng?: number;
+    status: 'fallow' | 'active' | 'harvesting' | 'archived';
+    archivedAt?: string;
     activeCycleId?: string | null;
+    boundary?: { latitude: number; longitude: number }[];
     createdAt: string;
     updatedAt: string;
     farm?: any;
@@ -22,14 +31,17 @@ export interface Pond {
 
 export interface CreatePondDto {
     farmId: string;
-    name: string;
-    type: string;
-    shape: 'rectangular' | 'circular';
-    length?: number;
-    width?: number;
-    diameter?: number;
-    depth?: number;
-    status?: string;
+    namePrefix: string;
+    geometryType: 'rectangular' | 'circular' | 'irregular' | 'raceway';
+    constructionType: 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
+    lengthM?: number;
+    widthM?: number;
+    diameterM?: number;
+    depthM: number;
+    channelCount?: number;
+    overrideAreaM2?: number;
+    displayName?: string;
+    batchCount?: number;
 }
 
 export interface UpdatePondDto extends Partial<Omit<CreatePondDto, 'farmId'>> { }

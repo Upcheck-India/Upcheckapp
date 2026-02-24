@@ -2,30 +2,27 @@ import apiClient from './client';
 
 export interface TreatmentRecord {
     id: string;
-    pondId: string;
-    recordedAt: string;
-    treatmentType: string;
-    productName: string;
-    dosage: number;
-    unit: string;
-    applicationMethod: string;
-    reason?: string;
+    cropId: string;
+    treatmentDate: string;
+    basedOn?: string;
+    description: string;
+    productId?: string;
+    dosageKg?: number;
     notes?: string;
+    createdAt?: string;
 }
 
-export interface CreateTreatmentRecordDto {
-    pondId: string;
-    recordedAt: string;
-    treatmentType: string;
-    productName: string;
-    dosage: number;
-    unit: string;
-    applicationMethod: string;
-    reason?: string;
+export interface CreateTreatmentDto {
+    cropId: string;
+    treatmentDate: string;
+    description: string;
+    basedOn?: string;
+    productId?: string;
+    dosageKg?: number;
     notes?: string;
 }
 
 export const treatmentsApi = {
     getAll: () => apiClient.get<TreatmentRecord[]>('/treatments'),
-    create: (data: CreateTreatmentRecordDto) => apiClient.post<TreatmentRecord>('/treatments', data),
+    create: (data: CreateTreatmentDto) => apiClient.post<TreatmentRecord>('/treatments', data),
 };

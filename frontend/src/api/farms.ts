@@ -3,18 +3,26 @@ import apiClient from './client';
 export interface Farm {
     id: string;
     name: string;
-    location?: string;
-    totalAreaMm?: number;
+    farmCode?: string;
+    address?: string;
+    areaHectares?: number;
+    waterSourceType?: string;
+    latitude?: number;
+    longitude?: number;
     userId: string;
     createdAt: string;
     updatedAt: string;
-    ponds?: any[]; // To be fleshed out when joined
+    ponds?: any[];
 }
 
 export interface CreateFarmDto {
     name: string;
-    location?: string;
-    totalAreaMm?: number;
+    farmCode?: string;
+    areaHectares?: number;
+    address?: string;
+    waterSourceType?: string;
+    latitude?: number;
+    longitude?: number;
 }
 
 export interface UpdateFarmDto extends Partial<CreateFarmDto> { }

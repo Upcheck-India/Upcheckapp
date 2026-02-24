@@ -5,10 +5,10 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { FAB } from '../../components/ui/FAB';
 import { theme } from '../../theme';
-import { simulationsApi, SimulationResult } from '../../api/simulations';
+import { simulationsApi, SavedSimulation } from '../../api/simulations';
 
 export const SimulationListScreen = ({ navigation }: any) => {
-    const [simulations, setSimulations] = useState<SimulationResult[]>([]);
+    const [simulations, setSimulations] = useState<SavedSimulation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchSimulations = async () => {
@@ -30,23 +30,23 @@ export const SimulationListScreen = ({ navigation }: any) => {
         return unsubscribe;
     }, [navigation]);
 
-    const renderItem = ({ item }: { item: SimulationResult }) => (
+    const renderItem = ({ item }: { item: SavedSimulation }) => (
         <TouchableOpacity
             style={styles.card}
             onPress={() => navigation.navigate('SimulationResults', { resultData: item })}
         >
             <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>Run {new Date(item.createdAt).toLocaleDateString()}</Text>
+                <Text style={styles.cardTitle}>{item.scenarioType.replace(/_/g, ' ')} — {new Date(item.createdAt).toLocaleDateString()}</Text>
                 <MaterialCommunityIcons name="chevron-right" size={24} color={theme.roles.light.textDisabled} />
             </View>
             <View style={styles.statsRow}>
                 <View style={styles.stat}>
                     <MaterialCommunityIcons name="target" size={16} color={theme.roles.light.textSecondary} />
-                    <Text style={styles.statText}>{item.targetBiomassKg.toLocaleString()} kg Target</Text>
+                    <Text style={styles.statText}>{item.resultProjectedBiomass?.toFixed(1) ?? 'N/A'} kg Biomass</Text>
                 </View>
                 <View style={styles.stat}>
-                    <MaterialCommunityIcons name="calendar-clock" size={16} color={theme.roles.light.textSecondary} />
-                    <Text style={styles.statText}>{item.cultureDurationDays} DOC</Text>
+                    <MaterialCommunityIcons name="cash" size={16} color={theme.roles.light.textSecondary} />
+                    <Text style={styles.statText}>Profit: {item.resultNetProfit?.toFixed(0) ?? 'N/A'}</Text>
                 </View>
             </View>
         </TouchableOpacity>

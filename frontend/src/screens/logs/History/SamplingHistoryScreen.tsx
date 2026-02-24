@@ -23,7 +23,7 @@ export const SamplingHistoryScreen = ({ route, navigation }: any) => {
             // Mock filtering if API doesn't have it directly.
             const { data } = await samplingApi.getAll(); // Assuming `getAll()` exists in your samplingApi implementation.
             const pondRecords = data.filter((r: SamplingRecord) => r.pondId === pondId);
-            pondRecords.sort((a: SamplingRecord, b: SamplingRecord) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+            pondRecords.sort((a: SamplingRecord, b: SamplingRecord) => new Date(b.samplingDate).getTime() - new Date(a.samplingDate).getTime());
             setRecords(pondRecords);
         } catch (error) {
             console.log('Failed to fetch sampling records', error);
@@ -37,12 +37,12 @@ export const SamplingHistoryScreen = ({ route, navigation }: any) => {
         if (chartRecords.length === 0) return null;
         return {
             labels: chartRecords.map((r: SamplingRecord) => {
-                const d = new Date(r.recordedAt);
+                const d = new Date(r.samplingDate);
                 return `${d.getMonth() + 1}/${d.getDate()}`;
             }),
             datasets: [
                 {
-                    data: chartRecords.map((r: SamplingRecord) => r.averageWeightG)
+                    data: chartRecords.map((r: SamplingRecord) => r.mbwG || 0)
                 }
             ]
         };
@@ -79,8 +79,8 @@ export const SamplingHistoryScreen = ({ route, navigation }: any) => {
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
                         <Card style={styles.card}>
-                            <Text style={styles.dateText}>{new Date(item.recordedAt).toLocaleDateString()}</Text>
-                            <Text style={styles.amountText}>{item.averageWeightG} g</Text>
+                            <Text style={styles.dateText}>{new Date(item.samplingDate).toLocaleDateString()}</Text>
+                            <Text style={styles.amountText}>{item.mbwG} g</Text>
                         </Card>
                     )}
                     contentContainerStyle={styles.listContent}

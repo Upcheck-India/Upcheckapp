@@ -71,15 +71,15 @@ export type RootStackParamList = {
     CycleDetail: { cycleId: string };
 
     // Phase 3
-    WaterQualityLog: { pondId: string; pondName?: string };
-    FeedLog: { pondId: string; pondName?: string };
-    SamplingLog: { pondId: string; pondName?: string };
-    TreatmentLog: { pondId: string; pondName?: string };
-    MortalityLog: { pondId: string; pondName?: string };
-    ChemicalLog: { pondId: string; pondName?: string };
-    PlanktonLog: { pondId: string; pondName?: string };
-    MicrobiologyLog: { pondId: string; pondName?: string };
-    DiseaseLog: { pondId: string; pondName?: string };
+    WaterQualityLog: { pondId: string; pondName?: string; cropId?: string };
+    FeedLog: { pondId: string; pondName?: string; cropId?: string };
+    SamplingLog: { pondId: string; pondName?: string; cropId?: string };
+    TreatmentLog: { pondId: string; pondName?: string; cropId?: string };
+    MortalityLog: { pondId: string; pondName?: string; cropId?: string };
+    ChemicalLog: { pondId: string; pondName?: string; cropId?: string };
+    PlanktonLog: { pondId: string; pondName?: string; cropId?: string };
+    MicrobiologyLog: { pondId: string; pondName?: string; cropId?: string };
+    DiseaseLog: { pondId: string; pondName?: string; cropId?: string };
 
     // Phase 4
     CalculatorHub: undefined;

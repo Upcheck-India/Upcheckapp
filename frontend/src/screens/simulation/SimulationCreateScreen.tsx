@@ -6,37 +6,43 @@ import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
-import { simulationsApi } from '../../api/simulations';
+import { simulationsApi, SimulationScenarioType } from '../../api/simulations';
 
 export const SimulationCreateScreen = ({ navigation }: any) => {
-    const [targetBiomassKg, setTargetBiomassKg] = useState('');
-    const [expectedSurvivalRate, setExpectedSurvivalRate] = useState('');
-    const [expectedAdg, setExpectedAdg] = useState('');
-    const [initialAbw, setInitialAbw] = useState('0.1'); // Default PL size roughly
-    const [targetAbw, setTargetAbw] = useState('');
+    const [pondId, setPondId] = useState('');
+    const [scenarioType, setScenarioType] = useState<SimulationScenarioType>('feed_change');
+    const [feedPrice, setFeedPrice] = useState('');
+    const [growthImprovement, setGrowthImprovement] = useState('');
+    const [sellingPrice, setSellingPrice] = useState('');
     const [stockingDensity, setStockingDensity] = useState('');
-    const [farmAreaM2, setFarmAreaM2] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
 
+    const scenarioOptions: { label: string; value: SimulationScenarioType }[] = [
+        { label: 'Feed Change', value: 'feed_change' },
+        { label: 'Price Change', value: 'price_change' },
+        { label: 'Stocking Density', value: 'stocking_density' },
+    ];
+
     const handleRunSimulation = async () => {
-        if (!targetBiomassKg || !expectedSurvivalRate || !expectedAdg || !targetAbw || !stockingDensity || !farmAreaM2) {
-            Alert.alert('Validation Error', 'Please fill in all simulation parameters');
+        if (!pondId.trim()) {
+            Alert.alert('Validation Error', 'Please enter a Pond ID');
             return;
         }
 
         setIsLoading(true);
         try {
-            const { data } = await simulationsApi.create({
-                targetBiomassKg: parseFloat(targetBiomassKg),
-                expectedSurvivalRate: parseFloat(expectedSurvivalRate),
-                expectedAdg: parseFloat(expectedAdg),
-                initialAbw: parseFloat(initialAbw),
-                targetAbw: parseFloat(targetAbw),
-                stockingDensity: parseFloat(stockingDensity),
-                farmAreaM2: parseFloat(farmAreaM2),
+            const { data } = await simulationsApi.run({
+                pondId: pondId.trim(),
+                scenarioType,
+                variables: {
+                    feedPrice: feedPrice ? parseFloat(feedPrice) : undefined,
+                    growthImprovement: growthImprovement ? parseFloat(growthImprovement) : undefined,
+                    sellingPrice: sellingPrice ? parseFloat(sellingPrice) : undefined,
+                    stockingDensity: stockingDensity ? parseFloat(stockingDensity) : undefined,
+                },
             });
-            navigation.navigate('SimulationResults', { simulationId: data.id, resultData: data });
+            navigation.navigate('SimulationResults', { resultData: data });
         } catch (error: any) {
             Alert.alert('Simulation Failed', error.response?.data?.message || 'Failed to run simulation');
         } finally {
@@ -55,33 +61,42 @@ export const SimulationCreateScreen = ({ navigation }: any) => {
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.subtitle}>Forecast your next culture cycle</Text>
+                <Text style={styles.subtitle}>Run a what-if scenario on an active pond cycle</Text>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Targets</Text>
-                    <Input label="Target Total Biomass (kg) *" value={targetBiomassKg} onChangeText={setTargetBiomassKg} keyboardType="decimal-pad" placeholder="e.g. 5000" />
-                    <Input label="Target Harvest Size (ABW g) *" value={targetAbw} onChangeText={setTargetAbw} keyboardType="decimal-pad" placeholder="e.g. 25" />
+                    <Text style={styles.sectionTitle}>Pond</Text>
+                    <Input label="Pond ID *" value={pondId} onChangeText={setPondId} placeholder="UUID of the pond with an active cycle" />
+                </Card>
+
+                <Card style={styles.card}>
+                    <Text style={styles.sectionTitle}>Scenario Type</Text>
+                    <View style={styles.row}>
+                        {scenarioOptions.map(opt => (
+                            <TouchableOpacity
+                                key={opt.value}
+                                style={[styles.scenarioPill, scenarioType === opt.value && styles.scenarioPillActive]}
+                                onPress={() => setScenarioType(opt.value)}
+                            >
+                                <Text style={[styles.scenarioPillText, scenarioType === opt.value && styles.scenarioPillTextActive]}>{opt.label}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
                 </Card>
 
                 <Card style={styles.card}>
                     <Text style={styles.sectionTitle}>Variables</Text>
-                    <View style={styles.row}>
-                        <View style={styles.halfCol}>
-                            <Input label="Est. Survival (%) *" value={expectedSurvivalRate} onChangeText={setExpectedSurvivalRate} keyboardType="decimal-pad" placeholder="e.g. 80" />
-                        </View>
-                        <View style={styles.halfCol}>
-                            <Input label="Est. ADG (g/day) *" value={expectedAdg} onChangeText={setExpectedAdg} keyboardType="decimal-pad" placeholder="e.g. 0.22" />
-                        </View>
-                    </View>
-                    <View style={styles.row}>
-                        <View style={styles.halfCol}>
-                            <Input label="Initial Size (g)" value={initialAbw} onChangeText={setInitialAbw} keyboardType="decimal-pad" />
-                        </View>
-                        <View style={styles.halfCol}>
-                            <Input label="Density (PL/m²) *" value={stockingDensity} onChangeText={setStockingDensity} keyboardType="number-pad" placeholder="e.g. 80" />
-                        </View>
-                    </View>
-                    <Input label="Total Effective Farm Area (m²) *" value={farmAreaM2} onChangeText={setFarmAreaM2} keyboardType="decimal-pad" placeholder="e.g. 10000" />
+                    {(scenarioType === 'feed_change') && (
+                        <>
+                            <Input label="Feed Price (per kg)" value={feedPrice} onChangeText={setFeedPrice} keyboardType="decimal-pad" placeholder="e.g. 15000" />
+                            <Input label="Growth Improvement (%)" value={growthImprovement} onChangeText={setGrowthImprovement} keyboardType="decimal-pad" placeholder="e.g. 10" />
+                        </>
+                    )}
+                    {(scenarioType === 'price_change') && (
+                        <Input label="Selling Price (per kg)" value={sellingPrice} onChangeText={setSellingPrice} keyboardType="decimal-pad" placeholder="e.g. 80000" />
+                    )}
+                    {(scenarioType === 'stocking_density') && (
+                        <Input label="Stocking Density (PL/m²)" value={stockingDensity} onChangeText={setStockingDensity} keyboardType="number-pad" placeholder="e.g. 120" />
+                    )}
                 </Card>
 
                 <Button
@@ -132,10 +147,27 @@ const styles = StyleSheet.create({
     },
     row: {
         flexDirection: 'row',
-        gap: theme.spacing[4],
+        flexWrap: 'wrap',
+        gap: theme.spacing[3],
     },
     halfCol: {
         flex: 1,
+    },
+    scenarioPill: {
+        paddingHorizontal: theme.spacing[4],
+        paddingVertical: theme.spacing[3],
+        borderRadius: theme.radius.full,
+        backgroundColor: theme.roles.light.borderDefault,
+    },
+    scenarioPillActive: {
+        backgroundColor: theme.roles.light.primary,
+    },
+    scenarioPillText: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.textSecondary,
+    },
+    scenarioPillTextActive: {
+        color: theme.roles.light.surface,
     },
     runBtn: {
         marginTop: theme.spacing[4],

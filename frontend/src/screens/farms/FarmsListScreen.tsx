@@ -49,9 +49,9 @@ export const FarmsListScreen = ({ navigation }: any) => {
                     </View>
                     <View style={styles.cardTitleContainer}>
                         <Text style={styles.farmName}>{item.name}</Text>
-                        {item.location && (
+                        {item.address && (
                             <Text style={styles.farmLocation}>
-                                <MaterialCommunityIcons name="map-marker-outline" size={14} /> {item.location}
+                                <MaterialCommunityIcons name="map-marker-outline" size={14} /> {item.address}
                             </Text>
                         )}
                     </View>
@@ -61,9 +61,9 @@ export const FarmsListScreen = ({ navigation }: any) => {
                     <Text style={styles.statsText}>
                         <Text style={styles.statsValue}>{item.ponds?.length || 0}</Text> Ponds
                     </Text>
-                    {item.totalAreaMm !== undefined && (
+                    {item.areaHectares !== undefined && (
                         <Text style={styles.statsText}>
-                            <Text style={styles.statsValue}>{item.totalAreaMm} </Text> mm²
+                            <Text style={styles.statsValue}>{item.areaHectares} </Text> ha
                         </Text>
                     )}
                 </View>

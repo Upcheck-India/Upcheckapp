@@ -9,35 +9,36 @@ import { theme } from '../../theme';
 import { diseaseApi } from '../../api/diseases';
 
 export const DiseaseLogScreen = ({ route, navigation }: any) => {
-    const { pondId, pondName } = route.params;
+    const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [diseaseName, setDiseaseName] = useState('');
     const [severity, setSeverity] = useState('Mild');
     const [symptoms, setSymptoms] = useState('');
-    const [mortalityRate, setMortalityRate] = useState('');
     const [actionTaken, setActionTaken] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSave = async () => {
-        if (!diseaseName.trim() || !symptoms.trim()) {
-            Alert.alert('Validation Error', 'Disease name and symptoms are required');
+        if (!diseaseName.trim()) {
+            Alert.alert('Validation Error', 'Disease name is required');
             return;
         }
 
         setIsLoading(true);
-        const recordedAt = new Date(`${date}T12:00:00Z`).toISOString();
 
         try {
+            // Build notes from all descriptive fields
+            const notesParts: string[] = [];
+            if (symptoms.trim()) notesParts.push(`Symptoms: ${symptoms.trim()}`);
+            if (actionTaken.trim()) notesParts.push(`Action: ${actionTaken.trim()}`);
+
             await diseaseApi.create({
-                pondId,
-                recordedAt,
-                diseaseName: diseaseName.trim(),
-                severity: severity.trim(),
-                symptoms: symptoms.trim(),
-                mortalityRate: mortalityRate ? parseFloat(mortalityRate) : undefined,
-                actionTaken: actionTaken.trim() || undefined,
+                cropId,
+                diseaseId: diseaseName.trim(), // TODO: Replace with actual disease UUID picker
+                recordedDate: date,
+                severityAtDetection: severity.trim() || undefined,
+                notes: notesParts.length > 0 ? notesParts.join('. ') : undefined,
             });
             navigation.goBack();
         } catch (error: any) {
@@ -80,13 +81,6 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Card style={styles.card}>
-                    <Input
-                        label="Estimated Impact/Mortality (%)"
-                        value={mortalityRate}
-                        onChangeText={setMortalityRate}
-                        keyboardType="decimal-pad"
-                        placeholder="0.0"
-                    />
                     <Input
                         label="Immediate Action Taken"
                         value={actionTaken}

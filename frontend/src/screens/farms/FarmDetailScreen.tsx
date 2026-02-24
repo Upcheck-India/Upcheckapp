@@ -18,9 +18,10 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
 
     const fetchPonds = async () => {
         try {
-            const { data } = await pondsApi.getAll(farmId);
-            // Depending on API response structure, adjust data extraction
-            setPonds(Array.isArray(data) ? data : data.data || []);
+            const response = await pondsApi.getAll(farmId);
+            const result = response.data;
+            // Backend returns PageDto { data: Pond[], meta: {...} }
+            setPonds(Array.isArray(result) ? result : result.data || []);
         } catch (error) {
             console.error('Failed to fetch ponds:', error);
         } finally {
@@ -42,8 +43,9 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
 
     const getStatusType = (status: string) => {
         if (status === 'active') return 'active';
-        if (status === 'idle') return 'idle';
-        if (status === 'maintenance') return 'warning';
+        if (status === 'fallow') return 'idle';
+        if (status === 'harvesting') return 'warning';
+        if (status === 'archived') return 'info';
         return 'info';
     };
 
@@ -55,8 +57,8 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
             <Card style={styles.card}>
                 <View style={styles.cardHeader}>
                     <View style={styles.titleContainer}>
-                        <Text style={styles.pondName}>{item.name}</Text>
-                        <Text style={styles.pondType}>{item.type || item.shape}</Text>
+                        <Text style={styles.pondName}>{item.displayName || item.name}</Text>
+                        <Text style={styles.pondType}>{item.constructionType || item.geometryType || 'N/A'}</Text>
                     </View>
                     <StatusBadge status={getStatusType(item.status)} label={item.status} />
                 </View>
@@ -64,7 +66,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 <View style={styles.cardBody}>
                     <View style={styles.metric}>
                         <MaterialCommunityIcons name="ruler-square" size={16} color={theme.roles.light.textSecondary} />
-                        <Text style={styles.metricText}>{item.areaMm ? `${item.areaMm.toFixed(1)} mm²` : 'N/A'}</Text>
+                        <Text style={styles.metricText}>{(item.overrideAreaM2 || item.calculatedAreaM2) ? `${(item.overrideAreaM2 || item.calculatedAreaM2)!.toFixed(1)} m²` : 'N/A'}</Text>
                     </View>
                     {item.activeCycleId ? (
                         <View style={styles.metric}>

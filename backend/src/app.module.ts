@@ -96,6 +96,7 @@ import { ReportsModule } from './reports/reports.module';
     HarvestsModule,
     FeedProductsModule,
     FeedingTrayChecksModule,
+    FinancesModule,
     ReportsModule,
   ],
   controllers: [AppController],

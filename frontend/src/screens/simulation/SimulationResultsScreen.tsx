@@ -31,53 +31,52 @@ export const SimulationResultsScreen = ({ route, navigation }: any) => {
 
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.summaryContainer}>
-                    <Text style={styles.summaryTitle}>Forecasted Culture Duration</Text>
-                    <Text style={styles.summaryValue}>{resultData.cultureDurationDays}</Text>
-                    <Text style={styles.summarySubtext}>days to reach {resultData.targetAbw}g</Text>
+                    <Text style={styles.summaryTitle}>Profit Difference</Text>
+                    <Text style={styles.summaryValue}>
+                        {(resultData.result?.profitDifference ?? resultData.resultProfitDiff ?? 0) >= 0 ? '+' : ''}
+                        {Math.round(resultData.result?.profitDifference ?? resultData.resultProfitDiff ?? 0).toLocaleString()}
+                    </Text>
+                    <Text style={styles.summarySubtext}>vs baseline</Text>
                 </View>
 
-                <Text style={styles.sectionTitle}>Expected Outcomes</Text>
+                <Text style={styles.sectionTitle}>Simulation Results</Text>
                 <View style={styles.metricsGrid}>
                     <MetricCard
-                        label="Total Harvest"
-                        value={resultData.targetBiomassKg.toLocaleString()}
+                        label="Projected Biomass"
+                        value={Math.round(resultData.result?.projectedBiomass ?? resultData.resultProjectedBiomass ?? 0).toLocaleString()}
                         unit="kg"
                         status="safe"
                     />
                     <MetricCard
-                        label="Est. Total Feed"
-                        value={Math.round(resultData.estimatedTotalFeedKg).toLocaleString()}
-                        unit="kg"
+                        label="Projected FCR"
+                        value={(resultData.result?.projectedFcr ?? resultData.resultProjectedFcr ?? 0).toFixed(2)}
                     />
                     <MetricCard
-                        label="Required Seed"
-                        value={resultData.totalSeedRequired.toLocaleString()}
-                        unit="PLs"
+                        label="Total Revenue"
+                        value={Math.round(resultData.result?.totalRevenue ?? resultData.resultTotalRevenue ?? 0).toLocaleString()}
                     />
                     <MetricCard
-                        label="Predicted FCR"
-                        value={resultData.estimatedFcr.toFixed(2)}
+                        label="Total Cost"
+                        value={Math.round(resultData.result?.totalCost ?? resultData.resultTotalCost ?? 0).toLocaleString()}
                     />
                 </View>
 
                 <Card style={styles.inputsCard}>
-                    <Text style={styles.sectionTitle}>Input Parameters Referenced</Text>
+                    <Text style={styles.sectionTitle}>Profit Comparison</Text>
                     <View style={styles.row}>
-                        <Text style={styles.paramLabel}>Survival Rate:</Text>
-                        <Text style={styles.paramValue}>{resultData.expectedSurvivalRate}%</Text>
+                        <Text style={styles.paramLabel}>Baseline Net Profit:</Text>
+                        <Text style={styles.paramValue}>{Math.round(resultData.result?.baselineNetProfit ?? 0).toLocaleString()}</Text>
                     </View>
                     <View style={styles.row}>
-                        <Text style={styles.paramLabel}>Growth (ADG):</Text>
-                        <Text style={styles.paramValue}>{resultData.expectedAdg} g/day</Text>
+                        <Text style={styles.paramLabel}>Simulated Net Profit:</Text>
+                        <Text style={styles.paramValue}>{Math.round(resultData.result?.simulatedNetProfit ?? resultData.resultNetProfit ?? 0).toLocaleString()}</Text>
                     </View>
-                    <View style={styles.row}>
-                        <Text style={styles.paramLabel}>Density:</Text>
-                        <Text style={styles.paramValue}>{resultData.stockingDensity} PLs/m²</Text>
-                    </View>
-                    <View style={styles.row}>
-                        <Text style={styles.paramLabel}>Farm Area:</Text>
-                        <Text style={styles.paramValue}>{resultData.farmAreaM2.toLocaleString()} m²</Text>
-                    </View>
+                    {(resultData.result?.riskWarning) && (
+                        <View style={[styles.row, { borderBottomWidth: 0 }]}>
+                            <Text style={[styles.paramLabel, { color: theme.roles.light.dangerText }]}>Risk Warning:</Text>
+                            <Text style={[styles.paramValue, { color: theme.roles.light.dangerText, flex: 1, textAlign: 'right' }]}>{resultData.result.riskWarning}</Text>
+                        </View>
+                    )}
                 </Card>
             </ScrollView>
         </ScreenWrapper>

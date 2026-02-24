@@ -3,12 +3,12 @@ import { View, StyleSheet, Alert } from 'react-native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
-import { Colors, spacing, theme } from '../../theme';
+import { theme } from '../../theme';
 import { farmsApi } from '../../api/farms';
 
 export const CreateFarmScreen = ({ navigation }: any) => {
     const [name, setName] = useState('');
-    const [location, setLocation] = useState('');
+    const [address, setAddress] = useState('');
     const [totalArea, setTotalArea] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<{ name?: string }>({});
@@ -24,8 +24,8 @@ export const CreateFarmScreen = ({ navigation }: any) => {
         try {
             await farmsApi.create({
                 name: name.trim(),
-                location: location.trim() || undefined,
-                totalAreaMm: totalArea ? parseFloat(totalArea) : undefined,
+                address: address.trim() || undefined,
+                areaHectares: totalArea ? parseFloat(totalArea) : undefined,
             });
             navigation.goBack();
         } catch (error: any) {
@@ -48,14 +48,14 @@ export const CreateFarmScreen = ({ navigation }: any) => {
                 />
 
                 <Input
-                    label="Location"
-                    value={location}
-                    onChangeText={setLocation}
+                    label="Address"
+                    value={address}
+                    onChangeText={setAddress}
                     placeholder="Address or Region"
                 />
 
                 <Input
-                    label="Total Area (Optional)"
+                    label="Area (hectares, optional)"
                     value={totalArea}
                     onChangeText={setTotalArea}
                     placeholder="0.0"

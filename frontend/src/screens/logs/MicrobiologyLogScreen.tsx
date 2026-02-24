@@ -9,35 +9,31 @@ import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
 
 export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
-    const { pondId, pondName } = route.params;
+    const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [vibrioCount, setVibrioCount] = useState('');
-    const [totalBacteria, setTotalBacteria] = useState('');
+    const [totalBacillus, setTotalBacillus] = useState('');
+    const [totalVibrio, setTotalVibrio] = useState('');
     const [greenVibrio, setGreenVibrio] = useState('');
     const [yellowVibrio, setYellowVibrio] = useState('');
-    const [notes, setNotes] = useState('');
+    const [luminescentBacteria, setLuminescentBacteria] = useState('');
+    const [note, setNote] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSave = async () => {
-        if (!vibrioCount || isNaN(parseFloat(vibrioCount))) {
-            Alert.alert('Validation', 'Total Vibrio Count is required');
-            return;
-        }
-
         setIsLoading(true);
-        const recordedAt = new Date(`${date}T12:00:00Z`).toISOString();
 
         try {
             await logResourcesApi.createMicrobiology({
-                pondId,
-                recordedAt,
-                vibrioCount: parseFloat(vibrioCount),
-                totalBacteriaCount: totalBacteria ? parseFloat(totalBacteria) : undefined,
-                greenVibrioCount: greenVibrio ? parseFloat(greenVibrio) : undefined,
-                yellowVibrioCount: yellowVibrio ? parseFloat(yellowVibrio) : undefined,
-                notes: notes.trim() || undefined,
+                cropId,
+                measurementDate: date,
+                totalBacillusCfuMl: totalBacillus ? parseFloat(totalBacillus) : undefined,
+                totalVibrioCountTvcCfuMl: totalVibrio ? parseFloat(totalVibrio) : undefined,
+                greenVibrioCountTvcCfuMl: greenVibrio ? parseFloat(greenVibrio) : undefined,
+                yellowVibrioCountTvcCfuMl: yellowVibrio ? parseFloat(yellowVibrio) : undefined,
+                luminescentBacteriaLbCfuMl: luminescentBacteria ? parseFloat(luminescentBacteria) : undefined,
+                note: note.trim() || undefined,
             });
             navigation.goBack();
         } catch (error: any) {
@@ -62,27 +58,32 @@ export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
 
                 <Card style={styles.card}>
                     <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
-                    <Input label="Total Bacteria (CFU/mL)" value={totalBacteria} onChangeText={setTotalBacteria} keyboardType="number-pad" />
-                    <Input label="Total Vibrio (CFU/mL) *" value={vibrioCount} onChangeText={setVibrioCount} keyboardType="number-pad" required />
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Vibrio Breakdown</Text>
+                    <Text style={styles.sectionTitle}>Bacteria Counts (CFU/mL)</Text>
+                    <Input label="Total Bacillus" value={totalBacillus} onChangeText={setTotalBacillus} keyboardType="number-pad" placeholder="0" />
+                    <Input label="Total Vibrio (TVC)" value={totalVibrio} onChangeText={setTotalVibrio} keyboardType="number-pad" placeholder="0" />
+                </Card>
+
+                <Card style={styles.card}>
+                    <Text style={styles.sectionTitle}>Vibrio Breakdown (CFU/mL)</Text>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label="Green (CFU/mL)" value={greenVibrio} onChangeText={setGreenVibrio} keyboardType="number-pad" />
+                            <Input label="Green Vibrio" value={greenVibrio} onChangeText={setGreenVibrio} keyboardType="number-pad" placeholder="0" />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label="Yellow (CFU/mL)" value={yellowVibrio} onChangeText={setYellowVibrio} keyboardType="number-pad" />
+                            <Input label="Yellow Vibrio" value={yellowVibrio} onChangeText={setYellowVibrio} keyboardType="number-pad" placeholder="0" />
                         </View>
                     </View>
+                    <Input label="Luminescent Bacteria" value={luminescentBacteria} onChangeText={setLuminescentBacteria} keyboardType="number-pad" placeholder="0" />
                 </Card>
 
                 <Card style={styles.card}>
                     <Input
                         label="Notes"
-                        value={notes}
-                        onChangeText={setNotes}
+                        value={note}
+                        onChangeText={setNote}
                         placeholder="TCBS plate observations..."
                         multiline
                         numberOfLines={4}

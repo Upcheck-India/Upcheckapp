@@ -51,14 +51,14 @@ export interface FreeAmmoniaResponse {
 
 export const calculatorsApi = {
     calculatePerformance: (data: CultivationPerformanceRequest) =>
-        apiClient.post<CultivationPerformanceResponse>('/calculators/performance', data),
+        apiClient.post<CultivationPerformanceResponse>('/shrimp-calculations/cultivation-performance', data),
 
     calculateDailyFeed: (data: DailyFeedRequest) =>
-        apiClient.post<DailyFeedResponse>('/calculators/daily-feed', data),
+        apiClient.post<DailyFeedResponse>('/shrimp-calculations/daily-feed', data),
 
     calculateProductAmount: (data: ProductAmountRequest) =>
-        apiClient.post<ProductAmountResponse>('/calculators/product-amount', data),
+        apiClient.post<ProductAmountResponse>('/shrimp-calculations/product-amount', data),
 
     calculateFreeAmmonia: (data: FreeAmmoniaRequest) =>
-        apiClient.post<FreeAmmoniaResponse>('/calculators/free-ammonia', data),
+        apiClient.post<FreeAmmoniaResponse>('/shrimp-calculations/free-ammonia', data),
 };

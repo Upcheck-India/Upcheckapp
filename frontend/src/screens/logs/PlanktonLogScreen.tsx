@@ -9,28 +9,33 @@ import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
 
 export const PlanktonLogScreen = ({ route, navigation }: any) => {
-    const { pondId, pondName } = route.params;
+    const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [density, setDensity] = useState('');
-    const [dominantSpecies, setDominantSpecies] = useState('');
-    const [diversityIndex, setDiversityIndex] = useState('');
-    const [notes, setNotes] = useState('');
+    const [time, setTime] = useState(new Date().toTimeString().split(' ')[0].substring(0, 5));
+    const [greenAlgae, setGreenAlgae] = useState('');
+    const [blueGreenAlgae, setBlueGreenAlgae] = useState('');
+    const [diatom, setDiatom] = useState('');
+    const [dinoflagellata, setDinoflagellata] = useState('');
+    const [protozoa, setProtozoa] = useState('');
+    const [floc, setFloc] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSave = async () => {
         setIsLoading(true);
-        const recordedAt = new Date(`${date}T12:00:00Z`).toISOString();
 
         try {
             await logResourcesApi.createPlankton({
-                pondId,
-                recordedAt,
-                density: density ? parseFloat(density) : undefined,
-                dominantSpecies: dominantSpecies.trim() || undefined,
-                diversityIndex: diversityIndex ? parseFloat(diversityIndex) : undefined,
-                notes: notes.trim() || undefined,
+                cropId,
+                measurementDate: date,
+                measurementTime: time,
+                greenAlgaeGaCellMl: greenAlgae ? parseFloat(greenAlgae) : undefined,
+                blueGreenAlgaeBgaCellMl: blueGreenAlgae ? parseFloat(blueGreenAlgae) : undefined,
+                diatomCellMl: diatom ? parseFloat(diatom) : undefined,
+                dinoflagellataCellMl: dinoflagellata ? parseFloat(dinoflagellata) : undefined,
+                protozoaCellMl: protozoa ? parseFloat(protozoa) : undefined,
+                flocCellMl: floc ? parseFloat(floc) : undefined,
             });
             navigation.goBack();
         } catch (error: any) {
@@ -54,43 +59,42 @@ export const PlanktonLogScreen = ({ route, navigation }: any) => {
                 <Text style={styles.subtitle}>Logging for {pondName}</Text>
 
                 <Card style={styles.card}>
-                    <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
-                    <Input
-                        label="Density (cells/mL)"
-                        value={density}
-                        onChangeText={setDensity}
-                        keyboardType="number-pad"
-                        placeholder="e.g. 500000"
-                    />
+                    <View style={styles.row}>
+                        <View style={styles.halfCol}>
+                            <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
+                        </View>
+                        <View style={styles.halfCol}>
+                            <Input label="Time" value={time} onChangeText={setTime} placeholder="HH:MM" required />
+                        </View>
+                    </View>
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Composition</Text>
-                    <Input
-                        label="Dominant Species"
-                        value={dominantSpecies}
-                        onChangeText={setDominantSpecies}
-                        placeholder="e.g. Diatoms, Green Algae"
-                    />
-                    <Input
-                        label="Diversity Index"
-                        value={diversityIndex}
-                        onChangeText={setDiversityIndex}
-                        keyboardType="decimal-pad"
-                        placeholder="0.0 - 5.0"
-                    />
-                </Card>
-
-                <Card style={styles.card}>
-                    <Input
-                        label="Notes"
-                        value={notes}
-                        onChangeText={setNotes}
-                        placeholder="Bloom color, crash risks..."
-                        multiline
-                        numberOfLines={4}
-                        style={styles.textArea}
-                    />
+                    <Text style={styles.sectionTitle}>Plankton Counts (cells/mL)</Text>
+                    <View style={styles.row}>
+                        <View style={styles.halfCol}>
+                            <Input label="Green Algae" value={greenAlgae} onChangeText={setGreenAlgae} keyboardType="number-pad" placeholder="0" />
+                        </View>
+                        <View style={styles.halfCol}>
+                            <Input label="Blue-Green (BGA)" value={blueGreenAlgae} onChangeText={setBlueGreenAlgae} keyboardType="number-pad" placeholder="0" />
+                        </View>
+                    </View>
+                    <View style={styles.row}>
+                        <View style={styles.halfCol}>
+                            <Input label="Diatom" value={diatom} onChangeText={setDiatom} keyboardType="number-pad" placeholder="0" />
+                        </View>
+                        <View style={styles.halfCol}>
+                            <Input label="Dinoflagellata" value={dinoflagellata} onChangeText={setDinoflagellata} keyboardType="number-pad" placeholder="0" />
+                        </View>
+                    </View>
+                    <View style={styles.row}>
+                        <View style={styles.halfCol}>
+                            <Input label="Protozoa" value={protozoa} onChangeText={setProtozoa} keyboardType="number-pad" placeholder="0" />
+                        </View>
+                        <View style={styles.halfCol}>
+                            <Input label="Floc" value={floc} onChangeText={setFloc} keyboardType="number-pad" placeholder="0" />
+                        </View>
+                    </View>
                 </Card>
 
                 <Button title="Save Record" onPress={handleSave} loading={isLoading} style={styles.saveBtn} />
@@ -133,9 +137,12 @@ const styles = StyleSheet.create({
         color: theme.roles.light.textPrimary,
         marginBottom: theme.spacing[4],
     },
-    textArea: {
-        minHeight: 100,
-        textAlignVertical: 'top',
+    row: {
+        flexDirection: 'row',
+        gap: theme.spacing[4],
+    },
+    halfCol: {
+        flex: 1,
     },
     saveBtn: {
         marginTop: theme.spacing[3],

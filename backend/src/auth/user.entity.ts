@@ -68,5 +68,5 @@ export class User {
     roles: string[];
 
     @Column({ name: 'google_id', type: 'varchar', nullable: true, unique: true })
-    googleId: string; // Keep for backward compatibility/OAuth
+    googleId: string | null; // Keep for backward compatibility/OAuth
 }

@@ -12,33 +12,30 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
     const { pondId, pondName } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [averageWeight, setAverageWeight] = useState('');
-    const [averageLength, setAverageLength] = useState('');
-    const [survivalRate, setSurvivalRate] = useState('');
-    const [totalBiomass, setTotalBiomass] = useState('');
-    const [healthStatus, setHealthStatus] = useState('Good');
+    const [mbwG, setMbwG] = useState('');
+    const [totalSamples, setTotalSamples] = useState('');
+    const [biomassEstimation, setBiomassEstimation] = useState('');
+    const [srEstimation, setSrEstimation] = useState('');
     const [notes, setNotes] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSave = async () => {
-        if (!averageWeight || isNaN(parseFloat(averageWeight))) {
-            Alert.alert('Validation Error', 'Average weight is required');
+        if (!mbwG || isNaN(parseFloat(mbwG))) {
+            Alert.alert('Validation Error', 'Mean body weight is required');
             return;
         }
 
         setIsLoading(true);
-        const recordedAt = new Date(`${date}T12:00:00Z`).toISOString();
 
         try {
             await samplingApi.create({
                 pondId,
-                recordedAt,
-                averageWeightG: parseFloat(averageWeight),
-                averageLengthCm: averageLength ? parseFloat(averageLength) : undefined,
-                survivalRate: survivalRate ? parseFloat(survivalRate) : undefined,
-                totalBiomassKg: totalBiomass ? parseFloat(totalBiomass) : undefined,
-                healthStatus: healthStatus.trim() || undefined,
+                samplingDate: date,
+                mbwG: parseFloat(mbwG),
+                totalSamples: totalSamples ? parseInt(totalSamples, 10) : undefined,
+                biomassEstimationKg: biomassEstimation ? parseFloat(biomassEstimation) : undefined,
+                srEstimationPercent: srEstimation ? parseFloat(srEstimation) : undefined,
                 notes: notes.trim() || undefined,
             });
             navigation.goBack();
@@ -70,10 +67,10 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
                     <Text style={styles.sectionTitle}>Measurements</Text>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label="Avg Weight (g) *" value={averageWeight} onChangeText={setAverageWeight} keyboardType="decimal-pad" placeholder="0.0" />
+                            <Input label="MBW (g) *" value={mbwG} onChangeText={setMbwG} keyboardType="decimal-pad" placeholder="0.0" />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label="Avg Length (cm)" value={averageLength} onChangeText={setAverageLength} keyboardType="decimal-pad" placeholder="0.0" />
+                            <Input label="Total Samples" value={totalSamples} onChangeText={setTotalSamples} keyboardType="number-pad" placeholder="0" />
                         </View>
                     </View>
                 </Card>
@@ -82,21 +79,15 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
                     <Text style={styles.sectionTitle}>Population Estimates</Text>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label="Est. Survival (%)" value={survivalRate} onChangeText={setSurvivalRate} keyboardType="decimal-pad" placeholder="0-100" />
+                            <Input label="Est. SR (%)" value={srEstimation} onChangeText={setSrEstimation} keyboardType="decimal-pad" placeholder="0-100" />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label="Est. Biomass (kg)" value={totalBiomass} onChangeText={setTotalBiomass} keyboardType="decimal-pad" placeholder="0.0" />
+                            <Input label="Est. Biomass (kg)" value={biomassEstimation} onChangeText={setBiomassEstimation} keyboardType="decimal-pad" placeholder="0.0" />
                         </View>
                     </View>
                 </Card>
 
                 <Card style={styles.card}>
-                    <Input
-                        label="Overall Health Status"
-                        value={healthStatus}
-                        onChangeText={setHealthStatus}
-                        placeholder="e.g. Good, Active, Sluggish"
-                    />
                     <Input
                         label="Notes / Abnormalities"
                         value={notes}

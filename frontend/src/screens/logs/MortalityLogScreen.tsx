@@ -9,43 +9,30 @@ import { theme } from '../../theme';
 import { mortalityApi } from '../../api/mortalities';
 
 export const MortalityLogScreen = ({ route, navigation }: any) => {
-    const { pondId, pondName } = route.params;
+    const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [estimatedCount, setEstimatedCount] = useState('');
-    const [averageWeight, setAverageWeight] = useState('');
-    const [totalEstimatedWeight, setTotalEstimatedWeight] = useState('');
-    const [notes, setNotes] = useState('');
+    const [quantity, setQuantity] = useState('');
+    const [estimatedWeightKg, setEstimatedWeightKg] = useState('');
+    const [note, setNote] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
 
-    // Auto-calculate total weight if both count and avg weight are provided
-    const handleCalculateTotal = () => {
-        if (estimatedCount && averageWeight && !isNaN(parseFloat(estimatedCount)) && !isNaN(parseFloat(averageWeight))) {
-            const count = parseFloat(estimatedCount);
-            const avg = parseFloat(averageWeight); // In grams
-            const totalKg = (count * avg) / 1000;
-            setTotalEstimatedWeight(totalKg.toFixed(2));
-        }
-    };
-
     const handleSave = async () => {
-        if (!estimatedCount || isNaN(parseFloat(estimatedCount))) {
-            Alert.alert('Validation Error', 'Estimated count is required');
+        if (!quantity || isNaN(parseInt(quantity))) {
+            Alert.alert('Validation Error', 'Quantity is required');
             return;
         }
 
         setIsLoading(true);
-        const recordedAt = new Date(`${date}T12:00:00Z`).toISOString();
 
         try {
             await mortalityApi.create({
-                pondId,
-                recordedAt,
-                estimatedCount: parseFloat(estimatedCount),
-                averageWeightG: averageWeight ? parseFloat(averageWeight) : undefined,
-                totalEstimatedWeightKg: totalEstimatedWeight ? parseFloat(totalEstimatedWeight) : undefined,
-                notes: notes.trim() || undefined,
+                cropId,
+                recordDate: date,
+                quantity: parseInt(quantity, 10),
+                estimatedWeightKg: estimatedWeightKg ? parseFloat(estimatedWeightKg) : undefined,
+                note: note.trim() || undefined,
             });
             navigation.goBack();
         } catch (error: any) {
@@ -71,9 +58,9 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
                 <Card style={styles.card}>
                     <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
                     <Input
-                        label="Estimated Count (pieces) *"
-                        value={estimatedCount}
-                        onChangeText={(text) => { setEstimatedCount(text); handleCalculateTotal(); }}
+                        label="Quantity (pieces) *"
+                        value={quantity}
+                        onChangeText={setQuantity}
                         keyboardType="number-pad"
                         placeholder="0"
                         required
@@ -81,34 +68,21 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Weights</Text>
-                    <View style={styles.row}>
-                        <View style={styles.halfCol}>
-                            <Input
-                                label="Avg Weight (g)"
-                                value={averageWeight}
-                                onChangeText={(text) => { setAverageWeight(text); handleCalculateTotal(); }}
-                                keyboardType="decimal-pad"
-                                placeholder="0.0"
-                            />
-                        </View>
-                        <View style={styles.halfCol}>
-                            <Input
-                                label="Total Est. Weight (kg)"
-                                value={totalEstimatedWeight}
-                                onChangeText={setTotalEstimatedWeight}
-                                keyboardType="decimal-pad"
-                                placeholder="0.0"
-                            />
-                        </View>
-                    </View>
+                    <Text style={styles.sectionTitle}>Weight</Text>
+                    <Input
+                        label="Est. Total Weight (kg)"
+                        value={estimatedWeightKg}
+                        onChangeText={setEstimatedWeightKg}
+                        keyboardType="decimal-pad"
+                        placeholder="0.0"
+                    />
                 </Card>
 
                 <Card style={styles.card}>
                     <Input
                         label="Observations / Suspected Cause"
-                        value={notes}
-                        onChangeText={setNotes}
+                        value={note}
+                        onChangeText={setNote}
                         placeholder="Symptoms, water color changes, etc."
                         multiline
                         numberOfLines={4}

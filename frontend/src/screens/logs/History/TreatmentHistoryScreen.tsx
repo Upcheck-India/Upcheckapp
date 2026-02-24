@@ -7,7 +7,7 @@ import { theme } from '../../../theme';
 import { treatmentsApi, TreatmentRecord } from '../../../api/treatments';
 
 export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
-    const { pondId } = route.params;
+    const { pondId, cropId } = route.params;
     const [records, setRecords] = useState<TreatmentRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -19,8 +19,8 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
         setIsLoading(true);
         try {
             const { data } = await treatmentsApi.getAll();
-            const pondRecords = data.filter((r: TreatmentRecord) => r.pondId === pondId);
-            pondRecords.sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+            const pondRecords = cropId ? data.filter((r: TreatmentRecord) => r.cropId === cropId) : data;
+            pondRecords.sort((a, b) => new Date(b.treatmentDate || b.createdAt || '').getTime() - new Date(a.treatmentDate || a.createdAt || '').getTime());
             setRecords(pondRecords);
         } catch (error) {
             console.log('Failed to fetch treatment records', error);
@@ -33,25 +33,21 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
         <Card style={styles.card}>
             <View style={styles.headerRow}>
                 <Text style={styles.dateText}>
-                    {new Date(item.recordedAt).toLocaleDateString()}
+                    {new Date(item.treatmentDate).toLocaleDateString()}
                 </Text>
-                <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{item.treatmentType}</Text>
-                </View>
-            </View>
-            <Text style={styles.productText}>{item.productName}</Text>
-            <View style={styles.dosageRow}>
-                <MaterialCommunityIcons name="pill" size={16} color={theme.roles.light.textSecondary} />
-                <Text style={styles.detailText}>{item.dosage} {item.unit}</Text>
-
-                {item.applicationMethod && (
-                    <>
-                        <View style={styles.dot} />
-                        <Text style={styles.detailText}>{item.applicationMethod}</Text>
-                    </>
+                {item.basedOn && (
+                    <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{item.basedOn}</Text>
+                    </View>
                 )}
             </View>
-            {item.reason && <Text style={styles.reasonText}>Reason: {item.reason}</Text>}
+            <Text style={styles.productText}>{item.description}</Text>
+            {item.dosageKg != null && (
+                <View style={styles.dosageRow}>
+                    <MaterialCommunityIcons name="pill" size={16} color={theme.roles.light.textSecondary} />
+                    <Text style={styles.detailText}>{item.dosageKg} kg</Text>
+                </View>
+            )}
             {item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
         </Card>
     );

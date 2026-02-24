@@ -9,38 +9,37 @@ import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
 
 export const ChemicalLogScreen = ({ route, navigation }: any) => {
-    const { pondId, pondName } = route.params;
+    const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [chemicalType, setChemicalType] = useState('Chlorine');
-    const [productName, setProductName] = useState('');
-    const [dosage, setDosage] = useState('');
-    const [unit, setUnit] = useState('kg');
-    const [reason, setReason] = useState('Water preparation');
-    const [notes, setNotes] = useState('');
+    const [time, setTime] = useState(new Date().toTimeString().split(' ')[0].substring(0, 5));
+    const [ammoniaNh3, setAmmoniaNh3] = useState('');
+    const [nitriteNo2, setNitriteNo2] = useState('');
+    const [nitrateNo3, setNitrateNo3] = useState('');
+    const [alkalinity, setAlkalinity] = useState('');
+    const [hardness, setHardness] = useState('');
+    const [calciumCa, setCalciumCa] = useState('');
+    const [magnesiumMg, setMagnesiumMg] = useState('');
+    const [potassium, setPotassium] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSave = async () => {
-        if (!productName || !dosage || isNaN(parseFloat(dosage))) {
-            Alert.alert('Validation Error', 'Product name and valid dosage are required');
-            return;
-        }
-
         setIsLoading(true);
-        const recordedAt = new Date(`${date}T12:00:00Z`).toISOString();
 
         try {
             await logResourcesApi.createChemical({
-                pondId,
-                recordedAt,
-                chemicalType,
-                productName: productName.trim(),
-                dosage: parseFloat(dosage),
-                unit: unit.trim() || 'kg',
-                applicationMethod: 'Broadcast',
-                reason: reason.trim() || undefined,
-                notes: notes.trim() || undefined,
+                cropId,
+                measurementDate: date,
+                measurementTime: time,
+                ammoniaNh3Ppm: ammoniaNh3 ? parseFloat(ammoniaNh3) : undefined,
+                nitriteNo2Ppm: nitriteNo2 ? parseFloat(nitriteNo2) : undefined,
+                nitrateNo3Ppm: nitrateNo3 ? parseFloat(nitrateNo3) : undefined,
+                alkalinityPpm: alkalinity ? parseFloat(alkalinity) : undefined,
+                hardnessPpm: hardness ? parseFloat(hardness) : undefined,
+                calciumCaPpm: calciumCa ? parseFloat(calciumCa) : undefined,
+                magnesiumMgPpm: magnesiumMg ? parseFloat(magnesiumMg) : undefined,
+                potassiumPpm: potassium ? parseFloat(potassium) : undefined,
             });
             navigation.goBack();
         } catch (error: any) {
@@ -64,33 +63,53 @@ export const ChemicalLogScreen = ({ route, navigation }: any) => {
                 <Text style={styles.subtitle}>Logging for {pondName}</Text>
 
                 <Card style={styles.card}>
-                    <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
-                    <Input label="Chemical Type" value={chemicalType} onChangeText={setChemicalType} />
-                    <Input label="Product Name *" value={productName} onChangeText={setProductName} required />
-                </Card>
-
-                <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Application</Text>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label="Dosage *" value={dosage} onChangeText={setDosage} keyboardType="decimal-pad" placeholder="0.0" />
+                            <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label="Unit" value={unit} onChangeText={setUnit} placeholder="e.g. kg, ml, L" />
+                            <Input label="Time" value={time} onChangeText={setTime} placeholder="HH:MM" required />
                         </View>
                     </View>
-                    <Input label="Reason" value={reason} onChangeText={setReason} placeholder="e.g. Sterilization, bloom control" />
                 </Card>
 
                 <Card style={styles.card}>
-                    <Input
-                        label="Notes"
-                        value={notes}
-                        onChangeText={setNotes}
-                        multiline
-                        numberOfLines={4}
-                        style={styles.textArea}
-                    />
+                    <Text style={styles.sectionTitle}>Nitrogen Compounds (ppm)</Text>
+                    <View style={styles.row}>
+                        <View style={styles.halfCol}>
+                            <Input label="Ammonia NH₃" value={ammoniaNh3} onChangeText={setAmmoniaNh3} keyboardType="decimal-pad" placeholder="0.0" />
+                        </View>
+                        <View style={styles.halfCol}>
+                            <Input label="Nitrite NO₂" value={nitriteNo2} onChangeText={setNitriteNo2} keyboardType="decimal-pad" placeholder="0.0" />
+                        </View>
+                    </View>
+                    <View style={styles.row}>
+                        <View style={styles.halfCol}>
+                            <Input label="Nitrate NO₃" value={nitrateNo3} onChangeText={setNitrateNo3} keyboardType="decimal-pad" placeholder="0.0" />
+                        </View>
+                        <View style={styles.halfCol} />
+                    </View>
+                </Card>
+
+                <Card style={styles.card}>
+                    <Text style={styles.sectionTitle}>Minerals (ppm)</Text>
+                    <View style={styles.row}>
+                        <View style={styles.halfCol}>
+                            <Input label="Alkalinity" value={alkalinity} onChangeText={setAlkalinity} keyboardType="decimal-pad" placeholder="0.0" />
+                        </View>
+                        <View style={styles.halfCol}>
+                            <Input label="Hardness" value={hardness} onChangeText={setHardness} keyboardType="decimal-pad" placeholder="0.0" />
+                        </View>
+                    </View>
+                    <View style={styles.row}>
+                        <View style={styles.halfCol}>
+                            <Input label="Calcium" value={calciumCa} onChangeText={setCalciumCa} keyboardType="decimal-pad" placeholder="0.0" />
+                        </View>
+                        <View style={styles.halfCol}>
+                            <Input label="Magnesium" value={magnesiumMg} onChangeText={setMagnesiumMg} keyboardType="decimal-pad" placeholder="0.0" />
+                        </View>
+                    </View>
+                    <Input label="Potassium" value={potassium} onChangeText={setPotassium} keyboardType="decimal-pad" placeholder="0.0" />
                 </Card>
 
                 <Button title="Save Record" onPress={handleSave} loading={isLoading} style={styles.saveBtn} />
@@ -139,10 +158,6 @@ const styles = StyleSheet.create({
     },
     halfCol: {
         flex: 1,
-    },
-    textArea: {
-        minHeight: 100,
-        textAlignVertical: 'top',
     },
     saveBtn: {
         marginTop: theme.spacing[3],

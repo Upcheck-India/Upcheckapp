@@ -2,15 +2,24 @@ import apiClient from './client';
 
 export interface DiseaseRecord {
     id: string;
-    pondId: string;
-    recordedAt: string;
-    diseaseName: string;
-    symptoms: string;
-    severity: string;
-    mortalityRate?: number;
-    actionTaken?: string;
+    cropId: string;
+    diseaseId: string;
+    recordedDate: string;
+    severityAtDetection?: string;
+    photoUrls?: string[];
+    notes?: string;
+    createdAt?: string;
+}
+
+export interface CreateDiseaseRecordDto {
+    cropId: string;
+    diseaseId: string;
+    recordedDate: string;
+    severityAtDetection?: string;
+    photoUrls?: string[];
+    notes?: string;
 }
 
 export const diseaseApi = {
-    create: (data: Partial<DiseaseRecord>) => apiClient.post<DiseaseRecord>('/diseases', data),
+    create: (data: CreateDiseaseRecordDto) => apiClient.post<DiseaseRecord>('/disease/record', data),
 };

@@ -20,9 +20,9 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
     const fetchRecords = async () => {
         setIsLoading(true);
         try {
-            const { data } = await feedApi.getAll();
-            const pondRecords = data.filter(r => r.pondId === pondId);
-            pondRecords.sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime());
+            const { data } = await feedApi.getAll(pondId);
+            const pondRecords = Array.isArray(data) ? data : (data as any).data || [];
+            pondRecords.sort((a: FeedRecord, b: FeedRecord) => new Date(b.recordedAt || '').getTime() - new Date(a.recordedAt || '').getTime());
             setRecords(pondRecords);
         } catch (error) {
             console.log('Failed to fetch Feed records', error);
@@ -36,12 +36,12 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
         if (chartRecords.length === 0) return null;
         return {
             labels: chartRecords.map(r => {
-                const d = new Date(r.recordedAt);
+                const d = new Date(r.recordedAt || '');
                 return `${d.getMonth() + 1}/${d.getDate()}`;
             }),
             datasets: [
                 {
-                    data: chartRecords.map(r => r.totalAmountKg)
+                    data: chartRecords.map(r => r.quantityKg)
                 }
             ]
         };
@@ -51,17 +51,11 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
         <Card style={styles.card}>
             <View style={styles.rowBetween}>
                 <Text style={styles.dateText}>
-                    {new Date(item.recordedAt).toLocaleDateString()}
+                    {new Date(item.recordedAt || '').toLocaleDateString()}
                 </Text>
-                {item.wasFasting ? (
-                    <View style={styles.fastingBadge}>
-                        <Text style={styles.fastingText}>Fasting</Text>
-                    </View>
-                ) : (
-                    <Text style={styles.amountText}>{item.totalAmountKg} kg</Text>
-                )}
+                <Text style={styles.amountText}>{item.quantityKg} kg</Text>
             </View>
-            {!item.wasFasting && item.feedType && (
+            {item.feedType && (
                 <Text style={styles.typeText}>Type: {item.feedType}</Text>
             )}
             {item.notes && <Text style={styles.notesText}>{item.notes}</Text>}

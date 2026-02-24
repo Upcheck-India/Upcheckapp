@@ -2,28 +2,29 @@ import apiClient from './client';
 
 export interface HarvestRecord {
     id: string;
-    pondId: string;
-    cycleId: string;
+    cropId: string;
     harvestDate: string;
-    harvestType: 'partial' | 'final';
-    totalBiomassKg: number;
-    abw: number;
-    survivalRate?: number;
+    weightKg: number;
+    count?: number;
+    averageSize?: number;
+    salePriceTotal?: number;
     buyerName?: string;
-    pricePerKg?: number;
+    harvestType: 'partial' | 'full';
+    status?: 'pending' | 'sold' | 'discarded';
     notes?: string;
+    createdAt?: string;
 }
 
 export interface CreateHarvestDto {
-    pondId: string;
-    cycleId: string;
+    cropId: string;
     harvestDate: string;
-    harvestType: 'partial' | 'final';
-    totalBiomassKg: number;
-    abw: number;
-    survivalRate?: number;
+    weightKg: number;
+    count?: number;
+    averageSize?: number;
+    salePriceTotal?: number;
     buyerName?: string;
-    pricePerKg?: number;
+    harvestType: 'partial' | 'full';
+    status?: 'pending' | 'sold' | 'discarded';
     notes?: string;
 }
 

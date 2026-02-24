@@ -15,6 +15,9 @@ const PlaceholderScreen = ({ title }: { title: string }) => (
     </View>
 );
 
+const ReportsScreen = () => <PlaceholderScreen title="Reports" />;
+const MoreScreen = () => <PlaceholderScreen title="More" />;
+
 const Tab = createBottomTabNavigator();
 
 export const MainNavigator = () => {
@@ -59,7 +62,7 @@ export const MainNavigator = () => {
             />
             <Tab.Screen
                 name="Reports"
-                component={() => <PlaceholderScreen title="Reports" />}
+                component={ReportsScreen}
                 options={{
                     tabBarIcon: ({ color, size }) => (
                         <MaterialCommunityIcons name="chart-box" color={color} size={size} />
@@ -68,7 +71,7 @@ export const MainNavigator = () => {
             />
             <Tab.Screen
                 name="More"
-                component={() => <PlaceholderScreen title="More" />}
+                component={MoreScreen}
                 options={{
                     tabBarIcon: ({ color, size }) => (
                         <MaterialCommunityIcons name="menu" color={color} size={size} />

@@ -3,26 +3,32 @@ import apiClient from './client';
 export interface FeedRecord {
     id: string;
     pondId: string;
-    recordedAt: string;
-    totalAmountKg: number;
-    feedType?: string;
+    cropId?: string | null;
+    inventoryItemId?: string | null;
+    feedType: string;
+    feedBrand?: string;
+    quantityKg: number;
+    feedingTime?: string;
     feedingMethod?: string;
-    wasFasting: boolean;
+    waterTemperature?: number;
     notes?: string;
+    recordedAt?: string;
 }
 
 export interface CreateFeedRecordDto {
     pondId: string;
-    recordedAt: string;
-    totalAmountKg: number;
-    feedType?: string;
+    feedType: string;
+    quantityKg: number;
+    feedBrand?: string;
+    feedingTime?: string;
     feedingMethod?: string;
-    wasFasting?: boolean;
+    waterTemperature?: number;
     notes?: string;
+    inventoryItemId?: string;
 }
 
 export const feedApi = {
-    getLatest: (pondId: string) => apiClient.get<FeedRecord>(`/feed-records/pond/${pondId}/latest`),
-    getAll: () => apiClient.get<FeedRecord[]>('/feed-records'),
+    getLatest: (pondId: string) => apiClient.get<FeedRecord>(`/feed-records/pond/${pondId}/total`),
+    getAll: (pondId?: string) => apiClient.get<FeedRecord[]>('/feed-records', { params: pondId ? { pondId } : {} }),
     create: (data: CreateFeedRecordDto) => apiClient.post<FeedRecord>('/feed-records', data),
 };

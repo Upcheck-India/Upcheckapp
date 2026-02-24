@@ -3,30 +3,31 @@ import apiClient from './client';
 export interface WaterQualityRecord {
     id: string;
     pondId: string;
-    recordedAt: string;
     ph?: number;
-    do?: number;
+    dissolvedOxygen?: number;
     temperature?: number;
     salinity?: number;
     ammonia?: number;
     nitrite?: number;
     nitrate?: number;
     alkalinity?: number;
+    hardness?: number;
     transparency?: number;
     notes?: string;
+    recordedAt?: string;
 }
 
 export interface CreateWaterQualityRecordDto {
     pondId: string;
-    recordedAt: string;
     ph?: number;
-    do?: number;
+    dissolvedOxygen?: number;
     temperature?: number;
     salinity?: number;
     ammonia?: number;
     nitrite?: number;
     nitrate?: number;
     alkalinity?: number;
+    hardness?: number;
     transparency?: number;
     notes?: string;
 }

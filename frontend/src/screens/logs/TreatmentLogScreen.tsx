@@ -9,39 +9,33 @@ import { theme } from '../../theme';
 import { treatmentsApi } from '../../api/treatments';
 
 export const TreatmentLogScreen = ({ route, navigation }: any) => {
-    const { pondId, pondName } = route.params;
+    const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [treatmentType, setTreatmentType] = useState('');
+    const [description, setDescription] = useState('');
+    const [basedOn, setBasedOn] = useState('product_usage');
     const [productName, setProductName] = useState('');
-    const [dosage, setDosage] = useState('');
-    const [unit, setUnit] = useState('kg');
-    const [applicationMethod, setApplicationMethod] = useState('');
-    const [reason, setReason] = useState('');
+    const [dosageKg, setDosageKg] = useState('');
     const [notes, setNotes] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSave = async () => {
-        if (!treatmentType.trim() || !productName.trim() || !dosage || isNaN(parseFloat(dosage))) {
-            Alert.alert('Validation Error', 'Treatment type, product name, and valid dosage are required');
+        if (!description.trim()) {
+            Alert.alert('Validation Error', 'Description is required');
             return;
         }
 
         setIsLoading(true);
-        const recordedAt = new Date(`${date}T12:00:00Z`).toISOString();
 
         try {
             await treatmentsApi.create({
-                pondId,
-                recordedAt,
-                treatmentType: treatmentType.trim(),
-                productName: productName.trim(),
-                dosage: parseFloat(dosage),
-                unit: unit.trim() || 'kg',
-                applicationMethod: applicationMethod.trim() || 'Broadcast',
-                reason: reason.trim() || undefined,
-                notes: notes.trim() || undefined,
+                cropId,
+                treatmentDate: date,
+                description: description.trim(),
+                basedOn: basedOn.trim() || undefined,
+                dosageKg: dosageKg ? parseFloat(dosageKg) : undefined,
+                notes: productName ? `Product: ${productName.trim()}. ${notes}`.trim() : (notes.trim() || undefined),
             });
             navigation.goBack();
         } catch (error: any) {
@@ -66,40 +60,21 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
 
                 <Card style={styles.card}>
                     <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
-                    <Input label="Treatment Type *" value={treatmentType} onChangeText={setTreatmentType} placeholder="e.g. Probiotics, Minerals, Antibiotics" required />
-                    <Input label="Product Name *" value={productName} onChangeText={setProductName} placeholder="e.g. AquaBiotex" required />
+                    <Input label="Description *" value={description} onChangeText={setDescription} placeholder="e.g. Applied probiotics, mineral supplement" required />
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Application</Text>
-                    <View style={styles.row}>
-                        <View style={styles.halfCol}>
-                            <Input label="Dosage *" value={dosage} onChangeText={setDosage} keyboardType="decimal-pad" placeholder="0.0" />
-                        </View>
-                        <View style={styles.halfCol}>
-                            <Input label="Unit" value={unit} onChangeText={setUnit} placeholder="e.g. kg, L, bags" />
-                        </View>
-                    </View>
-                    <Input
-                        label="Application Method"
-                        value={applicationMethod}
-                        onChangeText={setApplicationMethod}
-                        placeholder="e.g. Mixed with feed, Broadcast to pond"
-                    />
+                    <Text style={styles.sectionTitle}>Product Details</Text>
+                    <Input label="Product Name" value={productName} onChangeText={setProductName} placeholder="e.g. AquaBiotex" />
+                    <Input label="Dosage (kg)" value={dosageKg} onChangeText={setDosageKg} keyboardType="decimal-pad" placeholder="0.0" />
                 </Card>
 
                 <Card style={styles.card}>
-                    <Input
-                        label="Reason for Treatment"
-                        value={reason}
-                        onChangeText={setReason}
-                        placeholder="e.g. Low DO, Vibriosis, Routine maintenance"
-                    />
                     <Input
                         label="Additional Notes"
                         value={notes}
                         onChangeText={setNotes}
-                        placeholder="Water conditions, shrimp behavior before tracking..."
+                        placeholder="Water conditions, shrimp behavior..."
                         multiline
                         numberOfLines={3}
                         style={styles.textArea}

@@ -8,25 +8,25 @@ import { cropsApi } from '../../api/crops';
 
 export const CreateCycleScreen = ({ route, navigation }: any) => {
     const { pondId } = route.params;
+    const [name, setName] = useState('');
     const [stockingDate, setStockingDate] = useState(new Date().toISOString().split('T')[0]);
-    const [totalSeed, setTotalSeed] = useState('');
-    const [species, setSpecies] = useState('Vannamei');
-    const [initialAgeDays, setInitialAgeDays] = useState('0');
-
-    const [targetSurvivalRate, setTargetSurvivalRate] = useState('85');
-    const [targetSizeG, setTargetSizeG] = useState('15');
-    const [targetFcr, setTargetFcr] = useState('1.4');
+    const [stockingCount, setStockingCount] = useState('');
+    const [speciesType, setSpeciesType] = useState('Vannamei');
+    const [seedType, setSeedType] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
-    const [errors, setErrors] = useState<{ totalSeed?: string; species?: string }>({});
+    const [errors, setErrors] = useState<{ name?: string; stockingCount?: string }>({});
 
     const handleSave = async () => {
-        if (!totalSeed || isNaN(parseInt(totalSeed))) {
-            setErrors({ totalSeed: 'Valid total seed count is required' });
-            return;
+        const newErrors: { name?: string; stockingCount?: string } = {};
+        if (!name.trim()) {
+            newErrors.name = 'Cycle name is required';
         }
-        if (!species.trim()) {
-            setErrors({ ...errors, species: 'Species is required' });
+        if (!stockingCount || isNaN(parseInt(stockingCount))) {
+            newErrors.stockingCount = 'Valid stocking count is required';
+        }
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
             return;
         }
 
@@ -36,13 +36,11 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
         try {
             await cropsApi.create({
                 pondId,
+                name: name.trim(),
                 stockingDate,
-                totalSeed: parseInt(totalSeed, 10),
-                species: species.trim(),
-                initialAgeDays: parseInt(initialAgeDays, 10) || 0,
-                targetSurvivalRate: parseFloat(targetSurvivalRate) || 85,
-                targetSizeG: parseFloat(targetSizeG) || 15,
-                targetFcr: parseFloat(targetFcr) || 1.4,
+                stockingCount: parseInt(stockingCount, 10),
+                speciesType: speciesType.trim() || undefined,
+                seedType: seedType.trim() || undefined,
             });
             navigation.goBack();
         } catch (error: any) {
@@ -55,7 +53,14 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
     return (
         <ScreenWrapper>
             <View style={styles.formContainer}>
-                {/* Basic Info */}
+                <Input
+                    label="Cycle Name"
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="e.g. Cycle 1"
+                    error={errors.name}
+                    required
+                />
                 <Input
                     label="Stocking Date (YYYY-MM-DD)"
                     value={stockingDate}
@@ -64,40 +69,26 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
                     required
                 />
                 <Input
-                    label="Total Seed (Count)"
-                    value={totalSeed}
-                    onChangeText={setTotalSeed}
+                    label="Stocking Count"
+                    value={stockingCount}
+                    onChangeText={setStockingCount}
                     keyboardType="number-pad"
                     placeholder="e.g. 500000"
-                    error={errors.totalSeed}
+                    error={errors.stockingCount}
                     required
                 />
                 <Input
-                    label="Species"
-                    value={species}
-                    onChangeText={setSpecies}
+                    label="Species Type"
+                    value={speciesType}
+                    onChangeText={setSpeciesType}
                     placeholder="e.g. Vannamei"
-                    error={errors.species}
-                    required
                 />
                 <Input
-                    label="Initial Age (Days)"
-                    value={initialAgeDays}
-                    onChangeText={setInitialAgeDays}
-                    keyboardType="number-pad"
+                    label="Seed Type (Optional)"
+                    value={seedType}
+                    onChangeText={setSeedType}
+                    placeholder="e.g. PL-10"
                 />
-
-                {/* Targets */}
-                <View style={styles.row}>
-                    <View style={styles.halfCol}>
-                        <Input label="Target SR (%)" value={targetSurvivalRate} onChangeText={setTargetSurvivalRate} keyboardType="decimal-pad" />
-                    </View>
-                    <View style={styles.halfCol}>
-                        <Input label="Target FCR" value={targetFcr} onChangeText={setTargetFcr} keyboardType="decimal-pad" />
-                    </View>
-                </View>
-
-                <Input label="Target Size (g)" value={targetSizeG} onChangeText={setTargetSizeG} keyboardType="decimal-pad" />
 
                 <Button
                     title="Start Production Cycle"
