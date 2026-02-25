@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Crop } from '../crops/crop.entity';
 
 @Entity('harvests')
@@ -6,6 +6,7 @@ export class Harvest {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Index()
     @Column({ name: 'crop_id', type: 'uuid' })
     cropId: string;
 
@@ -14,7 +15,7 @@ export class Harvest {
     crop: Crop;
 
     @Column({ type: 'date', name: 'harvest_date' })
-    harvestDate: string;
+    harvestDate: Date;
 
     @Column({ type: 'float', name: 'weight_kg' })
     weightKg: number;
@@ -40,9 +41,9 @@ export class Harvest {
     @Column({ type: 'text', nullable: true })
     notes: string | null;
 
-    @CreateDateColumn({ name: 'created_at' })
-    createdAt: string;
+    @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
+    createdAt: Date;
 
-    @UpdateDateColumn({ name: 'updated_at' })
-    updatedAt: string;
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
+    updatedAt: Date;
 }

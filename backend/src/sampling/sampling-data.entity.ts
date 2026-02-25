@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Crop } from '../crops/crop.entity';
 import { Pond } from '../ponds/pond.entity';
 
@@ -7,6 +7,7 @@ export class SamplingData {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Index()
     @Column({ name: 'pond_id', type: 'uuid' })
     pondId: string;
 
@@ -14,6 +15,7 @@ export class SamplingData {
     @JoinColumn({ name: 'pond_id' })
     pond: Pond;
 
+    @Index()
     @Column({ name: 'crop_id', type: 'uuid', nullable: true })
     cropId: string | null;
 
@@ -47,4 +49,7 @@ export class SamplingData {
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
     createdAt: Date;
+
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
+    updatedAt: Date;
 }

@@ -11,6 +11,9 @@ const extra = Constants.expoConfig?.extra ?? {};
 export function useGoogleAuth() {
     const { googleLogin, isLoading } = useAuthStore();
 
+    // Guard: warn if client IDs are missing (deleted OAuth client scenario)
+    const hasClientIds = !!(extra.googleClientIdWeb || extra.googleClientIdIos || extra.googleClientIdAndroid);
+
     const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
         clientId: extra.googleClientIdWeb,
         iosClientId: extra.googleClientIdIos,
@@ -18,15 +21,29 @@ export function useGoogleAuth() {
     });
 
     useEffect(() => {
-        if (response?.type === 'success') {
+        if (!response) return;
+
+        if (response.type === 'success') {
             const idToken = response.params.id_token;
             if (idToken) {
                 googleLogin(idToken);
             }
+        } else if (response.type === 'error') {
+            const errorMsg = response.error?.message || 'Google sign in returned an error';
+            useAuthStore.getState().setError(errorMsg);
         }
+        // 'cancel' and 'dismiss' are user-initiated, no error needed
     }, [response]);
 
     const signInWithGoogle = async () => {
+        if (!hasClientIds) {
+            useAuthStore.getState().setError('Google Sign-In is not configured. Please contact support.');
+            return;
+        }
+        if (!request) {
+            useAuthStore.getState().setError('Google Sign-In is not ready. Please try again.');
+            return;
+        }
         try {
             await promptAsync();
         } catch (err: any) {
@@ -36,7 +53,8 @@ export function useGoogleAuth() {
 
     return {
         signInWithGoogle,
-        isReady: !!request,
+        isReady: !!request && hasClientIds,
         isLoading,
     };
 }
+

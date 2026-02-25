@@ -1,11 +1,15 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Pond } from '../ponds/pond.entity';
+import { Hatchery } from '../reference/entities/hatchery.entity';
+import { Species } from '../reference/entities/species.entity';
+import { Broodstock } from '../reference/entities/broodstock.entity';
 
 @Entity('crops')
 export class Crop {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Index()
     @Column({ name: 'pond_id', type: 'uuid' })
     pondId: string;
 
@@ -13,6 +17,7 @@ export class Crop {
     @JoinColumn({ name: 'pond_id' })
     pond: Pond;
 
+    @Index()
     @Column({ name: 'farm_id', type: 'uuid', nullable: true })
     farmId: string;
 
@@ -48,14 +53,29 @@ export class Crop {
     totalFeedingTrays: number;
 
     // Reference FKs
+    @Index()
     @Column({ name: 'hatchery_id', type: 'uuid', nullable: true })
     hatcheryId: string;
 
+    @ManyToOne(() => Hatchery, { onDelete: 'SET NULL', nullable: true })
+    @JoinColumn({ name: 'hatchery_id' })
+    hatchery: Hatchery;
+
+    @Index()
     @Column({ name: 'species_id', type: 'uuid', nullable: true })
     speciesId: string;
 
+    @ManyToOne(() => Species, { onDelete: 'SET NULL', nullable: true })
+    @JoinColumn({ name: 'species_id' })
+    species: Species;
+
+    @Index()
     @Column({ name: 'broodstock_id', type: 'uuid', nullable: true })
     broodstockId: string;
+
+    @ManyToOne(() => Broodstock, { onDelete: 'SET NULL', nullable: true })
+    @JoinColumn({ name: 'broodstock_id' })
+    broodstock: Broodstock;
 
     @Column({ name: 'species_type', type: 'text', nullable: true })
     speciesType: string;
@@ -88,6 +108,7 @@ export class Crop {
     @Column({ type: 'int', default: 0 })
     doc: number; // Day of Culture
 
+    @Index()
     @Column({ name: 'is_active', type: 'boolean', default: true })
     isActive: boolean;
 

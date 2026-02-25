@@ -1,4 +1,5 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index, DeleteDateColumn } from 'typeorm';
+import { User } from '../auth/user.entity';
 
 // Valid values: 'tidal' | 'river' | 'borehole' | 'reservoir' | 'recycled'
 export type WaterSourceType = string;
@@ -8,8 +9,13 @@ export class Farm {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Index()
     @Column({ name: 'user_id', type: 'uuid' })
     userId: string;
+
+    @ManyToOne(() => User, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'user_id' })
+    user: User;
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
     createdAt: Date;
@@ -47,6 +53,6 @@ export class Farm {
     @Column({ type: 'jsonb', nullable: true })
     boundary: { latitude: number, longitude: number }[];
 
-    @Column({ name: 'deleted_at', type: 'timestamp with time zone', nullable: true })
+    @DeleteDateColumn({ name: 'deleted_at', type: 'timestamp with time zone', nullable: true })
     deletedAt: Date;
 }

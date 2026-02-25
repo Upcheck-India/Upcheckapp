@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToOne } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToOne, Index } from 'typeorm';
 import { Farm } from '../farms/farm.entity';
 import { Crop } from '../crops/crop.entity';
 
@@ -14,6 +14,7 @@ export class Pond {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Index()
     @Column({ name: 'farm_id', type: 'uuid' })
     farmId: string;
 
@@ -75,12 +76,14 @@ export class Pond {
     @Column({ name: 'gps_lng', type: 'numeric', nullable: true })
     gpsLng: number;
 
+    @Index()
     @Column({ type: 'varchar', length: 20, default: 'fallow' })
     status: string;
 
     @Column({ name: 'archived_at', type: 'timestamp with time zone', nullable: true })
     archivedAt: Date;
 
+    @Index()
     @Column({ name: 'active_cycle_id', type: 'uuid', nullable: true })
     activeCycleId: string | null;
 

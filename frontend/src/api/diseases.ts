@@ -21,5 +21,7 @@ export interface CreateDiseaseRecordDto {
 }
 
 export const diseaseApi = {
+    getAll: () => apiClient.get<DiseaseRecord[]>('/disease/record'),
     create: (data: CreateDiseaseRecordDto) => apiClient.post<DiseaseRecord>('/disease/record', data),
 };
+

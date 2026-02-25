@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import RootNavigator from './src/navigation/RootNavigator';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { registerForPushNotificationsAsync } from './src/utils/notifications';
 import {
   useFonts,
@@ -28,6 +29,16 @@ export default function App() {
   );
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
+
+  // Global unhandled promise rejection handler — prevents crash on Android production
+  useEffect(() => {
+    const handler = (id: string, error: Error | undefined) => {
+      console.warn('[UnhandledRejection]', id, error?.message ?? 'Unknown error');
+    };
+    const tracking = require('promise/setimmediate/rejection-tracking');
+    tracking.enable({ allRejections: true, onUnhandled: handler });
+    return () => tracking.disable();
+  }, []);
 
   const [fontsLoaded] = useFonts({
     'Nunito-Regular': Nunito_400Regular,
@@ -65,10 +76,12 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <RootNavigator />
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <NavigationContainer>
+          <RootNavigator />
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

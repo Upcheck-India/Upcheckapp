@@ -21,5 +21,7 @@ export interface CreateMortalityRecordDto {
 }
 
 export const mortalityApi = {
+    getAll: () => apiClient.get<MortalityRecord[]>('/mortality'),
     create: (data: CreateMortalityRecordDto) => apiClient.post<MortalityRecord>('/mortality', data),
 };
+
