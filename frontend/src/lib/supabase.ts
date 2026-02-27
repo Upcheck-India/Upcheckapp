@@ -2,9 +2,14 @@ import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { AppState } from 'react-native';
+import Constants from 'expo-constants';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl as string;
+const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey as string;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('[Supabase] Missing supabaseUrl or supabaseAnonKey in app.json extra config');
+}
 
 // Custom storage adapter using expo-secure-store for encrypted token storage
 const ExpoSecureStoreAdapter = {

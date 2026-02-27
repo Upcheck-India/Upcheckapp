@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Crop } from '../crops/crop.entity';
 import { DiseaseLibrary } from './disease-library.entity';
 
@@ -7,6 +7,7 @@ export class DiseaseRecord {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Index()
     @Column({ name: 'crop_id', type: 'uuid' })
     cropId: string;
 
@@ -14,6 +15,7 @@ export class DiseaseRecord {
     @JoinColumn({ name: 'crop_id' })
     crop: Crop;
 
+    @Index()
     @Column({ name: 'disease_id', type: 'uuid' })
     diseaseId: string;
 
@@ -35,4 +37,7 @@ export class DiseaseRecord {
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
     createdAt: Date;
+
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
+    updatedAt: Date;
 }

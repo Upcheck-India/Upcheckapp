@@ -1,6 +1,7 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Crop } from '../crops/crop.entity';
 import { Pond } from '../ponds/pond.entity';
+import { User } from '../auth/user.entity';
 
 export enum ExpenseCategory {
     FEED = 'Feed',
@@ -17,6 +18,7 @@ export class Expense {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Index()
     @Column({ name: 'crop_id', type: 'uuid', nullable: true })
     cropId: string | null;
 
@@ -24,6 +26,7 @@ export class Expense {
     @JoinColumn({ name: 'crop_id' })
     crop: Crop;
 
+    @Index()
     @Column({ name: 'pond_id', type: 'uuid' })
     pondId: string;
 
@@ -32,7 +35,7 @@ export class Expense {
     pond: Pond;
 
     @Column({ type: 'date' })
-    date: string;
+    date: Date;
 
     @Column({ type: 'enum', enum: ExpenseCategory })
     category: ExpenseCategory;
@@ -43,12 +46,17 @@ export class Expense {
     @Column({ type: 'text', nullable: true })
     description: string | null;
 
+    @Index()
     @Column({ name: 'user_id', type: 'uuid' })
-    userId: string; // To track who recorded it
+    userId: string;
 
-    @CreateDateColumn({ name: 'created_at' })
-    createdAt: string;
+    @ManyToOne(() => User, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'user_id' })
+    user: User;
 
-    @UpdateDateColumn({ name: 'updated_at' })
-    updatedAt: string;
+    @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
+    createdAt: Date;
+
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
+    updatedAt: Date;
 }

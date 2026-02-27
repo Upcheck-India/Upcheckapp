@@ -48,6 +48,11 @@ import { FeedHistoryScreen } from '../screens/logs/History/FeedHistoryScreen';
 import { SamplingHistoryScreen } from '../screens/logs/History/SamplingHistoryScreen';
 import { TreatmentHistoryScreen } from '../screens/logs/History/TreatmentHistoryScreen';
 import { HarvestHistoryScreen } from '../screens/logs/History/HarvestHistoryScreen';
+import { ChemicalHistoryScreen } from '../screens/logs/History/ChemicalHistoryScreen';
+import { PlanktonHistoryScreen } from '../screens/logs/History/PlanktonHistoryScreen';
+import { MicrobiologyHistoryScreen } from '../screens/logs/History/MicrobiologyHistoryScreen';
+import { DiseaseHistoryScreen } from '../screens/logs/History/DiseaseHistoryScreen';
+import { MortalityHistoryScreen } from '../screens/logs/History/MortalityHistoryScreen';
 
 import { ProfileScreen } from '../screens/settings/ProfileScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
@@ -98,6 +103,11 @@ export type RootStackParamList = {
     SamplingHistory: { pondId: string; pondName?: string };
     TreatmentHistory: { pondId: string; pondName?: string };
     HarvestHistory: { pondId: string; cycleId?: string };
+    ChemicalHistory: { pondId: string; cropId?: string };
+    PlanktonHistory: { pondId: string; cropId?: string };
+    MicrobiologyHistory: { pondId: string; cropId?: string };
+    DiseaseHistory: { pondId: string; cropId?: string };
+    MortalityHistory: { pondId: string; cropId?: string };
 
     Profile: undefined;
     Settings: undefined;
@@ -177,6 +187,11 @@ const RootNavigator = () => {
                     <Stack.Screen name="SamplingHistory" component={SamplingHistoryScreen} />
                     <Stack.Screen name="TreatmentHistory" component={TreatmentHistoryScreen} />
                     <Stack.Screen name="HarvestHistory" component={HarvestHistoryScreen} />
+                    <Stack.Screen name="ChemicalHistory" component={ChemicalHistoryScreen} />
+                    <Stack.Screen name="PlanktonHistory" component={PlanktonHistoryScreen} />
+                    <Stack.Screen name="MicrobiologyHistory" component={MicrobiologyHistoryScreen} />
+                    <Stack.Screen name="DiseaseHistory" component={DiseaseHistoryScreen} />
+                    <Stack.Screen name="MortalityHistory" component={MortalityHistoryScreen} />
 
                     {/* Phase 5 (Settings & Notifications) */}
                     <Stack.Screen name="Profile" component={ProfileScreen} />

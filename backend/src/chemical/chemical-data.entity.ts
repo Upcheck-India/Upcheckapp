@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Crop } from '../crops/crop.entity';
 
 @Entity('chemical_data')
@@ -6,6 +6,7 @@ export class ChemicalData {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Index()
     @Column({ name: 'crop_id', type: 'uuid' })
     cropId: string;
 
@@ -63,4 +64,7 @@ export class ChemicalData {
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
     createdAt: Date;
+
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
+    updatedAt: Date;
 }

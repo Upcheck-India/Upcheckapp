@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Pond } from '../ponds/pond.entity';
 
 @Entity('water_quality_records')
@@ -6,6 +6,7 @@ export class WaterQualityRecord {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Index()
     @Column({ name: 'pond_id', type: 'uuid' })
     pondId: string;
 
@@ -48,4 +49,7 @@ export class WaterQualityRecord {
 
     @Column({ type: 'text', nullable: true })
     notes: string;
+
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
+    updatedAt: Date;
 }

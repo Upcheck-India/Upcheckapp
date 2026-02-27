@@ -34,7 +34,7 @@ export async function registerForPushNotificationsAsync() {
             finalStatus = status;
         }
         if (finalStatus !== 'granted') {
-            alert('Failed to get push token for push notification!');
+            console.warn('[Notifications] Push notification permissions not granted');
             return undefined;
         }
         // Learn more about projectId: https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid
@@ -54,7 +54,7 @@ export async function registerForPushNotificationsAsync() {
             token = `${e}`;
         }
     } else {
-        alert('Must use physical device for Push Notifications');
+        console.warn('[Notifications] Must use physical device for Push Notifications');
     }
 
     return token;

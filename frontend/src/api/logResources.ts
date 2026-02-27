@@ -110,7 +110,11 @@ export interface CreateMicrobiologyDataDto {
 }
 
 export const logResourcesApi = {
+    getAllChemical: () => apiClient.get<ChemicalRecord[]>('/chemical-data'),
     createChemical: (data: CreateChemicalDataDto) => apiClient.post<ChemicalRecord>('/chemical-data', data),
+    getAllPlankton: () => apiClient.get<PlanktonRecord[]>('/plankton-data'),
     createPlankton: (data: CreatePlanktonDataDto) => apiClient.post<PlanktonRecord>('/plankton-data', data),
+    getAllMicrobiology: () => apiClient.get<MicrobiologyRecord[]>('/microbiology-data'),
     createMicrobiology: (data: CreateMicrobiologyDataDto) => apiClient.post<MicrobiologyRecord>('/microbiology-data', data),
 };
+
