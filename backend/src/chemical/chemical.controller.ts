@@ -1,10 +1,8 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ChemicalService } from './chemical.service';
 import { CreateChemicalDataDto } from './dto/create-chemical-data.dto';
 
 @Controller('chemical-data')
-@UseGuards(JwtAuthGuard)
 export class ChemicalController {
     constructor(private readonly chemicalService: ChemicalService) { }
 

@@ -2,11 +2,10 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } f
 import { InventoryService } from './inventory.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
-
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PageOptionsDto } from '../common/dto/page-options.dto';
+import { PageDto } from '../common/dto/page.dto';
 
 @Controller('inventory')
-@UseGuards(JwtAuthGuard)
 export class InventoryController {
     constructor(private readonly inventoryService: InventoryService) { }
 
@@ -16,13 +15,20 @@ export class InventoryController {
     }
 
     @Get()
-    findAll(@Query('farmId') farmId?: string, @Query('category') category?: string) {
-        return this.inventoryService.findAll(farmId, category);
+    findAll(
+        @Query('farmId') farmId?: string,
+        @Query('category') category?: string,
+        @Query() pageOptionsDto?: PageOptionsDto
+    ) {
+        return this.inventoryService.findAll(farmId, category, pageOptionsDto);
     }
 
     @Get('low-stock/:farmId')
-    getLowStock(@Param('farmId') farmId: string) {
-        return this.inventoryService.getLowStock(farmId);
+    getLowStock(
+        @Param('farmId') farmId: string,
+        @Query() pageOptionsDto?: PageOptionsDto
+    ) {
+        return this.inventoryService.getLowStock(farmId, pageOptionsDto);
     }
 
     @Get(':id')

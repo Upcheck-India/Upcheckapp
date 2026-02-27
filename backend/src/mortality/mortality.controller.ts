@@ -1,10 +1,8 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { MortalityService } from './mortality.service';
 import { CreateMortalityRecordDto } from './dto/create-mortality-record.dto';
 
 @Controller('mortality')
-@UseGuards(JwtAuthGuard)
 export class MortalityController {
     constructor(private readonly mortalityService: MortalityService) { }
 

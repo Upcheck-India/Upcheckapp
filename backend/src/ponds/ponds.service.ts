@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, Not, IsNull } from 'typeorm';
 import { Pond } from './pond.entity';
 import { PondDimensionHistory } from './pond-dimension-history.entity';
 import { CreatePondDto } from './dto/create-pond.dto';
@@ -8,6 +8,8 @@ import { UpdatePondDto } from './dto/update-pond.dto';
 import { FarmsService } from '../farms/farms.service';
 import { PondDimensionService } from './pond-dimension.service';
 import { PondNamingService } from './pond-naming.service';
+import { PageOptionsDto } from '../common/dto/page-options.dto';
+import { PageMetaDto, PageDto } from '../common/dto/page.dto';
 
 @Injectable()
 export class PondsService {
@@ -141,11 +143,11 @@ export class PondsService {
             status?: string;
             search?: string;
             sort?: string;
-            page?: number;
             includeArchived?: boolean;
         },
-    ) {
-        await this.farmsService.verifyOwnership(farmId, userId);
+        pageOptionsDto?: PageOptionsDto,
+    ): Promise<PageDto<Pond>> {
+        // OwnershipGuard handles authorization
 
         const qb = this.pondsRepository.createQueryBuilder('pond')
             .leftJoinAndSelect('pond.activeCycle', 'activeCycle')
@@ -179,19 +181,27 @@ export class PondsService {
                 break;
         }
 
-        // Pagination (page size = 50)
-        const page = Math.max(1, options?.page ?? 1);
-        const pageSize = 50;
-        qb.skip((page - 1) * pageSize).take(pageSize);
+        // Pagination
+        const skip = pageOptionsDto?.skip || 0;
+        const take = pageOptionsDto?.take || 50;
+        qb.skip(skip).take(take);
 
-        const [ponds, total] = await qb.getManyAndCount();
+        const [ponds, itemCount] = await qb.getManyAndCount();
 
-        return {
-            ponds,
-            total,
-            page,
-            hasMore: page * pageSize < total,
-        };
+        const pageMeta = new PageMetaDto({ itemCount, pageOptionsDto: pageOptionsDto || { page: 1, take } });
+        return new PageDto(ponds, pageMeta);
+    }
+
+    async countActivePonds(farmId: string): Promise<number> {
+        return this.pondsRepository.count({
+            where: { farmId, status: Not('archived'), activeCycleId: Not(IsNull()) }
+        });
+    }
+
+    async countTotalPonds(farmId: string): Promise<number> {
+        return this.pondsRepository.count({
+            where: { farmId, status: Not('archived') }
+        });
     }
 
     async findOne(id: string, userId: string) {
@@ -202,10 +212,6 @@ export class PondsService {
 
         if (!pond) {
             throw new NotFoundException(`Pond with ID ${id} not found`);
-        }
-
-        if (pond.farm.userId !== userId) {
-            throw new ForbiddenException('You do not have permission to access this pond');
         }
 
         return pond;
@@ -315,12 +321,21 @@ export class PondsService {
     /**
      * Get dimension change history for a pond.
      */
-    async getDimensionHistory(pondId: string, userId: string) {
+    async getDimensionHistory(pondId: string, userId: string, pageOptionsDto?: PageOptionsDto): Promise<PageDto<PondDimensionHistory>> {
         await this.findOne(pondId, userId); // Verify ownership
-        return this.dimensionHistoryRepository.find({
+        const skip = pageOptionsDto?.skip || 0;
+        const take = pageOptionsDto?.take || 10;
+        const order = pageOptionsDto?.order || 'DESC';
+
+        const [items, itemCount] = await this.dimensionHistoryRepository.findAndCount({
             where: { pondId },
-            order: { changedAt: 'DESC' },
+            order: { changedAt: order },
+            take,
+            skip,
         });
+
+        const pageMetaDto = new PageMetaDto({ itemCount, pageOptionsDto: pageOptionsDto || { page: 1, take } });
+        return new PageDto(items, pageMetaDto);
     }
     /**
      * Lightweight ownership verification.

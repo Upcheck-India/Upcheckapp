@@ -1,209 +1,152 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, Platform, KeyboardAvoidingView } from 'react-native';
-import { Text, TextInput, Button, ActivityIndicator, useTheme } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
-import { useAuth } from '../../context/AuthContext';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet } from 'react-native';
+import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
+import { theme } from '../../theme';
+import { useAuthStore } from '../../store/authStore';
+import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
+import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 
-export const LoginScreen = () => {
-    const [emailOrPhone, setEmailOrPhone] = useState('');
+export const LoginScreen = ({ navigation }: any) => {
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [googleLoading, setGoogleLoading] = useState(false);
-    const [securePassword, setSecurePassword] = useState(true);
+    const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-    const navigation = useNavigation<any>();
-    const { login, signInWithGoogle } = useAuth();
-    const theme = useTheme();
+    const { login, isLoading, error, clearError } = useAuthStore();
+    const { signInWithGoogle } = useGoogleAuth();
 
-    const handleGoogleSignIn = async () => {
-        setGoogleLoading(true);
-        setError('');
-        try {
-            await signInWithGoogle();
-        } catch (err: any) {
-            setError(err.message || 'Google sign-in failed. Please try again.');
-        } finally {
-            setGoogleLoading(false);
-        }
+    const validate = (): boolean => {
+        const newErrors: { email?: string; password?: string } = {};
+        if (!email.trim()) newErrors.email = 'Email is required';
+        else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Enter a valid email';
+        if (!password) newErrors.password = 'Password is required';
+        else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
     };
 
     const handleLogin = async () => {
-        if (!emailOrPhone || !password) {
-            setError('Please fill in all fields');
-            return;
-        }
-
-        setLoading(true);
-        setError('');
-
+        if (!validate()) return;
+        clearError();
         try {
-            const response = await login({ emailOrPhone, password });
-            if (response?.requires2fa) {
-                navigation.navigate('TwoFALogin', { tempToken: response.tempToken });
-                return;
-            }
-        } catch (err: any) {
-            setError(err.message || 'Login failed. Please try again.');
-        } finally {
-            setLoading(false);
+            await login(email.trim(), password);
+        } catch {
+            // Error is set in the store
         }
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardView}
-            >
-                <View style={styles.headerContainer}>
-                    <Text variant="headlineLarge" style={styles.title}>Welcome Back</Text>
-                    <Text variant="bodyLarge" style={styles.subtitle}>Sign in to continue to Upcheck</Text>
-                </View>
+        <ScreenWrapper backgroundColor={theme.roles.light.primary} keyboardAvoiding>
+            <View style={styles.header}>
+                <Text style={styles.logo}>🦐</Text>
+                <Text style={styles.title}>UpCheck</Text>
+                <Text style={styles.subtitle}>Shrimp Aquaculture Management</Text>
+            </View>
 
-                <View style={styles.formContainer}>
-                    <TextInput
-                        label="Email or Phone"
-                        value={emailOrPhone}
-                        onChangeText={setEmailOrPhone}
-                        mode="outlined"
-                        autoCapitalize="none"
-                        style={styles.input}
-                        error={!!error}
-                    />
-
-                    <TextInput
-                        label="Password"
-                        value={password}
-                        onChangeText={setPassword}
-                        mode="outlined"
-                        secureTextEntry={securePassword}
-                        style={styles.input}
-                        error={!!error}
-                        right={<TextInput.Icon icon={securePassword ? 'eye-off' : 'eye'} onPress={() => setSecurePassword(v => !v)} />}
-                    />
-
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate('ForgotPassword')}
-                        style={styles.forgotPassword}
-                    >
-                        <Text variant="bodyMedium" style={{ color: theme.colors.primary }}>
-                            Forgot Password?
-                        </Text>
-                    </TouchableOpacity>
-
-                    {error ? (
+            <View style={styles.card}>
+                {error && (
+                    <View style={styles.errorBanner}>
                         <Text style={styles.errorText}>{error}</Text>
-                    ) : null}
-
-                    <Button
-                        mode="contained"
-                        onPress={handleLogin}
-                        loading={loading}
-                        disabled={loading}
-                        style={styles.button}
-                        contentStyle={styles.buttonContent}
-                    >
-                        Login
-                    </Button>
-
-                    <View style={styles.orContainer}>
-                        <View style={styles.divider} />
-                        <Text variant="bodyMedium" style={styles.orText}>OR</Text>
-                        <View style={styles.divider} />
                     </View>
+                )}
 
-                    <Button
-                        mode="outlined"
-                        onPress={handleGoogleSignIn}
-                        loading={googleLoading}
-                        disabled={loading || googleLoading}
-                        style={styles.googleButton}
-                        icon="google"
-                    >
-                        Sign in with Google
-                    </Button>
+                <Input
+                    label="Email"
+                    value={email}
+                    onChangeText={setEmail}
+                    error={errors.email}
+                    placeholder="your@email.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    leftIcon="email-outline"
+                    required
+                />
 
-                    <View style={styles.footer}>
-                        <Text variant="bodyMedium">Don't have an account? </Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                            <Text variant="bodyMedium" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
-                                Sign Up
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+                <Input
+                    label="Password"
+                    value={password}
+                    onChangeText={setPassword}
+                    error={errors.password}
+                    placeholder="Enter your password"
+                    isPassword
+                    leftIcon="lock-outline"
+                    required
+                />
+
+                <Button
+                    title="Sign In"
+                    onPress={handleLogin}
+                    loading={isLoading}
+                    style={styles.signInBtn}
+                />
+
+                <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
+
+                <Button
+                    title="Forgot Password?"
+                    onPress={() => navigation.navigate('ForgotPassword')}
+                    variant="text"
+                />
+
+                <View style={styles.divider} />
+
+                <Button
+                    title="Create Account"
+                    onPress={() => navigation.navigate('Register')}
+                    variant="outlined"
+                />
+            </View>
+        </ScreenWrapper>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-    },
-    keyboardView: {
-        flex: 1,
-        padding: 20,
-        justifyContent: 'center',
-    },
-    headerContainer: {
-        marginBottom: 40,
+    header: {
         alignItems: 'center',
+        paddingTop: 60,
+        paddingBottom: 32,
+    },
+    logo: {
+        fontSize: 56,
+        marginBottom: theme.spacing[3],
     },
     title: {
-        fontWeight: 'bold',
-        marginBottom: 10,
+        ...theme.typeScale.h1,
+        color: theme.roles.light.textInverse,
+        marginBottom: theme.spacing[2],
     },
     subtitle: {
-        color: '#666',
+        ...theme.typeScale.bodyMedium,
+        color: 'rgba(255,255,255,0.8)',
     },
-    formContainer: {
-        width: '100%',
+    card: {
+        backgroundColor: theme.roles.light.surface,
+        borderTopLeftRadius: theme.radius.xl,
+        borderTopRightRadius: theme.radius.xl,
+        padding: theme.spacing[6],
+        paddingTop: theme.spacing[8],
+        flex: 1,
     },
-    input: {
-        marginBottom: 16,
-    },
-    forgotPassword: {
-        alignSelf: 'flex-end',
-        marginBottom: 24,
-    },
-    button: {
-        borderRadius: 8,
-        marginBottom: 24,
-    },
-    buttonContent: {
-        paddingVertical: 6,
+    errorBanner: {
+        backgroundColor: theme.roles.light.dangerBg,
+        borderRadius: theme.radius.sm,
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[4],
+        borderLeftWidth: 3,
+        borderLeftColor: theme.roles.light.dangerText,
     },
     errorText: {
-        color: 'red',
-        marginBottom: 16,
-        textAlign: 'center',
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.dangerText,
     },
-    orContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 24,
+    signInBtn: {
+        marginTop: theme.spacing[3],
+        marginBottom: theme.spacing[3],
     },
     divider: {
-        flex: 1,
         height: 1,
-        backgroundColor: '#e0e0e0',
-    },
-    orText: {
-        marginHorizontal: 16,
-        color: '#666',
-    },
-    googleButton: {
-        borderRadius: 8,
-        marginBottom: 24,
-        borderColor: '#ddd',
-    },
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        marginTop: 16,
+        backgroundColor: theme.roles.light.borderDefault,
+        marginVertical: theme.spacing[4],
     },
 });

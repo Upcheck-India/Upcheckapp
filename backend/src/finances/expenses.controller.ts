@@ -1,16 +1,14 @@
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Controller, Get, Post, Body, Param, UseGuards, Req, Query } from '@nestjs/common';
 import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
 @Controller('expenses')
-@UseGuards(JwtAuthGuard)
 export class ExpensesController {
     constructor(private readonly expensesService: ExpensesService) { }
 
     @Post()
-    create(@Body() createDto: CreateExpenseDto, @Req() req) {
-        return this.expensesService.create(createDto, req.user.id);
+    create(@Body() createDto: CreateExpenseDto, @CurrentUser() user) {
+        return this.expensesService.create(createDto, user.id);
     }
 
     @Get('cycle/:cropId')

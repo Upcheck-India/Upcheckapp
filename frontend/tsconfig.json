@@ -1,5 +1,5 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": "expo/tsconfig.base.json",
   "compilerOptions": {
     "strict": true,
     "jsx": "react-jsx",
@@ -9,13 +9,24 @@
     "emitDecoratorMetadata": true,
     "target": "ES2020",
     "module": "ESNext",
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "strictPropertyInitialization": false,
     "noImplicitAny": false,
-    "types": ["jest", "node"]
+    "isolatedModules": true,
+    "allowJs": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "lib": ["ES2020", "DOM"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
   "include": [
+    "App.tsx",
+    "index.ts",
     "src/**/*"
   ],
   "exclude": [

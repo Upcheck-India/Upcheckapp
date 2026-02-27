@@ -68,14 +68,5 @@ export class User {
     roles: string[];
 
     @Column({ name: 'google_id', type: 'varchar', nullable: true, unique: true })
-    googleId: string; // Keep for backward compatibility/OAuth
-
-    @Column({ name: 'is_2fa_enabled', type: 'boolean', default: false })
-    is2faEnabled: boolean;
-
-    @Column({ name: 'totp_secret', type: 'varchar', nullable: true })
-    totpSecret: string;
-
-    @Column({ name: 'backup_codes', type: 'simple-array', nullable: true })
-    backupCodes: string[];
+    googleId: string | null; // Keep for backward compatibility/OAuth
 }

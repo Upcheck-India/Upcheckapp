@@ -1,15 +1,17 @@
-import { Controller, Post, Get, Body, UseGuards, Req, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { SupabaseAuthService } from './supabase-auth.service';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { Public } from './decorators/auth.decorators';
 import type { User } from '@supabase/supabase-js';
 
 @Controller('auth/supabase')
 export class SupabaseAuthController {
-    constructor(private supabaseAuthService: SupabaseAuthService) {}
+    constructor(private supabaseAuthService: SupabaseAuthService) { }
 
     // ==================== Email/Password Auth ====================
 
+    @Public()
     @Post('signup')
     async signup(@Body() body: { email: string; password: string; firstName?: string; lastName?: string; username?: string }) {
         const { email, password, firstName, lastName, username } = body;
@@ -31,6 +33,7 @@ export class SupabaseAuthController {
         };
     }
 
+    @Public()
     @Post('signin')
     async signin(@Body() body: { email: string; password: string }) {
         const { email, password } = body;
@@ -50,6 +53,7 @@ export class SupabaseAuthController {
 
     // ==================== OAuth ====================
 
+    @Public()
     @Post('oauth/google')
     async googleOAuth(@Body() body: { idToken: string }) {
         const { idToken } = body;
@@ -69,6 +73,7 @@ export class SupabaseAuthController {
 
     // ==================== Session Management ====================
 
+    @Public()
     @Post('refresh')
     async refresh(@Body() body: { refreshToken: string }) {
         const { refreshToken } = body;
@@ -90,7 +95,7 @@ export class SupabaseAuthController {
     @UseGuards(SupabaseAuthGuard)
     async signout(@Req() request: any) {
         const token = request.headers.authorization?.substring(7); // Remove 'Bearer '
-        
+
         if (!token) {
             throw new UnauthorizedException('No token provided');
         }
@@ -124,6 +129,7 @@ export class SupabaseAuthController {
 
     // ==================== Password Management ====================
 
+    @Public()
     @Post('forgot-password')
     async forgotPassword(@Body() body: { email: string }) {
         const { email } = body;
@@ -153,6 +159,7 @@ export class SupabaseAuthController {
 
     // ==================== Email Verification ====================
 
+    @Public()
     @Post('resend-verification')
     async resendVerification(@Body() body: { email: string }) {
         const { email } = body;

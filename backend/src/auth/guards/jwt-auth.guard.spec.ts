@@ -6,7 +6,7 @@ describe('JwtAuthGuard', () => {
 
   beforeEach(() => {
     const reflector = new Reflector();
-    guard = new JwtAuthGuard(reflector);
+    guard = new JwtAuthGuard(reflector, { get: jest.fn().mockReturnValue('http://dummy.com') } as any);
   });
 
   it('should be defined', () => {

@@ -1,336 +1,237 @@
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AuthService } from '../services/auth';
-import { supabase } from '../services/supabase';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import * as SecureStore from 'expo-secure-store';
+import type { Session, User } from '@supabase/supabase-js';
+import { authApi } from '../api/auth';
 
-// ─── Storage Keys ────────────────────────────────────────────────
-const STORAGE_KEYS = {
-    ACCESS_TOKEN: '@upcheck_access_token',
-    REFRESH_TOKEN: '@upcheck_refresh_token',
-    USER: '@upcheck_user',
-};
+export type AuthStatus =
+    | 'initializing'       // app just launched, checking stored session
+    | 'unauthenticated'    // no session, show login screen
+    | 'awaiting_verification' // signed up but email not confirmed
+    | 'authenticated'      // fully logged in
+    | 'refreshing';        // access token being refreshed
 
-export interface User {
+export interface AuthUser {
     id: string;
     email: string;
-    fullName?: string;
-    roles: string[];
-    is2faEnabled: boolean;
-    isEmailVerified?: boolean;
-    isPhoneVerified?: boolean;
-    phoneNumber?: string;
-    avatarUrl?: string;
-    lastLoginAt?: string;
+    name: string;
+    avatarUrl: string | null;
+    provider: 'email' | 'google';
+    emailVerified: boolean;
 }
 
 interface AuthState {
-    user: User | null;
+    // ── Core State ──
+    status: AuthStatus;
+    user: AuthUser | null;
+    session: Session | null;
+    isLoading: boolean; // Retained for compatibility with existing UI
+
+    // ── Derived (computed from session) ──
     accessToken: string | null;
-    refreshToken: string | null;
     isAuthenticated: boolean;
-    isLoading: boolean;
+
+    // ── Pending verification ──
+    pendingVerificationEmail: string | null;
+
+    // ── Error ──
     error: string | null;
 
-    // ─── Actions ─────────────────────────────────────────────
-    googleLogin: (idToken: string) => Promise<any>;
-    emailLogin: (emailOrPhone: string, password: string, rememberMe?: boolean) => Promise<any>;
-    register: (email: string, password: string, fullName: string, phoneNumber?: string) => Promise<any>;
-    phoneLogin: (phoneNumber: string, otp: string) => Promise<any>;
-    loginWith2FA: (tempToken: string, code: string) => Promise<void>;
-    logout: () => Promise<void>;
-    logoutAllDevices: () => Promise<void>;
-    checkAuth: () => Promise<void>;
-    refreshAccessToken: () => Promise<string | null>;
-    setAccessToken: (token: string) => void;
-    setUser: (user: User | null) => void;
+    // ── Actions ──
+    setSession: (session: Session) => void;
+    setStatus: (status: AuthStatus) => void;
+    setPendingVerification: (email: string) => void;
+    clearPendingVerification: () => void;
+    setError: (error: string | null) => void;
     clearError: () => void;
+    clearSession: () => void;
+    hydrateFromSupabaseUser: (user: User, session: Session) => void;
+
+    // ── API Actions ──
+    initialize: () => Promise<void>;
+    login: (email: string, password: string) => Promise<void>;
+    googleLogin: (idToken: string) => Promise<void>;
+    signup: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
+    logout: () => Promise<void>;
+    forgotPassword: (email: string) => Promise<void>;
 }
 
-// ─── Helpers: Persist tokens securely ────────────────────────────
-async function persistTokens(accessToken: string, refreshToken: string, user?: any) {
-    try {
-        await AsyncStorage.multiSet([
-            [STORAGE_KEYS.ACCESS_TOKEN, accessToken],
-            [STORAGE_KEYS.REFRESH_TOKEN, refreshToken],
-            ...(user ? [[STORAGE_KEYS.USER, JSON.stringify(user)]] : []),
-        ] as [string, string][]);
-    } catch (e) {
-        console.warn('Failed to persist tokens:', e);
-    }
-}
+const mapSupabaseUser = (user: User): AuthUser => ({
+    id: user.id,
+    email: user.email!,
+    name:
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email!.split('@')[0],
+    avatarUrl:
+        user.user_metadata?.avatar_url ||
+        user.user_metadata?.picture ||
+        null,
+    provider: (user.app_metadata?.provider as 'email' | 'google') || 'email',
+    emailVerified: !!user.email_confirmed_at,
+});
 
-async function clearPersistedTokens() {
-    try {
-        await AsyncStorage.multiRemove([
-            STORAGE_KEYS.ACCESS_TOKEN,
-            STORAGE_KEYS.REFRESH_TOKEN,
-            STORAGE_KEYS.USER,
-        ]);
-    } catch (e) {
-        console.warn('Failed to clear tokens:', e);
-    }
-}
+export const useAuthStore = create<AuthState>()(
+    persist(
+        (set, get) => ({
+            // Initial state
+            status: 'initializing',
+            isLoading: true,
+            user: null,
+            session: null,
+            accessToken: null,
+            isAuthenticated: false,
+            pendingVerificationEmail: null,
+            error: null,
 
-async function getPersistedTokens() {
-    try {
-        const values = await AsyncStorage.multiGet([
-            STORAGE_KEYS.ACCESS_TOKEN,
-            STORAGE_KEYS.REFRESH_TOKEN,
-            STORAGE_KEYS.USER,
-        ]);
-        return {
-            accessToken: values[0][1],
-            refreshToken: values[1][1],
-            user: values[2][1] ? JSON.parse(values[2][1]) : null,
-        };
-    } catch (e) {
-        return { accessToken: null, refreshToken: null, user: null };
-    }
-}
+            setSession: (session) =>
+                set({
+                    session,
+                    accessToken: session.access_token,
+                    user: mapSupabaseUser(session.user),
+                    isAuthenticated: true,
+                    status: 'authenticated',
+                    error: null,
+                    isLoading: false,
+                }),
 
-// ─── Supabase session sync helper ────────────────────────────────
-async function syncSupabaseSession(data: any) {
-    if (data.supabase_access_token && data.supabase_refresh_token) {
-        try {
-            await supabase.auth.setSession({
-                access_token: data.supabase_access_token,
-                refresh_token: data.supabase_refresh_token,
-            });
-        } catch (e) {
-            console.warn('Supabase session sync failed:', e);
+            setStatus: (status) => set({ status }),
+
+            setPendingVerification: (email) =>
+                set({
+                    pendingVerificationEmail: email,
+                    status: 'awaiting_verification',
+                    isLoading: false,
+                }),
+
+            clearPendingVerification: () =>
+                set({ pendingVerificationEmail: null }),
+
+            setError: (error) => set({ error, isLoading: false }),
+            clearError: () => set({ error: null }),
+
+            clearSession: () =>
+                set({
+                    session: null,
+                    accessToken: null,
+                    user: null,
+                    isAuthenticated: false,
+                    status: 'unauthenticated',
+                    pendingVerificationEmail: null,
+                    error: null,
+                    isLoading: false,
+                }),
+
+            hydrateFromSupabaseUser: (user, session) =>
+                set({
+                    session,
+                    accessToken: session.access_token,
+                    user: mapSupabaseUser(user),
+                    isAuthenticated: true,
+                    status: 'authenticated',
+                    isLoading: false,
+                }),
+
+            initialize: async () => {
+                const state = get();
+                if (state.session) {
+                    try {
+                        const { data } = await authApi.getCurrentUser();
+                        set({
+                            isAuthenticated: true,
+                            user: mapSupabaseUser(data.user),
+                            status: 'authenticated',
+                            isLoading: false
+                        });
+                    } catch {
+                        // Token might be expired, clear everything and let user re-login
+                        get().clearSession();
+                    }
+                } else {
+                    set({ status: 'unauthenticated', isLoading: false });
+                }
+            },
+
+            login: async (email, password) => {
+                set({ isLoading: true, error: null });
+                try {
+                    const { data } = await authApi.signin({ email, password });
+                    if (data.session) {
+                        get().setSession(data.session);
+                    }
+                } catch (err: any) {
+                    const message = err.response?.data?.message || err.message || 'Login failed';
+                    get().setError(message);
+                    throw new Error(message);
+                }
+            },
+
+            googleLogin: async (idToken: string) => {
+                set({ isLoading: true, error: null });
+                try {
+                    const { data } = await authApi.googleOAuth(idToken);
+                    if (data.session) {
+                        get().setSession(data.session);
+                    } else {
+                        set({ isLoading: false });
+                    }
+                } catch (err: any) {
+                    const message = err.response?.data?.message || err.message || 'Google sign in failed';
+                    get().setError(message);
+                }
+            },
+
+            signup: async (email, password, firstName, lastName) => {
+                set({ isLoading: true, error: null });
+                try {
+                    const { data } = await authApi.signup({ email, password, firstName, lastName });
+                    if (data.session) {
+                        get().setSession(data.session);
+                    } else {
+                        get().setPendingVerification(email);
+                    }
+                } catch (err: any) {
+                    const message = err.response?.data?.message || err.message || 'Registration failed';
+                    get().setError(message);
+                    throw new Error(message);
+                }
+            },
+
+            logout: async () => {
+                try {
+                    await authApi.signout();
+                } catch {
+                    // Ignore signout error
+                }
+                get().clearSession();
+            },
+
+            forgotPassword: async (email) => {
+                set({ isLoading: true, error: null });
+                try {
+                    await authApi.forgotPassword(email);
+                    set({ isLoading: false });
+                } catch (err: any) {
+                    const message = err.response?.data?.message || err.message || 'Failed to send reset email';
+                    get().setError(message);
+                    throw new Error(message);
+                }
+            },
+        }),
+        {
+            name: 'upcheck-auth',
+            storage: createJSONStorage(() => ({
+                getItem: (key) => SecureStore.getItemAsync(key),
+                setItem: (key, value) => SecureStore.setItemAsync(key, value),
+                removeItem: (key) => SecureStore.deleteItemAsync(key),
+            })),
+            // Only persist user, session (refresh token mostly), and pending email.
+            // Do NOT persist accessToken directly as per Blueprint.
+            partialize: (state) => ({
+                user: state.user,
+                pendingVerificationEmail: state.pendingVerificationEmail,
+                session: state.session,
+            }),
         }
-    }
-}
-
-// ─── Handle successful auth response ─────────────────────────────
-async function handleAuthSuccess(
-    data: any,
-    set: (state: Partial<AuthState>) => void,
-) {
-    await syncSupabaseSession(data);
-    await persistTokens(data.access_token, data.refresh_token, data.user);
-
-    set({
-        user: data.user,
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-    });
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// ─── Auth Store ───────────────────────────────────────────────────
-// ═══════════════════════════════════════════════════════════════════
-export const useAuthStore = create<AuthState>((set, get) => ({
-    user: null,
-    accessToken: null,
-    refreshToken: null,
-    isAuthenticated: false,
-    isLoading: true,
-    error: null,
-
-    setAccessToken: (token) => set({ accessToken: token, isAuthenticated: !!token }),
-    setUser: (user) => set({ user }),
-    clearError: () => set({ error: null }),
-
-    // ─── Google Login ────────────────────────────────────────
-    googleLogin: async (idToken: string) => {
-        set({ isLoading: true, error: null });
-        try {
-            const data = await AuthService.googleLogin(idToken);
-
-            if (data.requires2fa) {
-                set({ isLoading: false });
-                return data;
-            }
-
-            await handleAuthSuccess(data, set);
-            return data;
-        } catch (error: any) {
-            set({ error: error.message, isLoading: false });
-            throw error;
-        }
-    },
-
-    // ─── Email/Password Login ────────────────────────────────
-    emailLogin: async (emailOrPhone: string, password: string, rememberMe = false) => {
-        set({ isLoading: true, error: null });
-        try {
-            const data = await AuthService.login(emailOrPhone, password, rememberMe);
-
-            if (data.requires2fa) {
-                set({ isLoading: false });
-                return data;
-            }
-
-            await handleAuthSuccess(data, set);
-            return data;
-        } catch (error: any) {
-            set({ error: error.message, isLoading: false });
-            throw error;
-        }
-    },
-
-    // ─── Register ────────────────────────────────────────────
-    register: async (email: string, password: string, fullName: string, phoneNumber?: string) => {
-        set({ isLoading: true, error: null });
-        try {
-            const data = await AuthService.register(email, password, fullName, phoneNumber);
-            set({ isLoading: false });
-            return data;
-        } catch (error: any) {
-            set({ error: error.message, isLoading: false });
-            throw error;
-        }
-    },
-
-    // ─── Phone OTP Login ─────────────────────────────────────
-    phoneLogin: async (phoneNumber: string, otp: string) => {
-        set({ isLoading: true, error: null });
-        try {
-            const data = await AuthService.verifyOtp(phoneNumber, otp);
-
-            if (data.requires2fa) {
-                set({ isLoading: false });
-                return data;
-            }
-
-            await handleAuthSuccess(data, set);
-            return data;
-        } catch (error: any) {
-            set({ error: error.message, isLoading: false });
-            throw error;
-        }
-    },
-
-    // ─── 2FA Login ───────────────────────────────────────────
-    loginWith2FA: async (tempToken: string, code: string) => {
-        set({ isLoading: true, error: null });
-        try {
-            const data = await AuthService.login2FA(tempToken, code);
-            await handleAuthSuccess(data, set);
-        } catch (error: any) {
-            set({ error: error.message, isLoading: false });
-            throw error;
-        }
-    },
-
-    // ─── Logout ──────────────────────────────────────────────
-    logout: async () => {
-        const { refreshToken } = get();
-        set({ isLoading: true });
-        try {
-            await AuthService.logout(refreshToken || undefined);
-            await supabase.auth.signOut();
-        } catch (error) {
-            console.warn('Logout API call failed:', error);
-        } finally {
-            await clearPersistedTokens();
-            set({
-                user: null,
-                accessToken: null,
-                refreshToken: null,
-                isAuthenticated: false,
-                isLoading: false,
-                error: null,
-            });
-        }
-    },
-
-    // ─── Logout All Devices ──────────────────────────────────
-    logoutAllDevices: async () => {
-        const { accessToken } = get();
-        set({ isLoading: true });
-        try {
-            if (accessToken) {
-                await AuthService.logoutAll(accessToken);
-            }
-            await supabase.auth.signOut();
-        } catch (error) {
-            console.warn('Logout all failed:', error);
-        } finally {
-            await clearPersistedTokens();
-            set({
-                user: null,
-                accessToken: null,
-                refreshToken: null,
-                isAuthenticated: false,
-                isLoading: false,
-                error: null,
-            });
-        }
-    },
-
-    // ─── Token Refresh ───────────────────────────────────────
-    refreshAccessToken: async () => {
-        const { refreshToken } = get();
-        if (!refreshToken) return null;
-
-        try {
-            const data = await AuthService.refreshToken(refreshToken);
-            await persistTokens(data.access_token, data.refresh_token);
-            set({
-                accessToken: data.access_token,
-                refreshToken: data.refresh_token,
-                isAuthenticated: true,
-            });
-            return data.access_token;
-        } catch (error) {
-            // Refresh failed — force logout
-            await clearPersistedTokens();
-            set({
-                user: null,
-                accessToken: null,
-                refreshToken: null,
-                isAuthenticated: false,
-            });
-            return null;
-        }
-    },
-
-    // ─── Check Auth on App Start ─────────────────────────────
-    checkAuth: async () => {
-        set({ isLoading: true });
-        try {
-            // 1. Load persisted tokens
-            const persisted = await getPersistedTokens();
-
-            if (!persisted.refreshToken) {
-                set({ isLoading: false, isAuthenticated: false });
-                return;
-            }
-
-            // Set cached user immediately for fast UI
-            if (persisted.user) {
-                set({ user: persisted.user });
-            }
-
-            // 2. Attempt token refresh
-            const data = await AuthService.refreshToken(persisted.refreshToken);
-            await persistTokens(data.access_token, data.refresh_token);
-
-            set({
-                accessToken: data.access_token,
-                refreshToken: data.refresh_token,
-                isAuthenticated: true,
-            });
-
-            // 3. Fetch fresh user data
-            const user = await AuthService.getMe(data.access_token);
-            await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-            set({ user, isLoading: false });
-        } catch (error) {
-            // Refresh failed — clear everything
-            await clearPersistedTokens();
-            set({
-                user: null,
-                accessToken: null,
-                refreshToken: null,
-                isAuthenticated: false,
-                isLoading: false,
-            });
-        }
-    },
-}));
+    )
+);

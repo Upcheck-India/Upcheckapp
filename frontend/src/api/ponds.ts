@@ -1,0 +1,67 @@
+import apiClient from './client';
+
+export interface Pond {
+    id: string;
+    farmId: string;
+    name: string;
+    namePrefix?: string;
+    sequenceNumber?: number;
+    pondCode?: string;
+    displayName?: string;
+    geometryType?: 'rectangular' | 'circular' | 'irregular' | 'raceway';
+    constructionType?: 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
+    lengthM?: number;
+    widthM?: number;
+    diameterM?: number;
+    depthM?: number;
+    channelCount?: number;
+    calculatedAreaM2?: number;
+    overrideAreaM2?: number;
+    gpsLat?: number;
+    gpsLng?: number;
+    status: 'fallow' | 'active' | 'harvesting' | 'archived';
+    archivedAt?: string;
+    activeCycleId?: string | null;
+    boundary?: { latitude: number; longitude: number }[];
+    createdAt: string;
+    updatedAt: string;
+    farm?: any;
+    activeCycle?: any;
+}
+
+export interface CreatePondDto {
+    farmId: string;
+    namePrefix: string;
+    geometryType: 'rectangular' | 'circular' | 'irregular' | 'raceway';
+    constructionType: 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
+    lengthM?: number;
+    widthM?: number;
+    diameterM?: number;
+    depthM: number;
+    channelCount?: number;
+    overrideAreaM2?: number;
+    displayName?: string;
+    batchCount?: number;
+}
+
+export interface UpdatePondDto extends Partial<Omit<CreatePondDto, 'farmId'>> { }
+
+export const pondsApi = {
+    getAll: (farmId: string, params?: { status?: string; search?: string; sort?: string; includeArchived?: boolean; page?: number; take?: number }) =>
+        apiClient.get<any>(`/ponds`, { params: { farmId, ...params } }),
+
+    getMine: () => apiClient.get<Pond[]>('/ponds/mine'),
+
+    getById: (id: string) => apiClient.get<Pond>(`/ponds/${id}`),
+
+    create: (data: CreatePondDto) => apiClient.post<Pond>('/ponds', data),
+
+    update: (id: string, data: UpdatePondDto) => apiClient.patch<Pond>(`/ponds/${id}`, data),
+
+    archive: (id: string) => apiClient.patch(`/ponds/${id}/archive`),
+
+    delete: (id: string) => apiClient.delete(`/ponds/${id}`),
+
+    getDimensionHistory: (id: string, params?: { page?: number; take?: number }) =>
+        apiClient.get<any>(`/ponds/${id}/dimension-history`, { params }),
+};

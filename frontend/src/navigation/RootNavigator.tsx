@@ -1,176 +1,189 @@
-import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { RootStackParamList } from './types';
-import { Colors } from '../constants/Colors';
-import { useAuth } from '../context/AuthContext';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { theme } from '../theme';
+import { useAuthStore } from '../store/authStore';
 
-import BottomTabNavigator from './BottomTabNavigator';
-
-// Auth Screens
 // Auth Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { RegisterScreen } from '../screens/auth/RegisterScreen';
-// import PhoneLoginScreen from '../screens/auth/PhoneLoginScreen';
-// import TwoFALoginScreen from '../screens/auth/TwoFALoginScreen';
-import TwoFASetupScreen from '../screens/auth/TwoFASetupScreen';
 import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
-import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
-import ChangePasswordScreen from '../screens/auth/ChangePasswordScreen';
-import SessionManagementScreen from '../screens/auth/SessionManagementScreen';
-import SettingsScreen from '../screens/main/SettingsScreen';
-import PublicProfileScreen from '../screens/main/PublicProfileScreen';
 
-// Feature Screens
-import MineralCalculatorScreen from '../screens/features/MineralCalculatorScreen';
-import ShrimpCalculatorScreen from '../screens/features/ShrimpCalculatorScreen';
-import SimulationScreen from '../screens/features/SimulationScreen';
-import HarvestPlanningScreen from '../screens/features/HarvestPlanningScreen';
-import FarmManagementScreen from '../screens/features/FarmManagementScreen';
-import PondManagementScreen from '../screens/features/PondManagementScreen';
-import PondDetailScreen from '../screens/features/PondDetailScreen';
-import CycleManagementScreen from '../screens/features/CycleManagementScreen';
-import ProductDetailScreen from '../screens/features/ProductDetailScreen';
-import CartScreen from '../screens/features/CartScreen';
-import CheckoutScreen from '../screens/features/CheckoutScreen';
-import OrdersScreen from '../screens/features/OrdersScreen';
-import OrderDetailScreen from '../screens/features/OrderDetailScreen';
+// Main Navigation
+import { MainNavigator } from './MainNavigator';
 
-// Calculators
-import CalculatorsMenuScreen from '../screens/features/calculators/CalculatorsMenuScreen';
-import CultivationPerformanceScreen from '../screens/features/calculators/CultivationPerformanceScreen';
-import FreeAmmoniaScreen from '../screens/features/calculators/FreeAmmoniaScreen';
-import ProductDosageScreen from '../screens/features/calculators/ProductDosageScreen';
+// Phase 2 Screens
+import { CreateFarmScreen } from '../screens/farms/CreateFarmScreen';
+import { FarmDetailScreen } from '../screens/farms/FarmDetailScreen';
+import { CreatePondScreen } from '../screens/ponds/CreatePondScreen';
+import { PondDashboardScreen } from '../screens/ponds/PondDashboardScreen';
+import { CreateCycleScreen } from '../screens/cycles/CreateCycleScreen';
+import { CycleDetailScreen } from '../screens/cycles/CycleDetailScreen';
 
-// Data Entry
-import DataEntryMenuScreen from '../screens/features/data-entry/DataEntryMenuScreen';
-import FeedEntryScreen from '../screens/features/data-entry/FeedEntryScreen';
-import SamplingEntryScreen from '../screens/features/data-entry/SamplingEntryScreen';
-import ChemicalEntryScreen from '../screens/features/data-entry/ChemicalEntryScreen';
-import PlanktonEntryScreen from '../screens/features/data-entry/PlanktonEntryScreen';
-import MicrobiologyEntryScreen from '../screens/features/data-entry/MicrobiologyEntryScreen';
-import MortalityEntryScreen from '../screens/features/data-entry/MortalityEntryScreen';
+// Phase 3 Screens (Logs)
+import { WaterQualityLogScreen } from '../screens/logs/WaterQualityLogScreen';
+import { FeedLogScreen } from '../screens/logs/FeedLogScreen';
+import { SamplingLogScreen } from '../screens/logs/SamplingLogScreen';
+import { TreatmentLogScreen } from '../screens/logs/TreatmentLogScreen';
+import { MortalityLogScreen } from '../screens/logs/MortalityLogScreen';
+import { ChemicalLogScreen } from '../screens/logs/ChemicalLogScreen';
+import { PlanktonLogScreen } from '../screens/logs/PlanktonLogScreen';
+import { MicrobiologyLogScreen } from '../screens/logs/MicrobiologyLogScreen';
+import { DiseaseLogScreen } from '../screens/logs/DiseaseLogScreen';
 
-// Disease
-import DiseaseLibraryScreen from '../screens/features/disease/DiseaseLibraryScreen';
-import DiseaseDetailScreen from '../screens/features/disease/DiseaseDetailScreen';
-import DiseaseRecordScreen from '../screens/features/disease/DiseaseRecordScreen';
+// Phase 4 Screens (Calculators & Simulations)
+import { CalculatorHubScreen } from '../screens/calculators/CalculatorHubScreen';
+import { CultivationPerformanceScreen } from '../screens/calculators/CultivationPerformanceScreen';
+import { DailyFeedCalculatorScreen } from '../screens/calculators/DailyFeedCalculatorScreen';
+import { ProductAmountScreen } from '../screens/calculators/ProductAmountScreen';
+import { FreeAmmoniaScreen } from '../screens/calculators/FreeAmmoniaScreen';
 
-// Harvest
-import HarvestEntryScreen from '../screens/features/harvest/HarvestEntryScreen';
-import HarvestHistoryScreen from '../screens/features/harvest/HarvestHistoryScreen';
+import { SimulationListScreen } from '../screens/simulation/SimulationListScreen';
+import { SimulationCreateScreen } from '../screens/simulation/SimulationCreateScreen';
+import { SimulationResultsScreen } from '../screens/simulation/SimulationResultsScreen';
 
-// Finance
-import ExpenseEntryScreen from '../screens/features/finance/ExpenseEntryScreen';
+// Phase 5 Screens (History & Polish)
+import { WaterQualityHistoryScreen } from '../screens/logs/History/WaterQualityHistoryScreen';
+import { FeedHistoryScreen } from '../screens/logs/History/FeedHistoryScreen';
+import { SamplingHistoryScreen } from '../screens/logs/History/SamplingHistoryScreen';
+import { TreatmentHistoryScreen } from '../screens/logs/History/TreatmentHistoryScreen';
+import { HarvestHistoryScreen } from '../screens/logs/History/HarvestHistoryScreen';
 
-// Inventory
-import InventoryScreen from '../screens/features/inventory/InventoryScreen';
+import { ProfileScreen } from '../screens/settings/ProfileScreen';
+import { SettingsScreen } from '../screens/settings/SettingsScreen';
+import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
+
+export type RootStackParamList = {
+    // Auth
+    Login: undefined;
+    Register: undefined;
+    ForgotPassword: undefined;
+
+    // Main
+    MainApp: undefined;
+
+    // Phase 2
+    CreateFarm: undefined;
+    FarmDetail: { farmId: string; farmName?: string };
+    CreatePond: { farmId: string };
+    PondDashboard: { pondId: string; pondName?: string };
+    CreateCycle: { pondId: string };
+    CycleDetail: { cycleId: string };
+
+    // Phase 3
+    WaterQualityLog: { pondId: string; pondName?: string; cropId?: string };
+    FeedLog: { pondId: string; pondName?: string; cropId?: string };
+    SamplingLog: { pondId: string; pondName?: string; cropId?: string };
+    TreatmentLog: { pondId: string; pondName?: string; cropId?: string };
+    MortalityLog: { pondId: string; pondName?: string; cropId?: string };
+    ChemicalLog: { pondId: string; pondName?: string; cropId?: string };
+    PlanktonLog: { pondId: string; pondName?: string; cropId?: string };
+    MicrobiologyLog: { pondId: string; pondName?: string; cropId?: string };
+    DiseaseLog: { pondId: string; pondName?: string; cropId?: string };
+
+    // Phase 4
+    CalculatorHub: undefined;
+    CultivationPerformance: undefined;
+    DailyFeedCalculator: undefined;
+    ProductAmount: undefined;
+    FreeAmmonia: undefined;
+
+    SimulationList: undefined;
+    SimulationCreate: undefined;
+    SimulationResults: { simulationId?: string; resultData?: any };
+
+    // Phase 5 (History & Polish)
+    WaterQualityHistory: { pondId: string; pondName?: string };
+    FeedHistory: { pondId: string; pondName?: string };
+    SamplingHistory: { pondId: string; pondName?: string };
+    TreatmentHistory: { pondId: string; pondName?: string };
+    HarvestHistory: { pondId: string; cycleId?: string };
+
+    Profile: undefined;
+    Settings: undefined;
+    Notifications: undefined;
+};
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
-    const { isLoading, isAuthenticated, isPasswordRecovery } = useAuth();
+    const { isLoading, isAuthenticated, initialize } = useAuthStore();
 
-    // Show loading screen while checking auth state
+    useEffect(() => {
+        initialize();
+    }, []);
+
     if (isLoading) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface }}>
-                <ActivityIndicator size="large" color={Colors.primary} />
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.roles.light.background }}>
+                <ActivityIndicator size="large" color={theme.roles.light.primary} />
             </View>
         );
     }
 
     return (
         <Stack.Navigator
-            initialRouteName={isAuthenticated ? "Main" : "Login"}
             screenOptions={{
                 headerShown: false,
                 animation: 'slide_from_right',
-                headerStyle: { backgroundColor: Colors.surface },
-                headerTintColor: Colors.primary,
-                headerTitleStyle: { color: Colors.text, fontWeight: '600' },
-                headerShadowVisible: false,
-                contentStyle: { backgroundColor: Colors.background },
+                contentStyle: { backgroundColor: theme.roles.light.background },
             }}
         >
-            {/* ─── Password Recovery (always available, shown over whatever stack) */}
-            {isPasswordRecovery ? (
-                <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ headerShown: true, title: 'Set New Password' }} />
-            ) : null}
-
-            {/* ─── Auth Screens (unauthenticated) ─────────────────── */}
-            {!isAuthenticated && !isPasswordRecovery ? (
+            {!isAuthenticated ? (
                 <>
                     <Stack.Screen name="Login" component={LoginScreen} />
                     <Stack.Screen name="Register" component={RegisterScreen} />
-                    <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-                    <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-                    <Stack.Screen name="PublicProfile" component={PublicProfileScreen} options={{ headerShown: true, title: 'Profile' }} />
+                    <Stack.Screen
+                        name="ForgotPassword"
+                        component={ForgotPasswordScreen}
+                        options={{ headerShown: true, title: 'Forgot Password', headerTintColor: theme.roles.light.primary }}
+                    />
                 </>
-            ) : null}
-
-            {/* ─── Main App ───────────────────────────────────────── */}
-            {isAuthenticated ? (
+            ) : (
                 <>
-                    <Stack.Screen name="Main" component={BottomTabNavigator} />
+                    <Stack.Screen name="MainApp" component={MainNavigator} />
 
-                    {/* ─── Auth Settings (authenticated) ──────────────────── */}
-                    <Stack.Screen name="TwoFASetup" component={TwoFASetupScreen} options={{ headerShown: true, title: 'Two-Factor Authentication' }} />
-                    <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ headerShown: true, title: 'Change Password' }} />
-                    <Stack.Screen name="SessionManagement" component={SessionManagementScreen} options={{ headerShown: true, title: 'Active Sessions' }} />
-                    <Stack.Screen name="Settings" component={SettingsScreen} options={{ headerShown: false }} />
+                    <Stack.Screen name="CreateFarm" component={CreateFarmScreen} />
+                    <Stack.Screen name="FarmDetail" component={FarmDetailScreen} />
+                    <Stack.Screen name="CreatePond" component={CreatePondScreen} />
+                    <Stack.Screen name="PondDashboard" component={PondDashboardScreen} />
+                    <Stack.Screen name="CreateCycle" component={CreateCycleScreen} />
+                    <Stack.Screen name="CycleDetail" component={CycleDetailScreen} />
 
-                    {/* ─── Feature Screens ─────────────────────────────────── */}
-                    <Stack.Screen name="MineralCalculator" component={MineralCalculatorScreen} options={{ headerShown: true, title: 'Minerals' }} />
-                    <Stack.Screen name="ShrimpCalculator" component={ShrimpCalculatorScreen} options={{ headerShown: true, title: 'Shrimp Calculator' }} />
-                    <Stack.Screen name="Simulation" component={SimulationScreen} options={{ headerShown: true, title: 'Farm Simulation' }} />
-                    <Stack.Screen name="HarvestPlanning" component={HarvestPlanningScreen} options={{ headerShown: true, title: 'Harvest Planning' }} />
-                    <Stack.Screen name="FarmManagement" component={FarmManagementScreen} options={{ headerShown: true, title: 'Farms' }} />
-                    <Stack.Screen name="PondManagement" component={PondManagementScreen} options={{ headerShown: true, title: 'Ponds' }} />
-                    <Stack.Screen name="PondDetail" component={PondDetailScreen} options={{ headerShown: true, title: 'Pond Details' }} />
-                    <Stack.Screen name="CycleManagement" component={CycleManagementScreen} options={{ headerShown: true, title: 'Production Cycles' }} />
-                    <Stack.Screen name="ProductDetail" component={ProductDetailScreen} options={{ headerShown: true, title: 'Product Details' }} />
+                    <Stack.Screen name="WaterQualityLog" component={WaterQualityLogScreen} />
+                    <Stack.Screen name="FeedLog" component={FeedLogScreen} />
+                    <Stack.Screen name="SamplingLog" component={SamplingLogScreen} />
+                    <Stack.Screen name="TreatmentLog" component={TreatmentLogScreen} />
+                    <Stack.Screen name="MortalityLog" component={MortalityLogScreen} />
+                    <Stack.Screen name="ChemicalLog" component={ChemicalLogScreen} />
+                    <Stack.Screen name="PlanktonLog" component={PlanktonLogScreen} />
+                    <Stack.Screen name="MicrobiologyLog" component={MicrobiologyLogScreen} />
+                    <Stack.Screen name="DiseaseLog" component={DiseaseLogScreen} />
 
-                    {/* ─── Calculators ─────────────────────────────────────── */}
-                    <Stack.Screen name="CalculatorsMenu" component={CalculatorsMenuScreen} options={{ headerShown: true, title: 'Calculators' }} />
-                    <Stack.Screen name="CultivationPerformance" component={CultivationPerformanceScreen} options={{ headerShown: true, title: 'Cultivation Performance' }} />
-                    <Stack.Screen name="FreeAmmonia" component={FreeAmmoniaScreen} options={{ headerShown: true, title: 'Free Ammonia' }} />
-                    <Stack.Screen name="ProductDosage" component={ProductDosageScreen} options={{ headerShown: true, title: 'Product Dosage' }} />
+                    {/* Phase 4 */}
+                    <Stack.Screen name="CalculatorHub" component={CalculatorHubScreen} />
+                    <Stack.Screen name="CultivationPerformance" component={CultivationPerformanceScreen} />
+                    <Stack.Screen name="DailyFeedCalculator" component={DailyFeedCalculatorScreen} />
+                    <Stack.Screen name="ProductAmount" component={ProductAmountScreen} />
+                    <Stack.Screen name="FreeAmmonia" component={FreeAmmoniaScreen} />
 
-                    {/* ─── Data Entry ──────────────────────────────────────── */}
-                    <Stack.Screen name="DataEntryMenu" component={DataEntryMenuScreen} options={{ headerShown: true, title: 'Data Entry' }} />
-                    <Stack.Screen name="FeedEntry" component={FeedEntryScreen} options={{ headerShown: true, title: 'Feed Entry' }} />
-                    <Stack.Screen name="SamplingEntry" component={SamplingEntryScreen} options={{ headerShown: true, title: 'Sampling Entry' }} />
-                    <Stack.Screen name="ChemicalEntry" component={ChemicalEntryScreen} options={{ headerShown: true, title: 'Input Chemical Data' }} />
-                    <Stack.Screen name="PlanktonEntry" component={PlanktonEntryScreen} options={{ headerShown: true, title: 'Input Plankton Data' }} />
-                    <Stack.Screen name="MicrobiologyEntry" component={MicrobiologyEntryScreen} options={{ headerShown: true, title: 'Input Microbiology Data' }} />
-                    <Stack.Screen name="MortalityEntry" component={MortalityEntryScreen} options={{ headerShown: true, title: 'Record Mortality' }} />
+                    <Stack.Screen name="SimulationList" component={SimulationListScreen} />
+                    <Stack.Screen name="SimulationCreate" component={SimulationCreateScreen} />
+                    <Stack.Screen name="SimulationResults" component={SimulationResultsScreen} />
 
-                    {/* ─── Disease ─────────────────────────────────────────── */}
-                    <Stack.Screen name="DiseaseLibrary" component={DiseaseLibraryScreen} options={{ headerShown: true, title: 'Disease Library' }} />
-                    <Stack.Screen name="DiseaseDetail" component={DiseaseDetailScreen} options={{ headerShown: true, title: 'Disease Details' }} />
-                    <Stack.Screen name="DiseaseRecord" component={DiseaseRecordScreen} options={{ headerShown: true, title: 'Record Disease' }} />
+                    {/* Phase 5 (History) */}
+                    <Stack.Screen name="WaterQualityHistory" component={WaterQualityHistoryScreen} />
+                    <Stack.Screen name="FeedHistory" component={FeedHistoryScreen} />
+                    <Stack.Screen name="SamplingHistory" component={SamplingHistoryScreen} />
+                    <Stack.Screen name="TreatmentHistory" component={TreatmentHistoryScreen} />
+                    <Stack.Screen name="HarvestHistory" component={HarvestHistoryScreen} />
 
-                    {/* ─── Harvest ─────────────────────────────────────────── */}
-                    <Stack.Screen name="HarvestEntry" component={HarvestEntryScreen} options={{ headerShown: true, title: 'Record Harvest' }} />
-                    <Stack.Screen name="HarvestHistory" component={HarvestHistoryScreen} options={{ headerShown: true, title: 'Harvest History' }} />
-
-                    {/* ─── Finance ─────────────────────────────────────────── */}
-                    <Stack.Screen name="ExpenseEntry" component={ExpenseEntryScreen} options={{ headerShown: true, title: 'Record Expense' }} />
-
-                    {/* ─── Inventory ───────────────────────────────────────── */}
-                    <Stack.Screen name="Inventory" component={InventoryScreen} options={{ headerShown: true, title: 'Inventory' }} />
-
-                    {/* ─── EShop ───────────────────────────────────────────── */}
-                    <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
-                    <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: false }} />
-                    <Stack.Screen name="Orders" component={OrdersScreen} options={{ headerShown: false }} />
-                    <Stack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ headerShown: false }} />
-
-                    {/* ─── Public Profile ──────────────────────────────────── */}
-                    <Stack.Screen name="PublicProfile" component={PublicProfileScreen} options={{ headerShown: true, title: 'Profile' }} />
+                    {/* Phase 5 (Settings & Notifications) */}
+                    <Stack.Screen name="Profile" component={ProfileScreen} />
+                    <Stack.Screen name="Settings" component={SettingsScreen} />
+                    <Stack.Screen name="Notifications" component={NotificationsScreen} />
                 </>
-            ) : null}
+            )}
         </Stack.Navigator>
     );
 };

@@ -6,6 +6,7 @@ if (typeof globalThis.crypto === 'undefined') {
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { TypeORMExceptionFilter } from './common/filters/typeorm-exception.filter';
 
 import cookieParser from 'cookie-parser';
 
@@ -25,9 +26,11 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
-    forbidNonWhitelisted: true,
+    forbidNonWhitelisted: false,
     transform: true,
   }));
+
+  app.useGlobalFilters(new TypeORMExceptionFilter());
 
   const port = process.env.PORT ?? 8080;
   await app.listen(port, '0.0.0.0');

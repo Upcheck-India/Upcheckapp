@@ -1,147 +1,144 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform, KeyboardAvoidingView } from 'react-native';
-import { Text, TextInput, Button, useTheme } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
-import { useAuth } from '../../context/AuthContext';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet } from 'react-native';
+import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
+import { theme } from '../../theme';
+import { useAuthStore } from '../../store/authStore';
 
-export const ForgotPasswordScreen = () => {
+export const ForgotPasswordScreen = ({ navigation }: any) => {
     const [email, setEmail] = useState('');
     const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [sent, setSent] = useState(false);
 
-    const navigation = useNavigation<any>();
-    const theme = useTheme();
-    const { forgotPassword } = useAuth();
+    const { forgotPassword, isLoading } = useAuthStore();
 
-    const handleReset = async () => {
+    const handleSend = async () => {
         if (!email.trim()) {
-            setError('Please enter your email address');
+            setError('Email is required');
             return;
         }
-
-        setLoading(true);
+        if (!/\S+@\S+\.\S+/.test(email)) {
+            setError('Enter a valid email');
+            return;
+        }
         setError('');
-        setSuccess('');
-
         try {
-            await forgotPassword(email);
-            setSuccess('Check your inbox — we sent a password reset link to ' + email.trim().toLowerCase() + '.');
+            await forgotPassword(email.trim());
+            setSent(true);
         } catch (err: any) {
-            setError(err.message || 'Request failed. Please try again.');
-        } finally {
-            setLoading(false);
+            setError(err.message || 'Failed to send reset email');
         }
     };
 
-    return (
-        <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardView}
-            >
-                <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={() => navigation.goBack()}
-                >
-                    <Text style={{ color: theme.colors.primary }}>Back to Login</Text>
-                </TouchableOpacity>
-
-                <View style={styles.headerContainer}>
-                    <Text variant="headlineLarge" style={styles.title}>Reset Password</Text>
-                    <Text variant="bodyLarge" style={styles.subtitle}>
-                        Enter your email address and we'll send you instructions to reset your password.
+    if (sent) {
+        return (
+            <ScreenWrapper>
+                <View style={styles.successContainer}>
+                    <Text style={styles.successIcon}>✉️</Text>
+                    <Text style={styles.successTitle}>Check Your Email</Text>
+                    <Text style={styles.successText}>
+                        We've sent a password reset link to {email}. Follow the instructions in the email to reset your password.
                     </Text>
-                </View>
-
-                <View style={styles.formContainer}>
-                    <TextInput
-                        label="Email"
-                        value={email}
-                        onChangeText={setEmail}
-                        mode="outlined"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        style={styles.input}
-                        error={!!error}
-                    />
-
-                    {error ? (
-                        <Text style={styles.errorText}>{error}</Text>
-                    ) : null}
-
-                    {success ? (
-                        <Text style={styles.successText}>{success}</Text>
-                    ) : null}
-
                     <Button
-                        mode="contained"
-                        onPress={handleReset}
-                        loading={loading}
-                        disabled={loading || !!success}
-                        style={styles.button}
-                        contentStyle={styles.buttonContent}
-                    >
-                        Send Instructions
-                    </Button>
-
+                        title="Back to Login"
+                        onPress={() => navigation.navigate('Login')}
+                        style={{ marginTop: theme.spacing[6] }}
+                    />
                 </View>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+            </ScreenWrapper>
+        );
+    }
+
+    return (
+        <ScreenWrapper>
+            <View style={styles.header}>
+                <Text style={styles.title}>Reset Password</Text>
+                <Text style={styles.subtitle}>
+                    Enter your email address and we'll send you a link to reset your password.
+                </Text>
+            </View>
+
+            {error ? (
+                <View style={styles.errorBanner}>
+                    <Text style={styles.errorText}>{error}</Text>
+                </View>
+            ) : null}
+
+            <Input
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="your@email.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                leftIcon="email-outline"
+                required
+            />
+
+            <Button
+                title="Send Reset Link"
+                onPress={handleSend}
+                loading={isLoading}
+                style={{ marginTop: theme.spacing[3] }}
+            />
+
+            <Button
+                title="Back to Login"
+                onPress={() => navigation.navigate('Login')}
+                variant="text"
+                style={{ marginTop: theme.spacing[4] }}
+            />
+        </ScreenWrapper>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-    },
-    keyboardView: {
-        flex: 1,
-        padding: 20,
-        justifyContent: 'center',
-    },
-    backButton: {
-        position: 'absolute',
-        top: 20,
-        left: 20,
-        zIndex: 1,
-    },
-    headerContainer: {
-        marginBottom: 40,
-        alignItems: 'center',
+    header: {
+        paddingTop: theme.spacing[8],
+        paddingBottom: theme.spacing[6],
     },
     title: {
-        fontWeight: 'bold',
-        marginBottom: 10,
+        ...theme.typeScale.h1,
+        color: theme.roles.light.textPrimary,
     },
     subtitle: {
-        color: '#666',
-        textAlign: 'center',
-        paddingHorizontal: 20,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        marginTop: theme.spacing[3],
+        lineHeight: 22,
     },
-    formContainer: {
-        width: '100%',
-    },
-    input: {
-        marginBottom: 24,
-    },
-    button: {
-        borderRadius: 8,
-        marginBottom: 24,
-    },
-    buttonContent: {
-        paddingVertical: 6,
+    errorBanner: {
+        backgroundColor: theme.roles.light.dangerBg,
+        borderRadius: theme.radius.sm,
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[4],
+        borderLeftWidth: 3,
+        borderLeftColor: theme.roles.light.dangerText,
     },
     errorText: {
-        color: 'red',
-        marginBottom: 16,
-        textAlign: 'center',
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.dangerText,
+    },
+    successContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: theme.spacing[8],
+    },
+    successIcon: {
+        fontSize: 64,
+        marginBottom: theme.spacing[4],
+    },
+    successTitle: {
+        ...theme.typeScale.h2,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[3],
     },
     successText: {
-        color: 'green',
-        marginBottom: 16,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
         textAlign: 'center',
+        lineHeight: 22,
     },
 });

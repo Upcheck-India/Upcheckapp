@@ -8,10 +8,16 @@ export class SupabaseAuthService {
 
     constructor(private configService: ConfigService) {
         const supabaseUrl = this.configService.get('SUPABASE_URL');
+        const supabaseAnonKey = this.configService.get('SUPABASE_ANON_KEY');
         const supabaseKey = this.configService.get('SUPABASE_SERVICE_ROLE_KEY');
 
-        if (!supabaseUrl || !supabaseKey) {
-            throw new Error('Supabase URL and Service Role Key must be configured');
+        if (!supabaseUrl || !supabaseAnonKey || !supabaseKey) {
+            throw new Error(
+                `Missing Supabase env vars.\n` +
+                `SUPABASE_URL: ${!!supabaseUrl}\n` +
+                `SUPABASE_ANON_KEY: ${!!supabaseAnonKey}\n` +
+                `SUPABASE_SERVICE_ROLE_KEY: ${!!supabaseKey}`
+            );
         }
 
         this.supabase = createClient(supabaseUrl, supabaseKey, {

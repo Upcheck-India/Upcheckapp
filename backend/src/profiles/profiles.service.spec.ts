@@ -1,6 +1,7 @@
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { ProfilesService } from './profiles.service';
 import { Profile } from './profile.entity';
 
@@ -20,6 +21,8 @@ describe('ProfilesService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
+        { provide: DataSource, useValue: { transaction: jest.fn() } },
         ProfilesService,
         {
           provide: getRepositoryToken(Profile),
@@ -84,7 +87,7 @@ describe('ProfilesService', () => {
       const profileId = 'user-1';
       const updateDto = { fullName: 'Jane Doe' };
       const updatedProfile = { id: profileId, username: 'johndoe', fullName: 'Jane Doe' };
-      
+
       mockRepository.findOneBy.mockResolvedValue(updatedProfile);
 
       const result = await service.update(profileId, updateDto);

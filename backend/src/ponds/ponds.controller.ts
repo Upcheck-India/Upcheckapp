@@ -1,3 +1,6 @@
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { OwnershipGuard } from '../common/guards/ownership.guard';
+import { OwnsResource } from '../common/decorators/owns-resource.decorator';
 import {
     Controller, Get, Post, Body, Patch, Param, Delete,
     Query, UseGuards, Request, BadRequestException, ParseIntPipe, DefaultValuePipe,
@@ -5,67 +8,82 @@ import {
 import { PondsService } from './ponds.service';
 import { CreatePondDto } from './dto/create-pond.dto';
 import { UpdatePondDto } from './dto/update-pond.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
+import { PageOptionsDto } from '../common/dto/page-options.dto';
 @Controller('ponds')
-@UseGuards(JwtAuthGuard)
 export class PondsController {
     constructor(private readonly pondsService: PondsService) { }
 
     @Post()
-    create(@Body() createPondDto: CreatePondDto, @Request() req) {
-        return this.pondsService.create(createPondDto, req.user.id);
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('Farm', 'farmId')
+    create(@Body() createPondDto: CreatePondDto, @CurrentUser() user) {
+        return this.pondsService.create(createPondDto, user.id);
     }
 
     @Get('mine')
-    findAllForUser(@Request() req) {
-        return this.pondsService.findAllForUser(req.user.id);
+    findAllForUser(@CurrentUser() user) {
+        return this.pondsService.findAllForUser(user.id);
     }
 
     @Get()
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('Farm', 'farmId')
     findAll(
         @Query('farmId') farmId: string,
         @Query('status') status: string,
         @Query('search') search: string,
         @Query('sort') sort: string,
-        @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
         @Query('includeArchived') includeArchived: string,
-        @Request() req,
+        @CurrentUser() user,
+        @Query() pageOptionsDto: PageOptionsDto,
     ) {
         if (!farmId) {
             throw new BadRequestException('farmId query parameter is required');
         }
-        return this.pondsService.findAll(farmId, req.user.id, {
+        return this.pondsService.findAll(farmId, user.id, {
             status,
             search,
             sort,
-            page,
             includeArchived: includeArchived === 'true',
-        });
+        }, pageOptionsDto);
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string, @Request() req) {
-        return this.pondsService.findOne(id, req.user.id);
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('Pond', 'id', 'farm.userId')
+    findOne(@Param('id') id: string, @CurrentUser() user) {
+        return this.pondsService.findOne(id, user.id);
     }
 
     @Patch(':id')
-    update(@Param('id') id: string, @Body() updatePondDto: UpdatePondDto, @Request() req) {
-        return this.pondsService.update(id, updatePondDto, req.user.id);
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('Pond', 'id', 'farm.userId')
+    update(@Param('id') id: string, @Body() updatePondDto: UpdatePondDto, @CurrentUser() user) {
+        return this.pondsService.update(id, updatePondDto, user.id);
     }
 
     @Patch(':id/archive')
-    archive(@Param('id') id: string, @Request() req) {
-        return this.pondsService.archive(id, req.user.id);
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('Pond', 'id', 'farm.userId')
+    archive(@Param('id') id: string, @CurrentUser() user) {
+        return this.pondsService.archive(id, user.id);
     }
 
     @Delete(':id')
-    remove(@Param('id') id: string, @Request() req) {
-        return this.pondsService.remove(id, req.user.id);
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('Pond', 'id', 'farm.userId')
+    remove(@Param('id') id: string, @CurrentUser() user) {
+        return this.pondsService.remove(id, user.id);
     }
 
     @Get(':id/dimension-history')
-    getDimensionHistory(@Param('id') id: string, @Request() req) {
-        return this.pondsService.getDimensionHistory(id, req.user.id);
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('Pond', 'id', 'farm.userId')
+    getDimensionHistory(
+        @Param('id') id: string,
+        @CurrentUser() user,
+        @Query() pageOptionsDto: PageOptionsDto
+    ) {
+        return this.pondsService.getDimensionHistory(id, user.id, pageOptionsDto);
     }
 }

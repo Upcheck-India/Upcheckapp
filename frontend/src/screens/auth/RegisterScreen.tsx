@@ -1,320 +1,200 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, TouchableOpacity, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
-import { Text, TextInput, Button, HelperText, useTheme } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
-import { useAuth } from '../../context/AuthContext';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { apiClient } from '../../services/apiClient';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
+import { theme } from '../../theme';
+import { useAuthStore } from '../../store/authStore';
+import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
+import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 
-export const RegisterScreen = () => {
+export const RegisterScreen = ({ navigation }: any) => {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
-    const [username, setUsername] = useState('');
-    const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [error, setError] = useState('');
-    const [successMessage, setSuccessMessage] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [googleLoading, setGoogleLoading] = useState(false);
-    const [securePassword, setSecurePassword] = useState(true);
-    const [secureConfirm, setSecureConfirm] = useState(true);
-    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [success, setSuccess] = useState(false);
 
-    const navigation = useNavigation<any>();
-    const { register, signInWithGoogle } = useAuth();
-    const theme = useTheme();
+    const { signup, isLoading, error, clearError } = useAuthStore();
+    const { signInWithGoogle } = useGoogleAuth();
 
-    useEffect(() => {
-        if (!username || username.length < 3) { setUsernameStatus('idle'); return; }
-        setUsernameStatus('idle');
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(async () => {
-            setUsernameStatus('checking');
-            try {
-                const result = await apiClient.get(`/profiles/check-username/${username.trim().toLowerCase()}`) as any;
-                setUsernameStatus(result?.available ? 'available' : 'taken');
-            } catch {
-                setUsernameStatus('idle');
-            }
-        }, 500);
-        return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-    }, [username]);
-
-    const handleGoogleSignUp = async () => {
-        setGoogleLoading(true);
-        setError('');
-        try {
-            await signInWithGoogle();
-        } catch (err: any) {
-            setError(err.message || 'Google sign-up failed. Please try again.');
-        } finally {
-            setGoogleLoading(false);
-        }
-    };
-
-    const validatePassword = (pwd: string) => {
-        // Basic validation, backend does detailed validation
-        return pwd.length >= 8;
+    const validate = (): boolean => {
+        const e: Record<string, string> = {};
+        if (!firstName.trim()) e.firstName = 'First name is required';
+        if (!email.trim()) e.email = 'Email is required';
+        else if (!/\S+@\S+\.\S+/.test(email)) e.email = 'Enter a valid email';
+        if (!password) e.password = 'Password is required';
+        else if (password.length < 8) e.password = 'Password must be at least 8 characters';
+        if (password !== confirmPassword) e.confirmPassword = 'Passwords do not match';
+        setErrors(e);
+        return Object.keys(e).length === 0;
     };
 
     const handleRegister = async () => {
-        if (!firstName || !lastName || !username || !email || !password || !confirmPassword) {
-            setError('Please fill in all fields');
-            return;
-        }
-
-        if (usernameStatus === 'checking') {
-            setError('Please wait — still checking username availability.');
-            return;
-        }
-        if (usernameStatus === 'taken') {
-            setError('That username is already taken. Please choose another.');
-            return;
-        }
-        if (username.length >= 3 && usernameStatus === 'idle') {
-            setError('Please wait for the username check to complete.');
-            return;
-        }
-
-        if (password !== confirmPassword) {
-            setError('Passwords do not match');
-            return;
-        }
-
-        if (!validatePassword(password)) {
-            setError('Password must be at least 8 characters long');
-            return;
-        }
-
-        setLoading(true);
-        setError('');
-
+        if (!validate()) return;
+        clearError();
         try {
-            const result = await register({ firstName, lastName, username, email, password });
-            if (result?.requiresEmailConfirmation) {
-                setSuccessMessage(`Account created! Check ${result.email} for a verification link before logging in.`);
-            }
-        } catch (err: any) {
-            setError(err.message || 'Registration failed. Please try again.');
-        } finally {
-            setLoading(false);
+            await signup(email.trim(), password, firstName.trim(), lastName.trim());
+            setSuccess(true);
+        } catch {
+            // Error is set in the store
         }
     };
 
+    if (success) {
+        return (
+            <ScreenWrapper>
+                <View style={styles.successContainer}>
+                    <Text style={styles.successIcon}>📧</Text>
+                    <Text style={styles.successTitle}>Check Your Email</Text>
+                    <Text style={styles.successText}>
+                        We've sent a verification link to {email}. Please verify your email to continue.
+                    </Text>
+                    <Button
+                        title="Back to Login"
+                        onPress={() => navigation.navigate('Login')}
+                        style={{ marginTop: theme.spacing[6] }}
+                    />
+                </View>
+            </ScreenWrapper>
+        );
+    }
+
     return (
-        <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardView}
-            >
-                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                    <View style={styles.headerContainer}>
-                        <Text variant="headlineLarge" style={styles.title}>Create Account</Text>
-                        <Text variant="bodyLarge" style={styles.subtitle}>Sign up to get started with Upcheck</Text>
-                    </View>
+        <ScreenWrapper>
+            <View style={styles.header}>
+                <Text style={styles.title}>Create Account</Text>
+                <Text style={styles.subtitle}>Join UpCheck to manage your shrimp farms</Text>
+            </View>
 
-                    <View style={styles.formContainer}>
-                        <TextInput
-                            label="First Name"
-                            value={firstName}
-                            onChangeText={setFirstName}
-                            mode="outlined"
-                            style={styles.input}
-                            error={!!error}
-                        />
+            {error && (
+                <View style={styles.errorBanner}>
+                    <Text style={styles.errorText}>{error}</Text>
+                </View>
+            )}
 
-                        <TextInput
-                            label="Last Name"
-                            value={lastName}
-                            onChangeText={setLastName}
-                            mode="outlined"
-                            style={styles.input}
-                            error={!!error}
-                        />
+            <Input
+                label="First Name"
+                value={firstName}
+                onChangeText={setFirstName}
+                error={errors.firstName}
+                placeholder="Enter your first name"
+                autoCapitalize="words"
+                leftIcon="account-outline"
+                required
+            />
 
-                        <TextInput
-                            label="Username"
-                            value={username}
-                            onChangeText={(v) => setUsername(v.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-                            mode="outlined"
-                            autoCapitalize="none"
-                            style={styles.input}
-                            error={usernameStatus === 'taken'}
-                            right={
-                                usernameStatus === 'checking' ? <TextInput.Icon icon="loading" /> :
-                                usernameStatus === 'available' ? <TextInput.Icon icon="check-circle" color="green" /> :
-                                usernameStatus === 'taken' ? <TextInput.Icon icon="close-circle" color="red" /> : undefined
-                            }
-                        />
-                        {usernameStatus === 'available' && (
-                            <HelperText type="info" visible style={{ color: 'green', marginTop: -8, marginBottom: 4 }}>Username is available</HelperText>
-                        )}
-                        {usernameStatus === 'taken' && (
-                            <HelperText type="error" visible style={{ marginTop: -8, marginBottom: 4 }}>Username is already taken</HelperText>
-                        )}
+            <Input
+                label="Last Name"
+                value={lastName}
+                onChangeText={setLastName}
+                error={errors.lastName}
+                placeholder="Enter your last name"
+                autoCapitalize="words"
+                leftIcon="account-outline"
+            />
 
-                        <TextInput
-                            label="Email"
-                            value={email}
-                            onChangeText={setEmail}
-                            mode="outlined"
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                            style={styles.input}
-                            error={!!error}
-                        />
+            <Input
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                error={errors.email}
+                placeholder="your@email.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                leftIcon="email-outline"
+                required
+            />
 
-                        <TextInput
-                            label="Password"
-                            value={password}
-                            onChangeText={setPassword}
-                            mode="outlined"
-                            secureTextEntry={securePassword}
-                            style={styles.input}
-                            error={!!error}
-                            right={<TextInput.Icon icon={securePassword ? 'eye-off' : 'eye'} onPress={() => setSecurePassword(v => !v)} />}
-                        />
-                        <HelperText type="info" visible={true}>
-                            At least 8 characters, uppercase, lowercase, number, special char.
-                        </HelperText>
+            <Input
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                error={errors.password}
+                placeholder="At least 8 characters"
+                isPassword
+                leftIcon="lock-outline"
+                required
+                hint="Min 8 characters"
+            />
 
-                        <TextInput
-                            label="Confirm Password"
-                            value={confirmPassword}
-                            onChangeText={setConfirmPassword}
-                            mode="outlined"
-                            secureTextEntry={secureConfirm}
-                            style={styles.input}
-                            error={!!error}
-                            right={<TextInput.Icon icon={secureConfirm ? 'eye-off' : 'eye'} onPress={() => setSecureConfirm(v => !v)} />}
-                        />
+            <Input
+                label="Confirm Password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                error={errors.confirmPassword}
+                placeholder="Re-enter your password"
+                isPassword
+                leftIcon="lock-check-outline"
+                required
+            />
 
-                        {error ? (
-                            <Text style={styles.errorText}>{error}</Text>
-                        ) : null}
+            <Button
+                title="Create Account"
+                onPress={handleRegister}
+                loading={isLoading}
+                style={{ marginTop: theme.spacing[3] }}
+            />
 
-                        {successMessage ? (
-                            <Text style={styles.successText}>{successMessage}</Text>
-                        ) : null}
+            <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
 
-                        <Button
-                            mode="contained"
-                            onPress={handleRegister}
-                            loading={loading}
-                            disabled={loading || usernameStatus === 'checking'}
-                            style={styles.button}
-                            contentStyle={styles.buttonContent}
-                        >
-                            {usernameStatus === 'checking' ? 'Checking username…' : 'Sign Up'}
-                        </Button>
-
-                        <View style={styles.orContainer}>
-                            <View style={styles.divider} />
-                            <Text variant="bodyMedium" style={styles.orText}>OR</Text>
-                            <View style={styles.divider} />
-                        </View>
-
-                        <Button
-                            mode="outlined"
-                            onPress={handleGoogleSignUp}
-                            loading={googleLoading}
-                            disabled={loading || googleLoading}
-                            style={styles.googleButton}
-                            icon="google"
-                        >
-                            Sign up with Google
-                        </Button>
-
-                        <View style={styles.footer}>
-                            <Text variant="bodyMedium">Already have an account? </Text>
-                            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                                <Text variant="bodyMedium" style={{ color: theme.colors.primary, fontWeight: 'bold' }}>
-                                    Log In
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </ScrollView>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+            <Button
+                title="Already have an account? Sign In"
+                onPress={() => navigation.navigate('Login')}
+                variant="text"
+                style={{ marginTop: theme.spacing[4] }}
+            />
+        </ScreenWrapper>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff',
-    },
-    keyboardView: {
-        flex: 1,
-    },
-    scrollContent: {
-        padding: 20,
-        flexGrow: 1,
-        justifyContent: 'center',
-    },
-    headerContainer: {
-        marginBottom: 30,
-        alignItems: 'center',
+    header: {
+        paddingTop: theme.spacing[8],
+        paddingBottom: theme.spacing[6],
     },
     title: {
-        fontWeight: 'bold',
-        marginBottom: 10,
+        ...theme.typeScale.h1,
+        color: theme.roles.light.textPrimary,
     },
     subtitle: {
-        color: '#666',
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        marginTop: theme.spacing[2],
     },
-    formContainer: {
-        width: '100%',
-    },
-    input: {
-        marginBottom: 12,
-    },
-    button: {
-        borderRadius: 8,
-        marginTop: 12,
-        marginBottom: 24,
-    },
-    buttonContent: {
-        paddingVertical: 6,
+    errorBanner: {
+        backgroundColor: theme.roles.light.dangerBg,
+        borderRadius: theme.radius.sm,
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[4],
+        borderLeftWidth: 3,
+        borderLeftColor: theme.roles.light.dangerText,
     },
     errorText: {
-        color: 'red',
-        marginBottom: 16,
-        textAlign: 'center',
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.dangerText,
+    },
+    successContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: theme.spacing[8],
+    },
+    successIcon: {
+        fontSize: 64,
+        marginBottom: theme.spacing[4],
+    },
+    successTitle: {
+        ...theme.typeScale.h2,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[3],
     },
     successText: {
-        color: '#2e7d32',
-        backgroundColor: '#e8f5e9',
-        borderRadius: 6,
-        padding: 12,
-        marginBottom: 16,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
         textAlign: 'center',
-    },
-    orContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 24,
-    },
-    divider: {
-        flex: 1,
-        height: 1,
-        backgroundColor: '#e0e0e0',
-    },
-    orText: {
-        marginHorizontal: 16,
-        color: '#666',
-    },
-    googleButton: {
-        borderRadius: 8,
-        marginBottom: 24,
-        borderColor: '#ddd',
-    },
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        marginBottom: 20,
+        lineHeight: 22,
     },
 });

@@ -33,7 +33,15 @@ export class CropsService {
         }
 
         const crop = this.cropsRepository.create({
-            ...createCropDto,
+            pondId: createCropDto.pondId,
+            name: createCropDto.name,
+            cropCode: createCropDto.cropCode,
+            speciesType: createCropDto.speciesType,
+            seedType: createCropDto.seedType,
+            stockingCount: createCropDto.stockingCount,
+            stockingDate: createCropDto.stockingDate,
+            expectedHarvestDate: createCropDto.expectedHarvestDate,
+            status: createCropDto.status || 'active',
             stockingDensity,
         });
         const savedCrop = await this.cropsRepository.save(crop);
