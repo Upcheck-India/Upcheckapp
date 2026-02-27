@@ -36,19 +36,6 @@
             "BROWSABLE",
             "DEFAULT"
           ]
-        },
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "upcheckapp"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
         }
       ],
       "edgeToEdgeEnabled": true,
