@@ -1,31 +1,14 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { EmailService } from '../email.service';
-import { User } from './user.entity';
 import { SupabaseAuthService } from './supabase-auth.service';
 import { SupabaseAuthController } from './supabase-auth.controller';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([User]),
-    PassportModule.register({ defaultStrategy: 'jwt' }),
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get('JWT_SECRET'),
-        signOptions: {
-          expiresIn: configService.get('JWT_ACCESS_EXPIRATION', '15m'),
-        },
-      }),
-    }),
-  ],
+  imports: [],
   controllers: [SupabaseAuthController],
   providers: [
     EmailService,
@@ -36,6 +19,6 @@ import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
       useClass: JwtAuthGuard,
     },
   ],
-  exports: [PassportModule, SupabaseAuthService],
+  exports: [SupabaseAuthService],
 })
 export class AuthModule { }

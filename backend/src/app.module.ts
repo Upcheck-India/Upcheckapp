@@ -50,7 +50,7 @@ import { ReportsModule } from './reports/reports.module';
         const isProduction = configService.get('NODE_ENV') === 'production';
         const common = {
           autoLoadEntities: true,
-          synchronize: true,
+          synchronize: !isProduction,
         };
         if (type === 'sqlite') {
           return {
