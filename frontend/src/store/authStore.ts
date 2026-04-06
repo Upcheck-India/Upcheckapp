@@ -144,7 +144,18 @@ export const useAuthStore = create<AuthState>()(
                             isLoading: false
                         });
                     } catch {
-                        // Token might be expired, clear everything and let user re-login
+                        // Token expired — try refresh before giving up
+                        try {
+                            if (state.session.refresh_token) {
+                                const { data } = await authApi.refresh(state.session.refresh_token);
+                                if (data.session) {
+                                    get().setSession(data.session);
+                                    return; // Successfully refreshed
+                                }
+                            }
+                        } catch {
+                            // Refresh also failed
+                        }
                         get().clearSession();
                     }
                 } else {
