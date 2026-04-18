@@ -5,15 +5,17 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
+import { useAuthStore } from '../../store/authStore';
 
 export const ProfileScreen = ({ navigation }: any) => {
-    // Mock user profile data
+    const { user } = useAuthStore();
+
     const userProfile = {
-        name: 'John Doe',
-        email: 'john.doe@shrimpfarm.com',
-        role: 'Farm Manager',
-        joinedAt: '2025-01-15T00:00:00Z',
-        farmsManaged: 2,
+        name: user?.name || user?.email?.split('@')[0] || 'Unknown User',
+        email: user?.email || 'N/A',
+        role: (user as any)?.role || 'Farm Manager',
+        joinedAt: (user as any)?.createdAt || new Date().toISOString(),
+        farmsManaged: 0, // Placeholder or fetch from api
     };
 
     return (

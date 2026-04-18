@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -12,6 +13,32 @@ export const SettingsScreen = ({ navigation }: any) => {
     const [offlineSync, setOfflineSync] = useState(true);
     const [pushNotifications, setPushNotifications] = useState(true);
     const [emailAlerts, setEmailAlerts] = useState(false);
+
+    useEffect(() => {
+        const loadSettings = async () => {
+            try {
+                const storedOfflineSync = await AsyncStorage.getItem('offlineSync');
+                const storedPushNotifications = await AsyncStorage.getItem('pushNotifications');
+                const storedEmailAlerts = await AsyncStorage.getItem('emailAlerts');
+
+                if (storedOfflineSync !== null) setOfflineSync(JSON.parse(storedOfflineSync));
+                if (storedPushNotifications !== null) setPushNotifications(JSON.parse(storedPushNotifications));
+                if (storedEmailAlerts !== null) setEmailAlerts(JSON.parse(storedEmailAlerts));
+            } catch (e) {
+                console.error("Failed to load settings", e);
+            }
+        };
+        loadSettings();
+    }, []);
+
+    const handleSettingChange = async (key: string, value: boolean, setter: (val: boolean) => void) => {
+        setter(value);
+        try {
+            await AsyncStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+            console.error(`Failed to save ${key}`, e);
+        }
+    };
 
     const handleLogout = () => {
         useAuthStore.getState().logout();
@@ -41,7 +68,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                         </View>
                         <Switch
                             value={offlineSync}
-                            onValueChange={setOfflineSync}
+                            onValueChange={(val) => handleSettingChange('offlineSync', val, setOfflineSync)}
                             trackColor={{ false: theme.roles.light.borderDefault, true: theme.roles.light.primary }}
                         />
                     </View>
@@ -60,7 +87,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                         </View>
                         <Switch
                             value={pushNotifications}
-                            onValueChange={setPushNotifications}
+                            onValueChange={(val) => handleSettingChange('pushNotifications', val, setPushNotifications)}
                             trackColor={{ false: theme.roles.light.borderDefault, true: theme.roles.light.primary }}
                         />
                     </View>
@@ -75,7 +102,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                         </View>
                         <Switch
                             value={emailAlerts}
-                            onValueChange={setEmailAlerts}
+                            onValueChange={(val) => handleSettingChange('emailAlerts', val, setEmailAlerts)}
                             trackColor={{ false: theme.roles.light.borderDefault, true: theme.roles.light.primary }}
                         />
                     </View>

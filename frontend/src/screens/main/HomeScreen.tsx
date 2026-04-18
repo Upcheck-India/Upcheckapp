@@ -1,14 +1,33 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
+import { reportsApi, DashboardSummary } from '../../api/reports';
 
 export const HomeScreen = ({ navigation }: any) => {
     const { user, logout } = useAuthStore();
+    const [summary, setSummary] = useState<DashboardSummary | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchSummary = async () => {
+            try {
+                // Fetch summary (pass undefined or selected farmId if needed later)
+                const { data } = await reportsApi.getDashboardSummary();
+                setSummary(data);
+            } catch (error) {
+                console.error("Failed to fetch dashboard summary", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchSummary();
+    }, []);
 
     const quickActions = [
         { icon: 'barn' as const, label: 'Farms', screen: 'Farms', isTab: true, color: theme.roles.light.primary },
@@ -31,6 +50,43 @@ export const HomeScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
             </View>
 
+            <Text style={styles.sectionTitle}>Dashboard Summary</Text>
+            {isLoading ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.roles.light.primary} />
+                </View>
+            ) : summary ? (
+                <View style={styles.statsGrid}>
+                    <Card style={styles.statCard}>
+                        <MaterialCommunityIcons name="water" size={32} color={theme.roles.light.primary} />
+                        <Text style={styles.statValue}>{summary.activePondsCount}</Text>
+                        <Text style={styles.statLabel}>Active Ponds</Text>
+                    </Card>
+                    <Card style={styles.statCard}>
+                        <MaterialCommunityIcons name="water-outline" size={32} color={theme.roles.light.textSecondary} />
+                        <Text style={styles.statValue}>{summary.totalPondsCount}</Text>
+                        <Text style={styles.statLabel}>Total Ponds</Text>
+                    </Card>
+                    <Card style={styles.statCard}>
+                        <MaterialCommunityIcons name="alert" size={32} color={theme.roles.light.dangerText} />
+                        <Text style={styles.statValue}>{summary.lowStockAlerts}</Text>
+                        <Text style={styles.statLabel}>Low Stock Alerts</Text>
+                    </Card>
+                    <Card style={styles.statCard}>
+                        <MaterialCommunityIcons name="corn" size={32} color={theme.roles.light.warningText} />
+                        <Text style={styles.statValue}>{summary.todayFeedUsage}</Text>
+                        <Text style={styles.statLabel}>Today's Feed (kg)</Text>
+                    </Card>
+                </View>
+            ) : (
+                <Card style={styles.infoCard}>
+                    <MaterialCommunityIcons name="information-outline" size={20} color={theme.roles.light.infoBorder} />
+                    <Text style={styles.infoText}>
+                        No farm data available. Create a farm to get started!
+                    </Text>
+                </Card>
+            )}
+
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <View style={styles.grid}>
                 {quickActions.map((action) => (
@@ -48,18 +104,11 @@ export const HomeScreen = ({ navigation }: any) => {
                 ))}
             </View>
 
-            <Card style={styles.infoCard}>
-                <MaterialCommunityIcons name="information-outline" size={20} color={theme.roles.light.infoBorder} />
-                <Text style={styles.infoText}>
-                    Phase 1 complete! Farm management, data entry, and calculator screens will be added in upcoming phases.
-                </Text>
-            </Card>
-
             <Button
                 title="Sign Out"
                 onPress={logout}
                 variant="outlined"
-                style={{ marginTop: theme.spacing[8] }}
+                style={{ marginTop: theme.spacing[4] }}
             />
         </ScreenWrapper>
     );
@@ -136,5 +185,33 @@ const styles = StyleSheet.create({
         color: theme.roles.light.infoText,
         flex: 1,
         lineHeight: 18,
+    },
+    loadingContainer: {
+        paddingVertical: theme.spacing[8],
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    statsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: theme.spacing[4],
+        marginBottom: theme.spacing[6],
+    },
+    statCard: {
+        width: '47%',
+        padding: theme.spacing[4],
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    statValue: {
+        ...theme.typeScale.h2,
+        color: theme.roles.light.textPrimary,
+        marginTop: theme.spacing[2],
+        marginBottom: 4,
+    },
+    statLabel: {
+        ...theme.typeScale.labelSmall,
+        color: theme.roles.light.textSecondary,
+        textAlign: 'center',
     },
 });
