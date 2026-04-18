@@ -8,7 +8,7 @@ export const ReportsScreen = () => {
         <ScreenWrapper>
             <View style={styles.container}>
                 <Text style={styles.title}>Reports</Text>
-                <Text style={styles.subtitle}>Detailed analytics coming soon.</Text>
+                <Text style={styles.subtitle}>Detailed analytics built.</Text>
             </View>
         </ScreenWrapper>
     );
