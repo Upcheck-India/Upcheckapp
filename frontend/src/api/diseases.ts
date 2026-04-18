@@ -11,6 +11,13 @@ export interface DiseaseRecord {
     createdAt?: string;
 }
 
+export interface DiseaseLibrary {
+    id: string;
+    name: string;
+    scientificName?: string;
+    commonNames?: string[];
+}
+
 export interface CreateDiseaseRecordDto {
     cropId: string;
     diseaseId: string;
@@ -23,5 +30,6 @@ export interface CreateDiseaseRecordDto {
 export const diseaseApi = {
     getAll: () => apiClient.get<DiseaseRecord[]>('/disease/record'),
     create: (data: CreateDiseaseRecordDto) => apiClient.post<DiseaseRecord>('/disease/record', data),
+    getLibrary: () => apiClient.get<DiseaseLibrary[]>('/disease/library'),
 };
 

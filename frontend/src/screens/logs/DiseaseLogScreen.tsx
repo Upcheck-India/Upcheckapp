@@ -12,7 +12,7 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
     const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [diseaseName, setDiseaseName] = useState('');
+    const [diseaseId, setDiseaseId] = useState('11111111-1111-1111-1111-111111111111');
     const [severity, setSeverity] = useState('Mild');
     const [symptoms, setSymptoms] = useState('');
     const [actionTaken, setActionTaken] = useState('');
@@ -20,8 +20,8 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSave = async () => {
-        if (!diseaseName.trim()) {
-            Alert.alert('Validation Error', 'Disease name is required');
+        if (!diseaseId.trim()) {
+            Alert.alert('Validation Error', 'Disease ID is required');
             return;
         }
 
@@ -35,7 +35,7 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
 
             await diseaseApi.create({
                 cropId,
-                diseaseId: diseaseName.trim(), // TODO: Replace with actual disease UUID picker
+                diseaseId: diseaseId.trim(),
                 recordedDate: date,
                 severityAtDetection: severity.trim() || undefined,
                 notes: notesParts.length > 0 ? notesParts.join('. ') : undefined,
@@ -63,7 +63,7 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
 
                 <Card style={styles.card}>
                     <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
-                    <Input label="Suspected Disease *" value={diseaseName} onChangeText={setDiseaseName} placeholder="e.g. WSSV, EHP, AHPND" required />
+                    <Input label="Suspected Disease ID *" value={diseaseId} onChangeText={setDiseaseId} placeholder="UUID of Disease" required />
                     <Input label="Severity" value={severity} onChangeText={setSeverity} placeholder="e.g. Mild, Moderate, Severe" />
                 </Card>
 
