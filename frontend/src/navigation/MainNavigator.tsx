@@ -6,17 +6,8 @@ import { theme } from '../theme';
 // Import screens
 import { HomeScreen } from '../screens/main/HomeScreen';
 import { FarmsListScreen } from '../screens/farms/FarmsListScreen';
-
-// Phase 4 & 5 placeholders (to be built later)
-import { View, Text } from 'react-native';
-const PlaceholderScreen = ({ title }: { title: string }) => (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>{title} (Coming Soon)</Text>
-    </View>
-);
-
-const ReportsScreen = () => <PlaceholderScreen title="Reports" />;
-const MoreScreen = () => <PlaceholderScreen title="More" />;
+import { ReportsScreen } from '../screens/main/ReportsScreen';
+import { MoreScreen } from '../screens/main/MoreScreen';
 
 const Tab = createBottomTabNavigator();
 

@@ -46,7 +46,7 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
 
         return {
             labels: chartRecords.map(r => {
-                const d = new Date(r.recordedAt);
+                const d = new Date(r.recordedAt || '');
                 return `${d.getMonth() + 1}/${d.getDate()}`;
             }),
             datasets: [
@@ -61,7 +61,7 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
         <Card style={styles.card}>
             <View style={styles.cardHeader}>
                 <Text style={styles.dateText}>
-                    {new Date(item.recordedAt).toLocaleDateString()} at {new Date(item.recordedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(item.recordedAt || '').toLocaleDateString()} at {new Date(item.recordedAt || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </Text>
             </View>
             <View style={styles.metricsGrid}>

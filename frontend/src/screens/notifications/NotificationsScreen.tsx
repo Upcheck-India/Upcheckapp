@@ -1,89 +1,81 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { theme } from '../../theme';
-
-interface Notification {
-    id: string;
-    title: string;
-    message: string;
-    type: 'alert' | 'info' | 'success';
-    date: string;
-    read: boolean;
-}
-
-const mockNotifications: Notification[] = [
-    {
-        id: '1',
-        title: 'Low DO Warning',
-        message: 'Pond A3 DO level has dropped below 4.0 mg/L.',
-        type: 'alert',
-        date: new Date().toISOString(),
-        read: false,
-    },
-    {
-        id: '2',
-        title: 'Feeding Needed',
-        message: 'Scheduled feeding for Pond B1 is past due.',
-        type: 'info',
-        date: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-        read: false,
-    },
-    {
-        id: '3',
-        title: 'Simulation Complete',
-        message: 'Cycle projection for Pond C2 is ready to view.',
-        type: 'success',
-        date: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-        read: true,
-    },
-];
+import { alertsApi, AlertData } from '../../api/alerts';
 
 export const NotificationsScreen = ({ navigation }: any) => {
-    const [notifications, setNotifications] = useState(mockNotifications);
+    const [notifications, setNotifications] = useState<AlertData[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const getIcon = (type: Notification['type']) => {
-        switch (type) {
-            case 'alert': return 'alert-circle';
+    useEffect(() => {
+        fetchAlerts();
+    }, []);
+
+    const fetchAlerts = async () => {
+        setIsLoading(true);
+        try {
+            const { data } = await alertsApi.findMine();
+            setNotifications(data || []);
+        } catch (error) {
+            console.error('Failed to fetch alerts', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const getIcon = (severity: string) => {
+        switch (severity) {
+            case 'critical': return 'alert-circle';
             case 'info': return 'information';
-            case 'success': return 'check-circle';
+            case 'warning': return 'alert';
             default: return 'bell';
         }
     };
 
-    const getIconColor = (type: Notification['type']) => {
-        switch (type) {
-            case 'alert': return theme.roles.light.dangerText;
+    const getIconColor = (severity: string) => {
+        switch (severity) {
+            case 'critical': return theme.roles.light.dangerText;
             case 'info': return theme.roles.light.infoBorder;
-            case 'success': return theme.roles.light.successText;
+            case 'warning': return theme.roles.light.warningText;
             default: return theme.roles.light.primary;
         }
     };
 
-    const markAsRead = (id: string) => {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    const markAsRead = async (id: string) => {
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+        try {
+            await alertsApi.markAsRead(id);
+        } catch(e) {
+            console.error('Failed to mark alert read', e);
+        }
     };
 
-    const markAllAsRead = () => {
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    const markAllAsRead = async () => {
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        try {
+            await alertsApi.markAllAsRead();
+        } catch (e) {
+            console.error('Failed to mark all read', e);
+        }
     };
 
-    const renderItem = ({ item }: { item: Notification }) => (
+    const renderItem = ({ item }: { item: AlertData }) => (
         <TouchableOpacity onPress={() => markAsRead(item.id)} activeOpacity={0.7}>
-            <Card style={[styles.card, !item.read && styles.unreadCard]}>
+            <Card style={[styles.card, !item.isRead && styles.unreadCard]}>
                 <View style={styles.iconContainer}>
-                    <MaterialCommunityIcons name={getIcon(item.type)} size={24} color={getIconColor(item.type)} />
+                    <MaterialCommunityIcons name={getIcon(item.severity)} size={24} color={getIconColor(item.severity)} />
                 </View>
                 <View style={styles.contentContainer}>
-                    <Text style={[styles.titleText, !item.read && styles.unreadText]}>{item.title}</Text>
+                    <Text style={[styles.titleText, !item.isRead && styles.unreadText]}>{item.title}</Text>
                     <Text style={styles.messageText}>{item.message}</Text>
                     <Text style={styles.dateText}>
-                        {new Date(item.date).toLocaleDateString()} at {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(item.createdAt).toLocaleDateString()} at {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                 </View>
-                {!item.read && <View style={styles.unreadDot} />}
+                {!item.isRead && <View style={styles.unreadDot} />}
             </Card>
         </TouchableOpacity>
     );

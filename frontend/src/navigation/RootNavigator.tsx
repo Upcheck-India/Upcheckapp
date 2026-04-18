@@ -25,6 +25,7 @@ import { WaterQualityLogScreen } from '../screens/logs/WaterQualityLogScreen';
 import { FeedLogScreen } from '../screens/logs/FeedLogScreen';
 import { SamplingLogScreen } from '../screens/logs/SamplingLogScreen';
 import { TreatmentLogScreen } from '../screens/logs/TreatmentLogScreen';
+import { HarvestLogScreen } from '../screens/logs/HarvestLogScreen';
 import { MortalityLogScreen } from '../screens/logs/MortalityLogScreen';
 import { ChemicalLogScreen } from '../screens/logs/ChemicalLogScreen';
 import { PlanktonLogScreen } from '../screens/logs/PlanktonLogScreen';
@@ -66,6 +67,7 @@ export type RootStackParamList = {
 
     // Main
     MainApp: undefined;
+    HarvestLog: { pondId: string; pondName: string; cropId?: string };
 
     // Phase 2
     CreateFarm: undefined;
@@ -164,6 +166,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="FeedLog" component={FeedLogScreen} />
                     <Stack.Screen name="SamplingLog" component={SamplingLogScreen} />
                     <Stack.Screen name="TreatmentLog" component={TreatmentLogScreen} />
+                <Stack.Screen name="HarvestLog" component={HarvestLogScreen} />
                     <Stack.Screen name="MortalityLog" component={MortalityLogScreen} />
                     <Stack.Screen name="ChemicalLog" component={ChemicalLogScreen} />
                     <Stack.Screen name="PlanktonLog" component={PlanktonLogScreen} />

@@ -16,7 +16,7 @@ export class ReportsController {
     }
 
     @Get('financials')
-    async getFinancialReport(@Query('farmId') farmId: string) {
-        return this.reportsService.getFinancialReport(farmId);
+    async getFinancialReport(@Query('farmId') farmId: string, @CurrentUser() user) {
+        return this.reportsService.getFinancialReport(farmId, user.id);
     }
 }

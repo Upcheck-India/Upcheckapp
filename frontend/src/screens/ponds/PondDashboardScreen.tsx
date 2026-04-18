@@ -11,6 +11,10 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { theme } from '../../theme';
 import { pondsApi, Pond } from '../../api/ponds';
 import { cropsApi, Crop } from '../../api/crops';
+import { samplingApi } from '../../api/sampling';
+import { feedApi } from '../../api/feedRecords';
+import { harvestsApi } from '../../api/harvests';
+import { waterQualityApi } from '../../api/waterQuality';
 
 export const PondDashboardScreen = ({ route, navigation }: any) => {
     const { pondId, pondName } = route.params;
@@ -18,6 +22,13 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     const [activeCycle, setActiveCycle] = useState<Crop | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Metrics State
+    const [mbw, setMbw] = useState<string>('--');
+    const [survival, setSurvival] = useState<string>('--');
+    const [biomass, setBiomass] = useState<string>('--');
+    const [fcr, setFcr] = useState<string>('--');
+    const [wqAlert, setWqAlert] = useState<boolean>(false);
 
     const fetchData = async () => {
         try {
@@ -27,8 +38,70 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
             if (pondData.activeCycleId) {
                 const { data: cycleData } = await cropsApi.getById(pondData.activeCycleId);
                 setActiveCycle(cycleData);
+
+                // Fetch metrics
+                const [samplingRes, feedRes, harvestRes, wqRes] = await Promise.all([
+                    samplingApi.getAll(pondData.activeCycleId),
+                    feedApi.getAll(pondId),
+                    harvestsApi.getAll(),
+                    waterQualityApi.getAll(pondId, { take: 1 }), // Assuming this gets the latest if sorted by DESC, or use getLatest if backend implements it. wait! the endpoint is getAll? The interface has getLatest. Let's just use getLatest! Wait, waterQuality.ts has getLatest!
+                ]);
+
+                // MBW & Survival & partial Biomass from Sampling
+                const samplings = samplingRes.data || [];
+                const sortedSamplings = [...samplings].sort((a, b) => new Date(b.samplingDate).getTime() - new Date(a.samplingDate).getTime());
+                let currentBiomass = 0;
+
+                if (sortedSamplings.length > 0) {
+                    const latest = sortedSamplings[0];
+                    setMbw(latest.mbwG ? latest.mbwG.toString() : '--');
+                    setSurvival(latest.srEstimationPercent ? latest.srEstimationPercent.toString() : '--');
+                    currentBiomass += Number(latest.biomassEstimationKg || 0);
+                }
+
+                // Total Harvest Biomass
+                const harvests = harvestRes.data || [];
+                const cycleHarvests = harvests.filter(h => h.cropId === pondData.activeCycleId);
+                const harvestedBiomass = cycleHarvests.reduce((sum, h) => sum + Number(h.weightKg || 0), 0);
+
+                const totalBiomass = currentBiomass + harvestedBiomass;
+                setBiomass(totalBiomass > 0 ? (totalBiomass / 1000).toFixed(2) : '--'); // Convert kg to Tons
+
+                // FCR
+                const feeds = feedRes.data || [];
+                // The actual payload might be wrapped in PageDto
+                const feedRecords = Array.isArray(feeds) ? feeds : (feeds as any).data || [];
+                const cycleFeeds = feedRecords.filter((f: any) => f.cropId === pondData.activeCycleId);
+                const totalFeedKg = cycleFeeds.reduce((sum: number, f: any) => sum + Number(f.quantityKg || 0), 0);
+
+                if (totalBiomass > 0 && totalFeedKg > 0) {
+                    setFcr((totalFeedKg / totalBiomass).toFixed(2));
+                } else {
+                    setFcr('--');
+                }
+
+                // WQ Alert
+                try {
+                    const wqLatestRes = await waterQualityApi.getLatest(pondId);
+                    if (wqLatestRes.data && wqLatestRes.data.recordedAt) {
+                        const lastWqDate = new Date(wqLatestRes.data.recordedAt).getTime();
+                        const now = new Date().getTime();
+                        const hoursDiff = (now - lastWqDate) / (1000 * 60 * 60);
+                        setWqAlert(hoursDiff > 24);
+                    } else {
+                        setWqAlert(true); // No records
+                    }
+                } catch(e) {
+                    setWqAlert(true);
+                }
+
             } else {
                 setActiveCycle(null);
+                setMbw('--');
+                setSurvival('--');
+                setBiomass('--');
+                setFcr('--');
+                setWqAlert(false);
             }
         } catch (error) {
             console.error('Failed to fetch pond dashboard data:', error);
@@ -76,7 +149,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                 refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[theme.roles.light.primary]} />}
             >
                 {/* Alerts / Banner Section */}
-                {activeCycle && (
+                {activeCycle && wqAlert && (
                     <AlertBanner title="Check Water Quality" message="No reading in last 24h" type="warning" />
                 )}
 
@@ -89,15 +162,15 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                         </View>
 
                         <View style={styles.metricsGrid}>
-                            <MetricCard label="MBW" value="12.4" unit="g" trend="up" trendValue="+0.4g" />
-                            <MetricCard label="Survival" value="84" unit="%" status="safe" target={85} />
-                            <MetricCard label="Biomass" value="1.2" unit="T" />
-                            <MetricCard label="FCR" value="1.42" status="warning" target={1.3} />
+                            <MetricCard label="MBW" value={mbw} unit="g" />
+                            <MetricCard label="Survival" value={survival} unit="%" target={85} />
+                            <MetricCard label="Biomass" value={biomass} unit="T" />
+                            <MetricCard label="FCR" value={fcr} target={1.3} />
                         </View>
 
                         <Button
                             title="Close Cycle / Harvest"
-                            onPress={() => navigation.navigate('CycleDetail', { cycleId: activeCycle.id })}
+                            onPress={() => navigation.navigate('HarvestLog', { pondId, pondName, cropId: activeCycle.id })}
                             variant="outlined"
                             style={styles.cycleBtn}
                         />
