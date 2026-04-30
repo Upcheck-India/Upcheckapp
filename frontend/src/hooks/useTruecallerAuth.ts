@@ -2,14 +2,7 @@ import { useEffect, useCallback, useState } from 'react';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../api/auth';
-
-let TruecallerSDK: any = null;
-
-try {
-  TruecallerSDK = require('@ajitpatel28/react-native-truecaller').useTruecaller;
-} catch (e) {
-  console.warn('Truecaller SDK not available');
-}
+import { useTruecaller } from '@ajitpatel28/react-native-truecaller';
 
 const extra = Constants.expoConfig?.extra ?? {};
 
@@ -24,7 +17,6 @@ interface TruecallerUserProfile {
 
 export function useTruecallerAuth() {
   const [isAvailable, setIsAvailable] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
   const { setError, setSession } = useAuthStore();
 
   const config = {
@@ -38,33 +30,56 @@ export function useTruecallerAuth() {
     androidSdkOptions: 'TRUECALLER_ANDROID_SDK_OPTION_VERIFY_ALL_USERS',
   };
 
+  const {
+    initializeTruecallerSDK,
+    openTruecallerForVerification,
+    isSdkUsable,
+    userProfile: sdkUserProfile,
+    error: sdkError,
+    isTruecallerInitialized,
+  } = useTruecaller(config);
+
+  // Check SDK availability after initialization
   useEffect(() => {
-    if (!TruecallerSDK || !config.androidClientId) {
+    if (!config.androidClientId) {
       setIsAvailable(false);
       return;
     }
 
-    const initSDK = async () => {
+    const checkAvailability = async () => {
       try {
-        const sdk = TruecallerSDK(config);
-        await sdk.initializeTruecallerSDK?.();
-        const usable = await sdk.isSdkUsable?.();
-        setIsAvailable(usable);
-        setIsInitialized(true);
+        if (isTruecallerInitialized) {
+          const usable = await isSdkUsable();
+          setIsAvailable(usable);
+        }
       } catch (error) {
-        console.error('Truecaller SDK init error:', error);
+        console.error('Truecaller SDK availability check error:', error);
         setIsAvailable(false);
       }
     };
 
-    initSDK();
-  }, []);
+    checkAvailability();
+  }, [isTruecallerInitialized, isSdkUsable]);
+
+  // Initialize SDK on mount
+  useEffect(() => {
+    if (config.androidClientId) {
+      initializeTruecallerSDK();
+    }
+  }, [initializeTruecallerSDK]);
+
+  // Handle SDK errors
+  useEffect(() => {
+    if (sdkError) {
+      console.error('Truecaller SDK error:', sdkError);
+    }
+  }, [sdkError]);
 
   const parseProfile = useCallback((response: any): TruecallerUserProfile | null => {
     if (!response) return null;
 
     const profile = response.profile || response;
-    
+
     return {
       phoneNumber: profile.phoneNumber || profile.phone || profile.mobileNumber,
       firstName: profile.firstName || profile.givenName || profile.name?.split(' ')[0] || 'User',
@@ -75,8 +90,45 @@ export function useTruecallerAuth() {
     };
   }, []);
 
+  // Handle successful verification from SDK
+  useEffect(() => {
+    const handleProfile = async () => {
+      if (sdkUserProfile) {
+        useAuthStore.setState({ isLoading: true, error: null });
+
+        try {
+          const profile = parseProfile(sdkUserProfile);
+
+          if (!profile || !profile.phoneNumber) {
+            throw new Error('Failed to get user profile from Truecaller');
+          }
+
+          const { data } = await authApi.truecallerOAuth({
+            accessToken: profile.accessToken,
+            phoneNumber: profile.phoneNumber,
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            email: profile.email,
+            avatarUrl: profile.avatarUrl,
+          });
+
+          if (data.session) {
+            setSession(data.session);
+          }
+        } catch (error: any) {
+          const message = error?.message || error?.response?.data?.message || 'Truecaller sign in failed';
+          setError(message);
+        } finally {
+          useAuthStore.setState({ isLoading: false });
+        }
+      }
+    };
+
+    handleProfile();
+  }, [sdkUserProfile, parseProfile, setSession, setError]);
+
   const signInWithTruecaller = useCallback(async () => {
-    if (!TruecallerSDK || !isAvailable) {
+    if (!isAvailable) {
       setError('Truecaller is not available on this device');
       return false;
     }
@@ -84,58 +136,25 @@ export function useTruecallerAuth() {
     useAuthStore.setState({ isLoading: true, error: null });
 
     try {
-      const sdk = TruecallerSDK(config);
-      
-      const result = await sdk.openTruecallerForVerification?.();
-      
-      if (!result) {
-        throw new Error('Truecaller verification was cancelled');
-      }
-
-      const profile = parseProfile(result);
-      
-      if (!profile || !profile.phoneNumber) {
-        throw new Error('Failed to get user profile from Truecaller');
-      }
-
-      const { data } = await authApi.truecallerOAuth({
-        accessToken: profile.accessToken,
-        phoneNumber: profile.phoneNumber,
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-        email: profile.email,
-        avatarUrl: profile.avatarUrl,
-      });
-
-      if (data.session) {
-        setSession(data.session);
-        return true;
-      }
-      
-      return false;
+      await openTruecallerForVerification();
+      // The userProfile will be handled by the useEffect above
+      return true;
     } catch (error: any) {
-      const message = error?.message || error?.response?.data?.message || 'Truecaller sign in failed';
-      
+      const message = error?.message || 'Truecaller verification failed';
+
       if (message.includes('cancel') || message.includes('dismiss')) {
         setError(null);
       } else {
         setError(message);
       }
-      return false;
-    } finally {
       useAuthStore.setState({ isLoading: false });
+      return false;
     }
-  }, [isAvailable, parseProfile, setError, setSession]);
-
-  const isMissedCallVerification = useCallback((response: any): boolean => {
-    return response?.verificationMode === 'MISSED_CALL' || 
-           response?.verificationType === 'missed_call';
-  }, []);
+  }, [isAvailable, openTruecallerForVerification, setError]);
 
   return {
     isAvailable,
-    isInitialized,
+    isInitialized: isTruecallerInitialized,
     signInWithTruecaller,
-    isMissedCallVerification,
   };
 }
