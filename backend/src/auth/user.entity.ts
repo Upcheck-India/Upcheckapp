@@ -39,7 +39,7 @@ export class User {
     verificationLevel: string; // basic, verified, certified
 
     @Column({ name: 'auth_provider', type: 'varchar', length: 20, default: 'email' })
-    authProvider: string; // email, google, facebook, apple
+    authProvider: string; // email, google, facebook, apple, truecaller
 
     @Column({ type: 'jsonb', default: {} })
     preferences: Record<string, any>;

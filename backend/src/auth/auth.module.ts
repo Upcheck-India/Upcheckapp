@@ -6,6 +6,7 @@ import { EmailService } from '../email.service';
 import { SupabaseAuthService } from './supabase-auth.service';
 import { SupabaseAuthController } from './supabase-auth.controller';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
+import { TruecallerService } from './truecaller.service';
 
 @Module({
   imports: [],
@@ -14,6 +15,7 @@ import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
     EmailService,
     SupabaseAuthService,
     SupabaseAuthGuard,
+    TruecallerService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
