@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
+import { SkeletonList } from '../../../components/ui/Skeleton';
+import { ErrorState, NetworkError } from '../../../components/ui/ErrorState';
 import { theme } from '../../../theme';
 import { mortalityApi, MortalityRecord } from '../../../api/mortalities';
 
@@ -10,45 +12,107 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
     const { pondId, cropId } = route.params;
     const [records, setRecords] = useState<MortalityRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [error, setError] = useState<any>(null);
+    const [isOffline, setIsOffline] = useState(false);
 
-    useEffect(() => { fetchRecords(); }, [cropId]);
+    // Animation refs
+    const fadeAnim = useRef(new Animated.Value(0)).current;
 
-    const fetchRecords = async () => {
-        setIsLoading(true);
+    // Cache ref
+    const cacheRef = useRef<{ data: MortalityRecord[]; timestamp: number } | null>(null);
+    const CACHE_TTL = 30000;
+
+    const fadeIn = useCallback(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+        }).start();
+    }, [fadeAnim]);
+
+    const fetchRecords = useCallback(async (forceRefresh = false) => {
+        if (!forceRefresh && cacheRef.current) {
+            const { data, timestamp } = cacheRef.current;
+            if (Date.now() - timestamp < CACHE_TTL) {
+                setRecords(data);
+                setIsLoading(false);
+                fadeIn();
+                return;
+            }
+        }
+
+        setError(null);
+        setIsOffline(false);
+
         try {
             if (cropId) {
                 const { data } = await mortalityApi.getByCrop(cropId);
                 const sorted = [...data].sort((a, b) => new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime());
                 setRecords(sorted);
+                cacheRef.current = { data: sorted, timestamp: Date.now() };
+                fadeIn();
             } else {
                 setRecords([]);
+                setIsLoading(false);
             }
-        } catch (error) {
-            console.log('Failed to fetch mortality records', error);
+        } catch (err: any) {
+            const statusCode = err?.response?.status;
+            if (statusCode === 0 || err?.code === 'NETWORK_ERROR' || !err?.response) {
+                setIsOffline(true);
+            }
+            setError(err);
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
-    };
+    }, [cropId, fadeIn]);
+
+    React.useEffect(() => {
+        fetchRecords();
+    }, [fetchRecords]);
+
+    const handleRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        fetchRecords(true);
+    }, [fetchRecords]);
+
+    const handleRetry = useCallback(() => {
+        setIsLoading(true);
+        fetchRecords(true);
+    }, [fetchRecords]);
 
     const totalMortality = records.reduce((sum, r) => sum + r.quantity, 0);
 
-    const renderItem = ({ item }: { item: MortalityRecord }) => (
-        <Card style={styles.card}>
-            <View style={styles.headerRow}>
-                <Text style={styles.dateText}>
-                    {new Date(item.recordDate).toLocaleDateString()}
-                </Text>
-                <View style={styles.countChip}>
-                    <MaterialCommunityIcons name="skull-outline" size={14} color={theme.roles.light.dangerText} />
-                    <Text style={styles.countText}>{item.quantity}</Text>
-                </View>
-            </View>
-            {item.estimatedWeightKg != null && (
-                <Text style={styles.detailText}>Est. Weight: {item.estimatedWeightKg} kg</Text>
-            )}
-            {item.note && <Text style={styles.notesText}>{item.note}</Text>}
-        </Card>
+    const renderSkeleton = () => (
+        <View style={styles.listContent}>
+            <SkeletonList count={3} />
+        </View>
     );
+
+    const renderItem = useCallback(({ item, index }: { item: MortalityRecord; index: number }) => {
+        const animStyle = { opacity: fadeAnim };
+
+        return (
+            <Animated.View style={animStyle}>
+                <Card style={styles.card}>
+                    <View style={styles.headerRow}>
+                        <Text style={styles.dateText}>
+                            {new Date(item.recordDate).toLocaleDateString()}
+                        </Text>
+                        <View style={styles.countChip}>
+                            <MaterialCommunityIcons name="skull-outline" size={14} color={theme.roles.light.dangerText} />
+                            <Text style={styles.countText}>{item.quantity}</Text>
+                        </View>
+                    </View>
+                    {item.estimatedWeightKg != null && (
+                        <Text style={styles.detailText}>Est. Weight: {item.estimatedWeightKg} kg</Text>
+                    )}
+                    {item.note && <Text style={styles.notesText}>{item.note}</Text>}
+                </Card>
+            </Animated.View>
+        );
+    }, [fadeAnim]);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -60,30 +124,48 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            {!isLoading && records.length > 0 && (
-                <View style={styles.summaryBar}>
-                    <Text style={styles.summaryText}>
-                        Total Mortality: <Text style={styles.summaryValue}>{totalMortality.toLocaleString()}</Text>
-                    </Text>
-                </View>
-            )}
-
             {isLoading ? (
-                <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
-            ) : (
-                <FlatList
-                    data={records}
-                    keyExtractor={(item) => item.id}
-                    renderItem={renderItem}
-                    contentContainerStyle={styles.listContent}
-                    ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <MaterialCommunityIcons name="skull-crossbones-outline" size={64} color={theme.roles.light.borderDefault} />
-                            <Text style={styles.emptyTitle}>No Mortality Logged</Text>
-                            <Text style={styles.emptyText}>No mortality data recorded yet.</Text>
-                        </View>
-                    }
+                renderSkeleton()
+            ) : isOffline ? (
+                <NetworkError onRetry={handleRetry} />
+            ) : error && records.length === 0 ? (
+                <ErrorState
+                    title="Couldn't Load Records"
+                    error={error}
+                    onRetry={handleRetry}
                 />
+            ) : (
+                <>
+                    {records.length > 0 && (
+                        <View style={styles.summaryBar}>
+                            <Text style={styles.summaryText}>
+                                Total Mortality: <Text style={styles.summaryValue}>{totalMortality.toLocaleString()}</Text>
+                            </Text>
+                        </View>
+                    )}
+
+                    <FlatList
+                        data={records}
+                        keyExtractor={(item) => item.id}
+                        renderItem={renderItem}
+                        contentContainerStyle={styles.listContent}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={isRefreshing}
+                                onRefresh={handleRefresh}
+                                colors={[theme.roles.light.primary]}
+                                tintColor={theme.roles.light.primary}
+                            />
+                        }
+                        ListEmptyComponent={
+                            <View style={styles.emptyState}>
+                                <MaterialCommunityIcons name="skull-crossbones-outline" size={64} color={theme.roles.light.borderDefault} />
+                                <Text style={styles.emptyTitle}>No Mortality Logged</Text>
+                                <Text style={styles.emptyText}>No mortality data recorded yet.</Text>
+                            </View>
+                        }
+                    />
+                </>
             )}
         </ScreenWrapper>
     );
@@ -93,7 +175,6 @@ const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: theme.spacing[4], backgroundColor: theme.roles.light.surface, borderBottomWidth: 1, borderBottomColor: theme.roles.light.borderDefault },
     backBtn: { padding: theme.spacing[4] },
     title: { ...theme.typeScale.h3, color: theme.roles.light.textPrimary },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     summaryBar: { backgroundColor: theme.roles.light.dangerBg, paddingVertical: theme.spacing[3], paddingHorizontal: theme.spacing[4] },
     summaryText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary },
     summaryValue: { fontWeight: '700', color: theme.roles.light.dangerText },

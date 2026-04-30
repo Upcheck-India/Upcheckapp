@@ -1,30 +1,79 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
+import { SkeletonList } from '../../components/ui/Skeleton';
+import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { alertsApi, AlertData } from '../../api/alerts';
 
 export const NotificationsScreen = ({ navigation }: any) => {
     const [notifications, setNotifications] = useState<AlertData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [error, setError] = useState<any>(null);
+    const [isOffline, setIsOffline] = useState(false);
 
-    useEffect(() => {
-        fetchAlerts();
-    }, []);
+    // Animation refs
+    const fadeAnim = useRef(new Animated.Value(0)).current;
 
-    const fetchAlerts = async () => {
-        setIsLoading(true);
+    // Cache ref
+    const cacheRef = useRef<{ data: AlertData[]; timestamp: number } | null>(null);
+    const CACHE_TTL = 60000; // 1 minute for notifications
+
+    const fadeIn = useCallback(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+        }).start();
+    }, [fadeAnim]);
+
+    const fetchAlerts = useCallback(async (forceRefresh = false) => {
+        if (!forceRefresh && cacheRef.current) {
+            const { data, timestamp } = cacheRef.current;
+            if (Date.now() - timestamp < CACHE_TTL) {
+                setNotifications(data);
+                setIsLoading(false);
+                fadeIn();
+                return;
+            }
+        }
+
+        setError(null);
+        setIsOffline(false);
+
         try {
             const { data } = await alertsApi.findMine();
             setNotifications(data || []);
-        } catch (error) {
-            console.error('Failed to fetch alerts', error);
+            cacheRef.current = { data: data || [], timestamp: Date.now() };
+            fadeIn();
+        } catch (err: any) {
+            const statusCode = err?.response?.status;
+            if (statusCode === 0 || err?.code === 'NETWORK_ERROR' || !err?.response) {
+                setIsOffline(true);
+            }
+            setError(err);
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
-    };
+    }, [fadeIn]);
+
+    useState(() => {
+        fetchAlerts();
+    });
+
+    const handleRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        fetchAlerts(true);
+    }, [fetchAlerts]);
+
+    const handleRetry = useCallback(() => {
+        setIsLoading(true);
+        fetchAlerts(true);
+    }, [fetchAlerts]);
 
     const getIcon = (severity: string) => {
         switch (severity) {
@@ -62,23 +111,37 @@ export const NotificationsScreen = ({ navigation }: any) => {
         }
     };
 
-    const renderItem = ({ item }: { item: AlertData }) => (
-        <TouchableOpacity onPress={() => markAsRead(item.id)} activeOpacity={0.7}>
-            <Card style={[styles.card, !item.isRead && styles.unreadCard]}>
-                <View style={styles.iconContainer}>
-                    <MaterialCommunityIcons name={getIcon(item.severity)} size={24} color={getIconColor(item.severity)} />
-                </View>
-                <View style={styles.contentContainer}>
-                    <Text style={[styles.titleText, !item.isRead && styles.unreadText]}>{item.title}</Text>
-                    <Text style={styles.messageText}>{item.message}</Text>
-                    <Text style={styles.dateText}>
-                        {new Date(item.createdAt).toLocaleDateString()} at {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                </View>
-                {!item.isRead && <View style={styles.unreadDot} />}
-            </Card>
-        </TouchableOpacity>
+    const renderSkeleton = () => (
+        <View style={styles.listContent}>
+            <SkeletonList count={4} />
+        </View>
     );
+
+    const renderItem = useCallback(({ item, index }: { item: AlertData; index: number }) => {
+        const animStyle = {
+            opacity: fadeAnim,
+        };
+
+        return (
+            <Animated.View style={animStyle}>
+                <TouchableOpacity onPress={() => markAsRead(item.id)} activeOpacity={0.7}>
+                    <Card style={[styles.card, !item.isRead && styles.unreadCard]}>
+                        <View style={styles.iconContainer}>
+                            <MaterialCommunityIcons name={getIcon(item.severity)} size={24} color={getIconColor(item.severity)} />
+                        </View>
+                        <View style={styles.contentContainer}>
+                            <Text style={[styles.titleText, !item.isRead && styles.unreadText]}>{item.title}</Text>
+                            <Text style={styles.messageText}>{item.message}</Text>
+                            <Text style={styles.dateText}>
+                                {new Date(item.createdAt).toLocaleDateString()} at {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </Text>
+                        </View>
+                        {!item.isRead && <View style={styles.unreadDot} />}
+                    </Card>
+                </TouchableOpacity>
+            </Animated.View>
+        );
+    }, [fadeAnim]);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -92,19 +155,39 @@ export const NotificationsScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
             </View>
 
-            <FlatList
-                data={notifications}
-                keyExtractor={item => item.id}
-                renderItem={renderItem}
-                contentContainerStyle={styles.listContent}
-                ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <MaterialCommunityIcons name="bell-outline" size={64} color={theme.roles.light.borderDefault} />
-                        <Text style={styles.emptyTitle}>All Caught Up!</Text>
-                        <Text style={styles.emptyText}>You have no new notifications.</Text>
-                    </View>
-                }
-            />
+            {isLoading ? (
+                renderSkeleton()
+            ) : isOffline ? (
+                <NetworkError onRetry={handleRetry} />
+            ) : error && notifications.length === 0 ? (
+                <ErrorState
+                    title="Couldn't Load Notifications"
+                    error={error}
+                    onRetry={handleRetry}
+                />
+            ) : (
+                <FlatList
+                    data={notifications}
+                    keyExtractor={item => item.id}
+                    renderItem={renderItem}
+                    contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefreshing}
+                            onRefresh={handleRefresh}
+                            colors={[theme.roles.light.primary]}
+                            tintColor={theme.roles.light.primary}
+                        />
+                    }
+                    ListEmptyComponent={
+                        <View style={styles.emptyState}>
+                            <MaterialCommunityIcons name="bell-outline" size={64} color={theme.roles.light.borderDefault} />
+                            <Text style={styles.emptyTitle}>All Caught Up!</Text>
+                            <Text style={styles.emptyText}>You have no new notifications.</Text>
+                        </View>
+                    }
+                />
+            )}
         </ScreenWrapper>
     );
 };
@@ -132,7 +215,7 @@ const styles = StyleSheet.create({
         backgroundColor: theme.roles.light.surface,
     },
     unreadCard: {
-        backgroundColor: theme.roles.light.primary + '05', // Very light primary tint
+        backgroundColor: theme.roles.light.primary + '05',
     },
     iconContainer: {
         marginRight: theme.spacing[4],

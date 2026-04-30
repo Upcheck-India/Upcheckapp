@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { MetricCard } from '../../components/ui/MetricCard';
 import { Button } from '../../components/ui/Button';
+import { Skeleton, SkeletonGrid, SkeletonMetric } from '../../components/ui/Skeleton';
+import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { reportsApi, DashboardSummary } from '../../api/reports';
 import { farmsApi, Farm } from '../../api/farms';
@@ -16,13 +18,6 @@ interface FinancialReport {
     expensesByCategory: Array<{ category: string; amount: number }>;
 }
 
-interface CycleAnalysis {
-    cycleId: string;
-    fcr: number;
-    survivalRate: number;
-    growthChart: Array<{ date: string; mbw: number }>;
-}
-
 export const ReportsScreen = ({ navigation }: any) => {
     const [farms, setFarms] = useState<Farm[]>([]);
     const [selectedFarmId, setSelectedFarmId] = useState<string | null>(null);
@@ -30,57 +25,161 @@ export const ReportsScreen = ({ navigation }: any) => {
     const [financialReport, setFinancialReport] = useState<FinancialReport | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [error, setError] = useState<any>(null);
+    const [isOffline, setIsOffline] = useState(false);
     const [showFarmPicker, setShowFarmPicker] = useState(false);
 
-    const fetchData = async () => {
+    // Animation refs
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+
+    // Cache ref
+    const cacheRef = useRef<Map<string, { summary: DashboardSummary; financial: FinancialReport; timestamp: number }>>(new Map());
+    const CACHE_TTL = 60000; // 1 minute for reports
+
+    const fadeIn = useCallback(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+        }).start();
+    }, [fadeAnim]);
+
+    const fetchData = useCallback(async (forceRefresh = false) => {
+        setError(null);
+        setIsOffline(false);
+
         try {
-            // Fetch farms first
             const { data: farmsData } = await farmsApi.getAll();
             setFarms(farmsData);
 
-            // If farms exist, select first farm or use existing selection
             const farmId = selectedFarmId || (farmsData.length > 0 ? farmsData[0].id : null);
-            setSelectedFarmId(farmId);
+            if (farmId && !selectedFarmId) {
+                setSelectedFarmId(farmId);
+            }
 
             if (farmId) {
-                // Fetch dashboard summary and financial report
+                // Check cache
+                if (!forceRefresh && cacheRef.current.has(farmId)) {
+                    const cached = cacheRef.current.get(farmId)!;
+                    if (Date.now() - cached.timestamp < CACHE_TTL) {
+                        setSummary(cached.summary);
+                        setFinancialReport(cached.financial);
+                        setIsLoading(false);
+                        fadeIn();
+                        return;
+                    }
+                }
+
                 const [summaryRes, financialRes] = await Promise.all([
                     reportsApi.getDashboardSummary(farmId),
                     reportsApi.getFinancialReport(farmId),
                 ]);
                 setSummary(summaryRes.data);
                 setFinancialReport(financialRes.data);
+                cacheRef.current.set(farmId, {
+                    summary: summaryRes.data,
+                    financial: financialRes.data,
+                    timestamp: Date.now(),
+                });
+                fadeIn();
             }
-        } catch (error) {
-            console.error('Failed to fetch reports data:', error);
+        } catch (err: any) {
+            const statusCode = err?.response?.status;
+            if (statusCode === 0 || err?.code === 'NETWORK_ERROR' || !err?.response) {
+                setIsOffline(true);
+            }
+            setError(err);
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    };
+    }, [selectedFarmId, fadeIn]);
 
     useEffect(() => {
         fetchData();
     }, []);
 
-    const handleRefresh = () => {
+    const handleRefresh = useCallback(() => {
         setIsRefreshing(true);
-        fetchData();
-    };
+        fetchData(true);
+    }, [fetchData]);
+
+    const handleRetry = useCallback(() => {
+        setIsLoading(true);
+        fetchData(true);
+    }, [fetchData]);
+
+    const handleFarmSelect = useCallback((farmId: string) => {
+        setSelectedFarmId(farmId);
+        setShowFarmPicker(false);
+        setIsLoading(true);
+        fadeAnim.setValue(0);
+        // Fetch new data for selected farm
+        setTimeout(() => fetchData(true), 100);
+    }, [fetchData, fadeAnim]);
 
     const selectedFarm = farms.find(f => f.id === selectedFarmId);
 
-    const formatCurrency = (amount: number) => {
-        return `Rp ${amount.toLocaleString('id-ID')}`;
-    };
+    const formatCurrency = (amount: number) => `Rp ${amount.toLocaleString('id-ID')}`;
+
+    const renderSkeleton = () => (
+        <View style={styles.content}>
+            <Text style={styles.sectionTitle}>Overview</Text>
+            <SkeletonGrid count={4} columns={2} />
+            <Text style={[styles.sectionTitle, { marginTop: theme.spacing[6] }]}>Financial Summary</Text>
+            <Card style={styles.financialCard}>
+                <View style={styles.financialRow}>
+                    <View style={styles.financialItem}>
+                        <Skeleton width="60%" height={12} style={styles.mb2} />
+                        <Skeleton width="80%" height={24} />
+                    </View>
+                    <View style={styles.financialDivider} />
+                    <View style={styles.financialItem}>
+                        <Skeleton width="60%" height={12} style={styles.mb2} />
+                        <Skeleton width="80%" height={24} />
+                    </View>
+                </View>
+            </Card>
+        </View>
+    );
 
     if (isLoading) {
         return (
-            <ScreenWrapper>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={theme.roles.light.primary} />
-                    <Text style={styles.loadingText}>Loading reports...</Text>
+            <ScreenWrapper scroll={false} padded={false}>
+                <View style={styles.header}>
+                    <Text style={styles.headerTitle}>Reports</Text>
+                    <View style={styles.farmSelector}>
+                        <MaterialCommunityIcons name="barn" size={20} color={theme.roles.light.textSecondary} />
+                        <Skeleton width={80} height={16} />
+                    </View>
                 </View>
+                {renderSkeleton()}
+            </ScreenWrapper>
+        );
+    }
+
+    if (isOffline) {
+        return (
+            <ScreenWrapper scroll={false} padded={false}>
+                <View style={styles.header}>
+                    <Text style={styles.headerTitle}>Reports</Text>
+                </View>
+                <NetworkError onRetry={handleRetry} />
+            </ScreenWrapper>
+        );
+    }
+
+    if (error && farms.length === 0) {
+        return (
+            <ScreenWrapper scroll={false} padded={false}>
+                <View style={styles.header}>
+                    <Text style={styles.headerTitle}>Reports</Text>
+                </View>
+                <ErrorState
+                    title="Couldn't Load Reports"
+                    error={error}
+                    onRetry={handleRetry}
+                />
             </ScreenWrapper>
         );
     }
@@ -110,12 +209,7 @@ export const ReportsScreen = ({ navigation }: any) => {
                                 styles.farmPickerItem,
                                 farm.id === selectedFarmId && styles.farmPickerItemSelected,
                             ]}
-                            onPress={() => {
-                                setSelectedFarmId(farm.id);
-                                setShowFarmPicker(false);
-                                setIsLoading(true);
-                                fetchData();
-                            }}
+                            onPress={() => handleFarmSelect(farm.id)}
                         >
                             <Text style={[
                                 styles.farmPickerItemText,
@@ -128,120 +222,118 @@ export const ReportsScreen = ({ navigation }: any) => {
                 </View>
             )}
 
-            <ScrollView
-                contentContainerStyle={styles.content}
-                refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
-            >
-                {farms.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <MaterialCommunityIcons name="barn" size={64} color={theme.roles.light.textDisabled} />
-                        <Text style={styles.emptyTitle}>No Farms Yet</Text>
-                        <Text style={styles.emptySubtitle}>Create a farm to see reports</Text>
-                        <Button
-                            title="Create Farm"
-                            onPress={() => navigation.navigate('CreateFarm')}
-                            style={styles.emptyButton}
-                        />
-                    </View>
-                ) : (
-                    <>
-                        {/* Dashboard Summary */}
-                        <Text style={styles.sectionTitle}>Overview</Text>
-                        <View style={styles.summaryGrid}>
-                            <MetricCard
-                                label="Active Ponds"
-                                value={summary?.activePondsCount?.toString() || '0'}
-                                icon="water"
-                            />
-                            <MetricCard
-                                label="Total Ponds"
-                                value={summary?.totalPondsCount?.toString() || '0'}
-                                icon="water-outline"
-                            />
-                            <MetricCard
-                                label="Low Stock"
-                                value={(summary?.lowStockAlerts || 0).toString()}
-                                icon="alert"
-                                status={(summary?.lowStockAlerts || 0) > 0 ? 'warning' : 'normal'}
-                            />
-                            <MetricCard
-                                label="Today's Feed"
-                                value={summary?.todayFeedUsage?.toString() || '0'}
-                                unit="kg"
-                                icon="corn"
+            <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+                <ScrollView
+                    contentContainerStyle={styles.content}
+                    refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[theme.roles.light.primary]} />}
+                >
+                    {farms.length === 0 ? (
+                        <View style={styles.emptyState}>
+                            <MaterialCommunityIcons name="barn" size={64} color={theme.roles.light.textDisabled} />
+                            <Text style={styles.emptyTitle}>No Farms Yet</Text>
+                            <Text style={styles.emptySubtitle}>Create a farm to see reports</Text>
+                            <Button
+                                title="Create Farm"
+                                onPress={() => navigation.navigate('CreateFarm')}
+                                style={styles.emptyButton}
                             />
                         </View>
-
-                        {/* Financial Report */}
-                        <Text style={styles.sectionTitle}>Financial Summary</Text>
-                        <Card style={styles.financialCard}>
-                            <View style={styles.financialRow}>
-                                <View style={styles.financialItem}>
-                                    <Text style={styles.financialLabel}>Total Revenue</Text>
-                                    <Text style={[styles.financialValue, styles.revenue]}>
-                                        {formatCurrency(financialReport?.revenue || 0)}
-                                    </Text>
-                                </View>
-                                <View style={styles.financialDivider} />
-                                <View style={styles.financialItem}>
-                                    <Text style={styles.financialLabel}>Total Expenses</Text>
-                                    <Text style={[styles.financialValue, styles.expense]}>
-                                        {formatCurrency(financialReport?.totalExpenses || 0)}
-                                    </Text>
-                                </View>
+                    ) : (
+                        <>
+                            <Text style={styles.sectionTitle}>Overview</Text>
+                            <View style={styles.summaryGrid}>
+                                <MetricCard
+                                    label="Active Ponds"
+                                    value={summary?.activePondsCount?.toString() || '0'}
+                                    icon="water"
+                                />
+                                <MetricCard
+                                    label="Total Ponds"
+                                    value={summary?.totalPondsCount?.toString() || '0'}
+                                    icon="water-outline"
+                                />
+                                <MetricCard
+                                    label="Low Stock"
+                                    value={(summary?.lowStockAlerts || 0).toString()}
+                                    icon="alert"
+                                    status={(summary?.lowStockAlerts || 0) > 0 ? 'warning' : 'normal'}
+                                />
+                                <MetricCard
+                                    label="Today's Feed"
+                                    value={summary?.todayFeedUsage?.toString() || '0'}
+                                    unit="kg"
+                                    icon="corn"
+                                />
                             </View>
-                            <View style={styles.profitRow}>
-                                <Text style={styles.profitLabel}>Net Profit</Text>
-                                <Text style={[
-                                    styles.profitValue,
-                                    (financialReport?.profit || 0) >= 0 ? styles.profitPositive : styles.profitNegative,
-                                ]}>
-                                    {formatCurrency(financialReport?.profit || 0)}
-                                </Text>
-                            </View>
-                        </Card>
 
-                        {/* Expenses Breakdown */}
-                        {(financialReport?.expensesByCategory?.length ?? 0) > 0 && (
-                            <Card style={styles.expensesCard}>
-                                <Text style={styles.cardTitle}>Expenses Breakdown</Text>
-                                {financialReport?.expensesByCategory?.map((item, index) => (
-                                    <View key={item.category + index} style={styles.expenseRow}>
-                                        <Text style={styles.expenseCategory}>{item.category}</Text>
-                                        <Text style={styles.expenseAmount}>{formatCurrency(item.amount)}</Text>
+                            <Text style={styles.sectionTitle}>Financial Summary</Text>
+                            <Card style={styles.financialCard}>
+                                <View style={styles.financialRow}>
+                                    <View style={styles.financialItem}>
+                                        <Text style={styles.financialLabel}>Total Revenue</Text>
+                                        <Text style={[styles.financialValue, styles.revenue]}>
+                                            {formatCurrency(financialReport?.revenue || 0)}
+                                        </Text>
                                     </View>
-                                ))}
+                                    <View style={styles.financialDivider} />
+                                    <View style={styles.financialItem}>
+                                        <Text style={styles.financialLabel}>Total Expenses</Text>
+                                        <Text style={[styles.financialValue, styles.expense]}>
+                                            {formatCurrency(financialReport?.totalExpenses || 0)}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={styles.profitRow}>
+                                    <Text style={styles.profitLabel}>Net Profit</Text>
+                                    <Text style={[
+                                        styles.profitValue,
+                                        (financialReport?.profit || 0) >= 0 ? styles.profitPositive : styles.profitNegative,
+                                    ]}>
+                                        {formatCurrency(financialReport?.profit || 0)}
+                                    </Text>
+                                </View>
                             </Card>
-                        )}
 
-                        {/* Quick Actions */}
-                        <Text style={styles.sectionTitle}>Quick Actions</Text>
-                        <View style={styles.actionsGrid}>
-                            <TouchableOpacity
-                                style={styles.actionCard}
-                                onPress={() => navigation.navigate('CalculatorHub')}
-                            >
-                                <MaterialCommunityIcons name="calculator-variant" size={32} color={theme.roles.light.primary} />
-                                <Text style={styles.actionLabel}>Calculators</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.actionCard}
-                                onPress={() => navigation.navigate('SimulationList')}
-                            >
-                                <MaterialCommunityIcons name="chart-timeline-variant" size={32} color={theme.roles.light.successText} />
-                                <Text style={styles.actionLabel}>Simulations</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.actionCard}
-                                onPress={() => navigation.navigate('Farms')}
-                            >
-                                <MaterialCommunityIcons name="barn" size={32} color={theme.roles.light.infoBorder} />
-                                <Text style={styles.actionLabel}>Farms</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </>
-                )}
-            </ScrollView>
+                            {(financialReport?.expensesByCategory?.length ?? 0) > 0 && (
+                                <Card style={styles.expensesCard}>
+                                    <Text style={styles.cardTitle}>Expenses Breakdown</Text>
+                                    {financialReport?.expensesByCategory?.map((item, index) => (
+                                        <View key={item.category + index} style={styles.expenseRow}>
+                                            <Text style={styles.expenseCategory}>{item.category}</Text>
+                                            <Text style={styles.expenseAmount}>{formatCurrency(item.amount)}</Text>
+                                        </View>
+                                    ))}
+                                </Card>
+                            )}
+
+                            <Text style={styles.sectionTitle}>Quick Actions</Text>
+                            <View style={styles.actionsGrid}>
+                                <TouchableOpacity
+                                    style={styles.actionCard}
+                                    onPress={() => navigation.navigate('CalculatorHub')}
+                                >
+                                    <MaterialCommunityIcons name="calculator-variant" size={32} color={theme.roles.light.primary} />
+                                    <Text style={styles.actionLabel}>Calculators</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.actionCard}
+                                    onPress={() => navigation.navigate('SimulationList')}
+                                >
+                                    <MaterialCommunityIcons name="chart-timeline-variant" size={32} color={theme.roles.light.successText} />
+                                    <Text style={styles.actionLabel}>Simulations</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.actionCard}
+                                    onPress={() => navigation.navigate('Farms')}
+                                >
+                                    <MaterialCommunityIcons name="barn" size={32} color={theme.roles.light.infoBorder} />
+                                    <Text style={styles.actionLabel}>Farms</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </>
+                    )}
+                </ScrollView>
+            </Animated.View>
         </ScreenWrapper>
     );
 };
@@ -297,16 +389,6 @@ const styles = StyleSheet.create({
     content: {
         padding: theme.spacing[4],
         paddingBottom: theme.spacing[12],
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    loadingText: {
-        ...theme.typeScale.bodyMedium,
-        color: theme.roles.light.textSecondary,
-        marginTop: theme.spacing[2],
     },
     emptyState: {
         alignItems: 'center',
@@ -429,5 +511,8 @@ const styles = StyleSheet.create({
         ...theme.typeScale.labelMedium,
         color: theme.roles.light.textPrimary,
         marginTop: theme.spacing[2],
+    },
+    mb2: {
+        marginBottom: theme.spacing[2],
     },
 });

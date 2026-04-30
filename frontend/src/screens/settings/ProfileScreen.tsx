@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { Skeleton, SkeletonAvatar } from '../../components/ui/Skeleton';
+import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { profilesApi, Profile, UpdateProfileDto } from '../../api/profiles';
@@ -15,29 +17,63 @@ export const ProfileScreen = ({ navigation }: any) => {
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<any>(null);
+    const [isOffline, setIsOffline] = useState(false);
 
     // Edit form state
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [phone, setPhone] = useState('');
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
+    // Animation refs
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(20)).current;
 
-    const fetchProfile = async () => {
+    const fadeIn = useCallback(() => {
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 400,
+                useNativeDriver: true,
+            }),
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, [fadeAnim, slideAnim]);
+
+    const fetchProfile = useCallback(async () => {
+        setError(null);
+        setIsOffline(false);
+
         try {
             const { data } = await profilesApi.getMine();
             setProfile(data);
             setFirstName(data.firstName || '');
             setLastName(data.lastName || '');
             setPhone(data.phone || '');
-        } catch (error) {
-            console.error('Failed to fetch profile:', error);
+            fadeIn();
+        } catch (err: any) {
+            const statusCode = err?.response?.status;
+            if (statusCode === 0 || err?.code === 'NETWORK_ERROR' || !err?.response) {
+                setIsOffline(true);
+            }
+            setError(err);
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [fadeIn]);
+
+    useEffect(() => {
+        fetchProfile();
+    }, []);
+
+    const handleRetry = useCallback(() => {
+        setIsLoading(true);
+        fetchProfile();
+    }, [fetchProfile]);
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -66,12 +102,60 @@ export const ProfileScreen = ({ navigation }: any) => {
         setIsEditing(false);
     };
 
-    if (isLoading) {
-        return (
-            <ScreenWrapper>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={theme.roles.light.primary} />
+    const renderSkeleton = () => (
+        <ScreenWrapper scroll={false} padded={false}>
+            <View style={styles.headerBackground}>
+                <View style={styles.headerTop}>
+                    <Skeleton width={100} height={24} />
+                    <Skeleton width={24} height={24} borderRadius={12} />
                 </View>
+                <View style={styles.profileInfoContainer}>
+                    <SkeletonAvatar size={80} />
+                    <Skeleton width={150} height={28} style={styles.mb2} />
+                    <Skeleton width={180} height={16} />
+                </View>
+            </View>
+            <View style={styles.content}>
+                <Card style={styles.infoCard}>
+                    <Skeleton width="100%" height={40} style={styles.mb3} />
+                    <Skeleton width="100%" height={40} style={styles.mb3} />
+                    <Skeleton width="100%" height={40} style={styles.mb3} />
+                    <Skeleton width="100%" height={40} />
+                </Card>
+            </View>
+        </ScreenWrapper>
+    );
+
+    if (isLoading) {
+        return renderSkeleton();
+    }
+
+    if (isOffline) {
+        return (
+            <ScreenWrapper scroll={false} padded={false}>
+                <View style={styles.headerBackground}>
+                    <View style={styles.headerTop}>
+                        <Text style={styles.headerTitle}>Profile</Text>
+                    </View>
+                </View>
+                <NetworkError onRetry={handleRetry} />
+            </ScreenWrapper>
+        );
+    }
+
+    if (error && !profile) {
+        return (
+            <ScreenWrapper scroll={false} padded={false}>
+                <View style={styles.headerBackground}>
+                    <View style={styles.headerTop}>
+                        <Text style={styles.headerTitle}>Profile</Text>
+                    </View>
+                </View>
+                <ErrorState
+                    title="Couldn't Load Profile"
+                    error={error}
+                    onRetry={handleRetry}
+                />
             </ScreenWrapper>
         );
     }
@@ -92,104 +176,106 @@ export const ProfileScreen = ({ navigation }: any) => {
                     </TouchableOpacity>
                 </View>
 
-                <View style={styles.profileInfoContainer}>
+                <Animated.View style={[styles.profileInfoContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
                     <View style={styles.avatarContainer}>
                         <MaterialCommunityIcons name="account" size={48} color={theme.roles.light.primary} />
                     </View>
                     <Text style={styles.userName}>{displayName}</Text>
                     <Text style={styles.userEmail}>{user?.email || 'N/A'}</Text>
-                </View>
+                </Animated.View>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
-                {isEditing ? (
-                    <Card style={styles.editCard}>
-                        <Text style={styles.editTitle}>Edit Profile</Text>
+            <Animated.View style={{ opacity: fadeAnim }}>
+                <ScrollView contentContainerStyle={styles.content}>
+                    {isEditing ? (
+                        <Card style={styles.editCard}>
+                            <Text style={styles.editTitle}>Edit Profile</Text>
 
-                        <Input
-                            label="First Name"
-                            value={firstName}
-                            onChangeText={setFirstName}
-                            placeholder="Enter first name"
-                        />
-
-                        <Input
-                            label="Last Name"
-                            value={lastName}
-                            onChangeText={setLastName}
-                            placeholder="Enter last name"
-                        />
-
-                        <Input
-                            label="Phone"
-                            value={phone}
-                            onChangeText={setPhone}
-                            placeholder="Enter phone number"
-                            keyboardType="phone-pad"
-                        />
-
-                        <View style={styles.editButtons}>
-                            <Button
-                                title="Cancel"
-                                onPress={handleCancel}
-                                variant="outlined"
-                                style={styles.cancelBtn}
+                            <Input
+                                label="First Name"
+                                value={firstName}
+                                onChangeText={setFirstName}
+                                placeholder="Enter first name"
                             />
-                            <Button
-                                title="Save"
-                                onPress={handleSave}
-                                loading={isSaving}
-                                style={styles.saveBtn}
+
+                            <Input
+                                label="Last Name"
+                                value={lastName}
+                                onChangeText={setLastName}
+                                placeholder="Enter last name"
                             />
-                        </View>
-                    </Card>
-                ) : (
-                    <Card style={styles.infoCard}>
-                        <View style={styles.infoRow}>
-                            <MaterialCommunityIcons name="email" size={20} color={theme.roles.light.textSecondary} />
-                            <View style={styles.infoTextContainer}>
-                                <Text style={styles.infoLabel}>Email Address</Text>
-                                <Text style={styles.infoValue}>{user?.email || 'N/A'}</Text>
-                            </View>
-                        </View>
 
-                        <View style={styles.infoRow}>
-                            <MaterialCommunityIcons name="account" size={20} color={theme.roles.light.textSecondary} />
-                            <View style={styles.infoTextContainer}>
-                                <Text style={styles.infoLabel}>Full Name</Text>
-                                <Text style={styles.infoValue}>{displayName}</Text>
-                            </View>
-                        </View>
+                            <Input
+                                label="Phone"
+                                value={phone}
+                                onChangeText={setPhone}
+                                placeholder="Enter phone number"
+                                keyboardType="phone-pad"
+                            />
 
-                        <View style={styles.infoRow}>
-                            <MaterialCommunityIcons name="phone" size={20} color={theme.roles.light.textSecondary} />
-                            <View style={styles.infoTextContainer}>
-                                <Text style={styles.infoLabel}>Phone Number</Text>
-                                <Text style={styles.infoValue}>{profile?.phone || 'Not set'}</Text>
+                            <View style={styles.editButtons}>
+                                <Button
+                                    title="Cancel"
+                                    onPress={handleCancel}
+                                    variant="outlined"
+                                    style={styles.cancelBtn}
+                                />
+                                <Button
+                                    title="Save"
+                                    onPress={handleSave}
+                                    loading={isSaving}
+                                    style={styles.saveBtn}
+                                />
                             </View>
-                        </View>
-
-                        <View style={[styles.infoRow, styles.noBorder]}>
-                            <MaterialCommunityIcons name="calendar" size={20} color={theme.roles.light.textSecondary} />
-                            <View style={styles.infoTextContainer}>
-                                <Text style={styles.infoLabel}>Member Since</Text>
-                                <Text style={styles.infoValue}>
-                                    {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}
-                                </Text>
+                        </Card>
+                    ) : (
+                        <Card style={styles.infoCard}>
+                            <View style={styles.infoRow}>
+                                <MaterialCommunityIcons name="email" size={20} color={theme.roles.light.textSecondary} />
+                                <View style={styles.infoTextContainer}>
+                                    <Text style={styles.infoLabel}>Email Address</Text>
+                                    <Text style={styles.infoValue}>{user?.email || 'N/A'}</Text>
+                                </View>
                             </View>
-                        </View>
-                    </Card>
-                )}
 
-                {!isEditing && (
-                    <Button
-                        title="Edit Profile"
-                        onPress={() => setIsEditing(true)}
-                        style={styles.editBtn}
-                        icon="pencil"
-                    />
-                )}
-            </ScrollView>
+                            <View style={styles.infoRow}>
+                                <MaterialCommunityIcons name="account" size={20} color={theme.roles.light.textSecondary} />
+                                <View style={styles.infoTextContainer}>
+                                    <Text style={styles.infoLabel}>Full Name</Text>
+                                    <Text style={styles.infoValue}>{displayName}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.infoRow}>
+                                <MaterialCommunityIcons name="phone" size={20} color={theme.roles.light.textSecondary} />
+                                <View style={styles.infoTextContainer}>
+                                    <Text style={styles.infoLabel}>Phone Number</Text>
+                                    <Text style={styles.infoValue}>{profile?.phone || 'Not set'}</Text>
+                                </View>
+                            </View>
+
+                            <View style={[styles.infoRow, styles.noBorder]}>
+                                <MaterialCommunityIcons name="calendar" size={20} color={theme.roles.light.textSecondary} />
+                                <View style={styles.infoTextContainer}>
+                                    <Text style={styles.infoLabel}>Member Since</Text>
+                                    <Text style={styles.infoValue}>
+                                        {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}
+                                    </Text>
+                                </View>
+                            </View>
+                        </Card>
+                    )}
+
+                    {!isEditing && (
+                        <Button
+                            title="Edit Profile"
+                            onPress={() => setIsEditing(true)}
+                            style={styles.editBtn}
+                            icon="pencil"
+                        />
+                    )}
+                </ScrollView>
+            </Animated.View>
         </ScreenWrapper>
     );
 };
@@ -241,11 +327,6 @@ const styles = StyleSheet.create({
     },
     content: {
         padding: theme.spacing[4],
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
     infoCard: {
         padding: theme.spacing[4],
@@ -300,5 +381,11 @@ const styles = StyleSheet.create({
     },
     saveBtn: {
         flex: 1,
+    },
+    mb2: {
+        marginBottom: theme.spacing[2],
+    },
+    mb3: {
+        marginBottom: theme.spacing[3],
     },
 });

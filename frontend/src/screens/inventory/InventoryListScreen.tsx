@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { FAB } from '../../components/ui/FAB';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
+import { SkeletonList } from '../../components/ui/Skeleton';
 import { theme } from '../../theme';
 import { inventoryApi, InventoryItem } from '../../api/inventory';
 import { useFocusEffect } from '@react-navigation/native';
@@ -21,30 +23,80 @@ export const InventoryListScreen = ({ navigation }: any) => {
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [error, setError] = useState<any>(null);
+    const [isOffline, setIsOffline] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState('all');
 
-    const fetchInventory = async () => {
+    // Animation refs
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(0.95)).current;
+
+    // Cache ref
+    const cacheRef = useRef<{ data: InventoryItem[]; timestamp: number } | null>(null);
+    const CACHE_TTL = 30000;
+
+    const fadeIn = useCallback(() => {
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+            Animated.spring(scaleAnim, {
+                toValue: 1,
+                friction: 8,
+                tension: 100,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, [fadeAnim, scaleAnim]);
+
+    const fetchInventory = useCallback(async (forceRefresh = false) => {
+        if (!forceRefresh && cacheRef.current) {
+            const { data, timestamp } = cacheRef.current;
+            if (Date.now() - timestamp < CACHE_TTL) {
+                setInventory(data);
+                setIsLoading(false);
+                fadeIn();
+                return;
+            }
+        }
+
+        setError(null);
+        setIsOffline(false);
+
         try {
             const { data } = await inventoryApi.getAll('');
             setInventory(data);
-        } catch (error) {
-            console.error('Failed to fetch inventory:', error);
+            cacheRef.current = { data, timestamp: Date.now() };
+            fadeIn();
+        } catch (err: any) {
+            const statusCode = err?.response?.status;
+            if (statusCode === 0 || err?.code === 'NETWORK_ERROR' || !err?.response) {
+                setIsOffline(true);
+            }
+            setError(err);
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    };
+    }, [fadeIn]);
 
     useFocusEffect(
         useCallback(() => {
             fetchInventory();
-        }, [])
+        }, [fetchInventory])
     );
 
-    const handleRefresh = () => {
+    const handleRefresh = useCallback(() => {
         setIsRefreshing(true);
-        fetchInventory();
-    };
+        fetchInventory(true);
+    }, [fetchInventory]);
+
+    const handleRetry = useCallback(() => {
+        setIsLoading(true);
+        fetchInventory(true);
+    }, [fetchInventory]);
 
     const filteredInventory = selectedCategory === 'all'
         ? inventory
@@ -57,6 +109,12 @@ export const InventoryListScreen = ({ navigation }: any) => {
         if (item.currentStock <= item.minStockThreshold) return { color: theme.roles.light.warningText, label: 'Low Stock' };
         return { color: theme.roles.light.successText, label: 'In Stock' };
     };
+
+    const renderSkeleton = () => (
+        <View style={styles.listContent}>
+            <SkeletonList count={4} />
+        </View>
+    );
 
     const renderCategoryTab = (category: { key: string; label: string; icon: string }) => (
         <TouchableOpacity
@@ -81,42 +139,49 @@ export const InventoryListScreen = ({ navigation }: any) => {
         </TouchableOpacity>
     );
 
-    const renderInventoryItem = ({ item }: { item: InventoryItem }) => {
+    const renderInventoryItem = useCallback(({ item, index }: { item: InventoryItem; index: number }) => {
         const status = getStockStatus(item);
+        const animStyle = {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+        };
+
         return (
-            <TouchableOpacity
-                onPress={() => navigation.navigate('InventoryDetail', { inventoryId: item.id, itemName: item.name })}
-                activeOpacity={0.7}
-            >
-                <Card style={styles.itemCard}>
-                    <View style={styles.itemHeader}>
-                        <View style={[styles.categoryIcon, { backgroundColor: status.color + '20' }]}>
-                            <MaterialCommunityIcons
-                                name={item.category === 'feed' ? 'corn' : item.category === 'chemical' ? 'flask' : 'package-variant'}
-                                size={20}
-                                color={status.color}
-                            />
+            <Animated.View style={animStyle}>
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('InventoryDetail', { inventoryId: item.id, itemName: item.name })}
+                    activeOpacity={0.7}
+                >
+                    <Card style={styles.itemCard}>
+                        <View style={styles.itemHeader}>
+                            <View style={[styles.categoryIcon, { backgroundColor: status.color + '20' }]}>
+                                <MaterialCommunityIcons
+                                    name={item.category === 'feed' ? 'corn' : item.category === 'chemical' ? 'flask' : 'package-variant'}
+                                    size={20}
+                                    color={status.color}
+                                />
+                            </View>
+                            <View style={styles.itemInfo}>
+                                <Text style={styles.itemName}>{item.name}</Text>
+                                <Text style={styles.itemCategory}>{item.category}</Text>
+                            </View>
+                            <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
+                                <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+                            </View>
                         </View>
-                        <View style={styles.itemInfo}>
-                            <Text style={styles.itemName}>{item.name}</Text>
-                            <Text style={styles.itemCategory}>{item.category}</Text>
+                        <View style={styles.itemFooter}>
+                            <Text style={styles.stockText}>
+                                <Text style={styles.stockValue}>{item.currentStock}</Text> {item.unit}
+                            </Text>
+                            <Text style={styles.thresholdText}>
+                                Min: {item.minStockThreshold} {item.unit}
+                            </Text>
                         </View>
-                        <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
-                            <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.itemFooter}>
-                        <Text style={styles.stockText}>
-                            <Text style={styles.stockValue}>{item.currentStock}</Text> {item.unit}
-                        </Text>
-                        <Text style={styles.thresholdText}>
-                            Min: {item.minStockThreshold} {item.unit}
-                        </Text>
-                    </View>
-                </Card>
-            </TouchableOpacity>
+                    </Card>
+                </TouchableOpacity>
+            </Animated.View>
         );
-    };
+    }, [navigation, fadeAnim, scaleAnim]);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -134,14 +199,31 @@ export const InventoryListScreen = ({ navigation }: any) => {
                 {CATEGORIES.map(renderCategoryTab)}
             </View>
 
-            <FlatList
-                data={filteredInventory}
-                keyExtractor={(item) => item.id}
-                renderItem={renderInventoryItem}
-                contentContainerStyle={styles.listContent}
-                refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[theme.roles.light.primary]} />}
-                ListEmptyComponent={
-                    !isLoading ? (
+            {isLoading ? (
+                renderSkeleton()
+            ) : isOffline ? (
+                <NetworkError onRetry={handleRetry} />
+            ) : error && inventory.length === 0 ? (
+                <ErrorState
+                    title="Couldn't Load Inventory"
+                    error={error}
+                    onRetry={handleRetry}
+                />
+            ) : (
+                <FlatList
+                    data={filteredInventory}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderInventoryItem}
+                    contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefreshing}
+                            onRefresh={handleRefresh}
+                            colors={[theme.roles.light.primary]}
+                            tintColor={theme.roles.light.primary}
+                        />
+                    }
+                    ListEmptyComponent={
                         <EmptyState
                             icon="database"
                             title="No Inventory Items"
@@ -149,9 +231,9 @@ export const InventoryListScreen = ({ navigation }: any) => {
                             actionLabel="Add Item"
                             onAction={() => Alert.alert('Add Item', 'Create inventory item functionality coming soon!')}
                         />
-                    ) : null
-                }
-            />
+                    }
+                />
+            )}
 
             <FAB icon="plus" onPress={() => Alert.alert('Add Item', 'Create inventory item functionality coming soon!')} />
         </ScreenWrapper>
@@ -220,11 +302,13 @@ const styles = StyleSheet.create({
     },
     itemCard: {
         marginBottom: theme.spacing[3],
-        padding: theme.spacing[4],
+        padding: 0,
+        overflow: 'hidden',
     },
     itemHeader: {
         flexDirection: 'row',
         alignItems: 'center',
+        padding: theme.spacing[4],
     },
     categoryIcon: {
         width: 40,
@@ -257,10 +341,8 @@ const styles = StyleSheet.create({
     itemFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: theme.spacing[3],
-        paddingTop: theme.spacing[3],
-        borderTopWidth: 1,
-        borderTopColor: theme.roles.light.borderDefault,
+        padding: theme.spacing[4],
+        backgroundColor: theme.roles.light.surfaceVariant,
     },
     stockText: {
         ...theme.typeScale.bodyMedium,
