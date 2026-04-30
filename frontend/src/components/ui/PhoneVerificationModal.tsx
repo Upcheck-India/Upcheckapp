@@ -4,7 +4,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button } from './Button';
 import { Input } from './Input';
 import { theme } from '../../theme';
-import { useAuthStore } from '../../store/authStore';
+import { useTruecallerAuth } from '../../hooks/useTruecallerAuth';
+
+type VerificationStep = 'phone' | 'waiting_call' | 'name_input' | 'verifying';
 
 interface Props {
   visible: boolean;
@@ -13,10 +15,19 @@ interface Props {
 
 export const PhoneVerificationModal = ({ visible, onClose }: Props) => {
   const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [countryCode] = useState('IN');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const { isLoading, truecallerLogin } = useAuthStore();
+  const [step, setStep] = useState<VerificationStep>('phone');
+
+  const {
+    verificationStep,
+    ttl,
+    requestMissedCallVerification,
+    verifyMissedCall,
+    resetVerification,
+  } = useTruecallerAuth();
 
   const validatePhone = () => {
     const cleanPhone = phone.replace(/\D/g, '');
@@ -27,53 +38,115 @@ export const PhoneVerificationModal = ({ visible, onClose }: Props) => {
     return true;
   };
 
-  const handleSendOtp = async () => {
+  const validateName = () => {
+    if (!firstName.trim()) {
+      setError('Please enter your first name');
+      return false;
+    }
+    return true;
+  };
+
+  const handleRequestVerification = async () => {
     if (!validatePhone()) return;
     setError(null);
 
+    const formattedPhone = phone.startsWith('+') ? phone : `+91${phone.replace(/\D/g, '')}`;
+
     try {
-      // Format phone with country code if needed
-      const formattedPhone = phone.startsWith('+91') ? phone : `+91${phone.replace(/\D/g, '')}`;
+      const result = await requestMissedCallVerification(countryCode, formattedPhone);
 
-      // Call backend to send OTP via Truecaller missed call or SMS
-      // For now, we'll just proceed to OTP step
-      // In production, this would call: authApi.sendPhoneOtp(formattedPhone)
-
-      setStep('otp');
+      if (result.success) {
+        setStep('waiting_call');
+      } else {
+        setError(result.error || 'Failed to initiate verification');
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to send OTP');
+      setError(err.message || 'Failed to send verification');
     }
   };
 
-  const handleVerifyOtp = async () => {
-    if (!otp.trim()) {
-      setError('Please enter the OTP');
-      return;
-    }
+  const handleMissedCallReceived = () => {
+    setStep('name_input');
+  };
+
+  const handleVerifyMissedCall = async () => {
+    if (!validateName()) return;
     setError(null);
 
+    const formattedPhone = phone.startsWith('+') ? phone : `+91${phone.replace(/\D/g, '')}`;
+
     try {
-      const formattedPhone = phone.startsWith('+91') ? phone : `+91${phone.replace(/\D/g, '')}`;
+      const result = await verifyMissedCall(firstName.trim(), lastName.trim(), formattedPhone);
 
-      // Verify OTP and login
-      await truecallerLogin({
-        accessToken: otp, // OTP acts as verification token
-        phoneNumber: formattedPhone,
-        firstName: 'User',
-      });
-
-      onClose();
+      if (result.success) {
+        handleClose();
+      } else {
+        setError(result.error || 'Verification failed');
+      }
     } catch (err: any) {
       setError(err.message || 'Verification failed');
     }
   };
 
-  const handleClose = () => {
-    setPhone('');
-    setOtp('');
+  const handleRetry = () => {
     setStep('phone');
     setError(null);
+    resetVerification();
+  };
+
+  const handleClose = () => {
+    setPhone('');
+    setFirstName('');
+    setLastName('');
+    setStep('phone');
+    setError(null);
+    resetVerification();
     onClose();
+  };
+
+  const isWaitingForCall = step === 'waiting_call';
+  const missedCallReceived = verificationStep === 'missed_call_received';
+
+  React.useEffect(() => {
+    if (missedCallReceived && isWaitingForCall) {
+      handleMissedCallReceived();
+    }
+  }, [missedCallReceived, isWaitingForCall]);
+
+  const getStepTitle = () => {
+    switch (step) {
+      case 'phone': return 'Verify Phone Number';
+      case 'waiting_call': return 'Waiting for Missed Call...';
+      case 'name_input': return 'Confirm Your Details';
+      case 'verifying': return 'Verifying...';
+    }
+  };
+
+  const getStepSubtitle = () => {
+    switch (step) {
+      case 'phone': return "We'll verify your number using Truecaller's missed call verification";
+      case 'waiting_call': return `A missed call will be placed to ${phone}${ttl !== null ? ` (${ttl}s remaining)` : ''}`;
+      case 'name_input': return 'Missed call received! Enter your details to complete verification';
+      case 'verifying': return 'Confirming your phone number...';
+    }
+  };
+
+  const getStepIcon = () => {
+    switch (step) {
+      case 'phone': return 'phone-check';
+      case 'waiting_call': return 'phone-ring';
+      case 'name_input': return 'check-circle';
+      case 'verifying': return 'progress-check';
+    }
+  };
+
+  const getIconColor = () => {
+    switch (step) {
+      case 'phone': return '#0087D0';
+      case 'waiting_call': return '#FF9800';
+      case 'name_input': return '#4CAF50';
+      case 'verifying': return '#2196F3';
+    }
   };
 
   return (
@@ -93,15 +166,9 @@ export const PhoneVerificationModal = ({ visible, onClose }: Props) => {
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <MaterialCommunityIcons name="phone-check" size={48} color="#0087D0" />
-            <Text style={styles.title}>
-              {step === 'phone' ? 'Verify Phone Number' : 'Enter OTP'}
-            </Text>
-            <Text style={styles.subtitle}>
-              {step === 'phone'
-                ? 'We\'ll verify your phone number using Truecaller\'s missed call verification'
-                : `Enter the OTP sent to ${phone}`}
-            </Text>
+            <MaterialCommunityIcons name={getStepIcon()} size={48} color={getIconColor()} />
+            <Text style={styles.title}>{getStepTitle()}</Text>
+            <Text style={styles.subtitle}>{getStepSubtitle()}</Text>
           </View>
 
           {error && (
@@ -110,7 +177,7 @@ export const PhoneVerificationModal = ({ visible, onClose }: Props) => {
             </View>
           )}
 
-          {step === 'phone' ? (
+          {step === 'phone' && (
             <View style={styles.form}>
               <Input
                 label="Phone Number"
@@ -124,37 +191,70 @@ export const PhoneVerificationModal = ({ visible, onClose }: Props) => {
 
               <Button
                 title="Send Verification Code"
-                onPress={handleSendOtp}
-                loading={isLoading}
+                onPress={handleRequestVerification}
                 style={styles.submitBtn}
               />
             </View>
-          ) : (
+          )}
+
+          {step === 'waiting_call' && (
+            <View style={styles.form}>
+              <View style={styles.waitingContainer}>
+                {ttl !== null && (
+                  <View style={styles.ttlContainer}>
+                    <Text style={styles.ttlText}>{ttl}s</Text>
+                  </View>
+                )}
+                <Text style={styles.waitingText}>
+                  Truecaller is placing a missed call to verify your number.
+                  Please wait for the call and do not answer it.
+                </Text>
+              </View>
+
+              <Button
+                title="Retry"
+                onPress={handleRetry}
+                variant="outlined"
+                style={styles.submitBtn}
+              />
+            </View>
+          )}
+
+          {step === 'name_input' && (
             <View style={styles.form}>
               <Input
-                label="OTP Code"
-                value={otp}
-                onChangeText={setOtp}
-                placeholder="Enter 6-digit OTP"
-                keyboardType="number-pad"
-                maxLength={6}
-                leftIcon="lock"
+                label="First Name"
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Enter your first name"
+                leftIcon="account"
                 required
+              />
+
+              <Input
+                label="Last Name (Optional)"
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Enter your last name"
+                leftIcon="account-outline"
               />
 
               <Button
                 title="Verify & Sign In"
-                onPress={handleVerifyOtp}
-                loading={isLoading}
+                onPress={handleVerifyMissedCall}
                 style={styles.submitBtn}
               />
+            </View>
+          )}
 
-              <Button
-                title="Resend OTP"
-                onPress={handleSendOtp}
-                variant="text"
-                disabled={isLoading}
-              />
+          {step === 'verifying' && (
+            <View style={styles.form}>
+              <View style={styles.waitingContainer}>
+                <MaterialCommunityIcons name="progress-check" size={40} color="#2196F3" />
+                <Text style={styles.waitingText}>
+                  Verifying your phone number...
+                </Text>
+              </View>
             </View>
           )}
 
@@ -216,6 +316,32 @@ const styles = StyleSheet.create({
   },
   submitBtn: {
     marginTop: theme.spacing[4],
+  },
+  waitingContainer: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing[4],
+    gap: theme.spacing[4],
+  },
+  ttlContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFF3E0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FF9800',
+  },
+  ttlText: {
+    ...theme.typeScale.h3,
+    color: '#E65100',
+    fontWeight: '700',
+  },
+  waitingText: {
+    ...theme.typeScale.bodyMedium,
+    color: theme.roles.light.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   note: {
     ...theme.typeScale.labelSmall,

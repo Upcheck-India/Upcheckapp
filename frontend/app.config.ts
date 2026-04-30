@@ -68,9 +68,9 @@ export default {
         }
       ],
       [
-        "@ajitpatel28/react-native-truecaller",
+        "@dhana-cs/react-native-truecaller",
         {
-          androidClientId: TRUECALLER_ANDROID_CLIENT_ID,
+          clientId: TRUECALLER_ANDROID_CLIENT_ID,
         }
       ]
     ],

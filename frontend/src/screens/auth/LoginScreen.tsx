@@ -19,7 +19,7 @@ export const LoginScreen = ({ navigation }: any) => {
 
     const { login, isLoading, error, clearError } = useAuthStore();
     const { signInWithGoogle } = useGoogleAuth();
-    const { signInWithTruecaller, isAvailable, isSdkReady } = useTruecallerAuth();
+    const { signInWithTruecaller, isAvailable, isSdkReady, verificationStep } = useTruecallerAuth();
 
     const validate = (): boolean => {
         const newErrors: { email?: string; password?: string } = {};
@@ -45,8 +45,8 @@ export const LoginScreen = ({ navigation }: any) => {
         clearError();
         const result = await signInWithTruecaller();
 
-        // If SDK wasn't ready or verification failed, show phone fallback
-        if (!result && !isSdkReady) {
+        // If 1-tap failed or SDK not available, show phone verification fallback
+        if (!result) {
             setShowPhoneModal(true);
         }
     };
