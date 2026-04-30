@@ -68,7 +68,7 @@ export default {
         }
       ],
       [
-        "@dhana-cs/react-native-truecaller",
+        "./node_modules/@dhana-cs/react-native-truecaller/plugins/withTruecaller.js",
         {
           clientId: TRUECALLER_ANDROID_CLIENT_ID,
         }
