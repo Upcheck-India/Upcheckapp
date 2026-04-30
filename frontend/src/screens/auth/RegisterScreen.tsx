@@ -6,7 +6,9 @@ import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
+import { TruecallerLoginButton } from '../../components/ui/TruecallerLoginButton';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
+import { useTruecallerAuth } from '../../hooks/useTruecallerAuth';
 
 export const RegisterScreen = ({ navigation }: any) => {
     const [firstName, setFirstName] = useState('');
@@ -19,6 +21,7 @@ export const RegisterScreen = ({ navigation }: any) => {
 
     const { signup, isLoading, error, clearError } = useAuthStore();
     const { signInWithGoogle } = useGoogleAuth();
+    const { signInWithTruecaller, isAvailable: isTruecallerAvailable } = useTruecallerAuth();
 
     const validate = (): boolean => {
         const e: Record<string, string> = {};
@@ -139,6 +142,13 @@ export const RegisterScreen = ({ navigation }: any) => {
             />
 
             <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
+
+            {isTruecallerAvailable && (
+                <TruecallerLoginButton
+                    onPress={signInWithTruecaller}
+                    loading={isLoading}
+                />
+            )}
 
             <Button
                 title="Already have an account? Sign In"

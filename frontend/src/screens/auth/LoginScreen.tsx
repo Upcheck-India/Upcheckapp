@@ -6,7 +6,9 @@ import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
+import { TruecallerLoginButton } from '../../components/ui/TruecallerLoginButton';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
+import { useTruecallerAuth } from '../../hooks/useTruecallerAuth';
 
 export const LoginScreen = ({ navigation }: any) => {
     const [email, setEmail] = useState('');
@@ -15,6 +17,7 @@ export const LoginScreen = ({ navigation }: any) => {
 
     const { login, isLoading, error, clearError } = useAuthStore();
     const { signInWithGoogle } = useGoogleAuth();
+    const { signInWithTruecaller, isAvailable: isTruecallerAvailable } = useTruecallerAuth();
 
     const validate = (): boolean => {
         const newErrors: { email?: string; password?: string } = {};
@@ -82,6 +85,13 @@ export const LoginScreen = ({ navigation }: any) => {
                 />
 
                 <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
+
+                {isTruecallerAvailable && (
+                    <TruecallerLoginButton
+                        onPress={signInWithTruecaller}
+                        loading={isLoading}
+                    />
+                )}
 
                 <Button
                     title="Forgot Password?"

@@ -55,4 +55,13 @@ export const authApi = {
 
     resendVerification: (email: string) =>
         apiClient.post('/auth/supabase/resend-verification', { email }),
+
+    truecallerOAuth: (payload: {
+        accessToken: string;
+        phoneNumber: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        avatarUrl?: string;
+    }) => apiClient.post<AuthResponse>('/auth/supabase/oauth/truecaller', payload),
 };
