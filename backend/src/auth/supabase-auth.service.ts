@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class SupabaseAuthService {
@@ -205,6 +206,140 @@ export class SupabaseAuthService {
         }
 
         return { message: 'Verification email sent' };
+    }
+
+    // ==================== Truecaller Auth ====================
+
+    async signInWithTruecaller(profile: {
+        phoneNumber: string;
+        firstName: string;
+        lastName?: string;
+        email?: string;
+        avatarUrl?: string;
+    }) {
+        // 1. Check if user exists by phone number
+        const { data: existingUser, error: lookupError } = await this.supabase
+            .from('users')
+            .select('*')
+            .eq('phone', profile.phoneNumber)
+            .single();
+
+        if (existingUser) {
+            // 2a. Existing user - update phone_verified and create session
+            await this.supabase
+                .from('users')
+                .update({ phone_verified: true, auth_provider: 'truecaller' })
+                .eq('id', existingUser.id);
+
+            return this.createSessionForUser(existingUser.id, profile);
+        }
+
+        // 2b. New user - check if email exists
+        if (profile.email) {
+            const { data: emailUser } = await this.supabase
+                .from('users')
+                .select('*')
+                .eq('email', profile.email)
+                .single();
+
+            if (emailUser) {
+                // Link phone to existing email user
+                await this.supabase
+                    .from('users')
+                    .update({
+                        phone: profile.phoneNumber,
+                        phone_verified: true,
+                        auth_provider: 'truecaller',
+                    })
+                    .eq('id', emailUser.id);
+
+                return this.createSessionForUser(emailUser.id, profile);
+            }
+        }
+
+        // 3. Create new user
+        const tempEmail = profile.email || `${profile.phoneNumber.replace(/[^0-9]/g, '')}@truecaller.temp`;
+
+        const { data: newUser, error: createError } = await this.supabase.auth.admin.createUser({
+            email: tempEmail,
+            phone: profile.phoneNumber,
+            password: crypto.randomUUID(),
+            email_confirm: !!profile.email,
+            phone_confirm: true,
+            user_metadata: {
+                first_name: profile.firstName,
+                last_name: profile.lastName,
+                avatar_url: profile.avatarUrl,
+                provider: 'truecaller',
+                phone_verified: true,
+            },
+        });
+
+        if (createError) {
+            throw new BadRequestException(createError.message);
+        }
+
+        // Create user record in our DB
+        const { error: dbError } = await this.supabase.from('users').insert({
+            id: newUser.user.id,
+            email: profile.email || null,
+            phone: profile.phoneNumber,
+            first_name: profile.firstName,
+            last_name: profile.lastName,
+            avatar_url: profile.avatarUrl,
+            auth_provider: 'truecaller',
+            phone_verified: true,
+            email_verified: !!profile.email,
+        });
+
+        if (dbError) {
+            throw new BadRequestException(dbError.message);
+        }
+
+        return {
+            user: newUser.user,
+            session: null as any, // admin.createUser doesn't return a session; client gets one via login
+        };
+    }
+
+    private async createSessionForUser(
+        userId: string,
+        profile: { firstName: string; lastName?: string; avatarUrl?: string },
+    ) {
+        // Update user metadata
+        const { data, error } = await this.supabase.auth.admin.updateUserById(userId, {
+            user_metadata: {
+                first_name: profile.firstName,
+                last_name: profile.lastName,
+                avatar_url: profile.avatarUrl,
+                provider: 'truecaller',
+            },
+        });
+
+        if (error) {
+            throw new BadRequestException(error.message);
+        }
+
+        // Generate a new session by creating a magic link
+        const userEmail = data.user.email ?? '';
+        if (!userEmail) {
+            throw new BadRequestException('User email is required to create session');
+        }
+
+        const { data: linkData, error: linkError } =
+            await this.supabase.auth.admin.generateLink({
+                type: 'magiclink',
+                email: userEmail,
+            });
+
+        if (linkError) {
+            throw new BadRequestException(linkError.message);
+        }
+
+        return {
+            user: data.user,
+            session: linkData.properties?.action_link ? null : linkData,
+        };
     }
 
     // ==================== Helpers ====================

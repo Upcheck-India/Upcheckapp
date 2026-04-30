@@ -1,13 +1,18 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { SupabaseAuthService } from './supabase-auth.service';
+import { TruecallerService } from './truecaller.service';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/auth.decorators';
+import { TruecallerAuthDto } from './dto/truecaller-auth.dto';
 import type { User } from '@supabase/supabase-js';
 
 @Controller('auth/supabase')
 export class SupabaseAuthController {
-    constructor(private supabaseAuthService: SupabaseAuthService) { }
+    constructor(
+        private supabaseAuthService: SupabaseAuthService,
+        private truecallerService: TruecallerService,
+    ) { }
 
     // ==================== Email/Password Auth ====================
 
@@ -66,6 +71,36 @@ export class SupabaseAuthController {
 
         return {
             message: 'Google authentication successful',
+            user: result.user,
+            session: result.session,
+        };
+    }
+
+    @Public()
+    @Post('oauth/truecaller')
+    async truecallerOAuth(@Body() body: TruecallerAuthDto) {
+        const { accessToken, phoneNumber, firstName, lastName, email, avatarUrl } = body;
+
+        if (!accessToken || !phoneNumber) {
+            throw new BadRequestException('Access token and phone number are required');
+        }
+
+        // Verify with Truecaller service
+        const isValid = await this.truecallerService.verifyAccessToken(accessToken, phoneNumber);
+        if (!isValid) {
+            throw new UnauthorizedException('Invalid Truecaller credentials');
+        }
+
+        const result = await this.supabaseAuthService.signInWithTruecaller({
+            phoneNumber,
+            firstName: firstName || 'User',
+            lastName,
+            email,
+            avatarUrl,
+        });
+
+        return {
+            message: 'Truecaller authentication successful',
             user: result.user,
             session: result.session,
         };
