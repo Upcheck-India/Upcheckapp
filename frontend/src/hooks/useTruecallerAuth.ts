@@ -1,8 +1,8 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../api/auth';
-import { useTruecaller } from '@ajitpatel28/react-native-truecaller';
 
 const extra = Constants.expoConfig?.extra ?? {};
 
@@ -15,146 +15,154 @@ interface TruecallerUserProfile {
   accessToken: string;
 }
 
+interface TruecallerSDKResult {
+  phoneNumber?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  avatarUrl?: string;
+  accessToken?: string;
+  token?: string;
+  authCode?: string;
+}
+
 export function useTruecallerAuth() {
   const [isAvailable, setIsAvailable] = useState(false);
-  const { setError, setSession } = useAuthStore();
+  const [isSdkReady, setIsSdkReady] = useState(false);
+  const [sdkError, setSdkError] = useState<string | null>(null);
+  const { setError, setSession, truecallerLogin } = useAuthStore();
 
-  const config = {
-    androidClientId: extra.truecallerAndroidClientId || '',
-    iosAppKey: extra.truecallerIosAppKey || '',
-    iosAppLink: extra.truecallerIosAppLink || '',
-    androidButtonColor: '#0087D0',
-    androidButtonTextColor: '#FFFFFF',
-    androidConsentHeading: 'Sign in to UpCheck',
-    androidConsentMode: 'TRUECALLER_ANDROID_CONSENT_MODE_BOTTOMSHEET',
-    androidSdkOptions: 'TRUECALLER_ANDROID_SDK_OPTION_VERIFY_ALL_USERS',
-  };
+  // Track if we've attempted SDK initialization
+  const initAttempted = useRef(false);
 
-  const {
-    initializeTruecallerSDK,
-    openTruecallerForVerification,
-    isSdkUsable,
-    userProfile: sdkUserProfile,
-    error: sdkError,
-    isTruecallerInitialized,
-  } = useTruecaller(config);
+  // Try to import and use the Truecaller SDK
+  const truecallerModuleRef = useRef<any>(null);
 
-  // Check SDK availability after initialization
+  // Initialize SDK on mount - handle native module not available case
   useEffect(() => {
-    if (!config.androidClientId) {
-      setIsAvailable(false);
-      return;
-    }
+    const initSDK = async () => {
+      if (initAttempted.current) return;
+      initAttempted.current = true;
 
-    const checkAvailability = async () => {
+      const clientId = extra.truecallerAndroidClientId || '';
+
+      if (!clientId) {
+        console.warn('Truecaller: No Android Client ID configured');
+        setIsAvailable(true); // Still show button for fallback
+        setIsSdkReady(false);
+        return;
+      }
+
+      // Check if running on Android (Truecaller SDK only works on Android)
+      if (Platform.OS !== 'android') {
+        console.warn('Truecaller: SDK only available on Android');
+        setIsAvailable(true); // Show button for iOS users too (will use fallback)
+        setIsSdkReady(false);
+        return;
+      }
+
       try {
-        if (isTruecallerInitialized) {
-          const usable = await isSdkUsable();
-          setIsAvailable(usable);
+        // Try to dynamically import the module
+        const truecallerModule = require('@ajitpatel28/react-native-truecaller');
+        truecallerModuleRef.current = truecallerModule;
+
+        if (!truecallerModule || !truecallerModule.useTruecaller) {
+          console.warn('Truecaller: Module not available or incomplete');
+          setIsAvailable(true);
+          setIsSdkReady(false);
+          return;
         }
-      } catch (error) {
-        console.error('Truecaller SDK availability check error:', error);
-        setIsAvailable(false);
+
+        const config = {
+          androidClientId: clientId,
+          iosAppKey: extra.truecallerIosAppKey || '',
+          iosAppLink: extra.truecallerIosAppLink || '',
+          androidButtonColor: '#0087D0',
+          androidButtonTextColor: '#FFFFFF',
+          androidConsentHeading: 'Sign in to UpCheck',
+          androidConsentMode: 'TRUECALLER_ANDROID_CONSENT_MODE_BOTTOMSHEET',
+          androidSdkOptions: 'TRUECALLER_ANDROID_SDK_OPTION_VERIFY_ALL_USERS',
+        };
+
+        // Initialize SDK
+        if (truecallerModule.initializeTruecallerSDK) {
+          truecallerModule.initializeTruecallerSDK(config);
+          setIsSdkReady(true);
+          setIsAvailable(true);
+          console.log('Truecaller: SDK initialized successfully');
+        }
+      } catch (error: any) {
+        console.error('Truecaller SDK initialization error:', error?.message || error);
+        // SDK not available - but we still show the button for fallback
+        setIsAvailable(true);
+        setIsSdkReady(false);
+        setSdkError(error?.message || 'SDK not available');
       }
     };
 
-    checkAvailability();
-  }, [isTruecallerInitialized, isSdkUsable]);
-
-  // Initialize SDK on mount
-  useEffect(() => {
-    if (config.androidClientId) {
-      initializeTruecallerSDK();
-    }
-  }, [initializeTruecallerSDK]);
-
-  // Handle SDK errors
-  useEffect(() => {
-    if (sdkError) {
-      console.error('Truecaller SDK error:', sdkError);
-    }
-  }, [sdkError]);
-
-  const parseProfile = useCallback((response: any): TruecallerUserProfile | null => {
-    if (!response) return null;
-
-    const profile = response.profile || response;
-
-    return {
-      phoneNumber: profile.phoneNumber || profile.phone || profile.mobileNumber,
-      firstName: profile.firstName || profile.givenName || profile.name?.split(' ')[0] || 'User',
-      lastName: profile.lastName || profile.familyName || profile.name?.split(' ').slice(1).join(' '),
-      email: profile.email,
-      avatarUrl: profile.avatarUrl || profile.thumbnailUrl || profile.avatar_url,
-      accessToken: response.accessToken || response.token || response.authCode || 'verified',
-    };
+    initSDK();
   }, []);
 
-  // Handle successful verification from SDK
-  useEffect(() => {
-    const handleProfile = async () => {
-      if (sdkUserProfile) {
-        useAuthStore.setState({ isLoading: true, error: null });
+  const parseProfile = (response: TruecallerSDKResult | null): TruecallerUserProfile | null => {
+    if (!response) return null;
 
-        try {
-          const profile = parseProfile(sdkUserProfile);
-
-          if (!profile || !profile.phoneNumber) {
-            throw new Error('Failed to get user profile from Truecaller');
-          }
-
-          const { data } = await authApi.truecallerOAuth({
-            accessToken: profile.accessToken,
-            phoneNumber: profile.phoneNumber,
-            firstName: profile.firstName,
-            lastName: profile.lastName,
-            email: profile.email,
-            avatarUrl: profile.avatarUrl,
-          });
-
-          if (data.session) {
-            setSession(data.session);
-          }
-        } catch (error: any) {
-          const message = error?.message || error?.response?.data?.message || 'Truecaller sign in failed';
-          setError(message);
-        } finally {
-          useAuthStore.setState({ isLoading: false });
-        }
-      }
+    return {
+      phoneNumber: response.phoneNumber || '',
+      firstName: response.firstName || 'User',
+      lastName: response.lastName,
+      email: response.email,
+      avatarUrl: response.avatarUrl,
+      accessToken: response.accessToken || response.token || response.authCode || 'verified',
     };
-
-    handleProfile();
-  }, [sdkUserProfile, parseProfile, setSession, setError]);
+  };
 
   const signInWithTruecaller = useCallback(async () => {
-    if (!isAvailable) {
-      setError('Truecaller is not available on this device');
-      return false;
-    }
-
     useAuthStore.setState({ isLoading: true, error: null });
 
     try {
-      await openTruecallerForVerification();
-      // The userProfile will be handled by the useEffect above
-      return true;
-    } catch (error: any) {
-      const message = error?.message || 'Truecaller verification failed';
+      // If SDK is ready, try Truecaller OAuth first
+      if (isSdkReady && truecallerModuleRef.current) {
+        try {
+          const result = await truecallerModuleRef.current.openTruecallerForVerification();
 
-      if (message.includes('cancel') || message.includes('dismiss')) {
-        setError(null);
-      } else {
-        setError(message);
+          if (result) {
+            const profile = parseProfile(result);
+
+            if (profile && profile.phoneNumber) {
+              await truecallerLogin(profile);
+              return true;
+            }
+          }
+        } catch (sdkError: any) {
+          const errorMsg = sdkError?.message || '';
+
+          // If user cancelled, don't show error
+          if (errorMsg.includes('cancel') || errorMsg.includes('dismiss') || errorMsg.includes('denied')) {
+            useAuthStore.setState({ isLoading: false });
+            return false;
+          }
+
+          // If SDK failed but we have Truecaller installed, try fallback
+          console.warn('Truecaller SDK failed, falling back to phone verification:', errorMsg);
+        }
       }
+
+      // Fallback: Manual phone verification (missed call flow)
+      // This will be handled by showing a phone input modal
+      useAuthStore.setState({ isLoading: false });
+      return false;
+    } catch (error: any) {
+      const message = error?.message || 'Truecaller sign in failed';
+      setError(message);
       useAuthStore.setState({ isLoading: false });
       return false;
     }
-  }, [isAvailable, openTruecallerForVerification, setError]);
+  }, [isSdkReady, truecallerLogin, setError]);
 
   return {
-    isAvailable,
-    isInitialized: isTruecallerInitialized,
+    isAvailable, // Always true if we want to show the button
+    isSdkReady,  // True if native SDK is actually usable
+    sdkError,
     signInWithTruecaller,
   };
 }

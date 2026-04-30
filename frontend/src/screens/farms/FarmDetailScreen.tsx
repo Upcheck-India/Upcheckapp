@@ -66,7 +66,12 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 <View style={styles.cardBody}>
                     <View style={styles.metric}>
                         <MaterialCommunityIcons name="ruler-square" size={16} color={theme.roles.light.textSecondary} />
-                        <Text style={styles.metricText}>{(item.overrideAreaM2 || item.calculatedAreaM2) ? `${(item.overrideAreaM2 || item.calculatedAreaM2)!.toFixed(1)} m²` : 'N/A'}</Text>
+                        <Text style={styles.metricText}>
+                            {(() => {
+                                const area = Number(item.overrideAreaM2) || Number(item.calculatedAreaM2) || 0;
+                                return area > 0 ? `${area.toFixed(1)} m²` : 'N/A';
+                            })()}
+                        </Text>
                     </View>
                     {item.activeCycleId ? (
                         <View style={styles.metric}>

@@ -7,19 +7,22 @@ import { theme } from '../../../theme';
 import { mortalityApi, MortalityRecord } from '../../../api/mortalities';
 
 export const MortalityHistoryScreen = ({ route, navigation }: any) => {
-    const { cropId } = route.params;
+    const { pondId, cropId } = route.params;
     const [records, setRecords] = useState<MortalityRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => { fetchRecords(); }, []);
+    useEffect(() => { fetchRecords(); }, [cropId]);
 
     const fetchRecords = async () => {
         setIsLoading(true);
         try {
-            const { data } = await mortalityApi.getAll();
-            const filtered = cropId ? data.filter((r) => r.cropId === cropId) : data;
-            filtered.sort((a, b) => new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime());
-            setRecords(filtered);
+            if (cropId) {
+                const { data } = await mortalityApi.getByCrop(cropId);
+                const sorted = [...data].sort((a, b) => new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime());
+                setRecords(sorted);
+            } else {
+                setRecords([]);
+            }
         } catch (error) {
             console.log('Failed to fetch mortality records', error);
         } finally {

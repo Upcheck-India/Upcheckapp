@@ -58,6 +58,10 @@ import { MortalityHistoryScreen } from '../screens/logs/History/MortalityHistory
 import { ProfileScreen } from '../screens/settings/ProfileScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
+import { HelpScreen } from '../screens/settings/HelpScreen';
+import { AboutScreen } from '../screens/settings/AboutScreen';
+import { InventoryListScreen } from '../screens/inventory/InventoryListScreen';
+import { InventoryDetailScreen } from '../screens/inventory/InventoryDetailScreen';
 
 export type RootStackParamList = {
     // Auth
@@ -114,6 +118,10 @@ export type RootStackParamList = {
     Profile: undefined;
     Settings: undefined;
     Notifications: undefined;
+    Help: undefined;
+    About: undefined;
+    Inventory: undefined;
+    InventoryDetail: { inventoryId: string; itemName?: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -200,6 +208,10 @@ const RootNavigator = () => {
                     <Stack.Screen name="Profile" component={ProfileScreen} />
                     <Stack.Screen name="Settings" component={SettingsScreen} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
+                    <Stack.Screen name="Help" component={HelpScreen} />
+                    <Stack.Screen name="About" component={AboutScreen} />
+                    <Stack.Screen name="Inventory" component={InventoryListScreen} />
+                    <Stack.Screen name="InventoryDetail" component={InventoryDetailScreen} />
                 </>
             )}
         </Stack.Navigator>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput } from 'react-native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -7,6 +7,7 @@ import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
 import { TruecallerLoginButton } from '../../components/ui/TruecallerLoginButton';
+import { PhoneVerificationModal } from '../../components/ui/PhoneVerificationModal';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import { useTruecallerAuth } from '../../hooks/useTruecallerAuth';
 
@@ -14,10 +15,11 @@ export const LoginScreen = ({ navigation }: any) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+    const [showPhoneModal, setShowPhoneModal] = useState(false);
 
     const { login, isLoading, error, clearError } = useAuthStore();
     const { signInWithGoogle } = useGoogleAuth();
-    const { signInWithTruecaller, isAvailable: isTruecallerAvailable } = useTruecallerAuth();
+    const { signInWithTruecaller, isAvailable, isSdkReady } = useTruecallerAuth();
 
     const validate = (): boolean => {
         const newErrors: { email?: string; password?: string } = {};
@@ -36,6 +38,16 @@ export const LoginScreen = ({ navigation }: any) => {
             await login(email.trim(), password);
         } catch {
             // Error is set in the store
+        }
+    };
+
+    const handleTruecallerPress = async () => {
+        clearError();
+        const result = await signInWithTruecaller();
+
+        // If SDK wasn't ready or verification failed, show phone fallback
+        if (!result && !isSdkReady) {
+            setShowPhoneModal(true);
         }
     };
 
@@ -84,14 +96,17 @@ export const LoginScreen = ({ navigation }: any) => {
                     style={styles.signInBtn}
                 />
 
-                <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
-
-                {isTruecallerAvailable && (
-                    <TruecallerLoginButton
-                        onPress={signInWithTruecaller}
-                        loading={isLoading}
-                    />
-                )}
+                <View style={styles.socialSection}>
+                    <Text style={styles.socialLabel}>Or continue with</Text>
+                    <View style={styles.socialButtons}>
+                        <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
+                        <TruecallerLoginButton
+                            onPress={handleTruecallerPress}
+                            loading={isLoading}
+                            disabled={!isAvailable}
+                        />
+                    </View>
+                </View>
 
                 <Button
                     title="Forgot Password?"
@@ -107,6 +122,11 @@ export const LoginScreen = ({ navigation }: any) => {
                     variant="outlined"
                 />
             </View>
+
+            <PhoneVerificationModal
+                visible={showPhoneModal}
+                onClose={() => setShowPhoneModal(false)}
+            />
         </ScreenWrapper>
     );
 };
@@ -153,6 +173,18 @@ const styles = StyleSheet.create({
     signInBtn: {
         marginTop: theme.spacing[3],
         marginBottom: theme.spacing[3],
+    },
+    socialSection: {
+        marginBottom: theme.spacing[4],
+    },
+    socialLabel: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
+        textAlign: 'center',
+        marginBottom: theme.spacing[3],
+    },
+    socialButtons: {
+        gap: theme.spacing[3],
     },
     divider: {
         height: 1,

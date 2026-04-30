@@ -8,6 +8,7 @@ interface MetricCardProps {
     label: string;
     value: string | number;
     unit?: string;
+    icon?: string;
     trend?: 'up' | 'down' | 'flat';
     trendValue?: string;
     status?: 'safe' | 'warning' | 'critical' | 'normal';
@@ -20,6 +21,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
     label,
     value,
     unit,
+    icon,
     trend,
     trendValue,
     status = 'normal',
@@ -52,6 +54,11 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
     return (
         <Card style={[styles.container, style]}>
+            {icon && (
+                <View style={[styles.iconContainer, { backgroundColor: getStatusColor() + '20' }]}>
+                    <MaterialCommunityIcons name={icon as any} size={20} color={getStatusColor()} />
+                </View>
+            )}
             <Text style={styles.label}>{label}</Text>
 
             <View style={styles.valueRow}>
@@ -81,6 +88,14 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         minWidth: 140, // Useful if rendered in a horizontal grid
+    },
+    iconContainer: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: theme.spacing[2],
     },
     label: {
         ...theme.typeScale.labelMedium,

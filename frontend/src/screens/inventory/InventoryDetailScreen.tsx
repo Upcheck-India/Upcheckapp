@@ -1,0 +1,316 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { theme } from '../../theme';
+import { inventoryApi, InventoryItem } from '../../api/inventory';
+
+export const InventoryDetailScreen = ({ navigation, route }: any) => {
+    const { inventoryId, itemName } = route.params;
+    const [item, setItem] = useState<InventoryItem | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        fetchItem();
+    }, [inventoryId]);
+
+    const fetchItem = async () => {
+        try {
+            const { data } = await inventoryApi.getById(inventoryId);
+            setItem(data);
+        } catch (error) {
+            console.error('Failed to fetch inventory item:', error);
+            Alert.alert('Error', 'Failed to load inventory item');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const getStockStatus = () => {
+        if (!item) return { color: theme.roles.light.textDisabled, label: 'Unknown' };
+        if (item.currentStock <= 0) return { color: theme.roles.light.dangerText, label: 'Out of Stock', icon: 'alert-circle' };
+        if (item.currentStock <= item.minStockThreshold) return { color: theme.roles.light.warningText, label: 'Low Stock', icon: 'alert' };
+        return { color: theme.roles.light.successText, label: 'In Stock', icon: 'check-circle' };
+    };
+
+    const handleAdjustStock = () => {
+        Alert.alert(
+            'Adjust Stock',
+            'Choose an action',
+            [
+                { text: 'Add Stock', onPress: () => Alert.alert('Coming Soon', 'Stock adjustment feature coming soon!') },
+                { text: 'Reduce Stock', onPress: () => Alert.alert('Coming Soon', 'Stock adjustment feature coming soon!') },
+                { text: 'Cancel', style: 'cancel' },
+            ]
+        );
+    };
+
+    const handleEdit = () => {
+        Alert.alert('Coming Soon', 'Edit inventory item feature coming soon!');
+    };
+
+    if (isLoading) {
+        return (
+            <ScreenWrapper>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.roles.light.primary} />
+                </View>
+            </ScreenWrapper>
+        );
+    }
+
+    if (!item) {
+        return (
+            <ScreenWrapper>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                        <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
+                    </TouchableOpacity>
+                    <Text style={styles.title}>{itemName || 'Inventory Item'}</Text>
+                    <View style={{ width: 40 }} />
+                </View>
+                <View style={styles.errorContainer}>
+                    <MaterialCommunityIcons name="database-off" size={64} color={theme.roles.light.textDisabled} />
+                    <Text style={styles.errorText}>Item not found</Text>
+                </View>
+            </ScreenWrapper>
+        );
+    }
+
+    const status = getStockStatus();
+
+    return (
+        <ScreenWrapper scroll={false} padded={false}>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
+                </TouchableOpacity>
+                <Text style={styles.title}>{item.name}</Text>
+                <TouchableOpacity onPress={handleEdit} style={styles.editBtn}>
+                    <MaterialCommunityIcons name="pencil" size={20} color={theme.roles.light.primary} />
+                </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.content}>
+                <View style={[styles.statusBanner, { backgroundColor: status.color + '20' }]}>
+                    <MaterialCommunityIcons name={status.icon as any} size={28} color={status.color} />
+                    <Text style={[styles.statusLabel, { color: status.color }]}>{status.label}</Text>
+                </View>
+
+                <Card style={styles.stockCard}>
+                    <Text style={styles.stockLabel}>Current Stock</Text>
+                    <Text style={styles.stockValue}>{item.currentStock}</Text>
+                    <Text style={styles.stockUnit}>{item.unit}</Text>
+                    <View style={styles.stockBar}>
+                        <View
+                            style={[
+                                styles.stockBarFill,
+                                {
+                                    width: `${Math.min(100, (item.currentStock / (item.minStockThreshold * 2)) * 100)}%`,
+                                    backgroundColor: status.color,
+                                }
+                            ]}
+                        />
+                    </View>
+                    <Text style={styles.thresholdText}>
+                        Minimum threshold: {item.minStockThreshold} {item.unit}
+                    </Text>
+                </Card>
+
+                <Card style={styles.infoCard}>
+                    <View style={styles.infoRow}>
+                        <MaterialCommunityIcons name="shape" size={20} color={theme.roles.light.textSecondary} />
+                        <View style={styles.infoTextContainer}>
+                            <Text style={styles.infoLabel}>Category</Text>
+                            <Text style={styles.infoValue}>{item.category}</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.infoRow}>
+                        <MaterialCommunityIcons name="cube-outline" size={20} color={theme.roles.light.textSecondary} />
+                        <View style={styles.infoTextContainer}>
+                            <Text style={styles.infoLabel}>Unit</Text>
+                            <Text style={styles.infoValue}>{item.unit}</Text>
+                        </View>
+                    </View>
+
+                    {item.lastPurchaseDate && (
+                        <View style={styles.infoRow}>
+                            <MaterialCommunityIcons name="calendar" size={20} color={theme.roles.light.textSecondary} />
+                            <View style={styles.infoTextContainer}>
+                                <Text style={styles.infoLabel}>Last Purchase</Text>
+                                <Text style={styles.infoValue}>
+                                    {new Date(item.lastPurchaseDate).toLocaleDateString()}
+                                </Text>
+                            </View>
+                        </View>
+                    )}
+
+                    {item.notes && (
+                        <View style={[styles.infoRow, styles.noBorder]}>
+                            <MaterialCommunityIcons name="note-text" size={20} color={theme.roles.light.textSecondary} />
+                            <View style={styles.infoTextContainer}>
+                                <Text style={styles.infoLabel}>Notes</Text>
+                                <Text style={styles.infoValue}>{item.notes}</Text>
+                            </View>
+                        </View>
+                    )}
+                </Card>
+
+                <Button
+                    title="Adjust Stock"
+                    onPress={handleAdjustStock}
+                    style={styles.adjustBtn}
+                    icon="package-variant-closed"
+                />
+
+                <Text style={styles.sectionTitle}>Stock History</Text>
+                <Card style={styles.historyCard}>
+                    <View style={styles.historyPlaceholder}>
+                        <MaterialCommunityIcons name="history" size={32} color={theme.roles.light.textDisabled} />
+                        <Text style={styles.historyPlaceholderText}>
+                            Stock adjustment history coming soon
+                        </Text>
+                    </View>
+                </Card>
+            </ScrollView>
+        </ScreenWrapper>
+    );
+};
+
+const styles = StyleSheet.create({
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: theme.spacing[4],
+        borderBottomWidth: 1,
+        borderBottomColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surface,
+    },
+    backBtn: {
+        padding: theme.spacing[4],
+    },
+    title: {
+        ...theme.typeScale.h3,
+        color: theme.roles.light.textPrimary,
+    },
+    editBtn: {
+        padding: theme.spacing[4],
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    errorText: {
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textSecondary,
+        marginTop: theme.spacing[4],
+    },
+    content: {
+        padding: theme.spacing[4],
+        paddingBottom: theme.spacing[12],
+    },
+    statusBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: theme.spacing[4],
+        borderRadius: theme.radius.md,
+        marginBottom: theme.spacing[4],
+    },
+    statusLabel: {
+        ...theme.typeScale.h4,
+        marginLeft: theme.spacing[2],
+    },
+    stockCard: {
+        alignItems: 'center',
+        padding: theme.spacing[6],
+        marginBottom: theme.spacing[4],
+    },
+    stockLabel: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[2],
+    },
+    stockValue: {
+        ...theme.typeScale.h1,
+        color: theme.roles.light.textPrimary,
+    },
+    stockUnit: {
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[4],
+    },
+    stockBar: {
+        width: '100%',
+        height: 8,
+        backgroundColor: theme.roles.light.surfaceVariant,
+        borderRadius: 4,
+        marginBottom: theme.spacing[2],
+    },
+    stockBarFill: {
+        height: 8,
+        borderRadius: 4,
+    },
+    thresholdText: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textDisabled,
+    },
+    infoCard: {
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[4],
+    },
+    infoRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        paddingVertical: theme.spacing[3],
+        borderBottomWidth: 1,
+        borderBottomColor: theme.roles.light.borderDefault,
+    },
+    noBorder: {
+        borderBottomWidth: 0,
+        paddingBottom: 0,
+    },
+    infoTextContainer: {
+        marginLeft: theme.spacing[3],
+        flex: 1,
+    },
+    infoLabel: {
+        ...theme.typeScale.labelSmall,
+        color: theme.roles.light.textSecondary,
+        marginBottom: 2,
+    },
+    infoValue: {
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textPrimary,
+    },
+    adjustBtn: {
+        marginBottom: theme.spacing[6],
+    },
+    sectionTitle: {
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[3],
+    },
+    historyCard: {
+        padding: theme.spacing[4],
+    },
+    historyPlaceholder: {
+        alignItems: 'center',
+        padding: theme.spacing[4],
+    },
+    historyPlaceholderText: {
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textDisabled,
+        marginTop: theme.spacing[2],
+    },
+});

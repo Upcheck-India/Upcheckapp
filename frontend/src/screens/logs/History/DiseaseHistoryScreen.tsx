@@ -13,19 +13,22 @@ const severityColors: Record<string, { bg: string; text: string }> = {
 };
 
 export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
-    const { cropId } = route.params;
+    const { pondId, cropId } = route.params;
     const [records, setRecords] = useState<DiseaseRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => { fetchRecords(); }, []);
+    useEffect(() => { fetchRecords(); }, [cropId]);
 
     const fetchRecords = async () => {
         setIsLoading(true);
         try {
-            const { data } = await diseaseApi.getAll();
-            const filtered = cropId ? data.filter((r) => r.cropId === cropId) : data;
-            filtered.sort((a, b) => new Date(b.recordedDate).getTime() - new Date(a.recordedDate).getTime());
-            setRecords(filtered);
+            if (cropId) {
+                const { data } = await diseaseApi.getByCrop(cropId);
+                const sorted = [...data].sort((a, b) => new Date(b.recordedDate).getTime() - new Date(a.recordedDate).getTime());
+                setRecords(sorted);
+            } else {
+                setRecords([]);
+            }
         } catch (error) {
             console.log('Failed to fetch disease records', error);
         } finally {
