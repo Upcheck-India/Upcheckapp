@@ -28,7 +28,7 @@ export interface CreateDiseaseRecordDto {
 }
 
 export const diseaseApi = {
-    getAll: () => apiClient.get<DiseaseRecord[]>('/disease/record'),
+    getByCrop: (cropId: string) => apiClient.get<DiseaseRecord[]>(`/disease/record/crop/${cropId}`),
     create: (data: CreateDiseaseRecordDto) => apiClient.post<DiseaseRecord>('/disease/record', data),
     getLibrary: () => apiClient.get<DiseaseLibrary[]>('/disease/library'),
 };

@@ -1,6 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
-import { useAuthStore } from '../store/authStore';
 
 const API_URL = Constants.expoConfig?.extra?.apiBaseUrl
     || process.env.EXPO_PUBLIC_API_URL
@@ -12,11 +11,19 @@ const apiClient = axios.create({
     headers: { 'Content-Type': 'application/json' },
 });
 
+// Lazy import to avoid require cycle: authStore -> auth -> client -> authStore
+// We import authStore only when needed in interceptors, not at module load time
+const getAuthState = () => {
+    // Dynamic import to break the cycle
+    const authStore = require('../store/authStore');
+    return authStore.useAuthStore.getState();
+};
+
 // Request interceptor — attach auth token
 apiClient.interceptors.request.use((config) => {
-    const token = useAuthStore.getState().accessToken;
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+    const { accessToken } = getAuthState();
+    if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
     }
     return config;
 });
@@ -72,7 +79,7 @@ apiClient.interceptors.response.use(
         isRefreshing = true;
 
         try {
-            const session = useAuthStore.getState().session;
+            const { session } = getAuthState();
             if (!session?.refresh_token) {
                 throw new Error('No refresh token available');
             }
@@ -88,7 +95,7 @@ apiClient.interceptors.response.use(
             }
 
             // Update the store with new session
-            useAuthStore.getState().setSession(newSession);
+            getAuthState().setSession(newSession);
 
             // Process queued requests with new token
             processQueue(null, newSession.access_token);
@@ -99,7 +106,7 @@ apiClient.interceptors.response.use(
         } catch (refreshError) {
             // Refresh failed — clear everything and log out
             processQueue(refreshError, null);
-            useAuthStore.getState().clearSession();
+            getAuthState().clearSession();
             return Promise.reject(refreshError);
         } finally {
             isRefreshing = false;

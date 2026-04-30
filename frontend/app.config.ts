@@ -1,3 +1,5 @@
+const TRUECALLER_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_TRUECALLER_ANDROID_CLIENT_ID || 'e98dcupeqtmcocbxr7qb4g7b4sub8blazhxrt-1ikmw';
+
 export default {
   expo: {
     name: "upcheck",
@@ -48,7 +50,7 @@ export default {
       googleClientIdWeb: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || "557249592391-104epoeebi8ji9bkeacme4kt6urj4ef7.apps.googleusercontent.com",
       googleClientIdIos: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS || "557249592391-smcje08fcv71hh1vjhmshhvnklpmd7lo.apps.googleusercontent.com",
       googleClientIdAndroid: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID || "557249592391-omumak2q0qnor86nj47m93ln4fsn8uv3.apps.googleusercontent.com",
-      truecallerAndroidClientId: process.env.EXPO_PUBLIC_TRUECALLER_ANDROID_CLIENT_ID || '',
+      truecallerAndroidClientId: TRUECALLER_ANDROID_CLIENT_ID,
       truecallerIosAppKey: process.env.EXPO_PUBLIC_TRUECALLER_IOS_APP_KEY || '',
       truecallerIosAppLink: process.env.EXPO_PUBLIC_TRUECALLER_IOS_APP_LINK || '',
       eas: {
@@ -68,13 +70,11 @@ export default {
       [
         "@ajitpatel28/react-native-truecaller",
         {
-          androidClientId: process.env.EXPO_PUBLIC_TRUECALLER_ANDROID_CLIENT_ID,
+          androidClientId: TRUECALLER_ANDROID_CLIENT_ID,
         }
       ]
     ],
-    runtimeVersion: {
-      policy: "appVersion"
-    },
+    runtimeVersion: "1.0.0",
     updates: {
       url: "https://u.expo.dev/f3274022-ae8a-4be6-9085-23f935542a4c"
     }

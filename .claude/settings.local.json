@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(eas build *)",
+      "Bash(npx expo *)"
+    ]
+  }
+}

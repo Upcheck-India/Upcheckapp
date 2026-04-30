@@ -142,30 +142,21 @@ export const useAuthStore = create<AuthState>()(
 
             initialize: async () => {
                 const state = get();
-                if (state.session) {
+                // Check if we have a refresh token stored
+                const refreshToken = (state as any).refreshToken;
+
+                if (refreshToken) {
                     try {
-                        const { data } = await authApi.getCurrentUser();
-                        set({
-                            isAuthenticated: true,
-                            user: mapSupabaseUser(data.user),
-                            status: 'authenticated',
-                            isLoading: false
-                        });
-                    } catch {
-                        // Token expired — try refresh before giving up
-                        try {
-                            if (state.session.refresh_token) {
-                                const { data } = await authApi.refresh(state.session.refresh_token);
-                                if (data.session) {
-                                    get().setSession(data.session);
-                                    return; // Successfully refreshed
-                                }
-                            }
-                        } catch {
-                            // Refresh also failed
+                        // Use refresh token to get new session
+                        const { data } = await authApi.refresh(refreshToken);
+                        if (data.session) {
+                            get().setSession(data.session);
+                            return; // Successfully restored session
                         }
-                        get().clearSession();
+                    } catch {
+                        // Refresh failed — clear and show login
                     }
+                    get().clearSession();
                 } else {
                     set({ status: 'unauthenticated', isLoading: false });
                 }
@@ -265,12 +256,14 @@ export const useAuthStore = create<AuthState>()(
                 setItem: (key, value) => SecureStore.setItemAsync(key, value),
                 removeItem: (key) => SecureStore.deleteItemAsync(key),
             })),
-            // Only persist user, session (refresh token mostly), and pending email.
-            // Do NOT persist accessToken directly as per Blueprint.
+            // Only persist minimal data to avoid SecureStore size limit (2048 bytes)
+            // Store: refresh_token for session restoration, user.id/email for quick access
+            // Do NOT persist full session object or user metadata
             partialize: (state) => ({
-                user: state.user,
+                refreshToken: state.session?.refresh_token,
+                userId: state.user?.id,
+                userEmail: state.user?.email,
                 pendingVerificationEmail: state.pendingVerificationEmail,
-                session: state.session,
             }),
         }
     )

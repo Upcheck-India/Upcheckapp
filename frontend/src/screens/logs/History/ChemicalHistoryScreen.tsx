@@ -7,19 +7,22 @@ import { theme } from '../../../theme';
 import { logResourcesApi, ChemicalRecord } from '../../../api/logResources';
 
 export const ChemicalHistoryScreen = ({ route, navigation }: any) => {
-    const { cropId } = route.params;
+    const { pondId, cropId } = route.params;
     const [records, setRecords] = useState<ChemicalRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => { fetchRecords(); }, []);
+    useEffect(() => { fetchRecords(); }, [cropId]);
 
     const fetchRecords = async () => {
         setIsLoading(true);
         try {
-            const { data } = await logResourcesApi.getAllChemical();
-            const filtered = cropId ? data.filter((r) => r.cropId === cropId) : data;
-            filtered.sort((a, b) => new Date(b.measurementDate).getTime() - new Date(a.measurementDate).getTime());
-            setRecords(filtered);
+            if (cropId) {
+                const { data } = await logResourcesApi.getChemicalByCrop(cropId);
+                const sorted = [...data].sort((a, b) => new Date(b.measurementDate).getTime() - new Date(a.measurementDate).getTime());
+                setRecords(sorted);
+            } else {
+                setRecords([]);
+            }
         } catch (error) {
             console.log('Failed to fetch chemical records', error);
         } finally {

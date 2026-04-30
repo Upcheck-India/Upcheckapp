@@ -21,7 +21,7 @@ export interface CreateMortalityRecordDto {
 }
 
 export const mortalityApi = {
-    getAll: () => apiClient.get<MortalityRecord[]>('/mortality'),
+    getByCrop: (cropId: string) => apiClient.get<MortalityRecord[]>(`/mortality/crop/${cropId}`),
     create: (data: CreateMortalityRecordDto) => apiClient.post<MortalityRecord>('/mortality', data),
 };
 

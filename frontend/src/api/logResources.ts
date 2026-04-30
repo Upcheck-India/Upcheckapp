@@ -110,11 +110,22 @@ export interface CreateMicrobiologyDataDto {
 }
 
 export const logResourcesApi = {
-    getAllChemical: () => apiClient.get<ChemicalRecord[]>('/chemical-data'),
-    createChemical: (data: CreateChemicalDataDto) => apiClient.post<ChemicalRecord>('/chemical-data', data),
-    getAllPlankton: () => apiClient.get<PlanktonRecord[]>('/plankton-data'),
-    createPlankton: (data: CreatePlanktonDataDto) => apiClient.post<PlanktonRecord>('/plankton-data', data),
-    getAllMicrobiology: () => apiClient.get<MicrobiologyRecord[]>('/microbiology-data'),
-    createMicrobiology: (data: CreateMicrobiologyDataDto) => apiClient.post<MicrobiologyRecord>('/microbiology-data', data),
+    // Chemical - requires cropId for fetching
+    getChemicalByCrop: (cropId: string) =>
+        apiClient.get<ChemicalRecord[]>(`/chemical-data/crop/${cropId}`),
+    createChemical: (data: CreateChemicalDataDto) =>
+        apiClient.post<ChemicalRecord>('/chemical-data', data),
+
+    // Plankton - requires cropId for fetching
+    getPlanktonByCrop: (cropId: string) =>
+        apiClient.get<PlanktonRecord[]>(`/plankton-data/crop/${cropId}`),
+    createPlankton: (data: CreatePlanktonDataDto) =>
+        apiClient.post<PlanktonRecord>('/plankton-data', data),
+
+    // Microbiology - requires cropId for fetching
+    getMicrobiologyByCrop: (cropId: string) =>
+        apiClient.get<MicrobiologyRecord[]>(`/microbiology-data/crop/${cropId}`),
+    createMicrobiology: (data: CreateMicrobiologyDataDto) =>
+        apiClient.post<MicrobiologyRecord>('/microbiology-data', data),
 };
 

@@ -1,11 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { FAB } from '../../components/ui/FAB';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
+import { SkeletonList } from '../../components/ui/Skeleton';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { theme } from '../../theme';
 import { pondsApi, Pond } from '../../api/ponds';
@@ -15,31 +17,81 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
     const [ponds, setPonds] = useState<Pond[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [error, setError] = useState<any>(null);
+    const [isOffline, setIsOffline] = useState(false);
 
-    const fetchPonds = async () => {
+    // Animation refs
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(0.95)).current;
+
+    // Cache ref
+    const cacheRef = useRef<{ data: Pond[]; timestamp: number } | null>(null);
+    const CACHE_TTL = 30000;
+
+    const fadeIn = useCallback(() => {
+        Animated.parallel([
+            Animated.timing(fadeAnim, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+            Animated.spring(scaleAnim, {
+                toValue: 1,
+                friction: 8,
+                tension: 100,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, [fadeAnim, scaleAnim]);
+
+    const fetchPonds = useCallback(async (forceRefresh = false) => {
+        if (!forceRefresh && cacheRef.current) {
+            const { data, timestamp } = cacheRef.current;
+            if (Date.now() - timestamp < CACHE_TTL) {
+                setPonds(data);
+                setIsLoading(false);
+                fadeIn();
+                return;
+            }
+        }
+
+        setError(null);
+        setIsOffline(false);
+
         try {
             const response = await pondsApi.getAll(farmId);
             const result = response.data;
-            // Backend returns PageDto { data: Pond[], meta: {...} }
-            setPonds(Array.isArray(result) ? result : result.data || []);
-        } catch (error) {
-            console.error('Failed to fetch ponds:', error);
+            const pondsData = Array.isArray(result) ? result : result.data || [];
+            setPonds(pondsData);
+            cacheRef.current = { data: pondsData, timestamp: Date.now() };
+            fadeIn();
+        } catch (err: any) {
+            const statusCode = err?.response?.status;
+            if (statusCode === 0 || err?.code === 'NETWORK_ERROR' || !err?.response) {
+                setIsOffline(true);
+            }
+            setError(err);
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    };
+    }, [farmId, fadeIn]);
 
     useFocusEffect(
         useCallback(() => {
             fetchPonds();
-        }, [farmId])
+        }, [fetchPonds])
     );
 
-    const handleRefresh = () => {
+    const handleRefresh = useCallback(() => {
         setIsRefreshing(true);
-        fetchPonds();
-    };
+        fetchPonds(true);
+    }, [fetchPonds]);
+
+    const handleRetry = useCallback(() => {
+        setIsLoading(true);
+        fetchPonds(true);
+    }, [fetchPonds]);
 
     const getStatusType = (status: string) => {
         if (status === 'active') return 'active';
@@ -49,40 +101,63 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
         return 'info';
     };
 
-    const renderPondCard = ({ item }: { item: Pond }) => (
-        <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('PondDashboard', { pondId: item.id, pondName: item.name })}
-        >
-            <Card style={styles.card}>
-                <View style={styles.cardHeader}>
-                    <View style={styles.titleContainer}>
-                        <Text style={styles.pondName}>{item.displayName || item.name}</Text>
-                        <Text style={styles.pondType}>{item.constructionType || item.geometryType || 'N/A'}</Text>
-                    </View>
-                    <StatusBadge status={getStatusType(item.status)} label={item.status} />
-                </View>
-
-                <View style={styles.cardBody}>
-                    <View style={styles.metric}>
-                        <MaterialCommunityIcons name="ruler-square" size={16} color={theme.roles.light.textSecondary} />
-                        <Text style={styles.metricText}>{(item.overrideAreaM2 || item.calculatedAreaM2) ? `${(item.overrideAreaM2 || item.calculatedAreaM2)!.toFixed(1)} m²` : 'N/A'}</Text>
-                    </View>
-                    {item.activeCycleId ? (
-                        <View style={styles.metric}>
-                            <MaterialCommunityIcons name="water" size={16} color={theme.roles.light.successText} />
-                            <Text style={[styles.metricText, { color: theme.roles.light.successText }]}>Active Cycle</Text>
-                        </View>
-                    ) : (
-                        <View style={styles.metric}>
-                            <MaterialCommunityIcons name="water-off" size={16} color={theme.roles.light.textDisabled} />
-                            <Text style={styles.metricText}>No Active Cycle</Text>
-                        </View>
-                    )}
-                </View>
-            </Card>
-        </TouchableOpacity>
+    const renderSkeleton = () => (
+        <View style={styles.listContent}>
+            <SkeletonList count={3} />
+        </View>
     );
+
+    const renderPondCard = useCallback(({ item, index }: { item: Pond; index: number }) => {
+        const animStyle = {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+        };
+
+        return (
+            <Animated.View style={animStyle}>
+                <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => navigation.navigate('PondDashboard', { pondId: item.id, pondName: item.name })}
+                >
+                    <Card style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <View style={styles.iconContainer}>
+                                <MaterialCommunityIcons name="water" size={24} color={theme.roles.light.primary} />
+                            </View>
+                            <View style={styles.titleContainer}>
+                                <Text style={styles.pondName}>{item.displayName || item.name}</Text>
+                                <Text style={styles.pondType}>{item.constructionType || item.geometryType || 'N/A'}</Text>
+                            </View>
+                            <StatusBadge status={getStatusType(item.status)} label={item.status} />
+                        </View>
+
+                        <View style={styles.cardBody}>
+                            <View style={styles.metric}>
+                                <MaterialCommunityIcons name="ruler-square" size={16} color={theme.roles.light.textSecondary} />
+                                <Text style={styles.metricText}>
+                                    {(() => {
+                                        const area = Number(item.overrideAreaM2) || Number(item.calculatedAreaM2) || 0;
+                                        return area > 0 ? `${area.toFixed(1)} m²` : 'N/A';
+                                    })()}
+                                </Text>
+                            </View>
+                            {item.activeCycleId ? (
+                                <View style={styles.metric}>
+                                    <MaterialCommunityIcons name="water-check" size={16} color={theme.roles.light.successText} />
+                                    <Text style={[styles.metricText, { color: theme.roles.light.successText }]}>Active Cycle</Text>
+                                </View>
+                            ) : (
+                                <View style={styles.metric}>
+                                    <MaterialCommunityIcons name="water-off" size={16} color={theme.roles.light.textDisabled} />
+                                    <Text style={styles.metricText}>No Active Cycle</Text>
+                                </View>
+                            )}
+                        </View>
+                    </Card>
+                </TouchableOpacity>
+            </Animated.View>
+        );
+    }, [navigation, fadeAnim, scaleAnim]);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -91,17 +166,36 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{farmName}</Text>
-                <View style={{ width: 40 }} />
+                <TouchableOpacity onPress={() => navigation.navigate('CreatePond', { farmId })}>
+                    <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
+                </TouchableOpacity>
             </View>
 
-            <FlatList
-                data={ponds}
-                keyExtractor={(item) => item.id}
-                renderItem={renderPondCard}
-                contentContainerStyle={styles.listContent}
-                refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[theme.roles.light.primary]} />}
-                ListEmptyComponent={
-                    !isLoading ? (
+            {isLoading ? (
+                renderSkeleton()
+            ) : isOffline ? (
+                <NetworkError onRetry={handleRetry} />
+            ) : error && ponds.length === 0 ? (
+                <ErrorState
+                    title="Couldn't Load Ponds"
+                    error={error}
+                    onRetry={handleRetry}
+                />
+            ) : (
+                <FlatList
+                    data={ponds}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderPondCard}
+                    contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefreshing}
+                            onRefresh={handleRefresh}
+                            colors={[theme.roles.light.primary]}
+                            tintColor={theme.roles.light.primary}
+                        />
+                    }
+                    ListEmptyComponent={
                         <EmptyState
                             icon="water-outline"
                             title="No Ponds Found"
@@ -109,9 +203,9 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                             actionLabel="Add Pond"
                             onAction={() => navigation.navigate('CreatePond', { farmId })}
                         />
-                    ) : null
-                }
-            />
+                    }
+                />
+            )}
             <FAB icon="plus" onPress={() => navigation.navigate('CreatePond', { farmId })} />
         </ScreenWrapper>
     );
@@ -140,21 +234,30 @@ const styles = StyleSheet.create({
     },
     card: {
         marginBottom: theme.spacing[4],
+        padding: 0,
+        overflow: 'hidden',
     },
     cardHeader: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: theme.spacing[4],
+        alignItems: 'center',
+        padding: theme.spacing[4],
+    },
+    iconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: theme.roles.light.infoBg,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: theme.spacing[4],
     },
     titleContainer: {
         flex: 1,
-        marginRight: theme.spacing[4],
     },
     pondName: {
         ...theme.typeScale.h3,
         color: theme.roles.light.textPrimary,
-        marginBottom: 4,
+        marginBottom: 2,
     },
     pondType: {
         ...theme.typeScale.bodySmall,
@@ -164,9 +267,8 @@ const styles = StyleSheet.create({
     cardBody: {
         flexDirection: 'row',
         gap: theme.spacing[6],
-        paddingTop: theme.spacing[4],
-        borderTopWidth: 1,
-        borderTopColor: theme.roles.light.borderDefault,
+        padding: theme.spacing[4],
+        backgroundColor: theme.roles.light.surfaceVariant,
     },
     metric: {
         flexDirection: 'row',
