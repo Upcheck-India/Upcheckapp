@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FeedRecord } from './feed-record.entity';
@@ -21,10 +21,8 @@ export class FeedRecordsService {
     ) { }
 
     async create(createDto: CreateFeedRecordDto, userId: string) {
-        // Fetch pond to get activeCycleId and verify ownership
         const pond = await this.pondsService.findOne(createDto.pondId, userId);
 
-        // If inventory item selected, deduct stock
         if (createDto.inventoryItemId) {
             await this.inventoryService.adjustStock(createDto.inventoryItemId, -createDto.quantityKg);
         }
@@ -60,17 +58,22 @@ export class FeedRecordsService {
         return new PageDto(items, pageMetaDto);
     }
 
-    findOne(id: string) {
-        return this.recordsRepository.findOneBy({ id });
+    async findOne(id: string): Promise<FeedRecord> {
+        const record = await this.recordsRepository.findOneBy({ id });
+        if (!record) throw new NotFoundException(`Feed record with ID ${id} not found`);
+        return record;
     }
 
-    async update(id: string, updateDto: UpdateFeedRecordDto) {
+    async update(id: string, updateDto: UpdateFeedRecordDto): Promise<FeedRecord> {
+        await this.findOne(id);
         await this.recordsRepository.update(id, updateDto);
         return this.findOne(id);
     }
 
-    remove(id: string) {
-        return this.recordsRepository.delete(id);
+    async remove(id: string): Promise<{ message: string }> {
+        await this.findOne(id);
+        await this.recordsRepository.delete(id);
+        return { message: 'Feed record deleted successfully' };
     }
 
     async getTotalFeedByPond(pondId: string) {
@@ -82,7 +85,6 @@ export class FeedRecordsService {
         return result?.totalFeed || 0;
     }
     async getDailyFeedUsage(farmId: string, date: Date) {
-        // Get start and end of day
         const startOfDay = new Date(date);
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(date);

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FeedingTrayCheck } from './feeding-tray-check.entity';
@@ -27,16 +27,21 @@ export class FeedingTrayChecksService {
         return this.checksRepository.find({ order: { checkDate: 'DESC' } });
     }
 
-    findOne(id: string) {
-        return this.checksRepository.findOneBy({ id });
+    async findOne(id: string): Promise<FeedingTrayCheck> {
+        const record = await this.checksRepository.findOneBy({ id });
+        if (!record) throw new NotFoundException(`Feeding tray check with ID ${id} not found`);
+        return record;
     }
 
-    async update(id: string, updateDto: UpdateFeedingTrayCheckDto) {
+    async update(id: string, updateDto: UpdateFeedingTrayCheckDto): Promise<FeedingTrayCheck> {
+        await this.findOne(id);
         await this.checksRepository.update(id, updateDto);
         return this.findOne(id);
     }
 
-    remove(id: string) {
-        return this.checksRepository.delete(id);
+    async remove(id: string): Promise<{ message: string }> {
+        await this.findOne(id);
+        await this.checksRepository.delete(id);
+        return { message: 'Feeding tray check deleted successfully' };
     }
 }
