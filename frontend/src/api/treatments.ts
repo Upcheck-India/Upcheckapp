@@ -1,15 +1,16 @@
 import apiClient from './client';
 
-export interface TreatmentRecord {
+export interface Treatment {
     id: string;
     cropId: string;
     treatmentDate: string;
     basedOn?: string;
     description: string;
-    productId?: string;
+    productId?: string | null;
     dosageKg?: number;
     notes?: string;
-    createdAt?: string;
+    createdAt: string;
+    updatedAt: string;
 }
 
 export interface CreateTreatmentDto {
@@ -22,7 +23,24 @@ export interface CreateTreatmentDto {
     notes?: string;
 }
 
+export interface UpdateTreatmentDto extends Partial<Omit<CreateTreatmentDto, 'cropId'>> {}
+
+/** @deprecated Use Treatment instead */
+export type TreatmentRecord = Treatment;
+
 export const treatmentsApi = {
-    getAll: () => apiClient.get<TreatmentRecord[]>('/treatments'),
-    create: (data: CreateTreatmentDto) => apiClient.post<TreatmentRecord>('/treatments', data),
+    getAll: (cropId?: string) =>
+        apiClient.get<Treatment[]>('/treatments', { params: cropId ? { cropId } : {} }),
+
+    getById: (id: string) =>
+        apiClient.get<Treatment>(`/treatments/${id}`),
+
+    create: (data: CreateTreatmentDto) =>
+        apiClient.post<Treatment>('/treatments', data),
+
+    update: (id: string, data: UpdateTreatmentDto) =>
+        apiClient.patch<Treatment>(`/treatments/${id}`, data),
+
+    delete: (id: string) =>
+        apiClient.delete(`/treatments/${id}`),
 };

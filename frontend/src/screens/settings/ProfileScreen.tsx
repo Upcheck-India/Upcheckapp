@@ -9,11 +9,11 @@ import { Skeleton, SkeletonAvatar } from '../../components/ui/Skeleton';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
-import { profilesApi, Profile, UpdateProfileDto } from '../../api/profiles';
+import { profilesApi, ProfileCompat, CompatUpdateProfileDto } from '../../api/profiles';
 
 export const ProfileScreen = ({ navigation }: any) => {
     const { user } = useAuthStore();
-    const [profile, setProfile] = useState<Profile | null>(null);
+    const [profile, setProfile] = useState<ProfileCompat | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -78,7 +78,7 @@ export const ProfileScreen = ({ navigation }: any) => {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            const updateData: UpdateProfileDto = {
+            const updateData: CompatUpdateProfileDto = {
                 firstName: firstName.trim() || undefined,
                 lastName: lastName.trim() || undefined,
                 phone: phone.trim() || undefined,

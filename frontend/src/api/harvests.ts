@@ -1,19 +1,26 @@
 import apiClient from './client';
 
-export interface HarvestRecord {
+export type HarvestType = 'partial' | 'full';
+export type HarvestStatus = 'pending' | 'sold' | 'discarded';
+
+export interface Harvest {
     id: string;
     cropId: string;
     harvestDate: string;
     weightKg: number;
-    count?: number;
-    averageSize?: number;
-    salePriceTotal?: number;
-    buyerName?: string;
-    harvestType: 'partial' | 'full';
-    status?: 'pending' | 'sold' | 'discarded';
-    notes?: string;
-    createdAt?: string;
+    count?: number | null;
+    averageSize?: number | null;
+    salePriceTotal?: number | null;
+    buyerName?: string | null;
+    harvestType: HarvestType;
+    status: HarvestStatus;
+    notes?: string | null;
+    createdAt: string;
+    updatedAt: string;
 }
+
+/** @deprecated Use Harvest instead */
+export type HarvestRecord = Harvest;
 
 export interface CreateHarvestDto {
     cropId: string;
@@ -23,12 +30,21 @@ export interface CreateHarvestDto {
     averageSize?: number;
     salePriceTotal?: number;
     buyerName?: string;
-    harvestType: 'partial' | 'full';
-    status?: 'pending' | 'sold' | 'discarded';
+    harvestType: HarvestType;
+    status?: HarvestStatus;
     notes?: string;
 }
 
 export const harvestsApi = {
-    getAll: () => apiClient.get<HarvestRecord[]>('/harvests'),
-    create: (data: CreateHarvestDto) => apiClient.post<HarvestRecord>('/harvests', data),
+    getAll: (cropId?: string) =>
+        apiClient.get<Harvest[]>('/harvests', { params: cropId ? { cropId } : {} }),
+
+    getById: (id: string) =>
+        apiClient.get<Harvest>(`/harvests/${id}`),
+
+    create: (data: CreateHarvestDto) =>
+        apiClient.post<Harvest>('/harvests', data),
+
+    delete: (id: string) =>
+        apiClient.delete(`/harvests/${id}`),
 };
