@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Crop } from './crop.entity';
@@ -18,8 +18,8 @@ export class CropsService {
         // Verify user owns the pond
         const pond = await this.pondsService.findOne(createCropDto.pondId, userId);
 
-        if (pond.activeCycleId && createCropDto.status === 'active') {
-            throw new ForbiddenException('Pond already has an active cycle. close it first.');
+        if (pond.activeCycleId && (createCropDto.status === 'active' || !createCropDto.status)) {
+            throw new ConflictException('Pond already has an active cycle. Close it first before starting a new one.');
         }
 
 
@@ -85,7 +85,33 @@ export class CropsService {
         }
         // Verify ownership via pond
         await this.pondsService.findOne(crop.pondId, userId);
-        return crop;
+        return this.enrichWithDOC(crop);
+    }
+
+    /**
+     * Compute Day of Culture (DOC) dynamically based on stockingDate vs current date.
+     * Accounts for initialAgeDays at stocking time.
+     * Returns 0 if stockingDate is not set or is in the future.
+     */
+    computeDOC(crop: Crop): number {
+        if (!crop.stockingDate) return 0;
+        const stocked = new Date(crop.stockingDate);
+        const now = new Date();
+        const diffMs = now.getTime() - stocked.getTime();
+        if (diffMs <= 0) return 0;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        return diffDays + (crop.initialAgeDays || 0);
+    }
+
+    /**
+     * Attach computed DOC to a crop object for API responses.
+     * The stored `doc` column is not updated — DOC is always computed dynamically.
+     */
+    private enrichWithDOC(crop: Crop) {
+        return {
+            ...crop,
+            computedDOC: this.computeDOC(crop),
+        };
     }
 
     async update(id: string, updateCropDto: UpdateCropDto, userId: string) {

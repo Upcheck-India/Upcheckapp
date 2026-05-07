@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Crop } from '../crops/crop.entity';
@@ -35,6 +35,9 @@ export class SimulationsService {
     ) { }
 
     async runSimulation(dto: RunSimulationDto, userId: string) {
+        // Validate input parameters
+        this.validateSimulationInputs(dto);
+
         // FIXED: Load crop first to fail early if no crop? 
         // Actually, let's load Pond first to secure it.
         const pond = await this.pondsRepository.findOne({
@@ -159,5 +162,41 @@ export class SimulationsService {
             simulation: savedSimulation,
             result: response,
         };
+    }
+
+    /**
+     * Validate simulation input parameters make sense.
+     * Throws BadRequestException for invalid inputs.
+     */
+    private validateSimulationInputs(dto: RunSimulationDto): void {
+        const errors: string[] = [];
+        const variables = dto.variables || {};
+
+        switch (dto.scenarioType) {
+            case SimulationScenarioType.FeedChange:
+                if (variables.feedPrice !== undefined && variables.feedPrice <= 0) {
+                    errors.push('Feed price must be greater than 0');
+                }
+                if (variables.growthImprovement !== undefined && variables.growthImprovement <= -100) {
+                    errors.push('Growth improvement cannot be -100% or lower');
+                }
+                break;
+
+            case SimulationScenarioType.PriceChange:
+                if (variables.sellingPrice !== undefined && variables.sellingPrice <= 0) {
+                    errors.push('Selling price must be greater than 0');
+                }
+                break;
+
+            case SimulationScenarioType.StockingDensity:
+                if (variables.stockingDensity !== undefined && variables.stockingDensity <= 0) {
+                    errors.push('Stocking density must be greater than 0');
+                }
+                break;
+        }
+
+        if (errors.length > 0) {
+            throw new BadRequestException(errors.join('; '));
+        }
     }
 }
