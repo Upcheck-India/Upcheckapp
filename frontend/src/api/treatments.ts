@@ -23,6 +23,7 @@ export interface CreateTreatmentDto {
 }
 
 export const treatmentsApi = {
-    getAll: () => apiClient.get<TreatmentRecord[]>('/treatments'),
+    getAll: (cropId?: string) => apiClient.get<TreatmentRecord[]>('/treatments', { params: cropId ? { cropId } : {} }),
+    getByCrop: (cropId: string) => apiClient.get<TreatmentRecord[]>('/treatments', { params: { cropId } }),
     create: (data: CreateTreatmentDto) => apiClient.post<TreatmentRecord>('/treatments', data),
 };

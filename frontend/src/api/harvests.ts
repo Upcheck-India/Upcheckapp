@@ -29,6 +29,7 @@ export interface CreateHarvestDto {
 }
 
 export const harvestsApi = {
-    getAll: () => apiClient.get<HarvestRecord[]>('/harvests'),
+    getAll: (cropId?: string) => apiClient.get<HarvestRecord[]>('/harvests', { params: cropId ? { cropId } : {} }),
+    getByCrop: (cropId: string) => apiClient.get<HarvestRecord[]>('/harvests', { params: { cropId } }),
     create: (data: CreateHarvestDto) => apiClient.post<HarvestRecord>('/harvests', data),
 };

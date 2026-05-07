@@ -5,6 +5,7 @@ import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
 import { SkeletonList } from '../../../components/ui/Skeleton';
 import { ErrorState, NetworkError } from '../../../components/ui/ErrorState';
+import { FAB } from '../../../components/ui/FAB';
 import { theme } from '../../../theme';
 import { mortalityApi, MortalityRecord } from '../../../api/mortalities';
 
@@ -16,11 +17,9 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
     const [error, setError] = useState<any>(null);
     const [isOffline, setIsOffline] = useState(false);
 
-    // Animation refs
-    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
-    // Cache ref
-    const cacheRef = useRef<{ data: MortalityRecord[]; timestamp: number } | null>(null);
+    const cacheRef = React.useRef<{ data: MortalityRecord[]; timestamp: number } | null>(null);
     const CACHE_TTL = 30000;
 
     const fadeIn = useCallback(() => {
@@ -90,7 +89,7 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
         </View>
     );
 
-    const renderItem = useCallback(({ item, index }: { item: MortalityRecord; index: number }) => {
+    const renderItem = useCallback(({ item }: { item: MortalityRecord }) => {
         const animStyle = { opacity: fadeAnim };
 
         return (
@@ -129,11 +128,7 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
             ) : isOffline ? (
                 <NetworkError onRetry={handleRetry} />
             ) : error && records.length === 0 ? (
-                <ErrorState
-                    title="Couldn't Load Records"
-                    error={error}
-                    onRetry={handleRetry}
-                />
+                <ErrorState title="Couldn't Load Records" error={error} onRetry={handleRetry} />
             ) : (
                 <>
                     {records.length > 0 && (
@@ -167,6 +162,8 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
                     />
                 </>
             )}
+
+            <FAB icon="plus" onPress={() => navigation.navigate('MortalityLog', { pondId, cropId })} />
         </ScreenWrapper>
     );
 };
