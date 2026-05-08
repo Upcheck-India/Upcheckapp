@@ -1,64 +1,120 @@
 import apiClient from './client';
 
-export interface CultivationPerformanceRequest {
-    initialCount: number;
-    currentCount?: number;
-    totalHarvestKg: number;
+// ── FCR ────────────────────────────────────────────────────
+export interface FcrRequest {
     totalFeedKg: number;
-    daysOfCulture: number;
-    areaM2?: number;
+    harvestWeightKg: number;
 }
 
-export interface CultivationPerformanceResponse {
-    survivalRate: number | null;
-    adg: number | null;
-    abw: number | null;
+export interface FcrResponse {
     fcr: number;
-    productivity: number | null;
 }
 
+// ── ADG ────────────────────────────────────────────────────
+export interface AdgRequest {
+    initialWeightG: number;
+    finalWeightG: number;
+    daysOfCulture: number;
+}
+
+export interface AdgResponse {
+    adgG: number;
+}
+
+// ── Survival Rate ──────────────────────────────────────────
+export interface SurvivalRateRequest {
+    initialStock: number;
+    harvestedCount: number;
+}
+
+export interface SurvivalRateResponse {
+    survivalRatePercent: number;
+}
+
+// ── Daily Feed ─────────────────────────────────────────────
 export interface DailyFeedRequest {
-    abw: number;
-    estimatedSurvival: number;
-    initialCount: number;
-    feedPercentBodyWeight: number;
+    biomassKg: number;
+    feedingPercentage: number;
 }
 
 export interface DailyFeedResponse {
     dailyFeedKg: number;
 }
 
-export interface ProductAmountRequest {
-    pondVolumeM3: number;
-    targetDosagePpm: number;
+// ── Expected Harvest ───────────────────────────────────────
+export interface ExpectedHarvestRequest {
+    stockingCount: number;
+    survivalRatePercent: number;
+    targetWeightG: number;
 }
 
-export interface ProductAmountResponse {
-    productAmountKg: number;
+export interface ExpectedHarvestResponse {
+    expectedCount: number;
+    expectedWeightKg: number;
 }
 
+// ── Cultivation Performance ────────────────────────────────
+export interface CultivationPerformanceRequest {
+    dailyFeed: number;
+    fr: number;
+    abw: number;
+    cumulativeFeed: number;
+    initialStocking: number;
+}
+
+export interface CultivationPerformanceResponse {
+    biomass: number;
+    population: number;
+    fcr: number;
+    sr: number;
+}
+
+// ── Free Ammonia ───────────────────────────────────────────
 export interface FreeAmmoniaRequest {
-    totalAmmoniaNitrogen: number;
-    temperature: number;
+    tan: number;
     ph: number;
-    salinity: number;
+    temperature: number;
 }
 
 export interface FreeAmmoniaResponse {
-    freeAmmonia: number;
-    toxicLevel: boolean;
+    unionizedAmmonia: number;
+    toxicityLevel: string;
 }
 
+// ── Product Dosage ─────────────────────────────────────────
+export interface ProductDosageRequest {
+    pondArea: number;
+    waterLevel: number;
+    dosage: number;
+}
+
+export interface ProductDosageResponse {
+    amountKg: number;
+}
+
+// ── API ────────────────────────────────────────────────────
 export const calculatorsApi = {
-    calculatePerformance: (data: CultivationPerformanceRequest) =>
-        apiClient.post<CultivationPerformanceResponse>('/shrimp-calculations/cultivation-performance', data),
+    calculateFcr: (data: FcrRequest) =>
+        apiClient.post<FcrResponse>('/shrimp-calculations/fcr', data),
+
+    calculateAdg: (data: AdgRequest) =>
+        apiClient.post<AdgResponse>('/shrimp-calculations/adg', data),
+
+    calculateSurvivalRate: (data: SurvivalRateRequest) =>
+        apiClient.post<SurvivalRateResponse>('/shrimp-calculations/survival-rate', data),
 
     calculateDailyFeed: (data: DailyFeedRequest) =>
         apiClient.post<DailyFeedResponse>('/shrimp-calculations/daily-feed', data),
 
-    calculateProductAmount: (data: ProductAmountRequest) =>
-        apiClient.post<ProductAmountResponse>('/shrimp-calculations/product-amount', data),
+    calculateExpectedHarvest: (data: ExpectedHarvestRequest) =>
+        apiClient.post<ExpectedHarvestResponse>('/shrimp-calculations/expected-harvest', data),
+
+    calculateCultivationPerformance: (data: CultivationPerformanceRequest) =>
+        apiClient.post<CultivationPerformanceResponse>('/shrimp-calculations/cultivation-performance', data),
 
     calculateFreeAmmonia: (data: FreeAmmoniaRequest) =>
         apiClient.post<FreeAmmoniaResponse>('/shrimp-calculations/free-ammonia', data),
+
+    calculateProductDosage: (data: ProductDosageRequest) =>
+        apiClient.post<ProductDosageResponse>('/shrimp-calculations/product-amount', data),
 };
