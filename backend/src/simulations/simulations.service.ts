@@ -38,18 +38,15 @@ export class SimulationsService {
         // Validate input parameters
         this.validateSimulationInputs(dto);
 
-        // FIXED: Load crop first to fail early if no crop? 
-        // Actually, let's load Pond first to secure it.
         const pond = await this.pondsRepository.findOne({
             where: { id: dto.pondId },
-            relations: ['farm'], // Need farm to check owner
+            relations: ['farm'],
         });
 
         if (!pond) {
             throw new NotFoundException('Pond not found');
         }
 
-        // FIXED: Check ownership
         if (pond.farm.userId !== userId) {
             throw new ForbiddenException('You do not have permission to run simulations for this pond');
         }
@@ -198,5 +195,46 @@ export class SimulationsService {
         if (errors.length > 0) {
             throw new BadRequestException(errors.join('; '));
         }
+    }
+
+    async findByUser(userId: string): Promise<Simulation[]> {
+        return this.simulationsRepository.find({
+            where: { userId },
+            order: { createdAt: 'DESC' },
+        });
+    }
+
+    async findByPond(pondId: string, userId: string): Promise<Simulation[]> {
+        const pond = await this.pondsRepository.findOne({
+            where: { id: pondId },
+            relations: ['farm'],
+        });
+        if (!pond) throw new NotFoundException('Pond not found');
+        if (pond.farm.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to access simulations for this pond');
+        }
+
+        return this.simulationsRepository.find({
+            where: { pondId },
+            order: { createdAt: 'DESC' },
+        });
+    }
+
+    async findOne(id: string, userId: string): Promise<Simulation> {
+        const simulation = await this.simulationsRepository.findOne({
+            where: { id },
+            relations: ['pond', 'pond.farm'],
+        });
+        if (!simulation) throw new NotFoundException(`Simulation with ID ${id} not found`);
+        if (simulation.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to access this simulation');
+        }
+        return simulation;
+    }
+
+    async remove(id: string, userId: string): Promise<{ message: string }> {
+        await this.findOne(id, userId);
+        await this.simulationsRepository.delete(id);
+        return { message: 'Simulation deleted successfully' };
     }
 }

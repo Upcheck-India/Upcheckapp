@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Treatment } from './treatment.entity';
@@ -27,16 +27,21 @@ export class TreatmentsService {
         return this.treatmentsRepository.find({ order: { treatmentDate: 'DESC' } });
     }
 
-    findOne(id: string) {
-        return this.treatmentsRepository.findOneBy({ id });
+    async findOne(id: string): Promise<Treatment> {
+        const record = await this.treatmentsRepository.findOneBy({ id });
+        if (!record) throw new NotFoundException(`Treatment with ID ${id} not found`);
+        return record;
     }
 
-    async update(id: string, updateDto: UpdateTreatmentDto) {
+    async update(id: string, updateDto: UpdateTreatmentDto): Promise<Treatment> {
+        await this.findOne(id);
         await this.treatmentsRepository.update(id, updateDto);
         return this.findOne(id);
     }
 
-    remove(id: string) {
-        return this.treatmentsRepository.delete(id);
+    async remove(id: string): Promise<{ message: string }> {
+        await this.findOne(id);
+        await this.treatmentsRepository.delete(id);
+        return { message: 'Treatment deleted successfully' };
     }
 }

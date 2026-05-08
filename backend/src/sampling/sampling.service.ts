@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SamplingData } from './sampling-data.entity';
@@ -16,7 +16,6 @@ export class SamplingService {
     ) { }
 
     async create(createDto: CreateSamplingDto, userId: string) {
-        // Verify ownership and get active cycle
         const pond = await this.pondsService.findOne(createDto.pondId, userId);
 
         const record = this.samplingRepository.create({
@@ -44,16 +43,21 @@ export class SamplingService {
         return this.samplingRepository.find({ order: { samplingDate: 'DESC' } });
     }
 
-    findOne(id: string) {
-        return this.samplingRepository.findOneBy({ id });
+    async findOne(id: string): Promise<SamplingData> {
+        const record = await this.samplingRepository.findOneBy({ id });
+        if (!record) throw new NotFoundException(`Sampling data with ID ${id} not found`);
+        return record;
     }
 
-    async update(id: string, updateDto: UpdateSamplingDto) {
+    async update(id: string, updateDto: UpdateSamplingDto): Promise<SamplingData> {
+        await this.findOne(id);
         await this.samplingRepository.update(id, updateDto);
         return this.findOne(id);
     }
 
-    remove(id: string) {
-        return this.samplingRepository.delete(id);
+    async remove(id: string): Promise<{ message: string }> {
+        await this.findOne(id);
+        await this.samplingRepository.delete(id);
+        return { message: 'Sampling data deleted successfully' };
     }
 }

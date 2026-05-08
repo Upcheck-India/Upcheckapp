@@ -1,20 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
+import { ErrorState } from '../../../components/ui/ErrorState';
+import { FAB } from '../../../components/ui/FAB';
 import { theme } from '../../../theme';
 import { logResourcesApi, PlanktonRecord } from '../../../api/logResources';
+
+const MetricPill = ({ label, value }: { label: string; value: number }) => (
+    <View style={pillStyles.container}>
+        <Text style={pillStyles.label}>{label}</Text>
+        <Text style={pillStyles.value}>{value.toLocaleString()}</Text>
+    </View>
+);
+
+const pillStyles = StyleSheet.create({
+    container: { backgroundColor: theme.roles.light.surfaceVariant, borderRadius: theme.radius.sm, paddingHorizontal: theme.spacing[3], paddingVertical: theme.spacing[2], marginRight: theme.spacing[2], marginBottom: theme.spacing[2] },
+    label: { ...theme.typeScale.labelSmall, color: theme.roles.light.textSecondary },
+    value: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, fontWeight: '600' },
+});
 
 export const PlanktonHistoryScreen = ({ route, navigation }: any) => {
     const { pondId, cropId } = route.params;
     const [records, setRecords] = useState<PlanktonRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [error, setError] = useState<any>(null);
 
-    useEffect(() => { fetchRecords(); }, [cropId]);
+    const fetchRecords = useCallback(async (forceRefresh = false) => {
+        if (!forceRefresh) setIsLoading(true);
+        setError(null);
 
-    const fetchRecords = async () => {
-        setIsLoading(true);
         try {
             if (cropId) {
                 const { data } = await logResourcesApi.getPlanktonByCrop(cropId);
@@ -23,12 +40,25 @@ export const PlanktonHistoryScreen = ({ route, navigation }: any) => {
             } else {
                 setRecords([]);
             }
-        } catch (error) {
-            console.log('Failed to fetch plankton records', error);
+        } catch (err) {
+            setError(err);
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
-    };
+    }, [cropId]);
+
+    useEffect(() => { fetchRecords(); }, [fetchRecords]);
+
+    const handleRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        fetchRecords(true);
+    }, [fetchRecords]);
+
+    const handleRetry = useCallback(() => {
+        setIsLoading(true);
+        fetchRecords(true);
+    }, [fetchRecords]);
 
     const getTotalCount = (item: PlanktonRecord): number => {
         const fields: (number | undefined)[] = [
@@ -41,7 +71,7 @@ export const PlanktonHistoryScreen = ({ route, navigation }: any) => {
     };
 
     const renderItem = ({ item }: { item: PlanktonRecord }) => {
-        const total: number = getTotalCount(item);
+        const total = getTotalCount(item);
         return (
             <Card style={styles.card}>
                 <View style={styles.headerRow}>
@@ -59,6 +89,12 @@ export const PlanktonHistoryScreen = ({ route, navigation }: any) => {
                     {item.protozoaCellMl != null && <MetricPill label="Protozoa" value={item.protozoaCellMl} />}
                     {item.zooCellMl != null && <MetricPill label="Zoo" value={item.zooCellMl} />}
                     {item.euglenophytaCellMl != null && <MetricPill label="Eugleno" value={item.euglenophytaCellMl} />}
+                    {item.flocCellMl != null && <MetricPill label="Floc" value={item.flocCellMl} />}
+                    {item.goldenBrownAlgaeCellMl != null && <MetricPill label="Gold-Brown" value={item.goldenBrownAlgaeCellMl} />}
+                    {item.goldenGreenAlgaeCellMl != null && <MetricPill label="Gold-Green" value={item.goldenGreenAlgaeCellMl} />}
+                    {item.yellowGreenAlgaeCellMl != null && <MetricPill label="Yel-Green" value={item.yellowGreenAlgaeCellMl} />}
+                    {item.haptoyphytaCellMl != null && <MetricPill label="Hapto" value={item.haptoyphytaCellMl} />}
+                    {item.otherPlanktonCellMl != null && <MetricPill label="Other" value={item.otherPlanktonCellMl} />}
                 </View>
             </Card>
         );
@@ -73,14 +109,20 @@ export const PlanktonHistoryScreen = ({ route, navigation }: any) => {
                 <Text style={styles.title}>Plankton History</Text>
                 <View style={{ width: 40 }} />
             </View>
+
             {isLoading ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
+            ) : error && records.length === 0 ? (
+                <ErrorState title="Couldn't Load Records" error={error} onRetry={handleRetry} />
             ) : (
                 <FlatList
                     data={records}
                     keyExtractor={(item) => item.id}
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[theme.roles.light.primary]} tintColor={theme.roles.light.primary} />
+                    }
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <MaterialCommunityIcons name="leaf" size={64} color={theme.roles.light.borderDefault} />
@@ -90,22 +132,11 @@ export const PlanktonHistoryScreen = ({ route, navigation }: any) => {
                     }
                 />
             )}
+
+            <FAB icon="plus" onPress={() => navigation.navigate('PlanktonLog', { pondId, cropId })} />
         </ScreenWrapper>
     );
 };
-
-const MetricPill = ({ label, value }: { label: string; value: number }) => (
-    <View style={pillStyles.container}>
-        <Text style={pillStyles.label}>{label}</Text>
-        <Text style={pillStyles.value}>{value.toLocaleString()}</Text>
-    </View>
-);
-
-const pillStyles = StyleSheet.create({
-    container: { backgroundColor: theme.roles.light.surfaceVariant, borderRadius: theme.radius.sm, paddingHorizontal: theme.spacing[3], paddingVertical: theme.spacing[2], marginRight: theme.spacing[2], marginBottom: theme.spacing[2] },
-    label: { ...theme.typeScale.labelSmall, color: theme.roles.light.textSecondary },
-    value: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, fontWeight: '600' },
-});
 
 const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: theme.spacing[4], backgroundColor: theme.roles.light.surface, borderBottomWidth: 1, borderBottomColor: theme.roles.light.borderDefault },

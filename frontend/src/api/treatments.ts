@@ -29,18 +29,10 @@ export interface UpdateTreatmentDto extends Partial<Omit<CreateTreatmentDto, 'cr
 export type TreatmentRecord = Treatment;
 
 export const treatmentsApi = {
-    getAll: (cropId?: string) =>
-        apiClient.get<Treatment[]>('/treatments', { params: cropId ? { cropId } : {} }),
-
-    getById: (id: string) =>
-        apiClient.get<Treatment>(`/treatments/${id}`),
-
-    create: (data: CreateTreatmentDto) =>
-        apiClient.post<Treatment>('/treatments', data),
-
-    update: (id: string, data: UpdateTreatmentDto) =>
-        apiClient.patch<Treatment>(`/treatments/${id}`, data),
-
-    delete: (id: string) =>
-        apiClient.delete(`/treatments/${id}`),
+    getAll: (cropId?: string) => apiClient.get<Treatment[]>('/treatments', { params: cropId ? { cropId } : {} }),
+    getByCrop: (cropId: string) => apiClient.get<Treatment[]>('/treatments', { params: { cropId } }),
+    getById: (id: string) => apiClient.get<Treatment>(`/treatments/${id}`),
+    create: (data: CreateTreatmentDto) => apiClient.post<Treatment>('/treatments', data),
+    update: (id: string, data: UpdateTreatmentDto) => apiClient.patch<Treatment>(`/treatments/${id}`, data),
+    delete: (id: string) => apiClient.delete(`/treatments/${id}`),
 };

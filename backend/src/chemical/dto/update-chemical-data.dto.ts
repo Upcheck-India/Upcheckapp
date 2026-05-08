@@ -1,0 +1,81 @@
+import { IsDateString, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+
+export class UpdateChemicalDataDto {
+    @IsOptional()
+    @IsDateString()
+    measurementDate?: string;
+
+    @IsOptional()
+    @IsString()
+    measurementTime?: string;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    ammoniaNh3Ppm?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    nitriteNo2Ppm?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    alkalinityPpm?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    nitrateNo3Ppm?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    hardnessPpm?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    calciumCaPpm?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    magnesiumMgPpm?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    carbonateCo3Ppm?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    bicarbonateHco3Ppm?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    tomPpm?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    ammoniumNh4Ppm?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    phosphatePo4Ppm?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    totalAmmoniaPpm?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    potassiumPpm?: number;
+}

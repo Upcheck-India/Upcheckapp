@@ -63,6 +63,10 @@ import { AboutScreen } from '../screens/settings/AboutScreen';
 import { InventoryListScreen } from '../screens/inventory/InventoryListScreen';
 import { InventoryDetailScreen } from '../screens/inventory/InventoryDetailScreen';
 
+// Disease Encyclopedia
+import { DiseaseListScreen } from '../screens/diseases/DiseaseListScreen';
+import { DiseaseDetailScreen } from '../screens/diseases/DiseaseDetailScreen';
+
 export type RootStackParamList = {
     // Auth
     Login: undefined;
@@ -104,11 +108,11 @@ export type RootStackParamList = {
     SimulationResults: { simulationId?: string; resultData?: any };
 
     // Phase 5 (History & Polish)
-    WaterQualityHistory: { pondId: string; pondName?: string };
-    FeedHistory: { pondId: string; pondName?: string };
-    SamplingHistory: { pondId: string; pondName?: string };
-    TreatmentHistory: { pondId: string; pondName?: string };
-    HarvestHistory: { pondId: string; cycleId?: string };
+    WaterQualityHistory: { pondId: string; pondName?: string; cropId?: string };
+    FeedHistory: { pondId: string; pondName?: string; cropId?: string };
+    SamplingHistory: { pondId: string; pondName?: string; cropId?: string };
+    TreatmentHistory: { pondId: string; pondName?: string; cropId?: string };
+    HarvestHistory: { pondId: string; cycleId?: string; cropId?: string };
     ChemicalHistory: { pondId: string; cropId?: string };
     PlanktonHistory: { pondId: string; cropId?: string };
     MicrobiologyHistory: { pondId: string; cropId?: string };
@@ -122,6 +126,10 @@ export type RootStackParamList = {
     About: undefined;
     Inventory: undefined;
     InventoryDetail: { inventoryId: string; itemName?: string };
+
+    // Disease Encyclopedia
+    DiseaseList: undefined;
+    DiseaseDetail: { diseaseId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -212,6 +220,10 @@ const RootNavigator = () => {
                     <Stack.Screen name="About" component={AboutScreen} />
                     <Stack.Screen name="Inventory" component={InventoryListScreen} />
                     <Stack.Screen name="InventoryDetail" component={InventoryDetailScreen} />
+
+                    {/* Disease Encyclopedia */}
+                    <Stack.Screen name="DiseaseList" component={DiseaseListScreen} />
+                    <Stack.Screen name="DiseaseDetail" component={DiseaseDetailScreen} />
                 </>
             )}
         </Stack.Navigator>

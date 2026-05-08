@@ -36,15 +36,9 @@ export interface CreateHarvestDto {
 }
 
 export const harvestsApi = {
-    getAll: (cropId?: string) =>
-        apiClient.get<Harvest[]>('/harvests', { params: cropId ? { cropId } : {} }),
-
-    getById: (id: string) =>
-        apiClient.get<Harvest>(`/harvests/${id}`),
-
-    create: (data: CreateHarvestDto) =>
-        apiClient.post<Harvest>('/harvests', data),
-
-    delete: (id: string) =>
-        apiClient.delete(`/harvests/${id}`),
+    getAll: (cropId?: string) => apiClient.get<Harvest[]>('/harvests', { params: cropId ? { cropId } : {} }),
+    getByCrop: (cropId: string) => apiClient.get<Harvest[]>('/harvests', { params: { cropId } }),
+    getById: (id: string) => apiClient.get<Harvest>(`/harvests/${id}`),
+    create: (data: CreateHarvestDto) => apiClient.post<Harvest>('/harvests', data),
+    delete: (id: string) => apiClient.delete(`/harvests/${id}`),
 };

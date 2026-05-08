@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PlanktonData } from './plankton-data.entity';
 import { CreatePlanktonDataDto } from './dto/create-plankton-data.dto';
+import { UpdatePlanktonDataDto } from './dto/update-plankton-data.dto';
 
 @Injectable()
 export class PlanktonService {
@@ -12,7 +13,6 @@ export class PlanktonService {
     ) { }
 
     async create(dto: CreatePlanktonDataDto): Promise<PlanktonData> {
-        // Auto-calculate total
         const total = (dto.greenAlgaeGaCellMl || 0) +
             (dto.blueGreenAlgaeBgaCellMl || 0) +
             (dto.dinoflagellataCellMl || 0) +
@@ -40,5 +40,45 @@ export class PlanktonService {
             where: { cropId },
             order: { measurementDate: 'DESC', measurementTime: 'DESC' },
         });
+    }
+
+    async findOne(id: string): Promise<PlanktonData> {
+        const record = await this.planktonRepository.findOne({ where: { id } });
+        if (!record) throw new NotFoundException(`Plankton data with ID ${id} not found`);
+        return record;
+    }
+
+    async update(id: string, dto: UpdatePlanktonDataDto): Promise<PlanktonData> {
+        const existing = await this.findOne(id);
+
+        const greenAlgae = dto.greenAlgaeGaCellMl ?? existing.greenAlgaeGaCellMl ?? 0;
+        const blueGreenAlgae = dto.blueGreenAlgaeBgaCellMl ?? existing.blueGreenAlgaeBgaCellMl ?? 0;
+        const dinoflagellata = dto.dinoflagellataCellMl ?? existing.dinoflagellataCellMl ?? 0;
+        const diatom = dto.diatomCellMl ?? existing.diatomCellMl ?? 0;
+        const protozoa = dto.protozoaCellMl ?? existing.protozoaCellMl ?? 0;
+        const floc = dto.flocCellMl ?? existing.flocCellMl ?? 0;
+        const goldenBrown = dto.goldenBrownAlgaeCellMl ?? existing.goldenBrownAlgaeCellMl ?? 0;
+        const euglenophyta = dto.euglenophytaCellMl ?? existing.euglenophytaCellMl ?? 0;
+        const zoo = dto.zooCellMl ?? existing.zooCellMl ?? 0;
+        const haptoyphyta = dto.haptoyphytaCellMl ?? existing.haptoyphytaCellMl ?? 0;
+        const goldenGreen = dto.goldenGreenAlgaeCellMl ?? existing.goldenGreenAlgaeCellMl ?? 0;
+        const yellowGreen = dto.yellowGreenAlgaeCellMl ?? existing.yellowGreenAlgaeCellMl ?? 0;
+        const other = dto.otherPlanktonCellMl ?? existing.otherPlanktonCellMl ?? 0;
+
+        const total = greenAlgae + blueGreenAlgae + dinoflagellata + diatom +
+            protozoa + floc + goldenBrown + euglenophyta + zoo +
+            haptoyphyta + goldenGreen + yellowGreen + other;
+
+        await this.planktonRepository.update(id, {
+            ...dto,
+            totalPlanktonCellMl: total,
+        });
+        return this.findOne(id);
+    }
+
+    async remove(id: string): Promise<{ message: string }> {
+        await this.findOne(id);
+        await this.planktonRepository.delete(id);
+        return { message: 'Plankton data deleted successfully' };
     }
 }
