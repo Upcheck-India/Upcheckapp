@@ -1,24 +1,41 @@
 import apiClient from './client';
 
+// ── Species ──
+
 export interface Species {
     id: string;
-    name: string;
-    scientificName?: string;
-    description?: string;
+    scientificName: string;
+    commonName?: string;
+    optimalPhMin?: number;
+    optimalPhMax?: number;
+    optimalSalinityMin?: number;
+    optimalSalinityMax?: number;
+    optimalTempMin?: number;
+    optimalTempMax?: number;
+    createdAt: string;
 }
+
+// ── Hatchery ──
 
 export interface Hatchery {
     id: string;
     name: string;
     location?: string;
-    contact?: string;
+    contactInfo?: object;
+    isActive: boolean;
+    createdAt: string;
 }
+
+// ── Broodstock ──
 
 export interface Broodstock {
     id: string;
-    name: string;
-    speciesId?: string;
+    supplier: string;
+    lineCode?: string;
     origin?: string;
+    specifications?: object;
+    isActive: boolean;
+    createdAt: string;
 }
 
 export const referenceApi = {

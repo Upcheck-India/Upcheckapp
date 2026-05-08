@@ -4,14 +4,18 @@ export interface Farm {
     id: string;
     name: string;
     farmCode?: string;
-    address?: string;
     areaHectares?: number;
+    address?: string;
     waterSourceType?: string;
     latitude?: number;
     longitude?: number;
+    qrCodeUrl?: string;
+    privacySetting: string;
+    boundary?: { latitude: number; longitude: number }[];
     userId: string;
     createdAt: string;
     updatedAt: string;
+    deletedAt?: string | null;
     ponds?: any[];
 }
 
@@ -23,9 +27,11 @@ export interface CreateFarmDto {
     waterSourceType?: string;
     latitude?: number;
     longitude?: number;
+    privacySetting?: string;
+    boundary?: { latitude: number; longitude: number }[];
 }
 
-export interface UpdateFarmDto extends Partial<CreateFarmDto> { }
+export interface UpdateFarmDto extends Partial<CreateFarmDto> {}
 
 export const farmsApi = {
     getAll: () => apiClient.get<Farm[]>('/farms'),

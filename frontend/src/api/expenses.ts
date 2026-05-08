@@ -1,38 +1,49 @@
 import apiClient from './client';
 
+export enum ExpenseCategory {
+    FEED = 'Feed',
+    PROBIOTICS = 'Chemicals/Probiotics',
+    SEED = 'Seed (Fry)',
+    LABOR = 'Labor',
+    ENERGY = 'Energy (Fuel/Electricity)',
+    MAINTENANCE = 'Maintenance',
+    OTHER = 'Other',
+}
+
 export interface Expense {
     id: string;
-    farmId?: string;
-    pondId?: string;
-    cropId?: string;
-    category: string;
+    cropId?: string | null;
+    pondId: string;
+    userId: string;
+    date: string;
+    category: ExpenseCategory;
     amount: number;
-    description?: string;
-    expenseDate: string;
+    description?: string | null;
     createdAt: string;
     updatedAt: string;
 }
 
 export interface CreateExpenseDto {
-    farmId?: string;
-    pondId?: string;
-    cropId?: string;
-    category: string;
+    cropId?: string | null;
+    pondId: string;
+    date: string;
+    category: ExpenseCategory;
     amount: number;
     description?: string;
-    expenseDate: string;
+}
+
+export interface CycleFinancials {
+    totalExpenses: number;
+    expensesByCategory: Array<{ category: ExpenseCategory; amount: number }>;
 }
 
 export const expensesApi = {
     findByCycle: (cropId: string) =>
         apiClient.get<Expense[]>(`/expenses/cycle/${cropId}`),
 
-    getById: (id: string) =>
-        apiClient.get<Expense>(`/expenses/${id}`),
-
     create: (data: CreateExpenseDto) =>
         apiClient.post<Expense>('/expenses', data),
 
     getCycleFinancials: (cropId: string) =>
-        apiClient.get(`/expenses/cycle/${cropId}/financials`),
+        apiClient.get<CycleFinancials>(`/expenses/cycle/${cropId}/financials`),
 };
