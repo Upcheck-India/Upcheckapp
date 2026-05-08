@@ -1,4 +1,4 @@
-import { IsUUID, IsDateString, IsNumber, IsOptional, IsString, IsEnum } from 'class-validator';
+import { IsUUID, IsDateString, IsNumber, IsOptional, IsString, IsEnum, Min } from 'class-validator';
 import { ExpenseCategory } from '../expense.entity';
 
 export class CreateExpenseDto {
@@ -16,6 +16,7 @@ export class CreateExpenseDto {
     category: ExpenseCategory;
 
     @IsNumber()
+    @Min(0.01)
     amount: number;
 
     @IsString()

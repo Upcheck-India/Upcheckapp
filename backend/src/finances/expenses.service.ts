@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Expense } from './expense.entity';
@@ -16,6 +16,11 @@ export class ExpensesService {
     ) { }
 
     async create(createDto: CreateExpenseDto, userId: string) {
+        // Validate expense amount is positive
+        if (!createDto.amount || createDto.amount <= 0) {
+            throw new BadRequestException('Expense amount must be positive');
+        }
+
         // Verify ownership and get active cycle if not provided
         const pond = await this.pondsService.findOne(createDto.pondId, userId);
 

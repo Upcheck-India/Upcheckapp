@@ -23,6 +23,9 @@ export class MortalityRecord {
     @Column({ type: 'numeric', nullable: true, name: 'estimated_weight_kg' })
     estimatedWeightKg: number;
 
+    @Column({ type: 'int', nullable: true, name: 'estimated_total' })
+    estimatedTotal: number;
+
     @Column({ type: 'text', nullable: true })
     note: string;
 

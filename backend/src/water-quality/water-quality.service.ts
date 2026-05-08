@@ -5,8 +5,16 @@ import { WaterQualityRecord } from './water-quality-record.entity';
 import { CreateWaterQualityRecordDto } from './dto/create-water-quality-record.dto';
 import { UpdateWaterQualityRecordDto } from './dto/update-water-quality-record.dto';
 import { PondsService } from '../ponds/ponds.service';
+import { AlertsService } from '../alerts/alerts.service';
 import { PageOptionsDto } from '../common/dto/page-options.dto';
 import { PageMetaDto, PageDto } from '../common/dto/page.dto';
+
+// Critical thresholds for water quality alerts
+const CRITICAL_THRESHOLDS = {
+    ph: { min: 6.5, max: 9.0 },
+    dissolvedOxygen: { min: 3.0 },
+    ammonia: { max: 0.5 },
+};
 
 @Injectable()
 export class WaterQualityService {
@@ -14,14 +22,94 @@ export class WaterQualityService {
         @InjectRepository(WaterQualityRecord)
         private recordsRepository: Repository<WaterQualityRecord>,
         private pondsService: PondsService,
+        private alertsService: AlertsService,
     ) { }
 
     async create(createDto: CreateWaterQualityRecordDto, userId: string) {
         // Verify user owns the pond
-        await this.pondsService.verifyOwner(createDto.pondId, userId);
+        const pond = await this.pondsService.findOne(createDto.pondId, userId);
 
         const record = this.recordsRepository.create(createDto);
-        return this.recordsRepository.save(record);
+        const savedRecord = await this.recordsRepository.save(record);
+
+        // Check critical values and generate alerts
+        await this.checkAndGenerateAlerts(savedRecord, pond, userId);
+
+        return savedRecord;
+    }
+
+    /**
+     * Check water quality record against critical thresholds and generate alerts.
+     * Non-blocking: errors in alert creation are logged but don't fail the record save.
+     */
+    private async checkAndGenerateAlerts(
+        record: WaterQualityRecord,
+        pond: { id: string; farmId: string; name?: string },
+        userId: string,
+    ) {
+        const alerts: Array<{ title: string; message: string; severity: 'warning' | 'critical' }> = [];
+
+        // pH checks
+        if (record.ph !== null && record.ph !== undefined) {
+            if (record.ph < CRITICAL_THRESHOLDS.ph.min) {
+                alerts.push({
+                    title: 'Low pH Alert',
+                    message: `pH level ${record.ph} is below critical minimum of ${CRITICAL_THRESHOLDS.ph.min} in pond ${pond.name || pond.id}`,
+                    severity: 'critical',
+                });
+            } else if (record.ph > CRITICAL_THRESHOLDS.ph.max) {
+                alerts.push({
+                    title: 'High pH Alert',
+                    message: `pH level ${record.ph} is above critical maximum of ${CRITICAL_THRESHOLDS.ph.max} in pond ${pond.name || pond.id}`,
+                    severity: 'critical',
+                });
+            }
+        }
+
+        // Dissolved oxygen check
+        if (record.dissolvedOxygen !== null && record.dissolvedOxygen !== undefined) {
+            if (record.dissolvedOxygen < CRITICAL_THRESHOLDS.dissolvedOxygen.min) {
+                alerts.push({
+                    title: 'Low Dissolved Oxygen Alert',
+                    message: `Dissolved oxygen ${record.dissolvedOxygen} mg/L is below critical minimum of ${CRITICAL_THRESHOLDS.dissolvedOxygen.min} mg/L in pond ${pond.name || pond.id}`,
+                    severity: 'critical',
+                });
+            }
+        }
+
+        // Ammonia check
+        if (record.ammonia !== null && record.ammonia !== undefined) {
+            if (record.ammonia > CRITICAL_THRESHOLDS.ammonia.max) {
+                alerts.push({
+                    title: 'High Ammonia Alert',
+                    message: `Ammonia level ${record.ammonia} mg/L exceeds critical maximum of ${CRITICAL_THRESHOLDS.ammonia.max} mg/L in pond ${pond.name || pond.id}`,
+                    severity: 'critical',
+                });
+            }
+        }
+
+        // Create alerts (non-blocking — errors are caught and logged)
+        for (const alert of alerts) {
+            try {
+                await this.alertsService.createAutoAlert(
+                    userId,
+                    pond.farmId,
+                    'water_quality',
+                    alert.title,
+                    alert.message,
+                    alert.severity,
+                    {
+                        recordId: record.id,
+                        ph: record.ph,
+                        dissolvedOxygen: record.dissolvedOxygen,
+                        ammonia: record.ammonia,
+                    },
+                    pond.id,
+                );
+            } catch (error) {
+                console.error('Failed to create water quality alert:', error);
+            }
+        }
     }
 
     async findAll(pondId: string, userId: string, pageOptionsDto?: PageOptionsDto): Promise<PageDto<WaterQualityRecord>> {
