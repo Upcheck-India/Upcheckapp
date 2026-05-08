@@ -37,8 +37,13 @@ export class AlertsController {
         return this.alertsService.getUnreadCount(userId);
     }
 
+    @Get(':id')
+    findOne(@Param('id') id: string, @CurrentUser() user) {
+        return this.alertsService.findOneForUser(id, user.id);
+    }
+
     @Patch(':id/read')
-    markAsRead(@Param('id') id: string) {
+    markAsRead(@Param('id') id: string, @CurrentUser() user) {
         return this.alertsService.markAsRead(id);
     }
 
@@ -48,7 +53,7 @@ export class AlertsController {
     }
 
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.alertsService.remove(id);
+    remove(@Param('id') id: string, @CurrentUser() user) {
+        return this.alertsService.removeForUser(id, user.id);
     }
 }

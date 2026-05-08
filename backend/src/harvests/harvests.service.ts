@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Harvest } from './harvest.entity';
 import { CreateHarvestDto } from './dto/create-harvest.dto';
+import { UpdateHarvestDto } from './dto/update-harvest.dto';
 import { CropsService } from '../crops/crops.service';
 
 @Injectable()
@@ -14,11 +15,9 @@ export class HarvestsService {
     ) { }
 
     async create(createDto: CreateHarvestDto, userId: string) {
-        // Create harvest record
         const harvest = this.harvestsRepository.create(createDto);
         const savedHarvest = await this.harvestsRepository.save(harvest);
 
-        // If full harvest, close the cycle
         if (createDto.harvestType === 'full') {
             await this.cropsService.closeCycle(createDto.cropId, createDto.harvestDate, userId);
         }
@@ -33,7 +32,7 @@ export class HarvestsService {
         });
     }
 
-    async findOne(id: string) {
+    async findOne(id: string): Promise<Harvest> {
         const harvest = await this.harvestsRepository.findOneBy({ id });
         if (!harvest) {
             throw new NotFoundException(`Harvest with ID ${id} not found`);
@@ -41,8 +40,15 @@ export class HarvestsService {
         return harvest;
     }
 
-    async remove(id: string) {
-        const harvest = await this.findOne(id);
-        return this.harvestsRepository.remove(harvest);
+    async update(id: string, dto: UpdateHarvestDto): Promise<Harvest> {
+        await this.findOne(id);
+        await this.harvestsRepository.update(id, dto);
+        return this.findOne(id);
+    }
+
+    async remove(id: string): Promise<{ message: string }> {
+        await this.findOne(id);
+        await this.harvestsRepository.delete(id);
+        return { message: 'Harvest deleted successfully' };
     }
 }

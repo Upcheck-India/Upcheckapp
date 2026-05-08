@@ -156,13 +156,15 @@ describe('AlertsService', () => {
   describe('remove', () => {
     it('should remove an alert', async () => {
       const alertId = 'alert-1';
-      
+
+      (repository.findOneBy as jest.Mock).mockResolvedValue(mockAlert);
       (repository.delete as jest.Mock).mockResolvedValue({ affected: 1 });
-      
+
       const result = await service.remove(alertId);
-      
+
+      expect(repository.findOneBy).toHaveBeenCalledWith({ id: alertId });
       expect(repository.delete).toHaveBeenCalledWith(alertId);
-      expect(result).toEqual({ affected: 1 });
+      expect(result).toEqual({ message: 'Alert deleted successfully' });
     });
   });
   

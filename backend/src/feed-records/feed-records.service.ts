@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FeedRecord } from './feed-record.entity';
@@ -68,17 +68,22 @@ export class FeedRecordsService {
         return new PageDto(items, pageMetaDto);
     }
 
-    findOne(id: string) {
-        return this.recordsRepository.findOneBy({ id });
+    async findOne(id: string): Promise<FeedRecord> {
+        const record = await this.recordsRepository.findOneBy({ id });
+        if (!record) throw new NotFoundException(`Feed record with ID ${id} not found`);
+        return record;
     }
 
-    async update(id: string, updateDto: UpdateFeedRecordDto) {
+    async update(id: string, updateDto: UpdateFeedRecordDto): Promise<FeedRecord> {
+        await this.findOne(id);
         await this.recordsRepository.update(id, updateDto);
         return this.findOne(id);
     }
 
-    remove(id: string) {
-        return this.recordsRepository.delete(id);
+    async remove(id: string): Promise<{ message: string }> {
+        await this.findOne(id);
+        await this.recordsRepository.delete(id);
+        return { message: 'Feed record deleted successfully' };
     }
 
     async getTotalFeedByPond(pondId: string) {

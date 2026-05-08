@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alert } from './alert.entity';
@@ -50,11 +50,22 @@ export class AlertsService {
         });
     }
 
-    findOne(id: string) {
-        return this.alertsRepository.findOneBy({ id });
+    async findOne(id: string): Promise<Alert> {
+        const alert = await this.alertsRepository.findOneBy({ id });
+        if (!alert) throw new NotFoundException(`Alert with ID ${id} not found`);
+        return alert;
+    }
+
+    async findOneForUser(id: string, userId: string): Promise<Alert> {
+        const alert = await this.findOne(id);
+        if (alert.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to access this alert');
+        }
+        return alert;
     }
 
     async markAsRead(id: string) {
+        await this.findOne(id);
         await this.alertsRepository.update(id, { isRead: true });
         return this.findOne(id);
     }
@@ -64,8 +75,16 @@ export class AlertsService {
         return { success: true };
     }
 
-    remove(id: string) {
-        return this.alertsRepository.delete(id);
+    async remove(id: string): Promise<{ message: string }> {
+        await this.findOne(id);
+        await this.alertsRepository.delete(id);
+        return { message: 'Alert deleted successfully' };
+    }
+
+    async removeForUser(id: string, userId: string): Promise<{ message: string }> {
+        await this.findOneForUser(id, userId);
+        await this.alertsRepository.delete(id);
+        return { message: 'Alert deleted successfully' };
     }
 
     async getUnreadCount(userId: string) {
