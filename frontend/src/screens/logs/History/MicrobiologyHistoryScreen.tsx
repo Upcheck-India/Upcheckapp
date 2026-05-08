@@ -1,20 +1,44 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
+import { ErrorState } from '../../../components/ui/ErrorState';
+import { FAB } from '../../../components/ui/FAB';
 import { theme } from '../../../theme';
 import { logResourcesApi, MicrobiologyRecord } from '../../../api/logResources';
+
+const MetricPill = ({ label, value }: { label: string; value: string }) => (
+    <View style={pillStyles.container}>
+        <Text style={pillStyles.label}>{label}</Text>
+        <Text style={pillStyles.value}>{value}</Text>
+    </View>
+);
+
+const pillStyles = StyleSheet.create({
+    container: { backgroundColor: theme.roles.light.surfaceVariant, borderRadius: theme.radius.sm, paddingHorizontal: theme.spacing[3], paddingVertical: theme.spacing[2], marginRight: theme.spacing[2], marginBottom: theme.spacing[2], minWidth: 100 },
+    label: { ...theme.typeScale.labelSmall, color: theme.roles.light.textSecondary },
+    value: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, fontWeight: '600' },
+});
+
+const getVibrioLevel = (tvc?: number): { label: string; color: string } => {
+    if (!tvc) return { label: 'N/A', color: theme.roles.light.textSecondary };
+    if (tvc > 1000) return { label: 'Critical', color: theme.roles.light.dangerText };
+    if (tvc > 100) return { label: 'Warning', color: theme.roles.light.warningText };
+    return { label: 'Safe', color: theme.roles.light.successText };
+};
 
 export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
     const { pondId, cropId } = route.params;
     const [records, setRecords] = useState<MicrobiologyRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [error, setError] = useState<any>(null);
 
-    useEffect(() => { fetchRecords(); }, [cropId]);
+    const fetchRecords = useCallback(async (forceRefresh = false) => {
+        if (!forceRefresh) setIsLoading(true);
+        setError(null);
 
-    const fetchRecords = async () => {
-        setIsLoading(true);
         try {
             if (cropId) {
                 const { data } = await logResourcesApi.getMicrobiologyByCrop(cropId);
@@ -23,19 +47,25 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
             } else {
                 setRecords([]);
             }
-        } catch (error) {
-            console.log('Failed to fetch microbiology records', error);
+        } catch (err) {
+            setError(err);
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
-    };
+    }, [cropId]);
 
-    const getVibrioLevel = (tvc?: number): { label: string; color: string } => {
-        if (!tvc) return { label: 'N/A', color: theme.roles.light.textSecondary };
-        if (tvc > 1000) return { label: 'Critical', color: theme.roles.light.dangerText };
-        if (tvc > 100) return { label: 'Warning', color: theme.roles.light.warningText };
-        return { label: 'Safe', color: theme.roles.light.successText };
-    };
+    useEffect(() => { fetchRecords(); }, [fetchRecords]);
+
+    const handleRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        fetchRecords(true);
+    }, [fetchRecords]);
+
+    const handleRetry = useCallback(() => {
+        setIsLoading(true);
+        fetchRecords(true);
+    }, [fetchRecords]);
 
     const renderItem = ({ item }: { item: MicrobiologyRecord }) => {
         const vibrioLevel = getVibrioLevel(item.totalVibrioCountTvcCfuMl);
@@ -80,14 +110,20 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
                 <Text style={styles.title}>Microbiology History</Text>
                 <View style={{ width: 40 }} />
             </View>
+
             {isLoading ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
+            ) : error && records.length === 0 ? (
+                <ErrorState title="Couldn't Load Records" error={error} onRetry={handleRetry} />
             ) : (
                 <FlatList
                     data={records}
                     keyExtractor={(item) => item.id}
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[theme.roles.light.primary]} tintColor={theme.roles.light.primary} />
+                    }
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <MaterialCommunityIcons name="bacteria-outline" size={64} color={theme.roles.light.borderDefault} />
@@ -97,22 +133,11 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
                     }
                 />
             )}
+
+            <FAB icon="plus" onPress={() => navigation.navigate('MicrobiologyLog', { pondId, cropId })} />
         </ScreenWrapper>
     );
 };
-
-const MetricPill = ({ label, value }: { label: string; value: string }) => (
-    <View style={pillStyles.container}>
-        <Text style={pillStyles.label}>{label}</Text>
-        <Text style={pillStyles.value}>{value}</Text>
-    </View>
-);
-
-const pillStyles = StyleSheet.create({
-    container: { backgroundColor: theme.roles.light.surfaceVariant, borderRadius: theme.radius.sm, paddingHorizontal: theme.spacing[3], paddingVertical: theme.spacing[2], marginRight: theme.spacing[2], marginBottom: theme.spacing[2], minWidth: 100 },
-    label: { ...theme.typeScale.labelSmall, color: theme.roles.light.textSecondary },
-    value: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, fontWeight: '600' },
-});
 
 const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: theme.spacing[4], backgroundColor: theme.roles.light.surface, borderBottomWidth: 1, borderBottomColor: theme.roles.light.borderDefault },

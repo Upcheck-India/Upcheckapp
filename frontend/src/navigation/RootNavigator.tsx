@@ -108,11 +108,11 @@ export type RootStackParamList = {
     SimulationResults: { simulationId?: string; resultData?: any };
 
     // Phase 5 (History & Polish)
-    WaterQualityHistory: { pondId: string; pondName?: string };
-    FeedHistory: { pondId: string; pondName?: string };
-    SamplingHistory: { pondId: string; pondName?: string };
-    TreatmentHistory: { pondId: string; pondName?: string };
-    HarvestHistory: { pondId: string; cycleId?: string };
+    WaterQualityHistory: { pondId: string; pondName?: string; cropId?: string };
+    FeedHistory: { pondId: string; pondName?: string; cropId?: string };
+    SamplingHistory: { pondId: string; pondName?: string; cropId?: string };
+    TreatmentHistory: { pondId: string; pondName?: string; cropId?: string };
+    HarvestHistory: { pondId: string; cycleId?: string; cropId?: string };
     ChemicalHistory: { pondId: string; cropId?: string };
     PlanktonHistory: { pondId: string; cropId?: string };
     MicrobiologyHistory: { pondId: string; cropId?: string };
