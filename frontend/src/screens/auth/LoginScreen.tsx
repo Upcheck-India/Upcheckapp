@@ -41,14 +41,9 @@ export const LoginScreen = ({ navigation }: any) => {
         }
     };
 
-    const handleTruecallerPress = async () => {
+    const handleTruecallerPress = () => {
         clearError();
-        const result = await signInWithTruecaller();
-
-        // If 1-tap failed or SDK not available, show phone verification fallback
-        if (!result) {
-            setShowPhoneModal(true);
-        }
+        navigation.navigate('TruecallerLogin');
     };
 
     return (

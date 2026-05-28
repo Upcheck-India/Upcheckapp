@@ -1,11 +1,63 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, BadRequestException, UnauthorizedException, ValidationPipe, HttpCode, HttpStatus, Catch, ExceptionFilter, ArgumentsHost, UseFilters } from '@nestjs/common';
 import { SupabaseAuthService } from './supabase-auth.service';
-import { TruecallerService } from './truecaller.service';
+import { TruecallerService, VerifiedTruecallerProfile } from './truecaller.service';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/auth.decorators';
 import { TruecallerAuthDto } from './dto/truecaller-auth.dto';
 import type { User } from '@supabase/supabase-js';
+
+/**
+ * Method-level validation pipe for {@link SupabaseAuthController.truecallerOAuth}.
+ *
+ * The default global `ValidationPipe` translates DTO failures into HTTP 400
+ * `BadRequestException`, but Requirement 13.4 mandates that
+ * `POST /auth/supabase/oauth/truecaller` responds with HTTP 401 and the
+ * body `{ success: false, message: 'Invalid request' }` for *every*
+ * malformed body (including the class-level XOR invariant in
+ * {@link TruecallerAuthDto}). Overriding `exceptionFactory` here keeps
+ * that mapping local to the Truecaller route without affecting any other
+ * endpoint, and crucially does not echo the offending field's value back
+ * to the caller.
+ */
+const truecallerValidationPipe = new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: false,
+    transform: true,
+    exceptionFactory: () =>
+        new UnauthorizedException({
+            success: false,
+            message: 'Invalid request',
+        }),
+});
+
+/**
+ * Route-scoped exception filter that maps any `BadRequestException` raised
+ * during request handling into the Requirement 13.4 envelope.
+ *
+ * Why this filter exists: Nest's pipe-resolution order applies *global*
+ * pipes before parameter-level pipes, so the global `ValidationPipe`
+ * registered in `main.ts` will throw a default `BadRequestException`
+ * (HTTP 400) the moment DTO validation fails — long before the
+ * `truecallerValidationPipe` above gets a chance to substitute its 401
+ * envelope. The param-level pipe alone is therefore not sufficient to
+ * satisfy Requirement 13.4 in production.
+ *
+ * The filter does not include any details from the underlying exception
+ * (`response.message`, `response.errors`, etc.) so the offending field's
+ * value cannot leak into the response — also a Requirement 13.4
+ * obligation.
+ */
+@Catch(BadRequestException)
+export class TruecallerInvalidRequestFilter implements ExceptionFilter {
+    catch(_exception: BadRequestException, host: ArgumentsHost): void {
+        const response = host.switchToHttp().getResponse();
+        response.status(HttpStatus.UNAUTHORIZED).json({
+            success: false,
+            message: 'Invalid request',
+        });
+    }
+}
 
 @Controller('auth/supabase')
 export class SupabaseAuthController {
@@ -78,27 +130,80 @@ export class SupabaseAuthController {
 
     @Public()
     @Post('oauth/truecaller')
-    async truecallerOAuth(@Body() body: TruecallerAuthDto) {
-        const { accessToken, phoneNumber, firstName, lastName, email, avatarUrl } = body;
-
-        if (!accessToken || !phoneNumber) {
-            throw new BadRequestException('Access token and phone number are required');
-        }
-
-        // Verify with Truecaller service
-        const isValid = await this.truecallerService.verifyAccessToken(accessToken, phoneNumber);
-        if (!isValid) {
-            throw new UnauthorizedException('Invalid Truecaller credentials');
-        }
-
-        const result = await this.supabaseAuthService.signInWithTruecaller({
+    // Requirement 11.5: response status MUST match POST /auth/supabase/signin,
+    // which returns HTTP 200. Without this Nest defaults POST to 201, which
+    // would silently break the parity required by the spec.
+    @HttpCode(HttpStatus.OK)
+    // Requirement 13.4: validation failures (whether raised by the global
+    // pipe or anywhere downstream of it) must surface as HTTP 401 with
+    // `{ success: false, message: 'Invalid request' }`. The route-scoped
+    // filter intercepts any BadRequestException reaching the handler and
+    // translates it into that envelope, regardless of which pipe raised
+    // it. UnauthorizedException raised by the verifier or the
+    // method-level pipe is intentionally NOT caught here so the
+    // verifier's spec messages (Requirements 9.x / 10.x) pass through
+    // unchanged.
+    @UseFilters(TruecallerInvalidRequestFilter)
+    async truecallerOAuth(
+        @Body(truecallerValidationPipe) body: TruecallerAuthDto,
+    ) {
+        const {
+            payload,
+            signature,
+            signatureAlgorithm,
+            requestNonce,
+            accessToken,
             phoneNumber,
-            firstName: firstName || 'User',
-            lastName,
-            email,
-            avatarUrl,
+        } = body;
+
+        // Belt-and-suspenders: the DTO already enforces XOR on
+        // accessToken/payload via the class-level constraint, but the
+        // controller still re-checks the discriminator before dispatching
+        // so a bug in the DTO cannot slip an unverified body through to
+        // signInWithTruecaller. Both branches throw 401 with the
+        // Requirement 13.4 message via the validation pipe above; this
+        // residual check covers the case where validation has been
+        // bypassed (e.g., direct method invocation in tests).
+        let verifiedProfile: VerifiedTruecallerProfile;
+        if (payload) {
+            // Flow A (One-Tap) and PROFILE_VERIFIED_BEFORE.
+            // Verification failures bubble up as UnauthorizedException
+            // with the exact spec messages from Requirements 9.3, 9.5,
+            // 9.6, 9.7 — Nest maps that to HTTP 401 directly.
+            verifiedProfile = await this.truecallerService.verifySignedPayload({
+                payload,
+                signature: signature ?? '',
+                signatureAlgorithm: signatureAlgorithm ?? '',
+                requestNonce: requestNonce ?? '',
+            });
+        } else if (accessToken) {
+            // Flow B (OTP / missed-call). Failures throw with the exact
+            // spec messages from Requirements 10.2, 10.3, 10.4.
+            verifiedProfile = await this.truecallerService.verifyAccessToken(
+                accessToken,
+                phoneNumber,
+            );
+        } else {
+            throw new UnauthorizedException({
+                success: false,
+                message: 'Invalid request',
+            });
+        }
+
+        // Requirement 11.1: signInWithTruecaller is called with values
+        // sourced from the *verified* Truecaller profile, never from the
+        // request body. The request body's firstName/lastName are
+        // intentionally ignored here — a malicious client could otherwise
+        // forge identity fields that would later land in the users row.
+        const result = await this.supabaseAuthService.signInWithTruecaller({
+            phoneNumber: verifiedProfile.phoneNumber,
+            firstName: verifiedProfile.firstName || 'User',
+            lastName: verifiedProfile.lastName,
+            email: verifiedProfile.email,
+            avatarUrl: verifiedProfile.avatarUrl,
         });
 
+        // Requirement 11.5: response shape matches POST /auth/supabase/signin.
         return {
             message: 'Truecaller authentication successful',
             user: result.user,
