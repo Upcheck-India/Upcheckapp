@@ -214,6 +214,60 @@ SUPABASE_ANON_KEY=your-anon-key
 
 ---
 
+## 🔐 Truecaller verification
+
+The `TruecallerService` (`backend/src/auth/truecaller.service.ts`) verifies the
+two flows produced by the Android Truecaller SDK 2.6.0 and exchanges the result
+for a Supabase session via `POST /auth/supabase/oauth/truecaller`.
+
+### Flows
+
+- **Flow A — One-Tap (signed payload).** The client posts
+  `{ payload, signature, signatureAlgorithm, requestNonce, phoneNumber, firstName, lastName }`.
+  The service verifies the RSA signature against the cached Truecaller public
+  keys, decodes the base64 JSON payload, and checks the embedded `requestNonce`
+  and `requestTime` (Requirements 9.1, 9.4, 9.5, 9.6).
+- **Flow B — OTP / missed-call (access token).** The client posts
+  `{ accessToken, phoneNumber, firstName, lastName }`. The service issues a
+  server-to-server `GET` to the Truecaller profile API with a Bearer token and
+  cross-checks the returned `phoneNumber` against the request after stripping
+  `+91`/`91` and non-digits (Requirements 10.1–10.4).
+
+On success, both flows feed `SupabaseAuthService.signInWithTruecaller` with
+profile fields sourced from the verified payload (never the request body) and
+return a `{ user, session }` body identical to `POST /auth/supabase/signin`.
+
+### Environment variables
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `TRUECALLER_PUBLIC_KEY_TTL_SECONDS` | `3600` | Public-key cache TTL in seconds. Clamped to `[3600, 86400]` per Requirement 9.2. Values outside the window are coerced to the nearest bound and a warning is logged. |
+| `TRUECALLER_NONCE_TTL_SECONDS` | `600` | Replay-store TTL in seconds. Floor of `600` enforced per Requirement 9.7. Values below the floor are coerced up and logged. No upper bound; align with the public-key cache window when desired. |
+| `TRUECALLER_PROFILE_API_URL` | `https://api5.truecaller.com/v1/otp/installation/verify/profile` | Endpoint used for Flow B access-token exchange. Override for staging or replay tests. |
+| `TRUECALLER_KEYS_API_URL` | `https://api4.truecaller.com/v1/key` | Endpoint that returns the RSA public keys used to verify Flow A signatures. Override for staging. |
+
+The legacy `TRUECALLER_APP_KEY` / `TRUECALLER_APP_SECRET` variables are not used
+by `TruecallerService` and are retained only for older code paths.
+
+### Operational notes
+
+- The public-key cache is in-memory per process and uses singleflight refresh:
+  concurrent misses share one outbound request, and a fetch that fails or
+  returns zero usable keys raises `Public key fetch failed` (distinct from
+  `Invalid signature`) so a Truecaller outage is visible in logs.
+- The nonce replay store is in-memory with lazy eviction. Multi-instance
+  deployments should swap in a Redis-backed `NonceReplayStore` (e.g.
+  `SET NX EX`) so a replay attempted on a different instance is still rejected.
+- All error responses match the exact strings required by Requirements 9 and 10:
+  `Invalid signature`, `Invalid payload`, `Nonce mismatch`, `Payload expired`,
+  `Nonce already used`, `Invalid access token`, `Invalid Truecaller profile`,
+  `Phone number mismatch`.
+- Sensitive fields (`payload`, `signature`, `requestNonce`, `accessToken`, full
+  `phoneNumber`) are never logged. Phone numbers in diagnostic logs are masked
+  to the last four digits, e.g. `+91XXXXXX1234` (Requirement 13.3).
+
+---
+
 ## 📁 Project Structure
 
 ```

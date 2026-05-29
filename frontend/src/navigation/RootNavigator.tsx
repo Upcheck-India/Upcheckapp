@@ -8,6 +8,7 @@ import { useAuthStore } from '../store/authStore';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
+import { TruecallerLoginScreen } from '../screens/auth/TruecallerLoginScreen';
 
 // Main Navigation
 import { MainNavigator } from './MainNavigator';
@@ -72,6 +73,7 @@ export type RootStackParamList = {
     Login: undefined;
     Register: undefined;
     ForgotPassword: undefined;
+    TruecallerLogin: undefined;
 
     // Main
     MainApp: undefined;
@@ -165,6 +167,11 @@ const RootNavigator = () => {
                         name="ForgotPassword"
                         component={ForgotPasswordScreen}
                         options={{ headerShown: true, title: 'Forgot Password', headerTintColor: theme.roles.light.primary }}
+                    />
+                    <Stack.Screen
+                        name="TruecallerLogin"
+                        component={TruecallerLoginScreen}
+                        options={{ headerShown: true, title: 'Sign in with Truecaller', headerTintColor: theme.roles.light.primary }}
                     />
                 </>
             ) : (
