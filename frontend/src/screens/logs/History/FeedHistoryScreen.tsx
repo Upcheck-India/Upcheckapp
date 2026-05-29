@@ -1,51 +1,52 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
-import { BarChart } from '../../../components/charts/BarChart';
+import { ErrorState } from '../../../components/ui/ErrorState';
+import { FAB } from '../../../components/ui/FAB';
 import { theme } from '../../../theme';
 import { feedApi, FeedRecord } from '../../../api/feedRecords';
 
 export const FeedHistoryScreen = ({ route, navigation }: any) => {
-    const { pondId, pondName } = route.params;
+    const { pondId, pondName, cropId } = route.params;
     const [records, setRecords] = useState<FeedRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'list' | 'chart'>('list');
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [error, setError] = useState<any>(null);
 
-    useEffect(() => {
-        fetchRecords();
-    }, []);
+    const fetchRecords = useCallback(async (forceRefresh = false) => {
+        if (!forceRefresh) setIsLoading(true);
+        setError(null);
 
-    const fetchRecords = async () => {
-        setIsLoading(true);
         try {
-            const { data } = await feedApi.getAll(pondId);
-            const pondRecords = Array.isArray(data) ? data : (data as any).data || [];
-            pondRecords.sort((a: FeedRecord, b: FeedRecord) => new Date(b.recordedAt || '').getTime() - new Date(a.recordedAt || '').getTime());
+            const { data } = cropId
+                ? await feedApi.getByCrop(cropId)
+                : await feedApi.getAll(pondId);
+            const pondRecords: FeedRecord[] = Array.isArray(data) ? data : (data as any).data || [];
+            pondRecords.sort((a, b) => new Date(b.recordedAt || '').getTime() - new Date(a.recordedAt || '').getTime());
             setRecords(pondRecords);
-        } catch (error) {
-            console.log('Failed to fetch Feed records', error);
+        } catch (err) {
+            setError(err);
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
-    };
+    }, [pondId, cropId]);
 
-    const getChartData = () => {
-        const chartRecords = [...records].reverse().slice(-7);
-        if (chartRecords.length === 0) return null;
-        return {
-            labels: chartRecords.map(r => {
-                const d = new Date(r.recordedAt || '');
-                return `${d.getMonth() + 1}/${d.getDate()}`;
-            }),
-            datasets: [
-                {
-                    data: chartRecords.map(r => r.quantityKg)
-                }
-            ]
-        };
-    };
+    useEffect(() => { fetchRecords(); }, [fetchRecords]);
+
+    const handleRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        fetchRecords(true);
+    }, [fetchRecords]);
+
+    const handleRetry = useCallback(() => {
+        setIsLoading(true);
+        fetchRecords(true);
+    }, [fetchRecords]);
+
+    const totalFeed = records.reduce((sum, r) => sum + (r.quantityKg || 0), 0);
 
     const renderItem = ({ item }: { item: FeedRecord }) => (
         <Card style={styles.card}>
@@ -55,9 +56,8 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
                 </Text>
                 <Text style={styles.amountText}>{item.quantityKg} kg</Text>
             </View>
-            {item.feedType && (
-                <Text style={styles.typeText}>Type: {item.feedType}</Text>
-            )}
+            {item.feedType && <Text style={styles.typeText}>Type: {item.feedType}</Text>}
+            {item.feedingMethod && <Text style={styles.methodText}>Method: {item.feedingMethod}</Text>}
             {item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
         </Card>
     );
@@ -72,61 +72,60 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            <View style={styles.tabsContainer}>
-                <TouchableOpacity style={[styles.tab, activeTab === 'list' && styles.activeTab]} onPress={() => setActiveTab('list')}>
-                    <MaterialCommunityIcons name="format-list-bulleted" size={20} color={activeTab === 'list' ? theme.roles.light.primary : theme.roles.light.textSecondary} />
-                    <Text style={[styles.tabText, activeTab === 'list' && styles.activeTabText]}>List</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.tab, activeTab === 'chart' && styles.activeTab]} onPress={() => setActiveTab('chart')}>
-                    <MaterialCommunityIcons name="chart-bar" size={20} color={activeTab === 'chart' ? theme.roles.light.primary : theme.roles.light.textSecondary} />
-                    <Text style={[styles.tabText, activeTab === 'chart' && styles.activeTabText]}>Chart</Text>
-                </TouchableOpacity>
-            </View>
-
             {isLoading ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
-            ) : activeTab === 'list' ? (
-                <FlatList
-                    data={records}
-                    keyExtractor={(item) => item.id}
-                    renderItem={renderItem}
-                    contentContainerStyle={styles.listContent}
-                    ListEmptyComponent={<View style={styles.center}><Text>No feed records.</Text></View>}
-                />
+            ) : error && records.length === 0 ? (
+                <ErrorState title="Couldn't Load Records" error={error} onRetry={handleRetry} />
             ) : (
-                <View style={styles.chartContainer}>
-                    <Text style={styles.chartTitle}>Daily Feed Distribution (Last 7 Logs)</Text>
-                    {records.length > 0 ? (
-                        <BarChart data={getChartData()!} yAxisSuffix="kg" />
-                    ) : (
-                        <View style={styles.center}><Text>Not enough data</Text></View>
+                <>
+                    {records.length > 0 && (
+                        <View style={styles.summaryBar}>
+                            <Text style={styles.summaryText}>
+                                Total Feed: <Text style={styles.summaryValue}>{totalFeed.toFixed(1)} kg</Text>
+                            </Text>
+                        </View>
                     )}
-                </View>
+                    <FlatList
+                        data={records}
+                        keyExtractor={(item) => item.id}
+                        renderItem={renderItem}
+                        contentContainerStyle={styles.listContent}
+                        refreshControl={
+                            <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[theme.roles.light.primary]} tintColor={theme.roles.light.primary} />
+                        }
+                        ListEmptyComponent={
+                            <View style={styles.emptyState}>
+                                <MaterialCommunityIcons name="food-drumstick-outline" size={64} color={theme.roles.light.borderDefault} />
+                                <Text style={styles.emptyTitle}>No Feed Records</Text>
+                                <Text style={styles.emptyText}>Start logging feed to track consumption.</Text>
+                            </View>
+                        }
+                    />
+                </>
             )}
+
+            <FAB icon="plus" onPress={() => navigation.navigate('FeedLog', { pondId, pondName, cropId })} />
         </ScreenWrapper>
     );
 };
 
-// Assuming style definitions are extremely similar to the WQ history screen styling
 const styles = StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: theme.spacing[4], backgroundColor: theme.roles.light.surface, borderBottomWidth: 1, borderBottomColor: theme.roles.light.borderDefault },
     backBtn: { padding: theme.spacing[4] },
     title: { ...theme.typeScale.h3, color: theme.roles.light.textPrimary },
-    tabsContainer: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: theme.roles.light.borderDefault, backgroundColor: theme.roles.light.surface },
-    tab: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: theme.spacing[4], gap: theme.spacing[3], borderBottomWidth: 2, borderBottomColor: 'transparent' },
-    activeTab: { borderBottomColor: theme.roles.light.primary },
-    tabText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
-    activeTabText: { color: theme.roles.light.primary, fontWeight: '700' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    listContent: { padding: theme.spacing[4] },
+    summaryBar: { backgroundColor: theme.roles.light.infoBg, paddingVertical: theme.spacing[3], paddingHorizontal: theme.spacing[4] },
+    summaryText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary },
+    summaryValue: { fontWeight: '700', color: theme.roles.light.infoText },
+    listContent: { padding: theme.spacing[4], paddingBottom: 100 },
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
     rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[2] },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },
     amountText: { ...theme.typeScale.h4, color: theme.roles.light.primary },
     typeText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary, marginTop: 4 },
-    notesText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: theme.spacing[3], fontStyle: 'italic' },
-    fastingBadge: { backgroundColor: theme.roles.light.warningText + '20', paddingHorizontal: theme.spacing[3], paddingVertical: 2, borderRadius: theme.radius.sm },
-    fastingText: { color: theme.roles.light.warningText, ...theme.typeScale.labelMedium },
-    chartContainer: { flex: 1, padding: theme.spacing[4], alignItems: 'center' },
-    chartTitle: { ...theme.typeScale.h4, marginBottom: theme.spacing[6], alignSelf: 'flex-start' },
+    methodText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: 2 },
+    notesText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: theme.spacing[2], fontStyle: 'italic' },
+    emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
+    emptyTitle: { ...theme.typeScale.h4, color: theme.roles.light.textPrimary, marginTop: theme.spacing[4], marginBottom: theme.spacing[2] },
+    emptyText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
 });

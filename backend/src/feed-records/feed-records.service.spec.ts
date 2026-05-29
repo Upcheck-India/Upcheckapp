@@ -168,10 +168,14 @@ describe('FeedRecordsService', () => {
   describe('remove', () => {
     it('should remove a feed record', async () => {
       const recordId = 'record-1';
+      const mockRecord = { id: recordId, quantityKg: 50 };
+      mockRepository.findOneBy.mockResolvedValue(mockRecord);
+
       const result = await service.remove(recordId);
 
+      expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: recordId });
       expect(mockRepository.delete).toHaveBeenCalledWith(recordId);
-      expect(result).toEqual({ affected: 1 });
+      expect(result).toEqual({ message: 'Feed record deleted successfully' });
     });
   });
 

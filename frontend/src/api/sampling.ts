@@ -30,5 +30,6 @@ export interface CreateSamplingDto {
 
 export const samplingApi = {
     getAll: (cropId?: string) => apiClient.get<SamplingRecord[]>('/sampling', { params: cropId ? { cropId } : {} }),
+    getByCrop: (cropId: string) => apiClient.get<SamplingRecord[]>('/sampling', { params: { cropId } }),
     create: (data: CreateSamplingDto) => apiClient.post<SamplingRecord>('/sampling', data),
 };

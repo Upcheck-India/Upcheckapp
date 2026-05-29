@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { DiseaseService } from './disease.service';
 import { CreateDiseaseDto, CreateDiseaseRecordDto } from './dto/create-disease.dto';
+import { UpdateDiseaseLibraryDto } from './dto/update-disease-library.dto';
 
 @Controller('disease')
 export class DiseaseController {
@@ -18,9 +19,29 @@ export class DiseaseController {
         return this.diseaseService.findAllDiseases();
     }
 
+    @Get('library/search')
+    searchLibrary(@Query('q') query: string) {
+        return this.diseaseService.searchLibrary(query);
+    }
+
+    @Get('library/seed')
+    seedDiseases() {
+        return this.diseaseService.seedDiseases();
+    }
+
     @Get('library/:id')
     findDiseaseById(@Param('id') id: string) {
         return this.diseaseService.findDiseaseById(id);
+    }
+
+    @Put('library/:id')
+    updateLibrary(@Param('id') id: string, @Body() dto: UpdateDiseaseLibraryDto) {
+        return this.diseaseService.updateLibrary(id, dto);
+    }
+
+    @Delete('library/:id')
+    removeLibrary(@Param('id') id: string) {
+        return this.diseaseService.removeLibrary(id);
     }
 
     // --- Record Endpoints ---

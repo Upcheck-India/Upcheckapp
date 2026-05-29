@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsUUID, IsBoolean } from 'class-validator';
 
 export class CreateFeedRecordDto {
     @IsUUID()
@@ -33,4 +33,8 @@ export class CreateFeedRecordDto {
     @IsUUID()
     @IsOptional()
     inventoryItemId?: string;
+
+    @IsBoolean()
+    @IsOptional()
+    isFasting?: boolean;
 }

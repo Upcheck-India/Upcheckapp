@@ -123,4 +123,19 @@ export class Crop {
 
     @Column({ type: 'text', default: 'active' })
     status: string; // 'active' | 'completed' | 'cancelled'
+
+    /**
+     * Computes Day of Culture (DOC) dynamically based on stockingDate vs current date.
+     * Returns 0 if stockingDate is not set or is in the future.
+     * Also accounts for initialAgeDays at stocking time.
+     */
+    get computedDOC(): number {
+        if (!this.stockingDate) return 0;
+        const stocked = new Date(this.stockingDate);
+        const now = new Date();
+        const diffMs = now.getTime() - stocked.getTime();
+        if (diffMs <= 0) return 0;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        return diffDays + (this.initialAgeDays || 0);
+    }
 }

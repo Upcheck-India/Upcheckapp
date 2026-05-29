@@ -156,6 +156,14 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
+    // Truecaller SDK 2.6.0 (legacy v2.x with Partner Key) — used by the
+    // native bridge in com.upcheck.app.TruecallerAuthModule.
+    implementation 'com.truecaller.android.sdk:truecaller-sdk:2.6.0'
+
+    // Manually linked third-party RN wrapper (legacy). Kept temporarily for
+    // backwards compatibility while the in-house bridge is wired up.
+    implementation project(':react-native-truecaller-sdk')
+
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
     def isWebpAnimatedEnabled = (findProperty('expo.webp.animated') ?: "") == "true";

@@ -257,7 +257,7 @@ export class SupabaseAuthService {
             }
         }
 
-        // 3. Create new user
+        // 3. Create new user (Branch 3 — Requirement 11.4)
         const tempEmail = profile.email || `${profile.phoneNumber.replace(/[^0-9]/g, '')}@truecaller.temp`;
 
         const { data: newUser, error: createError } = await this.supabase.auth.admin.createUser({
@@ -279,27 +279,50 @@ export class SupabaseAuthService {
             throw new BadRequestException(createError.message);
         }
 
-        // Create user record in our DB
-        const { error: dbError } = await this.supabase.from('users').insert({
-            id: newUser.user.id,
-            email: profile.email || null,
-            phone: profile.phoneNumber,
-            first_name: profile.firstName,
-            last_name: profile.lastName,
-            avatar_url: profile.avatarUrl,
-            auth_provider: 'truecaller',
-            phone_verified: true,
-            email_verified: !!profile.email,
-        });
+        // The auth user now exists. From this point on, ANY failure must
+        // delete it via supabase.auth.admin.deleteUser(authUserId) so the
+        // system never holds an auth user without a corresponding users
+        // row. This rollback is required by the design's
+        // "Failure-mode considerations" section and is a corollary of
+        // Property 8 (idempotence): leaving an orphan auth user would
+        // break the next call's phone-match branch because Supabase
+        // would reject re-creation of the same phone or email.
+        const newAuthUserId = newUser.user.id;
+        try {
+            // Create user record in our DB
+            const { error: dbError } = await this.supabase.from('users').insert({
+                id: newAuthUserId,
+                email: profile.email || null,
+                phone: profile.phoneNumber,
+                first_name: profile.firstName,
+                last_name: profile.lastName,
+                avatar_url: profile.avatarUrl,
+                auth_provider: 'truecaller',
+                phone_verified: true,
+                email_verified: !!profile.email,
+            });
 
-        if (dbError) {
-            throw new BadRequestException(dbError.message);
+            if (dbError) {
+                throw new BadRequestException(dbError.message);
+            }
+
+            return {
+                user: newUser.user,
+                session: null as any, // admin.createUser doesn't return a session; client gets one via login
+            };
+        } catch (insertErr) {
+            // Best-effort rollback. We deliberately swallow rollback
+            // failures: the original insert error is more useful to the
+            // caller, and any leftover orphan auth user can be reaped by
+            // a follow-up admin job. We do NOT log the failed delete in
+            // production at the phone-number level — Requirement 13.1.
+            try {
+                await this.supabase.auth.admin.deleteUser(newAuthUserId);
+            } catch {
+                // Intentionally ignored — see comment above.
+            }
+            throw insertErr;
         }
-
-        return {
-            user: newUser.user,
-            session: null as any, // admin.createUser doesn't return a session; client gets one via login
-        };
     }
 
     private async createSessionForUser(

@@ -1,16 +1,19 @@
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req } from '@nestjs/common';
+import { OwnershipGuard } from '../common/guards/ownership.guard';
+import { OwnsResource } from '../common/decorators/owns-resource.decorator';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
 import { FeedRecordsService } from './feed-records.service';
 import { CreateFeedRecordDto } from './dto/create-feed-record.dto';
 import { UpdateFeedRecordDto } from './dto/update-feed-record.dto';
 import { PageOptionsDto } from '../common/dto/page-options.dto';
-import { PageDto } from '../common/dto/page.dto';
 
 @Controller('feed-records')
 export class FeedRecordsController {
     constructor(private readonly feedRecordsService: FeedRecordsService) { }
 
     @Post()
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('Pond', 'pondId', 'farm.userId')
     create(@Body() createDto: CreateFeedRecordDto, @CurrentUser() user) {
         return this.feedRecordsService.create(createDto, user.id);
     }
@@ -24,21 +27,29 @@ export class FeedRecordsController {
     }
 
     @Get('pond/:pondId/total')
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('Pond', 'pondId', 'farm.userId')
     getTotalFeed(@Param('pondId') pondId: string) {
         return this.feedRecordsService.getTotalFeedByPond(pondId);
     }
 
     @Get(':id')
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('FeedRecord', 'id', 'pond.farm.userId')
     findOne(@Param('id') id: string) {
         return this.feedRecordsService.findOne(id);
     }
 
     @Patch(':id')
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('FeedRecord', 'id', 'pond.farm.userId')
     update(@Param('id') id: string, @Body() updateDto: UpdateFeedRecordDto) {
         return this.feedRecordsService.update(id, updateDto);
     }
 
     @Delete(':id')
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('FeedRecord', 'id', 'pond.farm.userId')
     remove(@Param('id') id: string) {
         return this.feedRecordsService.remove(id);
     }

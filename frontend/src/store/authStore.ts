@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import type { Session, User } from '@supabase/supabase-js';
 import { authApi } from '../api/auth';
+import { TruecallerAuth } from '../native/TruecallerAuth';
 
 export type AuthStatus =
     | 'initializing'       // app just launched, checking stored session
@@ -233,6 +234,15 @@ export const useAuthStore = create<AuthState>()(
                     await authApi.signout();
                 } catch {
                     // Ignore signout error
+                }
+                // Forget the cached Truecaller session so the next sign-in
+                // re-prompts the bottom-sheet consent (Requirements 14.1, 14.2).
+                // Safe to invoke unconditionally — the JS wrapper is a no-op
+                // when the native module is unavailable (e.g. iOS).
+                try {
+                    TruecallerAuth.clear();
+                } catch {
+                    // Ignore Truecaller clear errors — sign-out must still proceed
                 }
                 get().clearSession();
             },

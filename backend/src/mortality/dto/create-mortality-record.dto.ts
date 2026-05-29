@@ -17,6 +17,11 @@ export class CreateMortalityRecordDto {
     estimatedWeightKg?: number;
 
     @IsOptional()
+    @IsInt()
+    @Min(0)
+    estimatedTotal?: number;
+
+    @IsOptional()
     @IsString()
     note?: string;
 

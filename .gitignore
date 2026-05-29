@@ -48,3 +48,9 @@ backend/coverage/
 # IDE
 .qoder/
 .gemini/
+
+# Truecaller SDK Partner Key (do not commit real keys)
+# Note: if this file is already tracked, run:
+#   git rm --cached frontend/android/app/src/main/res/values/strings.xml
+# then commit the removal so future changes are ignored.
+frontend/android/app/src/main/res/values/strings.xml

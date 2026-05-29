@@ -2,28 +2,89 @@ import apiClient from './client';
 
 export interface Profile {
     id: string;
-    userId: string;
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
+    email?: string;
+    username?: string;
+    fullName?: string;
     avatarUrl?: string;
-    preferences?: Record<string, any>;
-    createdAt: string;
+    website?: string;
+    languagePreference: string;
+    createdAt?: string;
     updatedAt: string;
 }
 
-export interface UpdateProfileDto {
+/**
+ * Compat layer for screens still using firstName/lastName/phone.
+ * The backend stores `fullName` as a single field — split on space.
+ */
+export interface ProfileCompat extends Profile {
     firstName?: string;
     lastName?: string;
     phone?: string;
+}
+
+export interface UpdateProfileDto {
+    email?: string;
+    username?: string;
+    fullName?: string;
     avatarUrl?: string;
-    preferences?: Record<string, any>;
+    website?: string;
+    languagePreference?: string;
+}
+
+/** Compat DTO that accepts firstName/lastName and maps to fullName */ 
+export interface CompatUpdateProfileDto {
+    email?: string;
+    username?: string;
+    firstName?: string;
+    lastName?: string;
+    avatarUrl?: string;
+    website?: string;
+    languagePreference?: string;
+    phone?: string;
+}
+
+export interface PublicProfile {
+    id: string;
+    username?: string;
+    fullName?: string;
+    avatarUrl?: string;
+    website?: string;
+}
+
+function toCompat(p: Profile): ProfileCompat {
+    const parts = (p.fullName || '').split(' ');
+    return {
+        ...p,
+        firstName: parts[0] || undefined,
+        lastName: parts.slice(1).join(' ') || undefined,
+    };
+}
+
+function compatToUpdateDto(data: CompatUpdateProfileDto): UpdateProfileDto {
+    const { firstName, lastName, phone: _phone, ...rest } = data;
+    const fullName = [firstName, lastName].filter(Boolean).join(' ') || undefined;
+    return { ...rest, fullName };
 }
 
 export const profilesApi = {
     getMine: () =>
-        apiClient.get<Profile>('/profiles/me'),
+        apiClient.get<Profile>('/profiles/me').then(res => ({ ...res, data: toCompat(res.data) })),
 
-    update: (userId: string, data: UpdateProfileDto) =>
-        apiClient.patch<Profile>(`/profiles/${userId}`, data),
+    getById: (id: string) =>
+        apiClient.get<Profile>(`/profiles/${id}`).then(res => ({ ...res, data: toCompat(res.data) })),
+
+    update: (id: string, data: CompatUpdateProfileDto) =>
+        apiClient.patch<Profile>(`/profiles/${id}`, compatToUpdateDto(data)).then(res => ({ ...res, data: toCompat(res.data) })),
+
+    deleteMe: () =>
+        apiClient.delete('/profiles/me'),
+
+    checkUsername: (username: string) =>
+        apiClient.get<{ available: boolean }>(`/profiles/check-username/${username}`),
+
+    getPublicProfile: (username: string) =>
+        apiClient.get<PublicProfile>(`/profiles/public/${username}`),
+
+    inviteFriend: (toEmail: string) =>
+        apiClient.post<{ success: boolean }>('/profiles/invite', { toEmail }),
 };

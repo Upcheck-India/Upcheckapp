@@ -12,3 +12,11 @@
 -keep class com.facebook.react.turbomodule.** { *; }
 
 # Add any project specific keep options here:
+
+# Truecaller SDK 2.6.0 — keep rules (Requirement 4.6)
+# Preserve all classes, interfaces, and members in the Truecaller SDK so that
+# reflection-based deserialization of TrueProfile, callbacks, and signed
+# payload fields continue to work after R8 / ProGuard minification.
+-keep class com.truecaller.android.sdk.** { *; }
+-keep interface com.truecaller.android.sdk.** { *; }
+-dontwarn com.truecaller.android.sdk.**

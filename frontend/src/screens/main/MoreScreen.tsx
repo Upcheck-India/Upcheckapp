@@ -64,6 +64,13 @@ export const MoreScreen = ({ navigation }: any) => {
             description: 'Cycle analysis and financials',
             color: theme.roles.light.infoBorder,
         },
+        {
+            icon: 'book-open-variant',
+            label: 'Disease Encyclopedia',
+            route: 'DiseaseList',
+            description: 'Browse and search disease library',
+            color: theme.roles.light.dangerText,
+        },
     ];
 
     const farmMenuItems: MenuItem[] = [
