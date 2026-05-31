@@ -71,7 +71,7 @@ const mockRequestTruecallerPermissions = jest.fn(async () => ({
 
 jest.mock('../../../native/truecallerPermissions', () => ({
   __esModule: true,
-  requestTruecallerPermissions: (...args: unknown[]) =>
+  requestTruecallerPermissions: (...args: Parameters<typeof mockRequestTruecallerPermissions>) =>
     mockRequestTruecallerPermissions(...args),
 }));
 
@@ -80,7 +80,7 @@ const mockApiPost = jest.fn();
 jest.mock('../../../api/client', () => ({
   __esModule: true,
   default: {
-    post: (...args: unknown[]) => mockApiPost(...args),
+    post: (...args: Parameters<typeof mockApiPost>) => mockApiPost(...args),
   },
 }));
 
