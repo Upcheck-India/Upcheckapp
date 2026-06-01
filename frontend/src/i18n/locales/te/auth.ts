@@ -147,5 +147,7 @@ const auth = {
   invalidPhoneError: 'చెల్లుబాటు అయ్యే 10-అంకెల భారతీయ మొబైల్ నంబర్ నమోదు చేయండి',
   invalidFirstNameError: 'మీ మొదటి పేరు నమోదు చేయండి',
   sendVerificationCode: 'ధృవీకరణ కోడ్ పంపు',
+  consentPrefix: "ఖాతాను సృష్టించడం ద్వారా, మీరు మా",
+  consentAnd: "మరియు",
 };
 export default auth;

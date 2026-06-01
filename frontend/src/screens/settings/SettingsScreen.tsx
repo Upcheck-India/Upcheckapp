@@ -156,11 +156,11 @@ export const SettingsScreen = ({ navigation }: any) => {
 
                 <Card style={styles.section}>
                     <Text style={styles.sectionTitle}>{t('settings.about')}</Text>
-                    <TouchableOpacity style={styles.linkRow}>
+                    <TouchableOpacity style={styles.linkRow} onPress={() => navigation.navigate('PrivacyPolicy')}>
                         <Text style={styles.linkLabel}>{t('settings.privacyPolicy')}</Text>
                         <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textSecondary} />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.linkRow}>
+                    <TouchableOpacity style={styles.linkRow} onPress={() => navigation.navigate('Terms')}>
                         <Text style={styles.linkLabel}>{t('settings.termsOfService')}</Text>
                         <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textSecondary} />
                     </TouchableOpacity>

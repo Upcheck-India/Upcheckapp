@@ -105,6 +105,10 @@ const settings = {
   notificationsEmpty: 'সব পড়া হয়ে গেছে!',
   notificationsEmptyDesc: 'আপনার কোনো নতুন বিজ্ঞপ্তি নেই।',
   notificationsLoadError: 'বিজ্ঞপ্তি লোড করা যায়নি',
+  deleteAccount: "অ্যাকাউন্ট মুছুন",
+  deleteAccountConfirm: "এটি স্থায়ীভাবে আপনার অ্যাকাউন্ট এবং সমস্ত খামারের ডেটা মুছে ফেলবে। এটি ফেরানো যাবে না। চালিয়ে যাবেন?",
+  deleteAccountHint: "আপনার অ্যাকাউন্ট এবং আপনার মালিকানাধীন সমস্ত ডেটা স্থায়ীভাবে মুছে ফেলে।",
+  deleteAccountError: "আপনার অ্যাকাউন্ট মুছে ফেলা যায়নি। আবার চেষ্টা করুন।",
 };
 
 export default settings;

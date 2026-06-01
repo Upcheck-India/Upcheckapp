@@ -147,5 +147,7 @@ const auth = {
   invalidPhoneError: 'ସଠିକ ୧୦-ଅଙ୍କ ଭାରତୀୟ ମୋବାଇଲ ନମ୍ବର ଦିଅନ୍ତୁ',
   invalidFirstNameError: 'ଆପଣଙ୍କ ପ୍ରଥମ ନାମ ଦିଅନ୍ତୁ',
   sendVerificationCode: 'ଯାଞ୍ଚ କୋଡ଼ ପଠାନ୍ତୁ',
+  consentPrefix: "ଖାତା ସୃଷ୍ଟି କରି, ଆପଣ ଆମର",
+  consentAnd: "ଏବଂ",
 };
 export default auth;

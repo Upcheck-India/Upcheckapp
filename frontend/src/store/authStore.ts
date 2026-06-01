@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import type { Session, User } from '@supabase/supabase-js';
 import { authApi } from '../api/auth';
+import { profilesApi } from '../api/profiles';
 import { TruecallerAuth } from '../native/TruecallerAuth';
 
 export type AuthStatus =
@@ -65,6 +66,7 @@ interface AuthState {
     }) => Promise<void>;
     signup: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
     logout: () => Promise<void>;
+    deleteAccount: () => Promise<void>;
     forgotPassword: (email: string) => Promise<void>;
 }
 
@@ -252,6 +254,18 @@ export const useAuthStore = create<AuthState>()(
                     TruecallerAuth.clear();
                 } catch {
                     // Ignore Truecaller clear errors — sign-out must still proceed
+                }
+                get().clearSession();
+            },
+
+            deleteAccount: async () => {
+                // Permanently removes the account + owned data server-side, then
+                // clears the local session (returns the user to the sign-in stack).
+                await profilesApi.deleteMe();
+                try {
+                    TruecallerAuth.clear();
+                } catch {
+                    // ignore
                 }
                 get().clearSession();
             },

@@ -14,7 +14,29 @@ import { profilesApi, ProfileCompat, CompatUpdateProfileDto } from '../../api/pr
 
 export const ProfileScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
-    const { user } = useAuthStore();
+    const { user, deleteAccount } = useAuthStore();
+
+    const handleDeleteAccount = () => {
+        Alert.alert(
+            t('settings.deleteAccount'),
+            t('settings.deleteAccountConfirm'),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('settings.deleteAccount'),
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await deleteAccount();
+                            // clearSession() returns the user to the auth stack.
+                        } catch (err: any) {
+                            Alert.alert(t('common.error'), err?.response?.data?.message || t('settings.deleteAccountError'));
+                        }
+                    },
+                },
+            ],
+        );
+    };
     const [profile, setProfile] = useState<ProfileCompat | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -276,6 +298,20 @@ export const ProfileScreen = ({ navigation }: any) => {
                             icon="pencil"
                         />
                     )}
+
+                    {!isEditing && (
+                        <>
+                            <Button
+                                title={t('settings.deleteAccount')}
+                                onPress={handleDeleteAccount}
+                                variant="outlined"
+                                icon="account-remove"
+                                style={styles.deleteBtn}
+                                textStyle={{ color: theme.roles.light.dangerText }}
+                            />
+                            <Text style={styles.deleteHint}>{t('settings.deleteAccountHint')}</Text>
+                        </>
+                    )}
                 </ScrollView>
             </Animated.View>
         </ScreenWrapper>
@@ -369,6 +405,16 @@ const styles = StyleSheet.create({
         ...theme.typeScale.bodyLarge,
         color: theme.roles.light.textPrimary,
         fontWeight: '500',
+    },
+    deleteBtn: {
+        marginTop: theme.spacing[4],
+        borderColor: theme.roles.light.dangerText,
+    },
+    deleteHint: {
+        ...theme.typeScale.caption,
+        color: theme.roles.light.textSecondary,
+        textAlign: 'center',
+        marginTop: theme.spacing[2],
     },
     editBtn: {
         marginTop: theme.spacing[4],

@@ -147,5 +147,7 @@ const auth = {
   invalidPhoneError: 'சரியான 10 இலக்க இந்திய மொபைல் எண்ணை உள்ளிடுக',
   invalidFirstNameError: 'உங்கள் முதல் பெயரை உள்ளிடவும்',
   sendVerificationCode: 'சரிபார்ப்பு குறியீடு அனுப்பு',
+  consentPrefix: "கணக்கை உருவாக்குவதன் மூலம், நீங்கள் எங்கள்",
+  consentAnd: "மற்றும்",
 };
 export default auth;

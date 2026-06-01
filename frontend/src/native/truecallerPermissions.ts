@@ -1,20 +1,19 @@
 /**
  * Truecaller runtime permissions helper.
  *
- * Requests the Android runtime permissions needed by the Truecaller SDK's
- * OTP / missed-call fallback flow before `TruecallerAuth.authenticate()` is
- * invoked. The set of permissions varies with the Android API level:
+ * Requests the Android runtime permission needed by Truecaller One-Tap before
+ * `TruecallerAuth.authenticate()` is invoked.
  *
- *   - API < 23: the runtime permission model is not in effect; the install-time
- *     permissions declared in AndroidManifest.xml are granted automatically.
- *   - API 23+: request READ_PHONE_STATE and READ_CALL_LOG at runtime.
- *   - API 26+: additionally request ANSWER_PHONE_CALLS.
- *   - API <= 25: additionally request CALL_PHONE instead of ANSWER_PHONE_CALLS.
+ *   - API < 23: runtime permissions are not in effect; install-time permissions
+ *     in AndroidManifest.xml are granted automatically.
+ *   - API 23+: request READ_PHONE_STATE at runtime.
+ *
+ * The restricted READ_CALL_LOG / RECEIVE_SMS / CALL_PHONE / ANSWER_PHONE_CALLS
+ * permissions (legacy missed-call / SMS-retriever fallback) were removed for
+ * Play Store compliance, so they are no longer requested.
  *
  * On non-Android platforms (iOS, web) this helper is a no-op that resolves to
  * `granted = true` so callers can use it unconditionally.
- *
- * Validates: Requirements 3.4, 3.5
  */
 
 import { PermissionsAndroid, Platform, Permission } from 'react-native';
@@ -50,16 +49,13 @@ export async function requestTruecallerPermissions(): Promise<TruecallerPermissi
     return { granted: true, deniedPermissions: [] };
   }
 
+  // Only READ_PHONE_STATE is requested. The restricted READ_CALL_LOG / SMS /
+  // CALL_PHONE / ANSWER_PHONE_CALLS permissions were removed for Play Store
+  // compliance (Google restricts them to default Phone/SMS handler apps), so
+  // the legacy missed-call / SMS auto-read fallback is no longer used.
   const perms: Permission[] = [
     PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
-    PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
   ];
-
-  if (apiLevel >= 26) {
-    perms.push(PermissionsAndroid.PERMISSIONS.ANSWER_PHONE_CALLS);
-  } else {
-    perms.push(PermissionsAndroid.PERMISSIONS.CALL_PHONE);
-  }
 
   const result = await PermissionsAndroid.requestMultiple(perms);
 

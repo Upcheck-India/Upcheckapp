@@ -105,6 +105,10 @@ const settings = {
   notificationsEmpty: 'அனைத்தும் சரிபார்க்கப்பட்டது!',
   notificationsEmptyDesc: 'புதிய அறிவிப்புகள் எதுவும் இல்லை.',
   notificationsLoadError: 'அறிவிப்புகளை ஏற்ற முடியவில்லை',
+  deleteAccount: "கணக்கை நீக்கு",
+  deleteAccountConfirm: "இது உங்கள் கணக்கையும் அனைத்து பண்ணைத் தரவையும் நிரந்தரமாக நீக்கும். இதை மீட்டெடுக்க முடியாது. தொடரவா?",
+  deleteAccountHint: "உங்கள் கணக்கையும் நீங்கள் வைத்திருக்கும் அனைத்து தரவையும் நிரந்தரமாக நீக்குகிறது.",
+  deleteAccountError: "உங்கள் கணக்கை நீக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
 };
 
 export default settings;

@@ -105,6 +105,10 @@ const settings = {
   notificationsEmpty: 'सब अपडेट है!',
   notificationsEmptyDesc: 'आपके पास कोई नई सूचना नहीं है।',
   notificationsLoadError: 'सूचनाएं लोड नहीं हो सकीं',
+  deleteAccount: "खाता हटाएँ",
+  deleteAccountConfirm: "इससे आपका खाता और सभी फ़ार्म डेटा स्थायी रूप से हट जाएगा। इसे पूर्ववत नहीं किया जा सकता। जारी रखें?",
+  deleteAccountHint: "आपका खाता और आपके सभी डेटा को स्थायी रूप से हटा देता है।",
+  deleteAccountError: "आपका खाता हटाया नहीं जा सका। कृपया पुनः प्रयास करें।",
 };
 
 export default settings;

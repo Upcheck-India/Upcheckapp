@@ -105,6 +105,10 @@ const settings = {
   notificationsEmpty: 'ସବୁ ଦେଖି ସାରିଲେ!',
   notificationsEmptyDesc: 'ଆପଣଙ୍କ ପାଖରେ କୌଣସି ନୂଆ ବିଜ୍ଞପ୍ତି ନାହିଁ।',
   notificationsLoadError: 'ବିଜ୍ଞପ୍ତି ଲୋଡ୍ ହୋଇପାରିଲା ନାହିଁ',
+  deleteAccount: "ଖାତା ବିଲୋପ କରନ୍ତୁ",
+  deleteAccountConfirm: "ଏହା ସ୍ଥାୟୀ ଭାବେ ଆପଣଙ୍କ ଖାତା ଏବଂ ସମସ୍ତ ଫାର୍ମ ତଥ୍ୟ ବିଲୋପ କରିଦେବ। ଏହାକୁ ପୂର୍ବବତ୍ କରାଯାଇପାରିବ ନାହିଁ। ଆଗକୁ ବଢ଼ିବେ?",
+  deleteAccountHint: "ଆପଣଙ୍କ ଖାତା ଏବଂ ଆପଣଙ୍କର ସମସ୍ତ ତଥ୍ୟ ସ୍ଥାୟୀ ଭାବେ ବିଲୋପ କରେ।",
+  deleteAccountError: "ଆପଣଙ୍କ ଖାତା ବିଲୋପ କରାଯାଇପାରିଲା ନାହିଁ। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
 };
 
 export default settings;

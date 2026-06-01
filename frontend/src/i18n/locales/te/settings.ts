@@ -105,6 +105,10 @@ const settings = {
   notificationsEmpty: 'అన్నీ చదివారు!',
   notificationsEmptyDesc: 'మీకు కొత్త నోటిఫికేషన్లు లేవు.',
   notificationsLoadError: 'నోటిఫికేషన్లు లోడ్ కాలేదు',
+  deleteAccount: "ఖాతాను తొలగించు",
+  deleteAccountConfirm: "ఇది మీ ఖాతాను మరియు అన్ని వ్యవసాయ డేటాను శాశ్వతంగా తొలగిస్తుంది. దీన్ని రద్దు చేయలేరు. కొనసాగించాలా?",
+  deleteAccountHint: "మీ ఖాతాను మరియు మీకు చెందిన మొత్తం డేటాను శాశ్వతంగా తొలగిస్తుంది.",
+  deleteAccountError: "మీ ఖాతాను తొలగించలేకపోయాం. దయచేసి మళ్లీ ప్రయత్నించండి.",
 };
 
 export default settings;

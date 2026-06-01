@@ -82,6 +82,8 @@ import { TwoFactorChallengeScreen } from '../screens/auth/TwoFactorChallengeScre
 import { TwoFactorScreen } from '../screens/settings/TwoFactorScreen';
 import { GrowthAndHarvestScreen } from '../screens/calculators/GrowthAndHarvestScreen';
 import { FeedProductsScreen } from '../screens/feedProducts/FeedProductsScreen';
+import { PrivacyPolicyScreen } from '../screens/legal/PrivacyPolicyScreen';
+import { TermsScreen } from '../screens/legal/TermsScreen';
 
 export type RootStackParamList = {
     // Auth
@@ -92,6 +94,8 @@ export type RootStackParamList = {
     OtpLogin: undefined;
     TwoFactorChallenge: { tempToken: string };
     TwoFactor: undefined;
+    PrivacyPolicy: undefined;
+    Terms: undefined;
 
     // Main
     MainApp: undefined;
@@ -213,6 +217,9 @@ const RootNavigator = () => {
                     />
                     <Stack.Screen name="OtpLogin" component={OtpLoginScreen} />
                     <Stack.Screen name="TwoFactorChallenge" component={TwoFactorChallengeScreen} />
+                    {/* Legal — reachable pre-auth from the Register consent line */}
+                    <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+                    <Stack.Screen name="Terms" component={TermsScreen} />
                 </>
             ) : (
                 <>
@@ -294,6 +301,10 @@ const RootNavigator = () => {
                     {/* Additional calculators + feed products */}
                     <Stack.Screen name="GrowthAndHarvest" component={GrowthAndHarvestScreen} />
                     <Stack.Screen name="FeedProducts" component={FeedProductsScreen} />
+
+                    {/* Legal */}
+                    <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+                    <Stack.Screen name="Terms" component={TermsScreen} />
                 </>
             )}
         </Stack.Navigator>

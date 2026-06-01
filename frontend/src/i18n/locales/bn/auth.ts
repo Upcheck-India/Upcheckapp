@@ -147,5 +147,7 @@ const auth = {
   invalidPhoneError: 'সঠিক ১০ সংখ্যার ভারতীয় মোবাইল নম্বর লিখুন',
   invalidFirstNameError: 'আপনার প্রথম নাম লিখুন',
   sendVerificationCode: 'যাচাইকরণ কোড পাঠান',
+  consentPrefix: "একটি অ্যাকাউন্ট তৈরি করে, আপনি আমাদের",
+  consentAnd: "এবং",
 };
 export default auth;

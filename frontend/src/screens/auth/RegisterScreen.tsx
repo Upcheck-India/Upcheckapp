@@ -143,6 +143,17 @@ export const RegisterScreen = ({ navigation }: any) => {
                 style={{ marginTop: theme.spacing[3] }}
             />
 
+            <Text style={styles.consent}>
+                {t('auth.consentPrefix')}{' '}
+                <Text style={styles.consentLink} onPress={() => navigation.navigate('Terms')}>
+                    {t('settings.termsOfService')}
+                </Text>
+                {' '}{t('auth.consentAnd')}{' '}
+                <Text style={styles.consentLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
+                    {t('settings.privacyPolicy')}
+                </Text>.
+            </Text>
+
             <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
 
             {isTruecallerAvailable && (
@@ -175,6 +186,17 @@ const styles = StyleSheet.create({
         ...theme.typeScale.bodyMedium,
         color: theme.roles.light.textSecondary,
         marginTop: theme.spacing[2],
+    },
+    consent: {
+        ...theme.typeScale.caption,
+        color: theme.roles.light.textSecondary,
+        textAlign: 'center',
+        marginTop: theme.spacing[3],
+        marginHorizontal: theme.spacing[2],
+    },
+    consentLink: {
+        color: theme.roles.light.primary,
+        textDecorationLine: 'underline',
     },
     errorBanner: {
         backgroundColor: theme.roles.light.dangerBg,

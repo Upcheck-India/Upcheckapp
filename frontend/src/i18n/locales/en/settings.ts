@@ -105,6 +105,12 @@ const settings = {
   notificationsEmpty: 'All Caught Up!',
   notificationsEmptyDesc: 'You have no new notifications.',
   notificationsLoadError: "Couldn't Load Notifications",
+
+  // ── Account deletion (Play Store requirement) ─────────────────────────────
+  deleteAccount: 'Delete Account',
+  deleteAccountConfirm: 'This permanently deletes your account and all your farm data. This cannot be undone. Continue?',
+  deleteAccountHint: 'Permanently removes your account and all data you own.',
+  deleteAccountError: 'Could not delete your account. Please try again.',
 };
 
 export default settings;
