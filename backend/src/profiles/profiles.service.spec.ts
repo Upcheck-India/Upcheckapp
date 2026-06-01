@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { ProfilesService } from './profiles.service';
 import { Profile } from './profile.entity';
+import { SupabaseAuthService } from '../auth/supabase-auth.service';
 
 // Mock repository factory
 const createMockRepository = () => ({
@@ -23,6 +24,7 @@ describe('ProfilesService', () => {
       providers: [
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
         { provide: DataSource, useValue: { transaction: jest.fn() } },
+        { provide: SupabaseAuthService, useValue: { deleteUser: jest.fn().mockResolvedValue(undefined) } },
         ProfilesService,
         {
           provide: getRepositoryToken(Profile),

@@ -43,4 +43,7 @@ export class InventoryItem {
 
     @Column({ name: 'expiry_date', type: 'timestamp with time zone', nullable: true })
     expiryDate: Date;
+
+    @Column({ type: 'text', nullable: true })
+    notes: string;
 }

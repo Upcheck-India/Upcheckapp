@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { AlertBanner } from '../../components/ui/AlertBanner';
 import { theme } from '../../theme';
 import { treatmentsApi } from '../../api/treatments';
+import { findBannedSubstances } from '../../features/bannedSubstances';
 
 export const TreatmentLogScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -20,12 +24,12 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
 
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleSave = async () => {
-        if (!description.trim()) {
-            Alert.alert('Validation Error', 'Description is required');
-            return;
-        }
+    // Export-protection guardrail: scan the free-text fields for banned/restricted
+    // substances (CAA/MPEDA). Warn-only and non-directive — no alternative suggested.
+    const flagged = findBannedSubstances(`${description} ${productName} ${notes}`);
+    const hasBanned = flagged.some((s) => s.category === 'banned');
 
+    const performSave = async () => {
         setIsLoading(true);
 
         try {
@@ -39,10 +43,34 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
             });
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to save treatment record');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.treatment_errorSave'));
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleSave = () => {
+        if (!description.trim()) {
+            Alert.alert(t('common.error'), t('logs.treatment_validationDescription'));
+            return;
+        }
+
+        if (flagged.length > 0) {
+            const names = flagged.map((s) => s.name).join(', ');
+            Alert.alert(
+                hasBanned ? t('logs.treatment_bannedTitle') : t('logs.treatment_restrictedTitle'),
+                hasBanned
+                    ? t('logs.treatment_bannedBody', { names })
+                    : t('logs.treatment_restrictedBody', { names }),
+                [
+                    { text: t('common.cancel'), style: 'cancel' },
+                    { text: t('logs.treatment_saveAnyway'), style: 'destructive', onPress: () => void performSave() },
+                ],
+            );
+            return;
+        }
+
+        void performSave();
     };
 
     return (
@@ -51,30 +79,42 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Treatment Entry</Text>
+                <Text style={styles.title}>{t('logs.treatment_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.subtitle}>Logging for {pondName}</Text>
+                <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
+
+                {flagged.length > 0 ? (
+                    <AlertBanner
+                        type="warning"
+                        title={hasBanned ? t('logs.treatment_bannerBannedTitle') : t('logs.treatment_bannerRestrictedTitle')}
+                        message={
+                            hasBanned
+                                ? t('logs.treatment_bannerBannedMsg', { names: flagged.map((s) => s.name).join(', ') })
+                                : t('logs.treatment_bannerRestrictedMsg', { names: flagged.map((s) => s.name).join(', ') })
+                        }
+                    />
+                ) : null}
 
                 <Card style={styles.card}>
-                    <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
-                    <Input label="Description *" value={description} onChangeText={setDescription} placeholder="e.g. Applied probiotics, mineral supplement" required />
+                    <Input label={t('common.date')} value={date} onChangeText={setDate} placeholder={t('logs.datePlaceholder')} required />
+                    <Input label={t('logs.treatment_labelDescription')} value={description} onChangeText={setDescription} placeholder={t('logs.treatment_placeholderDescription')} required />
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Product Details</Text>
-                    <Input label="Product Name" value={productName} onChangeText={setProductName} placeholder="e.g. AquaBiotex" />
-                    <Input label="Dosage (kg)" value={dosageKg} onChangeText={setDosageKg} keyboardType="decimal-pad" placeholder="0.0" />
+                    <Text style={styles.sectionTitle}>{t('logs.treatment_sectionProductDetails')}</Text>
+                    <Input label={t('logs.treatment_labelProductName')} value={productName} onChangeText={setProductName} placeholder={t('logs.treatment_placeholderProductName')} />
+                    <Input label={t('logs.treatment_labelDosage')} value={dosageKg} onChangeText={setDosageKg} keyboardType="decimal-pad" placeholder="0.0" />
                 </Card>
 
                 <Card style={styles.card}>
                     <Input
-                        label="Additional Notes"
+                        label={t('logs.treatment_labelAdditionalNotes')}
                         value={notes}
                         onChangeText={setNotes}
-                        placeholder="Water conditions, shrimp behavior..."
+                        placeholder={t('logs.treatment_placeholderNotes')}
                         multiline
                         numberOfLines={3}
                         style={styles.textArea}
@@ -82,7 +122,7 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Button
-                    title="Save Record"
+                    title={t('logs.saveRecord')}
                     onPress={handleSave}
                     loading={isLoading}
                     style={styles.saveBtn}

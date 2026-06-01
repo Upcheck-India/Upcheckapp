@@ -1,5 +1,5 @@
 import {
-    Controller, Get, Post, Put, Delete, Body, Param, Query,
+    Controller, Get, Post, Patch, Delete, Body, Param, Query,
 } from '@nestjs/common';
 import { ReferenceService } from './reference.service';
 import { CreateSpeciesDto } from './dto/create-species.dto';
@@ -30,7 +30,7 @@ export class ReferenceController {
         return this.referenceService.findOneSpecies(id);
     }
 
-    @Put('species/:id')
+    @Patch('species/:id')
     updateSpecies(@Param('id') id: string, @Body() dto: UpdateSpeciesDto) {
         return this.referenceService.updateSpecies(id, dto);
     }
@@ -57,7 +57,7 @@ export class ReferenceController {
         return this.referenceService.findOneHatchery(id);
     }
 
-    @Put('hatcheries/:id')
+    @Patch('hatcheries/:id')
     updateHatchery(@Param('id') id: string, @Body() dto: UpdateHatcheryDto) {
         return this.referenceService.updateHatchery(id, dto);
     }
@@ -84,7 +84,7 @@ export class ReferenceController {
         return this.referenceService.findOneBroodstock(id);
     }
 
-    @Put('broodstocks/:id')
+    @Patch('broodstocks/:id')
     updateBroodstock(@Param('id') id: string, @Body() dto: UpdateBroodstockDto) {
         return this.referenceService.updateBroodstock(id, dto);
     }

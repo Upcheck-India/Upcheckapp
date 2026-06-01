@@ -16,7 +16,7 @@ export interface DiseaseLibrary {
     name: string;
     scientificName?: string;
     commonNames?: string[];
-    severity?: 'low' | 'medium' | 'high';
+    severityLevel?: 'low' | 'medium' | 'high';
     symptoms?: string[];
     preventionMeasures?: string[];
     treatmentRecommendations?: string[];

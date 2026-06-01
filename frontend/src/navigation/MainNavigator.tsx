@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
 
 // Import screens
@@ -12,6 +13,8 @@ import { MoreScreen } from '../screens/main/MoreScreen';
 const Tab = createBottomTabNavigator();
 
 export const MainNavigator = () => {
+    const { t } = useTranslation();
+
     return (
         <Tab.Navigator
             screenOptions={{
@@ -37,6 +40,7 @@ export const MainNavigator = () => {
                 name="Dashboard"
                 component={HomeScreen}
                 options={{
+                    tabBarLabel: t('common.tabDashboard'),
                     tabBarIcon: ({ color, size }) => (
                         <MaterialCommunityIcons name="view-dashboard" color={color} size={size} />
                     ),
@@ -46,6 +50,7 @@ export const MainNavigator = () => {
                 name="Farms"
                 component={FarmsListScreen}
                 options={{
+                    tabBarLabel: t('common.tabFarms'),
                     tabBarIcon: ({ color, size }) => (
                         <MaterialCommunityIcons name="barn" color={color} size={size} />
                     ),
@@ -55,6 +60,7 @@ export const MainNavigator = () => {
                 name="Reports"
                 component={ReportsScreen}
                 options={{
+                    tabBarLabel: t('common.tabReports'),
                     tabBarIcon: ({ color, size }) => (
                         <MaterialCommunityIcons name="chart-box" color={color} size={size} />
                     ),
@@ -64,6 +70,7 @@ export const MainNavigator = () => {
                 name="More"
                 component={MoreScreen}
                 options={{
+                    tabBarLabel: t('common.tabMore'),
                     tabBarIcon: ({ color, size }) => (
                         <MaterialCommunityIcons name="menu" color={color} size={size} />
                     ),

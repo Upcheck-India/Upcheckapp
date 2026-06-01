@@ -68,12 +68,34 @@ import { InventoryDetailScreen } from '../screens/inventory/InventoryDetailScree
 import { DiseaseListScreen } from '../screens/diseases/DiseaseListScreen';
 import { DiseaseDetailScreen } from '../screens/diseases/DiseaseDetailScreen';
 
+// Tasks
+import { TaskListScreen } from '../screens/tasks/TaskListScreen';
+import { NewsListScreen } from '../screens/news/NewsListScreen';
+import { NewsDetailScreen } from '../screens/news/NewsDetailScreen';
+import { ShopScreen } from '../screens/shop/ShopScreen';
+import { ExpensesScreen } from '../screens/finance/ExpensesScreen';
+import { TransactionsScreen } from '../screens/finance/TransactionsScreen';
+import { ReferenceScreen } from '../screens/reference/ReferenceScreen';
+import { HarvestPlansScreen } from '../screens/harvest/HarvestPlansScreen';
+import { OtpLoginScreen } from '../screens/auth/OtpLoginScreen';
+import { TwoFactorChallengeScreen } from '../screens/auth/TwoFactorChallengeScreen';
+import { TwoFactorScreen } from '../screens/settings/TwoFactorScreen';
+import { GrowthAndHarvestScreen } from '../screens/calculators/GrowthAndHarvestScreen';
+import { FeedProductsScreen } from '../screens/feedProducts/FeedProductsScreen';
+import { PrivacyPolicyScreen } from '../screens/legal/PrivacyPolicyScreen';
+import { TermsScreen } from '../screens/legal/TermsScreen';
+
 export type RootStackParamList = {
     // Auth
     Login: undefined;
     Register: undefined;
     ForgotPassword: undefined;
     TruecallerLogin: undefined;
+    OtpLogin: undefined;
+    TwoFactorChallenge: { tempToken: string };
+    TwoFactor: undefined;
+    PrivacyPolicy: undefined;
+    Terms: undefined;
 
     // Main
     MainApp: undefined;
@@ -132,6 +154,26 @@ export type RootStackParamList = {
     // Disease Encyclopedia
     DiseaseList: undefined;
     DiseaseDetail: { diseaseId: string };
+
+    // Tasks
+    TaskList: { farmId: string; farmName?: string };
+
+    // News / eShop / Reference
+    NewsList: undefined;
+    NewsDetail: { id: string };
+    Shop: undefined;
+    Reference: undefined;
+
+    // Finance
+    Expenses: { cropId: string; pondName?: string };
+    Transactions: { farmId: string; farmName?: string };
+
+    // Harvest planning
+    HarvestPlans: { pondId: string; pondName?: string; cropId?: string; farmId?: string };
+
+    // Additional calculators + feed products
+    GrowthAndHarvest: undefined;
+    FeedProducts: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -173,6 +215,11 @@ const RootNavigator = () => {
                         component={TruecallerLoginScreen}
                         options={{ headerShown: true, title: 'Sign in with Truecaller', headerTintColor: theme.roles.light.primary }}
                     />
+                    <Stack.Screen name="OtpLogin" component={OtpLoginScreen} />
+                    <Stack.Screen name="TwoFactorChallenge" component={TwoFactorChallengeScreen} />
+                    {/* Legal — reachable pre-auth from the Register consent line */}
+                    <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+                    <Stack.Screen name="Terms" component={TermsScreen} />
                 </>
             ) : (
                 <>
@@ -231,6 +278,33 @@ const RootNavigator = () => {
                     {/* Disease Encyclopedia */}
                     <Stack.Screen name="DiseaseList" component={DiseaseListScreen} />
                     <Stack.Screen name="DiseaseDetail" component={DiseaseDetailScreen} />
+
+                    {/* Tasks */}
+                    <Stack.Screen name="TaskList" component={TaskListScreen} />
+
+                    {/* News / eShop / Reference */}
+                    <Stack.Screen name="NewsList" component={NewsListScreen} />
+                    <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
+                    <Stack.Screen name="Shop" component={ShopScreen} />
+                    <Stack.Screen name="Reference" component={ReferenceScreen} />
+
+                    {/* Finance */}
+                    <Stack.Screen name="Expenses" component={ExpensesScreen} />
+                    <Stack.Screen name="Transactions" component={TransactionsScreen} />
+
+                    {/* Harvest planning */}
+                    <Stack.Screen name="HarvestPlans" component={HarvestPlansScreen} />
+
+                    {/* Security */}
+                    <Stack.Screen name="TwoFactor" component={TwoFactorScreen} />
+
+                    {/* Additional calculators + feed products */}
+                    <Stack.Screen name="GrowthAndHarvest" component={GrowthAndHarvestScreen} />
+                    <Stack.Screen name="FeedProducts" component={FeedProductsScreen} />
+
+                    {/* Legal */}
+                    <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+                    <Stack.Screen name="Terms" component={TermsScreen} />
                 </>
             )}
         </Stack.Navigator>

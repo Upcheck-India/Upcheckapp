@@ -1,79 +1,71 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { theme } from '../../theme';
 
+const FEATURE_KEYS = [
+    'settings.featureMultiFarm',
+    'settings.featurePondMonitoring',
+    'settings.featureWaterQuality',
+    'settings.featureFeedManagement',
+    'settings.featureGrowthSimulations',
+    'settings.featureFinancialReports',
+] as const;
+
 export const AboutScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
+
     return (
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>About UpCheck</Text>
+                <Text style={styles.title}>{t('settings.aboutUpcheck')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.logoContainer}>
                     <Text style={styles.logo}>🦐</Text>
-                    <Text style={styles.appName}>UpCheck</Text>
-                    <Text style={styles.tagline}>Shrimp Aquaculture Management</Text>
+                    <Text style={styles.appName}>{t('common.appName')}</Text>
+                    <Text style={styles.tagline}>{t('settings.appTagline')}</Text>
                 </View>
 
                 <Card style={styles.infoCard}>
-                    <Text style={styles.sectionTitle}>Version</Text>
+                    <Text style={styles.sectionTitle}>{t('settings.versionLabel')}</Text>
                     <Text style={styles.version}>v1.0.0</Text>
-                    <Text style={styles.buildInfo}>Build 2026.04.30</Text>
+                    <Text style={styles.buildInfo}>{t('settings.buildInfo')}</Text>
                 </Card>
 
                 <Card style={styles.infoCard}>
-                    <Text style={styles.sectionTitle}>Description</Text>
-                    <Text style={styles.description}>
-                        UpCheck is a comprehensive shrimp aquaculture management application designed to help farmers monitor water quality, manage feed, track growth, and optimize cultivation practices.
-                    </Text>
+                    <Text style={styles.sectionTitle}>{t('settings.descriptionLabel')}</Text>
+                    <Text style={styles.description}>{t('settings.descriptionText')}</Text>
                 </Card>
 
                 <Card style={styles.infoCard}>
-                    <Text style={styles.sectionTitle}>Features</Text>
+                    <Text style={styles.sectionTitle}>{t('settings.featuresLabel')}</Text>
                     <View style={styles.featureList}>
-                        <View style={styles.featureItem}>
-                            <MaterialCommunityIcons name="check-circle" size={20} color={theme.roles.light.successText} />
-                            <Text style={styles.featureText}>Multi-farm management</Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                            <MaterialCommunityIcons name="check-circle" size={20} color={theme.roles.light.successText} />
-                            <Text style={styles.featureText}>Pond monitoring & logs</Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                            <MaterialCommunityIcons name="check-circle" size={20} color={theme.roles.light.successText} />
-                            <Text style={styles.featureText}>Water quality tracking</Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                            <MaterialCommunityIcons name="check-circle" size={20} color={theme.roles.light.successText} />
-                            <Text style={styles.featureText}>Feed management</Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                            <MaterialCommunityIcons name="check-circle" size={20} color={theme.roles.light.successText} />
-                            <Text style={styles.featureText}>Growth simulations</Text>
-                        </View>
-                        <View style={styles.featureItem}>
-                            <MaterialCommunityIcons name="check-circle" size={20} color={theme.roles.light.successText} />
-                            <Text style={styles.featureText}>Financial reports</Text>
-                        </View>
+                        {FEATURE_KEYS.map((key) => (
+                            <View key={key} style={styles.featureItem}>
+                                <MaterialCommunityIcons name="check-circle" size={20} color={theme.roles.light.successText} />
+                                <Text style={styles.featureText}>{t(key)}</Text>
+                            </View>
+                        ))}
                     </View>
                 </Card>
 
                 <Card style={styles.infoCard}>
-                    <Text style={styles.sectionTitle}>Developed By</Text>
-                    <Text style={styles.developer}>UpCheck Team</Text>
-                    <Text style={styles.location}>India</Text>
+                    <Text style={styles.sectionTitle}>{t('settings.developedByLabel')}</Text>
+                    <Text style={styles.developer}>{t('settings.developedByTeam')}</Text>
+                    <Text style={styles.location}>{t('settings.developedByLocation')}</Text>
                 </Card>
 
                 <View style={styles.footer}>
-                    <Text style={styles.footerText}>© 2026 UpCheck. All rights reserved.</Text>
+                    <Text style={styles.footerText}>{t('settings.footerCopyright')}</Text>
                 </View>
             </ScrollView>
         </ScreenWrapper>

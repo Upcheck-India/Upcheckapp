@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -9,6 +10,7 @@ import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
 
 export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -37,7 +39,7 @@ export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
             });
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to save microbiology record');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.microbiology_errorSave'));
         } finally {
             setIsLoading(false);
         }
@@ -49,49 +51,49 @@ export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Microbiology Entry</Text>
+                <Text style={styles.title}>{t('logs.microbiology_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.subtitle}>Logging for {pondName}</Text>
+                <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 <Card style={styles.card}>
-                    <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
+                    <Input label={t('common.date')} value={date} onChangeText={setDate} placeholder={t('logs.datePlaceholder')} required />
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Bacteria Counts (CFU/mL)</Text>
-                    <Input label="Total Bacillus" value={totalBacillus} onChangeText={setTotalBacillus} keyboardType="number-pad" placeholder="0" />
-                    <Input label="Total Vibrio (TVC)" value={totalVibrio} onChangeText={setTotalVibrio} keyboardType="number-pad" placeholder="0" />
+                    <Text style={styles.sectionTitle}>{t('logs.microbiology_sectionBacteria')}</Text>
+                    <Input label={t('logs.microbiology_labelTotalBacillus')} value={totalBacillus} onChangeText={setTotalBacillus} keyboardType="number-pad" placeholder="0" />
+                    <Input label={t('logs.microbiology_labelTotalVibrio')} value={totalVibrio} onChangeText={setTotalVibrio} keyboardType="number-pad" placeholder="0" />
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Vibrio Breakdown (CFU/mL)</Text>
+                    <Text style={styles.sectionTitle}>{t('logs.microbiology_sectionVibrio')}</Text>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label="Green Vibrio" value={greenVibrio} onChangeText={setGreenVibrio} keyboardType="number-pad" placeholder="0" />
+                            <Input label={t('logs.microbiology_labelGreenVibrio')} value={greenVibrio} onChangeText={setGreenVibrio} keyboardType="number-pad" placeholder="0" />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label="Yellow Vibrio" value={yellowVibrio} onChangeText={setYellowVibrio} keyboardType="number-pad" placeholder="0" />
+                            <Input label={t('logs.microbiology_labelYellowVibrio')} value={yellowVibrio} onChangeText={setYellowVibrio} keyboardType="number-pad" placeholder="0" />
                         </View>
                     </View>
-                    <Input label="Luminescent Bacteria" value={luminescentBacteria} onChangeText={setLuminescentBacteria} keyboardType="number-pad" placeholder="0" />
+                    <Input label={t('logs.microbiology_labelLuminescent')} value={luminescentBacteria} onChangeText={setLuminescentBacteria} keyboardType="number-pad" placeholder="0" />
                 </Card>
 
                 <Card style={styles.card}>
                     <Input
-                        label="Notes"
+                        label={t('common.notes')}
                         value={note}
                         onChangeText={setNote}
-                        placeholder="TCBS plate observations..."
+                        placeholder={t('logs.microbiology_placeholderNotes')}
                         multiline
                         numberOfLines={4}
                         style={styles.textArea}
                     />
                 </Card>
 
-                <Button title="Save Record" onPress={handleSave} loading={isLoading} style={styles.saveBtn} />
+                <Button title={t('logs.saveRecord')} onPress={handleSave} loading={isLoading} style={styles.saveBtn} />
             </ScrollView>
         </ScreenWrapper>
     );

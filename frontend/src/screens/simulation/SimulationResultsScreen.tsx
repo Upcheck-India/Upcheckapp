@@ -1,18 +1,20 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { MetricCard } from '../../components/ui/MetricCard';
 import { Card } from '../../components/ui/Card';
 import { theme } from '../../theme';
 
 export const SimulationResultsScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { resultData } = route.params;
 
     if (!resultData) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <Text>No simulation data found.</Text>
+                <Text>{t('simulations.results.noData')}</Text>
             </View>
         );
     }
@@ -23,7 +25,7 @@ export const SimulationResultsScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Simulation Results</Text>
+                <Text style={styles.title}>{t('simulations.results.title')}</Text>
                 <TouchableOpacity onPress={() => navigation.navigate('MainApp', { screen: 'Dashboard' })} style={styles.backBtn}>
                     <MaterialCommunityIcons name="home-outline" size={24} color={theme.roles.light.primary} />
                 </TouchableOpacity>
@@ -31,49 +33,49 @@ export const SimulationResultsScreen = ({ route, navigation }: any) => {
 
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.summaryContainer}>
-                    <Text style={styles.summaryTitle}>Profit Difference</Text>
+                    <Text style={styles.summaryTitle}>{t('simulations.results.profitDifference')}</Text>
                     <Text style={styles.summaryValue}>
                         {(resultData.result?.profitDifference ?? resultData.resultProfitDiff ?? 0) >= 0 ? '+' : ''}
                         {Math.round(resultData.result?.profitDifference ?? resultData.resultProfitDiff ?? 0).toLocaleString()}
                     </Text>
-                    <Text style={styles.summarySubtext}>vs baseline</Text>
+                    <Text style={styles.summarySubtext}>{t('simulations.results.vsBaseline')}</Text>
                 </View>
 
-                <Text style={styles.sectionTitle}>Simulation Results</Text>
+                <Text style={styles.sectionTitle}>{t('simulations.results.sectionResults')}</Text>
                 <View style={styles.metricsGrid}>
                     <MetricCard
-                        label="Projected Biomass"
+                        label={t('simulations.results.labelProjectedBiomass')}
                         value={Math.round(resultData.result?.projectedBiomass ?? resultData.resultProjectedBiomass ?? 0).toLocaleString()}
                         unit="kg"
                         status="safe"
                     />
                     <MetricCard
-                        label="Projected FCR"
+                        label={t('simulations.results.labelProjectedFcr')}
                         value={(resultData.result?.projectedFcr ?? resultData.resultProjectedFcr ?? 0).toFixed(2)}
                     />
                     <MetricCard
-                        label="Total Revenue"
+                        label={t('simulations.results.labelTotalRevenue')}
                         value={Math.round(resultData.result?.totalRevenue ?? resultData.resultTotalRevenue ?? 0).toLocaleString()}
                     />
                     <MetricCard
-                        label="Total Cost"
+                        label={t('simulations.results.labelTotalCost')}
                         value={Math.round(resultData.result?.totalCost ?? resultData.resultTotalCost ?? 0).toLocaleString()}
                     />
                 </View>
 
                 <Card style={styles.inputsCard}>
-                    <Text style={styles.sectionTitle}>Profit Comparison</Text>
+                    <Text style={styles.sectionTitle}>{t('simulations.results.sectionProfitComparison')}</Text>
                     <View style={styles.row}>
-                        <Text style={styles.paramLabel}>Baseline Net Profit:</Text>
+                        <Text style={styles.paramLabel}>{t('simulations.results.labelBaselineProfit')}</Text>
                         <Text style={styles.paramValue}>{Math.round(resultData.result?.baselineNetProfit ?? 0).toLocaleString()}</Text>
                     </View>
                     <View style={styles.row}>
-                        <Text style={styles.paramLabel}>Simulated Net Profit:</Text>
+                        <Text style={styles.paramLabel}>{t('simulations.results.labelSimulatedProfit')}</Text>
                         <Text style={styles.paramValue}>{Math.round(resultData.result?.simulatedNetProfit ?? resultData.resultNetProfit ?? 0).toLocaleString()}</Text>
                     </View>
                     {(resultData.result?.riskWarning) && (
                         <View style={[styles.row, { borderBottomWidth: 0 }]}>
-                            <Text style={[styles.paramLabel, { color: theme.roles.light.dangerText }]}>Risk Warning:</Text>
+                            <Text style={[styles.paramLabel, { color: theme.roles.light.dangerText }]}>{t('simulations.results.labelRiskWarning')}</Text>
                             <Text style={[styles.paramValue, { color: theme.roles.light.dangerText, flex: 1, textAlign: 'right' }]}>{resultData.result.riskWarning}</Text>
                         </View>
                     )}

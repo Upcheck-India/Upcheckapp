@@ -4,9 +4,14 @@ export interface HarvestPlan {
     id: string;
     pondId: string;
     cropId?: string;
-    plannedDate: string;
-    estimatedWeightKg?: number;
-    estimatedSizeG?: number;
+    plannedHarvestDate?: string;
+    targetWeightKg?: number;
+    expectedPricePerKg?: number;
+    expectedRevenue?: number;
+    actualHarvestDate?: string;
+    actualWeightKg?: number;
+    actualPricePerKg?: number;
+    actualRevenue?: number;
     status: string;
     notes?: string;
     createdAt: string;
@@ -15,9 +20,10 @@ export interface HarvestPlan {
 export interface CreateHarvestPlanDto {
     pondId: string;
     cropId?: string;
-    plannedDate: string;
-    estimatedWeightKg?: number;
-    estimatedSizeG?: number;
+    plannedHarvestDate?: string;
+    targetWeightKg?: number;
+    expectedPricePerKg?: number;
+    expectedRevenue?: number;
     notes?: string;
 }
 

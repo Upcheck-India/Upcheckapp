@@ -1,23 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
+import { MoonPhaseCard } from '../../components/ui/MoonPhaseCard';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
+import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { reportsApi, DashboardSummary } from '../../api/reports';
+import { farmsApi } from '../../api/farms';
 
 export const HomeScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
     const { user, logout } = useAuthStore();
+    const { selectedFarm, setSelectedFarm } = useActiveFarmStore();
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchSummary = async () => {
             try {
-                // Fetch summary (pass undefined or selected farmId if needed later)
-                const { data } = await reportsApi.getDashboardSummary();
+                // The dashboard aggregates per-farm; without a farmId the backend
+                // returns all-zeros. Use the selected farm, else default to the
+                // user's first farm (and remember it as the active farm).
+                let farmId = selectedFarm?.id;
+                if (!farmId) {
+                    const { data: farms } = await farmsApi.getAll();
+                    const first = Array.isArray(farms) ? farms[0] : undefined;
+                    if (first) {
+                        farmId = first.id;
+                        setSelectedFarm({ id: first.id, name: first.name, location: (first as any).location });
+                    }
+                }
+                const { data } = await reportsApi.getDashboardSummary(farmId);
                 setSummary(data);
             } catch (error) {
                 console.error("Failed to fetch dashboard summary", error);
@@ -27,20 +44,20 @@ export const HomeScreen = ({ navigation }: any) => {
         };
 
         fetchSummary();
-    }, []);
+    }, [selectedFarm?.id]);
 
     const quickActions = [
-        { icon: 'barn' as const, label: 'Farms', screen: 'Farms', isTab: true, color: theme.roles.light.primary },
-        { icon: 'calculator-variant-outline' as const, label: 'Calculators', screen: 'CalculatorHub', isTab: false, color: theme.roles.light.infoBorder },
-        { icon: 'chart-timeline-variant' as const, label: 'Simulate', screen: 'SimulationList', isTab: false, color: theme.roles.light.successText },
-        { icon: 'cog-outline' as const, label: 'Settings', screen: 'Settings', isTab: false, color: theme.roles.light.warningText },
+        { icon: 'barn' as const, label: t('home.actionFarms'), screen: 'Farms', isTab: true, color: theme.roles.light.primary },
+        { icon: 'calculator-variant-outline' as const, label: t('home.actionCalculators'), screen: 'CalculatorHub', isTab: false, color: theme.roles.light.infoBorder },
+        { icon: 'chart-timeline-variant' as const, label: t('home.actionSimulate'), screen: 'SimulationList', isTab: false, color: theme.roles.light.successText },
+        { icon: 'cog-outline' as const, label: t('home.actionSettings'), screen: 'Settings', isTab: false, color: theme.roles.light.warningText },
     ];
 
     return (
         <ScreenWrapper>
             <View style={styles.header}>
                 <View>
-                    <Text style={styles.greeting}>Welcome back,</Text>
+                    <Text style={styles.greeting}>{t('home.greeting')}</Text>
                     <Text style={styles.userName}>
                         {user?.name || user?.email?.split('@')[0] || 'Farmer'}
                     </Text>
@@ -50,7 +67,7 @@ export const HomeScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
             </View>
 
-            <Text style={styles.sectionTitle}>Dashboard Summary</Text>
+            <Text style={styles.sectionTitle}>{t('home.dashboardSummary')}</Text>
             {isLoading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={theme.roles.light.primary} />
@@ -60,34 +77,39 @@ export const HomeScreen = ({ navigation }: any) => {
                     <Card style={styles.statCard}>
                         <MaterialCommunityIcons name="water" size={32} color={theme.roles.light.primary} />
                         <Text style={styles.statValue}>{summary.activePondsCount}</Text>
-                        <Text style={styles.statLabel}>Active Ponds</Text>
+                        <Text style={styles.statLabel}>{t('home.activePonds')}</Text>
                     </Card>
                     <Card style={styles.statCard}>
                         <MaterialCommunityIcons name="water-outline" size={32} color={theme.roles.light.textSecondary} />
                         <Text style={styles.statValue}>{summary.totalPondsCount}</Text>
-                        <Text style={styles.statLabel}>Total Ponds</Text>
+                        <Text style={styles.statLabel}>{t('home.totalPonds')}</Text>
                     </Card>
                     <Card style={styles.statCard}>
                         <MaterialCommunityIcons name="alert" size={32} color={theme.roles.light.dangerText} />
                         <Text style={styles.statValue}>{summary.lowStockAlerts}</Text>
-                        <Text style={styles.statLabel}>Low Stock Alerts</Text>
+                        <Text style={styles.statLabel}>{t('home.lowStockAlerts')}</Text>
                     </Card>
                     <Card style={styles.statCard}>
                         <MaterialCommunityIcons name="corn" size={32} color={theme.roles.light.warningText} />
                         <Text style={styles.statValue}>{summary.todayFeedUsage}</Text>
-                        <Text style={styles.statLabel}>Today's Feed (kg)</Text>
+                        <Text style={styles.statLabel}>{t('home.todayFeed')}</Text>
                     </Card>
                 </View>
             ) : (
                 <Card style={styles.infoCard}>
                     <MaterialCommunityIcons name="information-outline" size={20} color={theme.roles.light.infoBorder} />
                     <Text style={styles.infoText}>
-                        No farm data available. Create a farm to get started!
+                        {t('home.noFarmData')}
                     </Text>
                 </Card>
             )}
 
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <Text style={styles.sectionTitle}>{t('home.lunarCycle')}</Text>
+            <View style={styles.moonSection}>
+                <MoonPhaseCard />
+            </View>
+
+            <Text style={styles.sectionTitle}>{t('home.quickActions')}</Text>
             <View style={styles.grid}>
                 {quickActions.map((action) => (
                     <TouchableOpacity
@@ -105,7 +127,7 @@ export const HomeScreen = ({ navigation }: any) => {
             </View>
 
             <Button
-                title="Sign Out"
+                title={t('common.signOut')}
                 onPress={logout}
                 variant="outlined"
                 style={{ marginTop: theme.spacing[4] }}
@@ -141,6 +163,9 @@ const styles = StyleSheet.create({
         ...theme.typeScale.h4,
         color: theme.roles.light.textPrimary,
         marginBottom: theme.spacing[4],
+    },
+    moonSection: {
+        marginBottom: theme.spacing[6],
     },
     grid: {
         flexDirection: 'row',

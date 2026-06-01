@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -12,7 +13,30 @@ import { useAuthStore } from '../../store/authStore';
 import { profilesApi, ProfileCompat, CompatUpdateProfileDto } from '../../api/profiles';
 
 export const ProfileScreen = ({ navigation }: any) => {
-    const { user } = useAuthStore();
+    const { t } = useTranslation();
+    const { user, deleteAccount } = useAuthStore();
+
+    const handleDeleteAccount = () => {
+        Alert.alert(
+            t('settings.deleteAccount'),
+            t('settings.deleteAccountConfirm'),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('settings.deleteAccount'),
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await deleteAccount();
+                            // clearSession() returns the user to the auth stack.
+                        } catch (err: any) {
+                            Alert.alert(t('common.error'), err?.response?.data?.message || t('settings.deleteAccountError'));
+                        }
+                    },
+                },
+            ],
+        );
+    };
     const [profile, setProfile] = useState<ProfileCompat | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -87,9 +111,9 @@ export const ProfileScreen = ({ navigation }: any) => {
             const { data } = await profilesApi.update(user?.id || '', updateData);
             setProfile(data);
             setIsEditing(false);
-            Alert.alert('Success', 'Profile updated successfully');
+            Alert.alert(t('common.ok'), t('settings.profileUpdated'));
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to update profile');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('settings.profileUpdateFailed'));
         } finally {
             setIsSaving(false);
         }
@@ -135,7 +159,7 @@ export const ProfileScreen = ({ navigation }: any) => {
             <ScreenWrapper scroll={false} padded={false}>
                 <View style={styles.headerBackground}>
                     <View style={styles.headerTop}>
-                        <Text style={styles.headerTitle}>Profile</Text>
+                        <Text style={styles.headerTitle}>{t('settings.profile')}</Text>
                     </View>
                 </View>
                 <NetworkError onRetry={handleRetry} />
@@ -148,11 +172,11 @@ export const ProfileScreen = ({ navigation }: any) => {
             <ScreenWrapper scroll={false} padded={false}>
                 <View style={styles.headerBackground}>
                     <View style={styles.headerTop}>
-                        <Text style={styles.headerTitle}>Profile</Text>
+                        <Text style={styles.headerTitle}>{t('settings.profile')}</Text>
                     </View>
                 </View>
                 <ErrorState
-                    title="Couldn't Load Profile"
+                    title={t('settings.profileLoadError')}
                     error={error}
                     onRetry={handleRetry}
                 />
@@ -170,7 +194,7 @@ export const ProfileScreen = ({ navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.headerBackground}>
                 <View style={styles.headerTop}>
-                    <Text style={styles.headerTitle}>Profile</Text>
+                    <Text style={styles.headerTitle}>{t('settings.profile')}</Text>
                     <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
                         <MaterialCommunityIcons name="cog" size={24} color={theme.roles.light.surface} />
                     </TouchableOpacity>
@@ -189,39 +213,39 @@ export const ProfileScreen = ({ navigation }: any) => {
                 <ScrollView contentContainerStyle={styles.content}>
                     {isEditing ? (
                         <Card style={styles.editCard}>
-                            <Text style={styles.editTitle}>Edit Profile</Text>
+                            <Text style={styles.editTitle}>{t('settings.editProfile')}</Text>
 
                             <Input
-                                label="First Name"
+                                label={t('settings.firstNameLabel')}
                                 value={firstName}
                                 onChangeText={setFirstName}
-                                placeholder="Enter first name"
+                                placeholder={t('settings.firstNamePlaceholder')}
                             />
 
                             <Input
-                                label="Last Name"
+                                label={t('settings.lastNameLabel')}
                                 value={lastName}
                                 onChangeText={setLastName}
-                                placeholder="Enter last name"
+                                placeholder={t('settings.lastNamePlaceholder')}
                             />
 
                             <Input
-                                label="Phone"
+                                label={t('settings.phoneNumber')}
                                 value={phone}
                                 onChangeText={setPhone}
-                                placeholder="Enter phone number"
+                                placeholder={t('settings.phonePlaceholder')}
                                 keyboardType="phone-pad"
                             />
 
                             <View style={styles.editButtons}>
                                 <Button
-                                    title="Cancel"
+                                    title={t('common.cancel')}
                                     onPress={handleCancel}
                                     variant="outlined"
                                     style={styles.cancelBtn}
                                 />
                                 <Button
-                                    title="Save"
+                                    title={t('common.save')}
                                     onPress={handleSave}
                                     loading={isSaving}
                                     style={styles.saveBtn}
@@ -233,7 +257,7 @@ export const ProfileScreen = ({ navigation }: any) => {
                             <View style={styles.infoRow}>
                                 <MaterialCommunityIcons name="email" size={20} color={theme.roles.light.textSecondary} />
                                 <View style={styles.infoTextContainer}>
-                                    <Text style={styles.infoLabel}>Email Address</Text>
+                                    <Text style={styles.infoLabel}>{t('settings.emailAddress')}</Text>
                                     <Text style={styles.infoValue}>{user?.email || 'N/A'}</Text>
                                 </View>
                             </View>
@@ -241,7 +265,7 @@ export const ProfileScreen = ({ navigation }: any) => {
                             <View style={styles.infoRow}>
                                 <MaterialCommunityIcons name="account" size={20} color={theme.roles.light.textSecondary} />
                                 <View style={styles.infoTextContainer}>
-                                    <Text style={styles.infoLabel}>Full Name</Text>
+                                    <Text style={styles.infoLabel}>{t('settings.fullName')}</Text>
                                     <Text style={styles.infoValue}>{displayName}</Text>
                                 </View>
                             </View>
@@ -249,15 +273,15 @@ export const ProfileScreen = ({ navigation }: any) => {
                             <View style={styles.infoRow}>
                                 <MaterialCommunityIcons name="phone" size={20} color={theme.roles.light.textSecondary} />
                                 <View style={styles.infoTextContainer}>
-                                    <Text style={styles.infoLabel}>Phone Number</Text>
-                                    <Text style={styles.infoValue}>{profile?.phone || 'Not set'}</Text>
+                                    <Text style={styles.infoLabel}>{t('settings.phoneNumber')}</Text>
+                                    <Text style={styles.infoValue}>{profile?.phone || t('settings.profileNotSet')}</Text>
                                 </View>
                             </View>
 
                             <View style={[styles.infoRow, styles.noBorder]}>
                                 <MaterialCommunityIcons name="calendar" size={20} color={theme.roles.light.textSecondary} />
                                 <View style={styles.infoTextContainer}>
-                                    <Text style={styles.infoLabel}>Member Since</Text>
+                                    <Text style={styles.infoLabel}>{t('settings.memberSince')}</Text>
                                     <Text style={styles.infoValue}>
                                         {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}
                                     </Text>
@@ -268,11 +292,25 @@ export const ProfileScreen = ({ navigation }: any) => {
 
                     {!isEditing && (
                         <Button
-                            title="Edit Profile"
+                            title={t('settings.editProfile')}
                             onPress={() => setIsEditing(true)}
                             style={styles.editBtn}
                             icon="pencil"
                         />
+                    )}
+
+                    {!isEditing && (
+                        <>
+                            <Button
+                                title={t('settings.deleteAccount')}
+                                onPress={handleDeleteAccount}
+                                variant="outlined"
+                                icon="account-remove"
+                                style={styles.deleteBtn}
+                                textStyle={{ color: theme.roles.light.dangerText }}
+                            />
+                            <Text style={styles.deleteHint}>{t('settings.deleteAccountHint')}</Text>
+                        </>
                     )}
                 </ScrollView>
             </Animated.View>
@@ -367,6 +405,16 @@ const styles = StyleSheet.create({
         ...theme.typeScale.bodyLarge,
         color: theme.roles.light.textPrimary,
         fontWeight: '500',
+    },
+    deleteBtn: {
+        marginTop: theme.spacing[4],
+        borderColor: theme.roles.light.dangerText,
+    },
+    deleteHint: {
+        ...theme.typeScale.caption,
+        color: theme.roles.light.textSecondary,
+        textAlign: 'center',
+        marginTop: theme.spacing[2],
     },
     editBtn: {
         marginTop: theme.spacing[4],

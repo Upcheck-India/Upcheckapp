@@ -6,6 +6,7 @@ import {
     View,
     type EmitterSubscription,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { Button } from '../../../components/ui/Button';
@@ -90,6 +91,7 @@ export const OtpEntrySection: React.FC<OtpEntrySectionProps> = ({
     subscribeToEvents,
     verifyOtp,
 }) => {
+    const { t } = useTranslation();
     const [otp, setOtp] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [isVerifying, setIsVerifying] = useState(false);
@@ -144,7 +146,7 @@ export const OtpEntrySection: React.FC<OtpEntrySectionProps> = ({
         // Requirement 8.8 — block submission and display "Invalid OTP" when
         // the entered value is shorter than 4 digits.
         if (otp.length < OTP_MIN_LENGTH) {
-            setError('Invalid OTP');
+            setError(t('auth.invalidOtp'));
             return;
         }
         setError(null);
@@ -155,12 +157,12 @@ export const OtpEntrySection: React.FC<OtpEntrySectionProps> = ({
             onVerifyResult?.(result);
         } catch (err: unknown) {
             const message =
-                err instanceof Error && err.message ? err.message : 'Verification failed';
+                err instanceof Error && err.message ? err.message : t('auth.verificationFailedError');
             setError(message);
         } finally {
             setIsVerifying(false);
         }
-    }, [otp, firstName, lastName, verify, onVerifyResult]);
+    }, [otp, firstName, lastName, verify, onVerifyResult, t]);
 
     const handleResend = useCallback(() => {
         if (remaining > 0) return; // Requirement 8.3 — disabled while ttl > 0.
@@ -180,9 +182,9 @@ export const OtpEntrySection: React.FC<OtpEntrySectionProps> = ({
                     size={40}
                     color={theme.roles.light.primary}
                 />
-                <Text style={styles.title}>Enter the OTP</Text>
+                <Text style={styles.title}>{t('auth.enterOtpTitle')}</Text>
                 <Text style={styles.subtitle}>
-                    We sent a verification code to your phone. Enter it below to continue.
+                    {t('auth.otpSubtitle')}
                 </Text>
             </View>
 
@@ -203,16 +205,16 @@ export const OtpEntrySection: React.FC<OtpEntrySectionProps> = ({
                     ]}
                     accessibilityLabel={`OTP expires in ${ttlLabel}`}
                 >
-                    {canResend ? 'OTP expired' : `Expires in ${ttlLabel}`}
+                    {canResend ? t('auth.otpExpired') : t('auth.otpExpiresIn', { time: ttlLabel })}
                 </Text>
             </View>
 
             <Input
-                label="OTP"
+                label={t('auth.otpLabel')}
                 value={otp}
                 onChangeText={handleChangeOtp}
                 error={error ?? undefined}
-                placeholder="Enter the code"
+                placeholder={t('auth.otpPlaceholder')}
                 keyboardType="number-pad"
                 maxLength={OTP_MAX_LENGTH}
                 leftIcon="lock-outline"
@@ -225,7 +227,7 @@ export const OtpEntrySection: React.FC<OtpEntrySectionProps> = ({
             />
 
             <Button
-                title="Verify"
+                title={t('auth.verify')}
                 onPress={handleVerify}
                 loading={isVerifying}
                 disabled={isVerifying}
@@ -246,7 +248,7 @@ export const OtpEntrySection: React.FC<OtpEntrySectionProps> = ({
                         !canResend && styles.resendTextDisabled,
                     ]}
                 >
-                    {canResend ? 'Resend OTP' : `Resend OTP in ${ttlLabel}`}
+                    {canResend ? t('auth.resendOtp') : t('auth.resendOtpIn', { time: ttlLabel })}
                 </Text>
             </TouchableOpacity>
         </View>

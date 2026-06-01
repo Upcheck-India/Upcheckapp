@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
 import { SkeletonList } from '../../../components/ui/Skeleton';
@@ -10,6 +11,7 @@ import { theme } from '../../../theme';
 import { mortalityApi, MortalityRecord } from '../../../api/mortalities';
 
 export const MortalityHistoryScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, cropId } = route.params;
     const [records, setRecords] = useState<MortalityRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -81,6 +83,32 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
         fetchRecords(true);
     }, [fetchRecords]);
 
+    const handleDelete = useCallback((item: MortalityRecord) => {
+        Alert.alert(
+            t('common.delete') + ' ' + t('common.date'),
+            t('history.mortalityDeleteMsg', { date: new Date(item.recordDate).toLocaleDateString() }),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('common.delete'),
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await mortalityApi.remove(item.id);
+                            setRecords((prev) => {
+                                const next = prev.filter((r) => r.id !== item.id);
+                                cacheRef.current = { data: next, timestamp: Date.now() };
+                                return next;
+                            });
+                        } catch (err) {
+                            Alert.alert(t('common.error'), t('history.mortalityDeleteError'));
+                        }
+                    },
+                },
+            ],
+        );
+    }, []);
+
     const totalMortality = records.reduce((sum, r) => sum + r.quantity, 0);
 
     const renderSkeleton = () => (
@@ -99,19 +127,24 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
                         <Text style={styles.dateText}>
                             {new Date(item.recordDate).toLocaleDateString()}
                         </Text>
-                        <View style={styles.countChip}>
-                            <MaterialCommunityIcons name="skull-outline" size={14} color={theme.roles.light.dangerText} />
-                            <Text style={styles.countText}>{item.quantity}</Text>
+                        <View style={styles.headerRow}>
+                            <View style={styles.countChip}>
+                                <MaterialCommunityIcons name="skull-outline" size={14} color={theme.roles.light.dangerText} />
+                                <Text style={styles.countText}>{item.quantity}</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.dangerText} />
+                            </TouchableOpacity>
                         </View>
                     </View>
                     {item.estimatedWeightKg != null && (
-                        <Text style={styles.detailText}>Est. Weight: {item.estimatedWeightKg} kg</Text>
+                        <Text style={styles.detailText}>{t('history.mortalityEstWeight', { weight: item.estimatedWeightKg })}</Text>
                     )}
                     {item.note && <Text style={styles.notesText}>{item.note}</Text>}
                 </Card>
             </Animated.View>
         );
-    }, [fadeAnim]);
+    }, [fadeAnim, handleDelete]);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -119,7 +152,7 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Mortality History</Text>
+                <Text style={styles.title}>{t('history.mortalityTitle')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -128,13 +161,13 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
             ) : isOffline ? (
                 <NetworkError onRetry={handleRetry} />
             ) : error && records.length === 0 ? (
-                <ErrorState title="Couldn't Load Records" error={error} onRetry={handleRetry} />
+                <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={handleRetry} />
             ) : (
                 <>
                     {records.length > 0 && (
                         <View style={styles.summaryBar}>
                             <Text style={styles.summaryText}>
-                                Total Mortality: <Text style={styles.summaryValue}>{totalMortality.toLocaleString()}</Text>
+                                {t('history.mortalityTotalLabel')}<Text style={styles.summaryValue}>{totalMortality.toLocaleString()}</Text>
                             </Text>
                         </View>
                     )}
@@ -155,8 +188,8 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
                         ListEmptyComponent={
                             <View style={styles.emptyState}>
                                 <MaterialCommunityIcons name="skull-crossbones-outline" size={64} color={theme.roles.light.borderDefault} />
-                                <Text style={styles.emptyTitle}>No Mortality Logged</Text>
-                                <Text style={styles.emptyText}>No mortality data recorded yet.</Text>
+                                <Text style={styles.emptyTitle}>{t('history.mortalityEmptyTitle')}</Text>
+                                <Text style={styles.emptyText}>{t('history.mortalityEmptyText')}</Text>
                             </View>
                         }
                     />
@@ -178,6 +211,7 @@ const styles = StyleSheet.create({
     listContent: { padding: theme.spacing[4], paddingBottom: 100 },
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[2] },
+    deleteBtn: { marginLeft: theme.spacing[3] },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
     countChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFEBEE', paddingHorizontal: theme.spacing[3], paddingVertical: 4, borderRadius: theme.radius.full },
     countText: { ...theme.typeScale.labelSmall, color: theme.roles.light.dangerText, fontWeight: '700' },

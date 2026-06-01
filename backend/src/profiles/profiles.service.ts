@@ -1,16 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Profile } from './profile.entity';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { SupabaseAuthService } from '../auth/supabase-auth.service';
 
 @Injectable()
 export class ProfilesService {
+    private readonly logger = new Logger(ProfilesService.name);
+
     constructor(
         @InjectRepository(Profile)
         private profilesRepository: Repository<Profile>,
         private dataSource: DataSource,
+        private readonly supabaseAuthService: SupabaseAuthService,
     ) { }
 
     create(createProfileDto: CreateProfileDto) {
@@ -77,8 +81,23 @@ export class ProfilesService {
     }
 
     async deleteAccount(userId: string): Promise<void> {
+        // Remove all locally-owned data first. Deleting the `users` row cascades
+        // to farms → ponds → crops → all operational logs via ON DELETE CASCADE
+        // foreign keys; `profiles` is deleted explicitly (no FK to users).
         await this.dataSource.transaction(async (manager) => {
+            await manager.query(`DELETE FROM users WHERE id = $1`, [userId]);
             await manager.query(`DELETE FROM profiles WHERE id = $1`, [userId]);
         });
+
+        // Finally remove the Supabase auth identity so the account can no longer
+        // sign in. Local data is already gone, so a failure here is logged but
+        // does not fail the request.
+        try {
+            await this.supabaseAuthService.deleteUser(userId);
+        } catch (err: any) {
+            this.logger.error(
+                `Local data for ${userId} deleted, but Supabase auth user removal failed: ${err?.message ?? err}`,
+            );
+        }
     }
 }

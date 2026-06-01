@@ -33,8 +33,12 @@ export interface CreateExpenseDto {
 }
 
 export interface CycleFinancials {
+    totalRevenue: number;
     totalExpenses: number;
-    expensesByCategory: Array<{ category: ExpenseCategory; amount: number }>;
+    netProfit: number;
+    marginPercent: number;
+    // Backend returns a category->amount map, not an array.
+    expensesByCategory: Record<string, number>;
 }
 
 export const expensesApi = {

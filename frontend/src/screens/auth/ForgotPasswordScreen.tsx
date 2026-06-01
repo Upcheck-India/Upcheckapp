@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -7,6 +8,7 @@ import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 
 export const ForgotPasswordScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
     const [email, setEmail] = useState('');
     const [error, setError] = useState('');
     const [sent, setSent] = useState(false);
@@ -15,11 +17,11 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
 
     const handleSend = async () => {
         if (!email.trim()) {
-            setError('Email is required');
+            setError(t('auth.emailRequired'));
             return;
         }
         if (!/\S+@\S+\.\S+/.test(email)) {
-            setError('Enter a valid email');
+            setError(t('auth.emailInvalid'));
             return;
         }
         setError('');
@@ -27,7 +29,7 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
             await forgotPassword(email.trim());
             setSent(true);
         } catch (err: any) {
-            setError(err.message || 'Failed to send reset email');
+            setError(err.message || t('auth.failedToSendReset'));
         }
     };
 
@@ -36,12 +38,12 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
             <ScreenWrapper>
                 <View style={styles.successContainer}>
                     <Text style={styles.successIcon}>✉️</Text>
-                    <Text style={styles.successTitle}>Check Your Email</Text>
+                    <Text style={styles.successTitle}>{t('auth.checkYourEmail')}</Text>
                     <Text style={styles.successText}>
-                        We've sent a password reset link to {email}. Follow the instructions in the email to reset your password.
+                        {t('auth.passwordResetSent', { email })}
                     </Text>
                     <Button
-                        title="Back to Login"
+                        title={t('auth.backToLogin')}
                         onPress={() => navigation.navigate('Login')}
                         style={{ marginTop: theme.spacing[6] }}
                     />
@@ -53,9 +55,9 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
     return (
         <ScreenWrapper>
             <View style={styles.header}>
-                <Text style={styles.title}>Reset Password</Text>
+                <Text style={styles.title}>{t('auth.resetPassword')}</Text>
                 <Text style={styles.subtitle}>
-                    Enter your email address and we'll send you a link to reset your password.
+                    {t('auth.resetPasswordSubtitle')}
                 </Text>
             </View>
 
@@ -66,10 +68,10 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
             ) : null}
 
             <Input
-                label="Email"
+                label={t('auth.emailLabel')}
                 value={email}
                 onChangeText={setEmail}
-                placeholder="your@email.com"
+                placeholder={t('auth.emailPlaceholder')}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 leftIcon="email-outline"
@@ -77,14 +79,14 @@ export const ForgotPasswordScreen = ({ navigation }: any) => {
             />
 
             <Button
-                title="Send Reset Link"
+                title={t('auth.sendResetLink')}
                 onPress={handleSend}
                 loading={isLoading}
                 style={{ marginTop: theme.spacing[3] }}
             />
 
             <Button
-                title="Back to Login"
+                title={t('auth.backToLogin')}
                 onPress={() => navigation.navigate('Login')}
                 variant="text"
                 style={{ marginTop: theme.spacing[4] }}

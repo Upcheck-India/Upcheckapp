@@ -6,6 +6,7 @@
     "dist",
     "scripts",
     "**/*spec.ts",
-    "typeorm.config.ts"
+    "typeorm.config.ts",
+    "typeorm.local.ts"
   ]
 }

@@ -8,6 +8,7 @@ import { SupabaseAuthService } from './supabase-auth.service';
 import { SupabaseAuthController } from './supabase-auth.controller';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { TruecallerService } from './truecaller.service';
+import { TwoFactorService } from './two-factor.service';
 import { User } from './user.entity';
 
 @Module({
@@ -18,6 +19,7 @@ import { User } from './user.entity';
     SupabaseAuthService,
     SupabaseAuthGuard,
     TruecallerService,
+    TwoFactorService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

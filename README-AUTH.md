@@ -110,7 +110,7 @@ Truecaller backend will accept payloads from a release build.
 ### 2. Store the Partner Key
 
 The console issues a 40+ character Partner Key after registration. Place it in
-`frontend/android/app/src/main/res/values/strings.xml` as the `partnerKey`
+`frontend/android/app/src/main/res/values/partner-keys.xml` as the `partnerKey`
 string resource:
 
 ```xml
@@ -121,8 +121,12 @@ string resource:
 
 `AndroidManifest.xml` references it as
 `<meta-data android:name="com.truecaller.android.sdk.PartnerKey" android:value="@string/partnerKey"/>`.
-The file containing the production Partner Key is excluded from version control
-via `.gitignore` (Requirement 2.3); commit a placeholder value only.
+Android merges every `values/*.xml` into a single resource pool at build time,
+so the reference resolves whether the string lives in `strings.xml` (tracked,
+non-secret resources only) or `partner-keys.xml` (gitignored, holds the real
+Partner Key). The file containing the production Partner Key is excluded from
+version control via `.gitignore` (Requirement 2.3); commit a placeholder value
+only.
 
 ### 3. Register at least three test phone numbers
 

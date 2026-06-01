@@ -280,7 +280,11 @@ const unsupportedResult: BridgeFailureResult = {
  * call without arguments when the module is absent (e.g. unit tests, web).
  */
 const eventEmitter: NativeEventEmitter = TruecallerAuthModule
-  ? new NativeEventEmitter(TruecallerAuthModule as unknown as Parameters<typeof NativeEventEmitter>[0])
+  ? new NativeEventEmitter(
+      TruecallerAuthModule as unknown as ConstructorParameters<
+        typeof NativeEventEmitter
+      >[0],
+    )
   : new NativeEventEmitter();
 
 function ensureModule(): TruecallerAuthNativeModule | null {

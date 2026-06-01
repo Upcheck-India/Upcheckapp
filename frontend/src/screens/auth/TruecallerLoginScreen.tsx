@@ -30,6 +30,7 @@ import {
     View,
     type EmitterSubscription,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -141,6 +142,7 @@ export interface TruecallerLoginScreenProps {
 export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
     navigation,
 }) => {
+    const { t } = useTranslation();
     const setSession = useAuthStore((s) => s.setSession);
 
     const [phase, setPhase] = useState<Phase>('idle');
@@ -188,7 +190,7 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                 // Backend returned 200 but no session — treat as a failure
                 // and surface a generic message rather than silently strand
                 // the user on the verifying spinner.
-                Alert.alert('Login failed', 'No session returned by the server.');
+                Alert.alert(t('auth.loginFailed'), t('auth.noSessionByServer'));
                 setPhase('idle');
             } catch (err: unknown) {
                 const status =
@@ -198,23 +200,23 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                     (err as { response?: { data?: { message?: string } } })
                         ?.response?.data?.message ||
                     (err as { message?: string })?.message ||
-                    'Truecaller authentication failed';
+                    t('auth.truecallerAuthFailed');
 
                 if (status && status >= 400 && status < 500) {
                     // 401 from TruecallerService verification (signature
                     // mismatch, nonce replay, expired payload, etc.). Per
                     // design.md "Backend error response shape" rows, all
                     // such failures alert the user and return to idle.
-                    Alert.alert('Login failed', message);
+                    Alert.alert(t('auth.loginFailed'), message);
                 } else {
                     // Network / 5xx / unknown — show "Network error" per
                     // design.md "Backend unreachable" row.
-                    Alert.alert('Network error', message);
+                    Alert.alert(t('auth.networkError'), message);
                 }
                 setPhase('idle');
             }
         },
-        [setSession],
+        [setSession, t],
     );
 
     // ──────────────────────────────────────────────────────────────────
@@ -257,8 +259,8 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                         const accessToken = event.accessToken;
                         if (!accessToken) {
                             Alert.alert(
-                                'Verification failed',
-                                'Missing access token from Truecaller.',
+                                t('auth.verificationFailed'),
+                                t('auth.missingAccessToken'),
                             );
                             setPhase('manual');
                             return;
@@ -286,8 +288,8 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                         } = event;
                         if (!payload || !signature || !requestNonce) {
                             Alert.alert(
-                                'Verification failed',
-                                'Incomplete signed payload from Truecaller.',
+                                t('auth.verificationFailed'),
+                                t('auth.incompleteSignedPayload'),
                             );
                             setPhase('manual');
                             return;
@@ -313,9 +315,9 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                         // Requirement 12.4 — surface exceptionMessage and
                         // return to PhoneEntrySection so the user can retry.
                         Alert.alert(
-                            'Verification failed',
+                            t('auth.verificationFailed'),
                             event.exceptionMessage ||
-                                'Truecaller could not verify the number.',
+                                t('auth.truecallerCannotVerify'),
                         );
                         setPhase('manual');
                         break;
@@ -329,10 +331,10 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
         return () => {
             subscription.remove();
         };
-        // sendToBackend is stable (memoized on setSession only) so omitting
+        // sendToBackend is stable (memoized on setSession/t) so omitting
         // it from the dep array would risk a stale-closure bug; including
         // it keeps the subscription consistent with the latest dispatcher.
-    }, [sendToBackend]);
+    }, [sendToBackend, t]);
 
     // ──────────────────────────────────────────────────────────────────
     // Error routing for One-Tap failures (Requirements 6.4, 12.2, 12.3)
@@ -358,21 +360,19 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                 // Requirement 12.2 — network failure stays on idle and
                 // surfaces the exact message from the requirement text.
                 case 'ERROR_TYPE_NETWORK':
-                    setStatusMessage(
-                        'No internet connection. Please check your network and try again',
-                    );
+                    setStatusMessage(t('auth.networkCheckMessage'));
                     setPhase('idle');
                     return;
 
                 default:
                     Alert.alert(
-                        'Login failed',
-                        error ? `Truecaller error: ${error}` : 'Unknown error',
+                        t('auth.loginFailed'),
+                        error ? `${t('auth.truecallerErrorPrefix')}${error}` : t('auth.unknownError'),
                     );
                     setPhase('idle');
             }
         },
-        [],
+        [t],
     );
 
     // ──────────────────────────────────────────────────────────────────
@@ -391,9 +391,9 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                 .map((p) => p.split('.').pop())
                 .join(', ');
             setStatusMessage(
-                `Phone permissions are required to continue with Truecaller${
-                    denied ? ` (denied: ${denied})` : ''
-                }. Please grant them in Settings or sign in with email instead.`,
+                t('auth.permissionsRequired', {
+                    suffix: denied ? ` (denied: ${denied})` : '',
+                }),
             );
             return;
         }
@@ -471,8 +471,8 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
         (result: TruecallerAuthResult) => {
             if ('event' in result && result.event === 'VERIFICATION_FAILED') {
                 Alert.alert(
-                    'Verification failed',
-                    result.exceptionMessage || 'Invalid OTP. Please try again.',
+                    t('auth.verificationFailed'),
+                    result.exceptionMessage || t('auth.invalidOtp'),
                 );
                 // Stay on awaiting_otp so the user can re-enter the OTP.
                 return;
@@ -483,7 +483,7 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                 }
             }
         },
-        [routeOneTapError],
+        [routeOneTapError, t],
     );
 
     const handleOtpResend = useCallback(async () => {
@@ -515,7 +515,7 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
         <TouchableOpacity
             onPress={handleEmailLoginPress}
             accessibilityRole="link"
-            accessibilityLabel="Sign in with email"
+            accessibilityLabel={t('auth.signInWithEmail')}
             style={styles.emailLink}
             activeOpacity={0.7}
         >
@@ -524,7 +524,7 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                 size={18}
                 color={theme.roles.light.primary}
             />
-            <Text style={styles.emailLinkText}>Sign in with email</Text>
+            <Text style={styles.emailLinkText}>{t('auth.signInWithEmail')}</Text>
         </TouchableOpacity>
     );
 
@@ -540,9 +540,9 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                     size={48}
                     color={theme.roles.light.primary}
                 />
-                <Text style={styles.title}>Sign in with Truecaller</Text>
+                <Text style={styles.title}>{t('auth.truecallerTitle')}</Text>
                 <Text style={styles.subtitle}>
-                    Verify with your Indian mobile number in seconds.
+                    {t('auth.truecallerSubtitle')}
                 </Text>
             </View>
 
@@ -564,7 +564,7 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                         loading={false}
                     />
                     <Text style={styles.helperText}>
-                        We will request phone permissions to verify your number.
+                        {t('auth.requestPhonePermissions')}
                     </Text>
                 </View>
             )}
@@ -598,20 +598,19 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                             color={theme.roles.light.primary}
                         />
                         <Text style={styles.waitingTitle}>
-                            Waiting for missed call
+                            {t('auth.waitingForMissedCall')}
                         </Text>
                         <Text style={styles.waitingBody}>
-                            You will receive a missed call shortly. Do not pick
-                            it up — Truecaller will verify automatically.
+                            {t('auth.missedCallBody')}
                         </Text>
                         {ttl > 0 && (
                             <Text style={styles.waitingTtl}>
-                                Expires in {ttl}s
+                                {t('auth.expiresIn', { seconds: ttl })}
                             </Text>
                         )}
                     </View>
                     <Button
-                        title="Cancel"
+                        title={t('common.cancel')}
                         variant="text"
                         onPress={() => setPhase('manual')}
                         style={styles.cancelButton}
@@ -625,7 +624,7 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                         size="large"
                         color={theme.roles.light.primary}
                     />
-                    <Text style={styles.verifyingText}>Verifying with Upcheck...</Text>
+                    <Text style={styles.verifyingText}>{t('auth.verifyingWithUpcheck')}</Text>
                 </View>
             )}
 

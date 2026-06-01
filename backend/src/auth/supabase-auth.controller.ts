@@ -1,11 +1,21 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, BadRequestException, UnauthorizedException, ValidationPipe, HttpCode, HttpStatus, Catch, ExceptionFilter, ArgumentsHost, UseFilters } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { SupabaseAuthService } from './supabase-auth.service';
 import { TruecallerService, VerifiedTruecallerProfile } from './truecaller.service';
+import { TwoFactorService } from './two-factor.service';
 import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/auth.decorators';
 import { TruecallerAuthDto } from './dto/truecaller-auth.dto';
+import { Enable2faDto } from './dto/enable-2fa.dto';
+import { Disable2faDto } from './dto/disable-2fa.dto';
+import { Login2faDto } from './dto/login-2fa.dto';
+import { LoginOtpRequestDto, LoginOtpVerifyDto } from './dto/login-otp.dto';
+import { RedisService } from '../redis/redis.service';
 import type { User } from '@supabase/supabase-js';
+
+const TWO_FA_TEMP_PREFIX = 'auth:2fa:temp:';
+const TWO_FA_TEMP_TTL_SECONDS = 300;
 
 /**
  * Method-level validation pipe for {@link SupabaseAuthController.truecallerOAuth}.
@@ -64,6 +74,8 @@ export class SupabaseAuthController {
     constructor(
         private supabaseAuthService: SupabaseAuthService,
         private truecallerService: TruecallerService,
+        private twoFactorService: TwoFactorService,
+        private redisService: RedisService,
     ) { }
 
     // ==================== Email/Password Auth ====================
@@ -101,11 +113,85 @@ export class SupabaseAuthController {
 
         const result = await this.supabaseAuthService.signIn(email, password);
 
+        // If the account has TOTP 2FA enabled, do not hand back the session yet.
+        // Stash it under a short-lived temp token and require a code via
+        // POST /auth/supabase/2fa/login.
+        if (result.user && (await this.twoFactorService.isEnabled(result.user.id))) {
+            const tempToken = randomUUID();
+            await this.redisService.set(
+                `${TWO_FA_TEMP_PREFIX}${tempToken}`,
+                JSON.stringify({ userId: result.user.id, session: result.session }),
+                'EX',
+                TWO_FA_TEMP_TTL_SECONDS,
+            );
+            return { requires2FA: true, tempToken };
+        }
+
         return {
             message: 'Login successful',
             user: result.user,
             session: result.session,
         };
+    }
+
+    // ==================== Passwordless email OTP login ====================
+
+    @Public()
+    @Post('login-otp/request')
+    @HttpCode(HttpStatus.OK)
+    async requestLoginOtp(@Body() body: LoginOtpRequestDto) {
+        return this.supabaseAuthService.sendEmailOtp(body.email);
+    }
+
+    @Public()
+    @Post('login-otp/verify')
+    @HttpCode(HttpStatus.OK)
+    async verifyLoginOtp(@Body() body: LoginOtpVerifyDto) {
+        const result = await this.supabaseAuthService.verifyEmailOtp(body.email, body.otp);
+        return { message: 'Login successful', user: result.user, session: result.session };
+    }
+
+    // ==================== Two-factor authentication (TOTP) ====================
+
+    @Public()
+    @Post('2fa/login')
+    @HttpCode(HttpStatus.OK)
+    async twoFactorLogin(@Body() body: Login2faDto) {
+        const raw = await this.redisService.get(`${TWO_FA_TEMP_PREFIX}${body.tempToken}`);
+        if (!raw) {
+            throw new UnauthorizedException('2FA challenge expired or invalid. Please sign in again.');
+        }
+        const { userId, session } = JSON.parse(raw);
+        const ok = await this.twoFactorService.verifyCode(userId, body.token);
+        if (!ok) {
+            throw new UnauthorizedException('Invalid verification code');
+        }
+        await this.redisService.del(`${TWO_FA_TEMP_PREFIX}${body.tempToken}`);
+        return { message: 'Login successful', session };
+    }
+
+    @UseGuards(SupabaseAuthGuard)
+    @Post('2fa/setup')
+    async twoFactorSetup(@CurrentUser() user) {
+        return this.twoFactorService.setup(user.id);
+    }
+
+    @UseGuards(SupabaseAuthGuard)
+    @Post('2fa/enable')
+    async twoFactorEnable(@CurrentUser() user, @Body() body: Enable2faDto) {
+        return this.twoFactorService.enable(user.id, body.token);
+    }
+
+    @UseGuards(SupabaseAuthGuard)
+    @Post('2fa/disable')
+    async twoFactorDisable(@CurrentUser() user, @Body() body: Disable2faDto) {
+        return this.twoFactorService.disable(user.id, body.token);
+    }
+
+    @UseGuards(SupabaseAuthGuard)
+    @Get('2fa/status')
+    async twoFactorStatus(@CurrentUser() user) {
+        return this.twoFactorService.status(user.id);
     }
 
     // ==================== OAuth ====================

@@ -1,3 +1,4 @@
+import './src/i18n'; // initialise i18next before any screen renders
 import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -5,6 +6,8 @@ import * as Notifications from 'expo-notifications';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { registerForPushNotificationsAsync } from './src/utils/notifications';
+import { useAuthStore } from './src/store/authStore';
+import { pushApi } from './src/api/push';
 import {
   useFonts,
   Nunito_400Regular,
@@ -29,6 +32,17 @@ export default function App() {
   );
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  // Once we have a real Expo token and an authenticated session, register the
+  // token with the backend so server-side alerts can be delivered as push.
+  useEffect(() => {
+    if (isAuthenticated && expoPushToken.startsWith('ExponentPushToken')) {
+      pushApi.registerToken(expoPushToken).catch(() => {
+        /* best-effort; backend logs failures */
+      });
+    }
+  }, [isAuthenticated, expoPushToken]);
 
   // Global unhandled promise rejection handler — prevents crash on Android production
   useEffect(() => {

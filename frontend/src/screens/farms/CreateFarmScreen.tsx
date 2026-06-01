@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -7,6 +8,7 @@ import { theme } from '../../theme';
 import { farmsApi } from '../../api/farms';
 
 export const CreateFarmScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
     const [name, setName] = useState('');
     const [address, setAddress] = useState('');
     const [totalArea, setTotalArea] = useState('');
@@ -15,7 +17,7 @@ export const CreateFarmScreen = ({ navigation }: any) => {
 
     const handleSave = async () => {
         if (!name.trim()) {
-            setErrors({ name: 'Farm name is required' });
+            setErrors({ name: t('farms.errorFarmRequired') });
             return;
         }
         setErrors({});
@@ -29,7 +31,7 @@ export const CreateFarmScreen = ({ navigation }: any) => {
             });
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to create farm');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('farms.errorCreateFarm'));
         } finally {
             setIsLoading(false);
         }
@@ -39,23 +41,23 @@ export const CreateFarmScreen = ({ navigation }: any) => {
         <ScreenWrapper>
             <View style={styles.formContainer}>
                 <Input
-                    label="Farm Name"
+                    label={t('farms.fieldFarmName')}
                     value={name}
                     onChangeText={setName}
-                    placeholder="e.g. North Site"
+                    placeholder={t('farms.placeholderFarmName')}
                     error={errors.name}
                     required
                 />
 
                 <Input
-                    label="Address"
+                    label={t('farms.fieldAddress')}
                     value={address}
                     onChangeText={setAddress}
-                    placeholder="Address or Region"
+                    placeholder={t('farms.placeholderAddress')}
                 />
 
                 <Input
-                    label="Area (hectares, optional)"
+                    label={t('farms.fieldArea')}
                     value={totalArea}
                     onChangeText={setTotalArea}
                     placeholder="0.0"
@@ -63,7 +65,7 @@ export const CreateFarmScreen = ({ navigation }: any) => {
                 />
 
                 <Button
-                    title="Save Farm"
+                    title={t('farms.saveFarm')}
                     onPress={handleSave}
                     loading={isLoading}
                     style={styles.saveBtn}

@@ -72,6 +72,7 @@ export class FarmsService {
             waterSourceType: createFarmDto.waterSourceType as any,
             qrCodeUrl: createFarmDto.qrCodeUrl,
             privacySetting: createFarmDto.privacySetting as any,
+            boundary: createFarmDto.boundary,
             userId,
             farmCode,
         });

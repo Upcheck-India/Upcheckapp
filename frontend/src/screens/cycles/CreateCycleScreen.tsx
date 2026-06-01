@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Alert, ScrollView } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -7,6 +8,7 @@ import { theme } from '../../theme';
 import { cropsApi } from '../../api/crops';
 
 export const CreateCycleScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId } = route.params;
     const [name, setName] = useState('');
     const [stockingDate, setStockingDate] = useState(new Date().toISOString().split('T')[0]);
@@ -20,10 +22,10 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
     const handleSave = async () => {
         const newErrors: { name?: string; stockingCount?: string } = {};
         if (!name.trim()) {
-            newErrors.name = 'Cycle name is required';
+            newErrors.name = t('cycles.errorCycleNameRequired');
         }
         if (!stockingCount || isNaN(parseInt(stockingCount))) {
-            newErrors.stockingCount = 'Valid stocking count is required';
+            newErrors.stockingCount = t('cycles.errorStockingCountRequired');
         }
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
@@ -44,7 +46,7 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
             });
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to start cycle');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('cycles.errorStartCycle'));
         } finally {
             setIsLoading(false);
         }
@@ -54,44 +56,44 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
         <ScreenWrapper>
             <View style={styles.formContainer}>
                 <Input
-                    label="Cycle Name"
+                    label={t('cycles.fieldCycleName')}
                     value={name}
                     onChangeText={setName}
-                    placeholder="e.g. Cycle 1"
+                    placeholder={t('cycles.placeholderCycleName')}
                     error={errors.name}
                     required
                 />
                 <Input
-                    label="Stocking Date (YYYY-MM-DD)"
+                    label={t('cycles.fieldStockingDate')}
                     value={stockingDate}
                     onChangeText={setStockingDate}
-                    placeholder="2026-01-01"
+                    placeholder={t('cycles.placeholderStockingDate')}
                     required
                 />
                 <Input
-                    label="Stocking Count"
+                    label={t('cycles.fieldStockingCount')}
                     value={stockingCount}
                     onChangeText={setStockingCount}
                     keyboardType="number-pad"
-                    placeholder="e.g. 500000"
+                    placeholder={t('cycles.placeholderStockingCount')}
                     error={errors.stockingCount}
                     required
                 />
                 <Input
-                    label="Species Type"
+                    label={t('cycles.fieldSpeciesType')}
                     value={speciesType}
                     onChangeText={setSpeciesType}
-                    placeholder="e.g. Vannamei"
+                    placeholder={t('cycles.placeholderSpeciesType')}
                 />
                 <Input
-                    label="Seed Type (Optional)"
+                    label={t('cycles.fieldSeedType')}
                     value={seedType}
                     onChangeText={setSeedType}
-                    placeholder="e.g. PL-10"
+                    placeholder={t('cycles.placeholderSeedType')}
                 />
 
                 <Button
-                    title="Start Production Cycle"
+                    title={t('cycles.startCycle')}
                     onPress={handleSave}
                     loading={isLoading}
                     style={styles.saveBtn}

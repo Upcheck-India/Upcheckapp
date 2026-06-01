@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -9,6 +10,7 @@ import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
 
 export const PlanktonLogScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -39,7 +41,7 @@ export const PlanktonLogScreen = ({ route, navigation }: any) => {
             });
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to save plankton record');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.plankton_errorSave'));
         } finally {
             setIsLoading(false);
         }
@@ -51,53 +53,53 @@ export const PlanktonLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Plankton Entry</Text>
+                <Text style={styles.title}>{t('logs.plankton_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.subtitle}>Logging for {pondName}</Text>
+                <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 <Card style={styles.card}>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
+                            <Input label={t('common.date')} value={date} onChangeText={setDate} placeholder={t('logs.datePlaceholder')} required />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label="Time" value={time} onChangeText={setTime} placeholder="HH:MM" required />
+                            <Input label={t('logs.time')} value={time} onChangeText={setTime} placeholder={t('logs.timePlaceholder')} required />
                         </View>
                     </View>
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Plankton Counts (cells/mL)</Text>
+                    <Text style={styles.sectionTitle}>{t('logs.plankton_sectionCounts')}</Text>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label="Green Algae" value={greenAlgae} onChangeText={setGreenAlgae} keyboardType="number-pad" placeholder="0" />
+                            <Input label={t('logs.plankton_labelGreenAlgae')} value={greenAlgae} onChangeText={setGreenAlgae} keyboardType="number-pad" placeholder="0" />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label="Blue-Green (BGA)" value={blueGreenAlgae} onChangeText={setBlueGreenAlgae} keyboardType="number-pad" placeholder="0" />
+                            <Input label={t('logs.plankton_labelBlueGreen')} value={blueGreenAlgae} onChangeText={setBlueGreenAlgae} keyboardType="number-pad" placeholder="0" />
                         </View>
                     </View>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label="Diatom" value={diatom} onChangeText={setDiatom} keyboardType="number-pad" placeholder="0" />
+                            <Input label={t('logs.plankton_labelDiatom')} value={diatom} onChangeText={setDiatom} keyboardType="number-pad" placeholder="0" />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label="Dinoflagellata" value={dinoflagellata} onChangeText={setDinoflagellata} keyboardType="number-pad" placeholder="0" />
+                            <Input label={t('logs.plankton_labelDinoflagellata')} value={dinoflagellata} onChangeText={setDinoflagellata} keyboardType="number-pad" placeholder="0" />
                         </View>
                     </View>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label="Protozoa" value={protozoa} onChangeText={setProtozoa} keyboardType="number-pad" placeholder="0" />
+                            <Input label={t('logs.plankton_labelProtozoa')} value={protozoa} onChangeText={setProtozoa} keyboardType="number-pad" placeholder="0" />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label="Floc" value={floc} onChangeText={setFloc} keyboardType="number-pad" placeholder="0" />
+                            <Input label={t('logs.plankton_labelFloc')} value={floc} onChangeText={setFloc} keyboardType="number-pad" placeholder="0" />
                         </View>
                     </View>
                 </Card>
 
-                <Button title="Save Record" onPress={handleSave} loading={isLoading} style={styles.saveBtn} />
+                <Button title={t('logs.saveRecord')} onPress={handleSave} loading={isLoading} style={styles.saveBtn} />
             </ScrollView>
         </ScreenWrapper>
     );

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { DiseaseService } from './disease.service';
 import { CreateDiseaseDto, CreateDiseaseRecordDto } from './dto/create-disease.dto';
 import { UpdateDiseaseLibraryDto } from './dto/update-disease-library.dto';
@@ -24,7 +24,8 @@ export class DiseaseController {
         return this.diseaseService.searchLibrary(query);
     }
 
-    @Get('library/seed')
+    // POST, not GET: this mutates (seeds rows), so it must not be a GET.
+    @Post('library/seed')
     seedDiseases() {
         return this.diseaseService.seedDiseases();
     }
@@ -54,5 +55,15 @@ export class DiseaseController {
     @Get('record/crop/:cropId')
     findRecordsByCrop(@Param('cropId') cropId: string) {
         return this.diseaseService.findRecordsByCrop(cropId);
+    }
+
+    @Patch('record/:id')
+    updateRecord(@Param('id') id: string, @Body() dto: Partial<CreateDiseaseRecordDto>) {
+        return this.diseaseService.updateRecord(id, dto);
+    }
+
+    @Delete('record/:id')
+    removeRecord(@Param('id') id: string) {
+        return this.diseaseService.removeRecord(id);
     }
 }

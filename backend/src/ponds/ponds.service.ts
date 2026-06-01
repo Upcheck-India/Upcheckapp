@@ -214,6 +214,11 @@ export class PondsService {
             throw new NotFoundException(`Pond with ID ${id} not found`);
         }
 
+        // Enforce ownership: the pond's farm must belong to the caller.
+        if (pond.farm && pond.farm.userId !== userId) {
+            throw new ForbiddenException('You do not have access to this pond');
+        }
+
         return pond;
     }
 

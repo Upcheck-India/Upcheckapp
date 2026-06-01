@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { FAB } from '../../components/ui/FAB';
@@ -12,6 +13,7 @@ import { farmsApi, Farm } from '../../api/farms';
 import { useFocusEffect } from '@react-navigation/native';
 
 export const FarmsListScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
     const [farms, setFarms] = useState<Farm[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -133,7 +135,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
                             <View style={styles.statItem}>
                                 <MaterialCommunityIcons name="water-outline" size={16} color={theme.roles.light.textSecondary} />
                                 <Text style={styles.statsText}>
-                                    <Text style={styles.statsValue}>{pondCount}</Text> Ponds
+                                    <Text style={styles.statsValue}>{pondCount}</Text> {t('farms.ponds')}
                                 </Text>
                             </View>
                             {areaHectares > 0 && (
@@ -155,7 +157,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>My Farms</Text>
+                    <Text style={styles.headerTitle}>{t('farms.title')}</Text>
                     <TouchableOpacity onPress={() => navigation.navigate('CreateFarm')}>
                         <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
                     </TouchableOpacity>
@@ -170,7 +172,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>My Farms</Text>
+                    <Text style={styles.headerTitle}>{t('farms.title')}</Text>
                     <TouchableOpacity onPress={() => navigation.navigate('CreateFarm')}>
                         <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
                     </TouchableOpacity>
@@ -185,13 +187,13 @@ export const FarmsListScreen = ({ navigation }: any) => {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>My Farms</Text>
+                    <Text style={styles.headerTitle}>{t('farms.title')}</Text>
                     <TouchableOpacity onPress={() => navigation.navigate('CreateFarm')}>
                         <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
                     </TouchableOpacity>
                 </View>
                 <ErrorState
-                    title="Couldn't Load Farms"
+                    title={t('farms.errorTitle')}
                     error={error}
                     onRetry={handleRetry}
                 />
@@ -225,9 +227,9 @@ export const FarmsListScreen = ({ navigation }: any) => {
                 ListEmptyComponent={
                     <EmptyState
                         icon="barn"
-                        title="No Farms Yet"
-                        subtitle="Create your first farm to start managing your ponds and cycles."
-                        actionLabel="Add Farm"
+                        title={t('farms.emptyTitle')}
+                        subtitle={t('farms.emptySubtitle')}
+                        actionLabel={t('farms.addFarm')}
                         onAction={() => navigation.navigate('CreateFarm')}
                     />
                 }

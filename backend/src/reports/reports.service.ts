@@ -6,6 +6,7 @@ import { HarvestsService } from '../harvests/harvests.service';
 import { ExpensesService } from '../finances/expenses.service';
 import { RedisService } from '../redis/redis.service';
 import { SamplingService } from '../sampling/sampling.service';
+import { CropsService } from '../crops/crops.service';
 
 @Injectable()
 export class ReportsService {
@@ -17,6 +18,7 @@ export class ReportsService {
         private readonly expensesService: ExpensesService,
         private readonly redisService: RedisService,
         private readonly samplingService: SamplingService,
+        private readonly cropsService: CropsService,
     ) { }
 
     async getDashboardSummary(userId: string, farmId?: string) {
@@ -62,26 +64,31 @@ export class ReportsService {
         return summaryData;
     }
 
-    async getCycleAnalysis(cycleId: string) {
-        // We will fetch feeds, sampling, and harvests using cycleId.
-        // wait, we need to pass the options if required, but let's see.
-        // Wait, FeedRecordsService.findAll takes pondId not cycleId by default if used from there, but looking at its findAll: it takes pondId
-        // Wait, feedRecordsService.findAll has pondId?: string. But wait! I will just fetch all and filter or query directly.
-        // Let's rely on what we can get.
+    async getCycleAnalysis(cycleId: string, userId: string) {
+        // Verify the caller owns this cycle (throws Forbidden/NotFound otherwise).
+        const crop = await this.cropsService.findOne(cycleId, userId);
 
-        // Let's implement this properly:
         const [samplings, harvests] = await Promise.all([
             this.samplingService.findAll(cycleId),
             this.harvestsService.findAll(cycleId),
         ]);
 
-        let fcr = 0;
         let survivalRate = 0;
 
-        // FCR calculation = Total Feed / Total Biomass
-        // Let's get total feed. Feed records doesn't have a direct method for cycleId.
-        // But we can estimate FCR from total feed if we know the pondId.
-        // Let's just use FCR = 0 if we can't find feed, or we can just leave it as is if feedService doesn't have by cycleId.
+        // FCR = total feed (kg) / total harvested weight (kg).
+        // Feed is tracked per-pond, so we approximate cycle feed with the pond's
+        // total feed; this is exact for single-cycle ponds and an upper bound
+        // when a pond has hosted multiple cycles.
+        const totalFeedKg = Number(
+            await this.feedRecordsService.getTotalFeedByPond(crop.pondId),
+        );
+        const totalHarvestKg = harvests.reduce(
+            (sum, h) => sum + Number(h.weightKg || 0),
+            0,
+        );
+        const fcr = totalHarvestKg > 0
+            ? Number((totalFeedKg / totalHarvestKg).toFixed(2))
+            : 0;
 
         // Growth Chart:
         const growthChart = samplings
@@ -99,7 +106,9 @@ export class ReportsService {
 
         return {
             cycleId,
-            fcr: fcr, // We could do better if we had total feed by cycle
+            fcr,
+            totalFeedKg,
+            totalHarvestKg,
             survivalRate,
             growthChart
         };
@@ -113,14 +122,14 @@ export class ReportsService {
         let totalExpenses = 0;
         let expensesByCategory: Record<string, number> = {};
 
-        // For each pond, get cycle financials if it has an active cycle
+        // Aggregate across ALL cycles of every pond — not just the active one —
+        // so completed/past cycles still contribute to the farm's finances.
         for (const pond of pondsPage.data) {
-            if (pond.activeCycleId) {
-                const financials = await this.expensesService.getCycleFinancials(pond.activeCycleId);
+            const crops = await this.cropsService.findByPond(pond.id, userId);
+            for (const crop of crops) {
+                const financials = await this.expensesService.getCycleFinancials(crop.id);
                 totalRevenue += financials.totalRevenue;
                 totalExpenses += financials.totalExpenses;
-
-                // Aggregate expenses by category
                 for (const [category, amount] of Object.entries(financials.expensesByCategory)) {
                     expensesByCategory[category] = (expensesByCategory[category] || 0) + Number(amount);
                 }

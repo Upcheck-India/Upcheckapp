@@ -1,0 +1,114 @@
+const settings = {
+  // ── SettingsScreen ────────────────────────────────────────────────────────
+  title: 'सेटिंग्स',
+  language: 'भाषा',
+  languageDesc: 'अपनी पसंदीदा ऐप भाषा चुनें',
+  appPreferences: 'ऐप प्राथमिकताएं',
+  offlineSync: 'ऑफलाइन सिंक',
+  offlineSyncDesc: 'ऑफलाइन उपयोग के लिए डेटा कैश करें',
+  notifications: 'सूचनाएं',
+  pushNotifications: 'पुश सूचनाएं',
+  pushNotificationsDesc: 'जल गुणवत्ता और आहार के लिए अलर्ट',
+  emailSummaries: 'ईमेल सारांश',
+  emailSummariesDesc: 'साप्ताहिक प्रदर्शन रिपोर्ट',
+  security: 'सुरक्षा',
+  twoFactor: 'दो-चरणीय प्रमाणीकरण',
+  about: 'Upcheck के बारे में',
+  privacyPolicy: 'गोपनीयता नीति',
+  termsOfService: 'सेवा की शर्तें',
+
+  // ── ProfileScreen ─────────────────────────────────────────────────────────
+  profile: 'प्रोफ़ाइल',
+  editProfile: 'प्रोफ़ाइल संपादित करें',
+  emailAddress: 'ईमेल पता',
+  fullName: 'पूरा नाम',
+  phoneNumber: 'फोन नंबर',
+  memberSince: 'सदस्यता तिथि',
+  firstNameLabel: 'पहला नाम',
+  firstNamePlaceholder: 'पहला नाम दर्ज करें',
+  lastNameLabel: 'अंतिम नाम',
+  lastNamePlaceholder: 'अंतिम नाम दर्ज करें',
+  phonePlaceholder: 'फोन नंबर दर्ज करें',
+  profileUpdated: 'प्रोफ़ाइल सफलतापूर्वक अपडेट की गई',
+  profileUpdateFailed: 'प्रोफ़ाइल अपडेट करने में विफल',
+  profileLoadError: 'प्रोफ़ाइल लोड नहीं हो सकी',
+  profileNotSet: 'सेट नहीं है',
+
+  // ── HelpScreen ────────────────────────────────────────────────────────────
+  helpAndSupport: 'सहायता और समर्थन',
+  helpIntroTitle: 'हम कैसे मदद कर सकते हैं?',
+  helpIntroText:
+    'UpCheck आपका झींगा जलकृषि प्रबंधन साथी है। इसका अधिकतम लाभ उठाने का तरीका यहाँ है।',
+  quickGuides: 'त्वरित मार्गदर्शिकाएं',
+  contactUs: 'हमसे संपर्क करें',
+  // Help topic titles
+  helpTopicWaterTitle: 'जल गुणवत्ता निगरानी',
+  helpTopicWaterDesc:
+    'प्रतिदिन pH, DO, तापमान, लवणता और अन्य मानक दर्ज करें। इष्टतम सीमा से बाहर होने पर अलर्ट प्राप्त करें।',
+  helpTopicFeedTitle: 'आहार प्रबंधन',
+  helpTopicFeedDesc:
+    'आहार उपयोग ट्रैक करें, MBW के आधार पर दैनिक आहार मात्रा की गणना करें, और आहार दक्षता (FCR) की निगरानी करें।',
+  helpTopicSamplingTitle: 'नमूनाकरण रिकॉर्ड',
+  helpTopicSamplingDesc:
+    'नियमित नमूनाकरण से जैव भार, उत्तरजीविता दर और औसत शरीर भार (ABW/MBW) का अनुमान लगाने में मदद मिलती है।',
+  helpTopicCalculatorsTitle: 'कैलकुलेटर',
+  helpTopicCalculatorsDesc:
+    'FCR, आहार मात्रा, उत्पाद खुराक और मुक्त अमोनिया गणनाओं के लिए अंतर्निहित कैलकुलेटर उपयोग करें।',
+  helpTopicSimulationsTitle: 'सिमुलेशन',
+  helpTopicSimulationsDesc:
+    'कटाई तिथियाँ, अपेक्षित उपज और खेती की रणनीतियाँ अनुकूलित करने का पूर्वानुमान लगाने के लिए वृद्धि सिमुलेशन चलाएं।',
+  helpTopicFarmTitle: 'फार्म प्रबंधन',
+  helpTopicFarmDesc:
+    'तालाब व्यवस्थित करें, चक्र प्रबंधित करें, इन्वेंटरी ट्रैक करें, और प्रत्येक फार्म की वित्तीय रिपोर्ट देखें।',
+
+  // ── AboutScreen ───────────────────────────────────────────────────────────
+  aboutUpcheck: 'UpCheck के बारे में',
+  appTagline: 'झींगा जलकृषि प्रबंधन',
+  versionLabel: 'संस्करण',
+  buildInfo: 'बिल्ड 2026.04.30',
+  descriptionLabel: 'विवरण',
+  descriptionText:
+    'UpCheck एक व्यापक झींगा जलकृषि प्रबंधन ऐप है जो किसानों को जल गुणवत्ता निगरानी, आहार प्रबंधन, वृद्धि ट्रैकिंग और खेती प्रथाओं को अनुकूलित करने में मदद करता है।',
+  featuresLabel: 'विशेषताएं',
+  featureMultiFarm: 'बहु-फार्म प्रबंधन',
+  featurePondMonitoring: 'तालाब निगरानी और लॉग',
+  featureWaterQuality: 'जल गुणवत्ता ट्रैकिंग',
+  featureFeedManagement: 'आहार प्रबंधन',
+  featureGrowthSimulations: 'वृद्धि सिमुलेशन',
+  featureFinancialReports: 'वित्तीय रिपोर्ट',
+  developedByLabel: 'विकसित किया',
+  developedByTeam: 'UpCheck टीम',
+  developedByLocation: 'भारत',
+  footerCopyright: '© 2026 UpCheck. सर्वाधिकार सुरक्षित।',
+
+  // ── TwoFactorScreen ───────────────────────────────────────────────────────
+  twoFactorTitle: 'दो-चरणीय प्रमाणीकरण',
+  twoFactorEnabled: 'सक्षम',
+  twoFactorNotEnabled: 'सक्षम नहीं है',
+  twoFactorSetup: '2FA सेट अप करें',
+  twoFactorScanHelp:
+    'एक ऑथेंटिकेटर ऐप (Google Authenticator, Authy…) से यह QR कोड स्कैन करें, फिर पूरा करने के लिए उत्पन्न कोड दर्ज करें।',
+  twoFactorManualKey: 'मैन्युअल कुंजी: {{secret}}',
+  twoFactorCodeLabel: 'ऐप से कोड',
+  twoFactorVerifyEnable: 'सत्यापित करें और सक्षम करें',
+  twoFactorDisableHelp: 'दो-चरणीय प्रमाणीकरण बंद करने के लिए वर्तमान कोड दर्ज करें।',
+  twoFactorAuthCodeLabel: 'ऑथेंटिकेटर कोड',
+  twoFactorDisable: '2FA अक्षम करें',
+  twoFactorInvalidCode: 'अपने ऑथेंटिकेटर ऐप से 6-अंकीय कोड दर्ज करें।',
+  twoFactorCodeRequired: '2FA अक्षम करने के लिए वर्तमान 6-अंकीय कोड दर्ज करें।',
+  twoFactorEnabledSuccess: 'दो-चरणीय प्रमाणीकरण अब चालू है।',
+  twoFactorDisabledSuccess: 'दो-चरणीय प्रमाणीकरण अब बंद है।',
+  twoFactorSetupError: '2FA सेटअप शुरू नहीं हो सका',
+
+  // ── NotificationsScreen ───────────────────────────────────────────────────
+  notificationsTitle: 'सूचनाएं',
+  notificationsEmpty: 'सब अपडेट है!',
+  notificationsEmptyDesc: 'आपके पास कोई नई सूचना नहीं है।',
+  notificationsLoadError: 'सूचनाएं लोड नहीं हो सकीं',
+  deleteAccount: "खाता हटाएँ",
+  deleteAccountConfirm: "इससे आपका खाता और सभी फ़ार्म डेटा स्थायी रूप से हट जाएगा। इसे पूर्ववत नहीं किया जा सकता। जारी रखें?",
+  deleteAccountHint: "आपका खाता और आपके सभी डेटा को स्थायी रूप से हटा देता है।",
+  deleteAccountError: "आपका खाता हटाया नहीं जा सका। कृपया पुनः प्रयास करें।",
+};
+
+export default settings;

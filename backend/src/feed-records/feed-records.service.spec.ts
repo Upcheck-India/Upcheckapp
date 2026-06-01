@@ -95,7 +95,7 @@ describe('FeedRecordsService', () => {
         cropId: 'crop-1'
       });
       expect(mockRepository.save).toHaveBeenCalled();
-      expect(inventoryServiceMock.adjustStock).toHaveBeenCalledWith('inv-item-1', -50); // Verify deduction
+      expect(inventoryServiceMock.adjustStock).toHaveBeenCalledWith('inv-item-1', -50, 'user-1'); // Verify deduction (scoped to caller)
       expect(result).toEqual(expect.objectContaining(createDto));
     });
 

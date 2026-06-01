@@ -1,0 +1,114 @@
+const settings = {
+  // ── SettingsScreen ────────────────────────────────────────────────────────
+  title: 'ସେଟିଂ',
+  language: 'ଭାଷା',
+  languageDesc: 'ଆପଣଙ୍କ ପସନ୍ଦର ଆପ ଭାଷା ବାଛନ୍ତୁ',
+  appPreferences: 'ଆପ ପ୍ରାଥମିକତା',
+  offlineSync: 'ଅଫଲାଇନ ସିଙ୍କ',
+  offlineSyncDesc: 'ଅଫଲାଇନ ବ୍ୟବହାର ପାଇଁ ତଥ୍ୟ କ୍ୟାଶ୍ କରନ୍ତୁ',
+  notifications: 'ବିଜ୍ଞପ୍ତି',
+  pushNotifications: 'ପୁଶ ବିଜ୍ଞପ୍ତି',
+  pushNotificationsDesc: 'ଜଳ ଗୁଣମାନ ଓ ଖାଦ୍ୟ ପ୍ରଦାନ ପାଇଁ ସଙ୍କେତ',
+  emailSummaries: 'ଇମେଲ ସାରାଂଶ',
+  emailSummariesDesc: 'ସାପ୍ତାହିକ ପ୍ରଦର୍ଶନ ରିପୋର୍ଟ',
+  security: 'ସୁରକ୍ଷା',
+  twoFactor: 'ଦ୍ୱି-ଘଟକ ପ୍ରମାଣୀକରଣ',
+  about: 'Upcheck ବିଷୟରେ',
+  privacyPolicy: 'ଗୋପନୀୟତା ନୀତି',
+  termsOfService: 'ସେବা ସର୍ତ୍ତ',
+
+  // ── ProfileScreen ─────────────────────────────────────────────────────────
+  profile: 'ପ୍ରୋଫାଇଲ',
+  editProfile: 'ପ୍ରୋଫାଇଲ ସମ୍ପାଦନ',
+  emailAddress: 'ଇମେଲ ଠିକଣା',
+  fullName: 'ପୂରା ନାମ',
+  phoneNumber: 'ଫୋନ ନମ୍ବର',
+  memberSince: 'ସଦସ୍ୟ ହୋଇଛନ୍ତି',
+  firstNameLabel: 'ପ୍ରଥମ ନାମ',
+  firstNamePlaceholder: 'ପ୍ରଥମ ନାମ ଲେଖନ୍ତୁ',
+  lastNameLabel: 'ଶେଷ ନାମ',
+  lastNamePlaceholder: 'ଶେଷ ନାମ ଲେଖନ୍ତୁ',
+  phonePlaceholder: 'ଫୋନ ନମ୍ବର ଲେଖନ୍ତୁ',
+  profileUpdated: 'ପ୍ରୋଫାଇଲ ସଫଳଭାବେ ଅଦ୍ୟତନ ହୋଇଛି',
+  profileUpdateFailed: 'ପ୍ରୋଫାଇଲ ଅଦ୍ୟତନ ହୋଇପାରିଲା ନାହିଁ',
+  profileLoadError: 'ପ୍ରୋଫାଇଲ ଲୋଡ୍ ହୋଇପାରିଲା ନାହିଁ',
+  profileNotSet: 'ସ୍ଥିର ହୋଇନାହିଁ',
+
+  // ── HelpScreen ────────────────────────────────────────────────────────────
+  helpAndSupport: 'ସାହାଯ୍ୟ ଓ ସହଯୋଗ',
+  helpIntroTitle: 'ଆମେ କିଭଳି ସାହାଯ୍ୟ କରିପାରିବୁ?',
+  helpIntroText:
+    'UpCheck ହେଉଛି ଆପଣଙ୍କ ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା ସହଯୋଗୀ। ଏଥିରୁ ସର୍ବଶ୍ରେଷ୍ଠ ଫଳ ପାଇବାର ଉପାୟ ଜାଣନ୍ତୁ।',
+  quickGuides: 'ଦ୍ରୁତ ଗାଇଡ',
+  contactUs: 'ଆମ ସହ ଯୋଗାଯୋଗ',
+  // Help topic titles
+  helpTopicWaterTitle: 'ଜଳ ଗୁଣମାନ ପ୍ରାଯ୍ୟ',
+  helpTopicWaterDesc:
+    'ପ୍ରତିଦିନ pH, DO, ତାପମାତ୍ରା, ଲବଣତା ଏବଂ ଅନ୍ୟ ପ୍ୟାରାମିଟର ରେକର୍ଡ କରନ୍ତୁ। ମୂଲ୍ୟ ଅନୁକୂଳ ସୀମା ବାହାରକୁ ଯିବାବେଳେ ସଙ୍କେତ ପ୍ରାପ୍ତ ହୁଏ।',
+  helpTopicFeedTitle: 'ଖାଦ୍ୟ ପରିଚାଳନା',
+  helpTopicFeedDesc:
+    'ଖାଦ୍ୟ ବ୍ୟବହାର ଟ୍ର୍ୟାକ୍ କରନ୍ତୁ, MBW ଆଧାରରେ ଦୈନିକ ଖାଦ୍ୟ ପରିମାଣ ଗଣନା କରନ୍ତୁ, ଏବଂ ଖାଦ୍ୟ ଦକ୍ଷତା (FCR) ଦେଖୁ ରଖନ୍ତୁ।',
+  helpTopicSamplingTitle: 'ନମୁନା ରେକର୍ଡ',
+  helpTopicSamplingDesc:
+    'ନିୟମିତ ନମୁନା ଜୈବ ଭର, ବଞ୍ଚିବା ହାର ଏବଂ ହାରାହାରି ଶରୀର ଓଜନ (ABW/MBW) ଆଂକଳନ କରିବାରେ ସାହାଯ୍ୟ କରେ।',
+  helpTopicCalculatorsTitle: 'ଗଣଣ ଯନ୍ତ୍ର',
+  helpTopicCalculatorsDesc:
+    'FCR, ଖାଦ୍ୟ ପରିମାଣ, ଉତ୍ପାଦ ଡୋଜ ଏବଂ ମୁକ୍ତ ଅ୍ୟାମୋନିଆ ଗଣନା ପାଇଁ ଅନ୍ତର୍ନିର୍ମିତ ଗଣଣ ଯନ୍ତ୍ର ବ୍ୟବହାର କରନ୍ତୁ।',
+  helpTopicSimulationsTitle: 'ଅନୁକରଣ',
+  helpTopicSimulationsDesc:
+    'ଫସଲ ତାରିଖ ପୂର୍ବାନୁମାନ, ଆଶାୟୀ ଉତ୍ପାଦ ଏବଂ ଚାଷ ରଣନୀତି ସୁଧାର ପାଇଁ ବୃଦ୍ଧି ଅନୁକରଣ ଚଲାନ୍ତୁ।',
+  helpTopicFarmTitle: 'ଫାର୍ମ ପରିଚାଳନା',
+  helpTopicFarmDesc:
+    'ପୋଖରି ସଂଗଠିତ କରନ୍ତୁ, ଚକ୍ର ପରିଚାଳନା କରନ୍ତୁ, ଭଣ୍ଡାର ଟ୍ର୍ୟାକ୍ କରନ୍ତୁ ଏବଂ ପ୍ରତି ଫାର୍ମ ଅର୍ଥ ରିପୋର୍ଟ ଦେଖନ୍ତୁ।',
+
+  // ── AboutScreen ───────────────────────────────────────────────────────────
+  aboutUpcheck: 'UpCheck ବିଷୟରେ',
+  appTagline: 'ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା',
+  versionLabel: 'ସଂସ୍କରଣ',
+  buildInfo: 'Build 2026.04.30',
+  descriptionLabel: 'ବିବରଣ',
+  descriptionText:
+    'UpCheck ହେଉଛି ଏକ ସମ୍ପୂର୍ଣ୍ଣ ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା ଆପ୍ଲିକେସନ ଯାହା ଚାଷୀଙ୍କୁ ଜଳ ଗୁଣମାନ ଦେଖୁ ରଖିବା, ଖାଦ୍ୟ ପ୍ରଦାନ ପରିଚାଳନା, ବୃଦ୍ଧି ଟ୍ର୍ୟାକ ଏବଂ ଚାଷ ଅଭ୍ୟାସ ଅପ୍ଟିମାଇଜ୍ କରିବାରେ ସାହାଯ୍ୟ କରିବା ପାଇଁ ଡିଜାଇନ ହୋଇଛି।',
+  featuresLabel: 'ବୈଶିଷ୍ଟ୍ୟ',
+  featureMultiFarm: 'ବହୁ-ଫାର୍ମ ପରିଚାଳନା',
+  featurePondMonitoring: 'ପୋଖରି ଦେଖୁ ରଖିବା ଓ ଲଗ',
+  featureWaterQuality: 'ଜଳ ଗୁଣମାନ ଟ୍ର୍ୟାକିଂ',
+  featureFeedManagement: 'ଖାଦ୍ୟ ପ୍ରଦାନ ପରିଚାଳନା',
+  featureGrowthSimulations: 'ବୃଦ୍ଧି ଅନୁକରଣ',
+  featureFinancialReports: 'ଅର୍ଥ ରିପୋର୍ଟ',
+  developedByLabel: 'ବିକଶିତ',
+  developedByTeam: 'UpCheck ଦଳ',
+  developedByLocation: 'ଭାରତ',
+  footerCopyright: '© 2026 UpCheck। ସମସ୍ତ ଅଧିକାର ସଂରକ୍ଷିତ।',
+
+  // ── TwoFactorScreen ───────────────────────────────────────────────────────
+  twoFactorTitle: 'ଦ୍ୱି-ଘଟକ ପ୍ରମାଣୀକରଣ',
+  twoFactorEnabled: 'ସକ୍ଷମ',
+  twoFactorNotEnabled: 'ସକ୍ଷମ ନୁହେଁ',
+  twoFactorSetup: '2FA ସ୍ଥାପନ',
+  twoFactorScanHelp:
+    'ଏକ ପ୍ରମାଣୀକରଣ ଆପ (Google Authenticator, Authy…) ଦ୍ୱାରା ଏହି QR କୋଡ ସ୍କ୍ୟାନ୍ କରନ୍ତୁ, ତାପରେ ସମ୍ପୂର୍ଣ୍ଣ କରିବାକୁ ଜେନେରେଟ ହୋଇଥିବା କୋଡ ଲେଖନ୍ତୁ।',
+  twoFactorManualKey: 'ମ୍ୟାନୁଅଲ ଚାବି: {{secret}}',
+  twoFactorCodeLabel: 'ଆପରୁ କୋଡ',
+  twoFactorVerifyEnable: 'ଯାଞ୍ଚ ଓ ସକ୍ଷମ',
+  twoFactorDisableHelp: 'ଦ୍ୱି-ଘଟକ ପ୍ରମାଣୀକରଣ ବନ୍ଦ କରିବାକୁ ବର୍ତ୍ତମାନ ଏକ କୋଡ ଲେଖନ୍ତୁ।',
+  twoFactorAuthCodeLabel: 'ପ୍ରମାଣୀକରଣ କୋଡ',
+  twoFactorDisable: '2FA ଅକ୍ଷମ',
+  twoFactorInvalidCode: 'ଆପଣଙ୍କ ପ୍ରମାଣୀକରଣ ଆପରୁ 6-ଅଙ୍କ ବିଶିଷ୍ଟ କୋଡ ଲେଖନ୍ତୁ।',
+  twoFactorCodeRequired: '2FA ଅକ୍ଷମ କରିବାକୁ ବର୍ତ୍ତମାନ 6-ଅଙ୍କ ବିଶିଷ୍ଟ କୋଡ ଲେଖନ୍ତୁ।',
+  twoFactorEnabledSuccess: 'ଦ୍ୱି-ଘଟକ ପ୍ରମାଣୀକରଣ ବର୍ତ୍ତମାନ ଚାଲୁ ଅଛି।',
+  twoFactorDisabledSuccess: 'ଦ୍ୱି-ଘଟକ ପ୍ରମାଣୀକରଣ ବର୍ତ୍ତମାନ ବନ୍ଦ ଅଛି।',
+  twoFactorSetupError: '2FA ସ୍ଥାପନ ଆରମ୍ଭ ହୋଇପାରିଲା ନାହିଁ',
+
+  // ── NotificationsScreen ───────────────────────────────────────────────────
+  notificationsTitle: 'ବିଜ୍ଞପ୍ତି',
+  notificationsEmpty: 'ସବୁ ଦେଖି ସାରିଲେ!',
+  notificationsEmptyDesc: 'ଆପଣଙ୍କ ପାଖରେ କୌଣସି ନୂଆ ବିଜ୍ଞପ୍ତି ନାହିଁ।',
+  notificationsLoadError: 'ବିଜ୍ଞପ୍ତି ଲୋଡ୍ ହୋଇପାରିଲା ନାହିଁ',
+  deleteAccount: "ଖାତା ବିଲୋପ କରନ୍ତୁ",
+  deleteAccountConfirm: "ଏହା ସ୍ଥାୟୀ ଭାବେ ଆପଣଙ୍କ ଖାତା ଏବଂ ସମସ୍ତ ଫାର୍ମ ତଥ୍ୟ ବିଲୋପ କରିଦେବ। ଏହାକୁ ପୂର୍ବବତ୍ କରାଯାଇପାରିବ ନାହିଁ। ଆଗକୁ ବଢ଼ିବେ?",
+  deleteAccountHint: "ଆପଣଙ୍କ ଖାତା ଏବଂ ଆପଣଙ୍କର ସମସ୍ତ ତଥ୍ୟ ସ୍ଥାୟୀ ଭାବେ ବିଲୋପ କରେ।",
+  deleteAccountError: "ଆପଣଙ୍କ ଖାତା ବିଲୋପ କରାଯାଇପାରିଲା ନାହିଁ। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
+};
+
+export default settings;

@@ -1,48 +1,50 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
-import { PageOptionsDto } from '../common/dto/page-options.dto';
-import { PageDto } from '../common/dto/page.dto';
+import { AdjustStockDto } from './dto/adjust-stock.dto';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('inventory')
 export class InventoryController {
     constructor(private readonly inventoryService: InventoryService) { }
 
     @Post()
-    create(@Body() createDto: CreateInventoryItemDto) {
-        return this.inventoryService.create(createDto);
+    create(@CurrentUser() user, @Body() createDto: CreateInventoryItemDto) {
+        return this.inventoryService.create(createDto, user.id);
     }
 
     @Get()
     findAll(
+        @CurrentUser() user,
         @Query('farmId') farmId?: string,
         @Query('category') category?: string,
-        @Query() pageOptionsDto?: PageOptionsDto
     ) {
-        return this.inventoryService.findAll(farmId, category, pageOptionsDto);
+        return this.inventoryService.findAll(user.id, farmId, category);
     }
 
     @Get('low-stock/:farmId')
-    getLowStock(
-        @Param('farmId') farmId: string,
-        @Query() pageOptionsDto?: PageOptionsDto
-    ) {
-        return this.inventoryService.getLowStock(farmId, pageOptionsDto);
+    getLowStock(@CurrentUser() user, @Param('farmId') farmId: string) {
+        return this.inventoryService.getLowStock(farmId, user.id);
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.inventoryService.findOne(id);
+    findOne(@CurrentUser() user, @Param('id') id: string) {
+        return this.inventoryService.findOne(id, user.id);
+    }
+
+    @Patch(':id/adjust')
+    adjustStock(@CurrentUser() user, @Param('id') id: string, @Body() dto: AdjustStockDto) {
+        return this.inventoryService.adjustStock(id, dto.adjustment, user.id);
     }
 
     @Patch(':id')
-    update(@Param('id') id: string, @Body() updateDto: UpdateInventoryItemDto) {
-        return this.inventoryService.update(id, updateDto);
+    update(@CurrentUser() user, @Param('id') id: string, @Body() updateDto: UpdateInventoryItemDto) {
+        return this.inventoryService.update(id, updateDto, user.id);
     }
 
     @Delete(':id')
-    remove(@Param('id') id: string) {
-        return this.inventoryService.remove(id);
+    remove(@CurrentUser() user, @Param('id') id: string) {
+        return this.inventoryService.remove(id, user.id);
     }
 }

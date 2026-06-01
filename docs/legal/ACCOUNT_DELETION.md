@@ -1,0 +1,30 @@
+# Account & Data Deletion — Upcheck
+
+> **Google Play requires a publicly reachable URL** describing how users delete their
+> account and data, declared in Play Console → App content → **Data deletion**.
+> Host this page (e.g. `https://yourdomain.com/account-deletion`).
+
+## Delete in‑app (recommended)
+1. Open **Upcheck** and sign in.
+2. Go to **More → Profile** (or **Settings → Profile**).
+3. Tap **Delete Account** and confirm.
+
+This permanently deletes:
+- your **account** and authentication identity (email / Google / phone), and
+- all **farm data you own** — farms, ponds, cycles, all logs (water quality, feed, sampling, mortality, chemical, plankton, microbiology, disease, treatments), harvests, inventory, expenses, transactions, tasks and simulations.
+
+The action is **immediate and irreversible**. Backups containing residual copies are rotated out within **[30] days**; records we must keep for legal/accounting reasons are retained only as long as required by law, then deleted.
+
+## Request deletion without the app
+If you cannot access the app, email **[support@yourdomain.com]** from your registered email address with the subject **"Delete my Upcheck account"**. We will verify ownership and complete deletion within **[30] days**.
+
+## What is kept, and for how long
+| Data | On account deletion |
+|---|---|
+| Profile, account, auth identity | Deleted immediately |
+| Farm/pond/crop & all operational logs you own | Deleted immediately (cascade) |
+| Transactional email logs (Brevo) | Per provider retention, then purged |
+| Encrypted backups | Rotated out within [30] days |
+| Legally required financial records | Retained only as legally required |
+
+Contact: **[support@yourdomain.com]** — Upcheck Technologies.

@@ -33,4 +33,8 @@ export class CreateInventoryItemDto {
     @IsDateString()
     @IsOptional()
     expiryDate?: string;
+
+    @IsString()
+    @IsOptional()
+    notes?: string;
 }

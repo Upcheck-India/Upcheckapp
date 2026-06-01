@@ -18,6 +18,7 @@
 
 import React from 'react';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import type { EmitterSubscription } from 'react-native';
 import fc from 'fast-check';
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -108,7 +109,7 @@ const lastNameArb = printableArb;
 
 /** Build a no-op event subscriber that captures the listener for later use. */
 function makeSubscriber(): {
-  subscribe: (cb: TruecallerEventListener) => { remove: () => void };
+  subscribe: (cb: TruecallerEventListener) => EmitterSubscription;
   emit: (event: TruecallerVerificationEvent) => void;
   listeners: TruecallerEventListener[];
 } {
@@ -117,12 +118,18 @@ function makeSubscriber(): {
     listeners,
     subscribe: (cb) => {
       listeners.push(cb);
-      return {
+      // The component only ever calls `.remove()` on the returned object; the
+      // rest of `EmitterSubscription` (emitter, eventType, listener, context)
+      // is only consumed by `NativeEventEmitter` internals which we never run
+      // in this unit test. Cast through `unknown` so the prop signature is
+      // satisfied without pulling RN's private fields into the test fixture.
+      const subscription = {
         remove: () => {
           const idx = listeners.indexOf(cb);
           if (idx >= 0) listeners.splice(idx, 1);
         },
       };
+      return subscription as unknown as EmitterSubscription;
     },
     emit: (event) => {
       for (const cb of [...listeners]) cb(event);

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -11,6 +12,7 @@ import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import { useTruecallerAuth } from '../../hooks/useTruecallerAuth';
 
 export const RegisterScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
@@ -25,12 +27,12 @@ export const RegisterScreen = ({ navigation }: any) => {
 
     const validate = (): boolean => {
         const e: Record<string, string> = {};
-        if (!firstName.trim()) e.firstName = 'First name is required';
-        if (!email.trim()) e.email = 'Email is required';
-        else if (!/\S+@\S+\.\S+/.test(email)) e.email = 'Enter a valid email';
-        if (!password) e.password = 'Password is required';
-        else if (password.length < 8) e.password = 'Password must be at least 8 characters';
-        if (password !== confirmPassword) e.confirmPassword = 'Passwords do not match';
+        if (!firstName.trim()) e.firstName = t('auth.firstNameRequired');
+        if (!email.trim()) e.email = t('auth.emailRequired');
+        else if (!/\S+@\S+\.\S+/.test(email)) e.email = t('auth.emailInvalid');
+        if (!password) e.password = t('auth.passwordRequired');
+        else if (password.length < 8) e.password = t('auth.passwordTooShortRegister');
+        if (password !== confirmPassword) e.confirmPassword = t('auth.passwordsDoNotMatch');
         setErrors(e);
         return Object.keys(e).length === 0;
     };
@@ -51,12 +53,12 @@ export const RegisterScreen = ({ navigation }: any) => {
             <ScreenWrapper>
                 <View style={styles.successContainer}>
                     <Text style={styles.successIcon}>📧</Text>
-                    <Text style={styles.successTitle}>Check Your Email</Text>
+                    <Text style={styles.successTitle}>{t('auth.checkYourEmail')}</Text>
                     <Text style={styles.successText}>
-                        We've sent a verification link to {email}. Please verify your email to continue.
+                        {t('auth.verificationLinkSent', { email })}
                     </Text>
                     <Button
-                        title="Back to Login"
+                        title={t('auth.backToLogin')}
                         onPress={() => navigation.navigate('Login')}
                         style={{ marginTop: theme.spacing[6] }}
                     />
@@ -68,8 +70,8 @@ export const RegisterScreen = ({ navigation }: any) => {
     return (
         <ScreenWrapper>
             <View style={styles.header}>
-                <Text style={styles.title}>Create Account</Text>
-                <Text style={styles.subtitle}>Join UpCheck to manage your shrimp farms</Text>
+                <Text style={styles.title}>{t('auth.createAccountTitle')}</Text>
+                <Text style={styles.subtitle}>{t('auth.registerSubtitle')}</Text>
             </View>
 
             {error && (
@@ -79,32 +81,32 @@ export const RegisterScreen = ({ navigation }: any) => {
             )}
 
             <Input
-                label="First Name"
+                label={t('auth.firstNameLabel')}
                 value={firstName}
                 onChangeText={setFirstName}
                 error={errors.firstName}
-                placeholder="Enter your first name"
+                placeholder={t('auth.firstNamePlaceholder')}
                 autoCapitalize="words"
                 leftIcon="account-outline"
                 required
             />
 
             <Input
-                label="Last Name"
+                label={t('auth.lastNameLabel')}
                 value={lastName}
                 onChangeText={setLastName}
                 error={errors.lastName}
-                placeholder="Enter your last name"
+                placeholder={t('auth.lastNamePlaceholder')}
                 autoCapitalize="words"
                 leftIcon="account-outline"
             />
 
             <Input
-                label="Email"
+                label={t('auth.emailLabel')}
                 value={email}
                 onChangeText={setEmail}
                 error={errors.email}
-                placeholder="your@email.com"
+                placeholder={t('auth.emailPlaceholder')}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 leftIcon="email-outline"
@@ -112,34 +114,45 @@ export const RegisterScreen = ({ navigation }: any) => {
             />
 
             <Input
-                label="Password"
+                label={t('auth.passwordLabel')}
                 value={password}
                 onChangeText={setPassword}
                 error={errors.password}
-                placeholder="At least 8 characters"
+                placeholder={t('auth.passwordAtLeast8Placeholder')}
                 isPassword
                 leftIcon="lock-outline"
                 required
-                hint="Min 8 characters"
+                hint={t('auth.passwordHint')}
             />
 
             <Input
-                label="Confirm Password"
+                label={t('auth.confirmPasswordLabel')}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 error={errors.confirmPassword}
-                placeholder="Re-enter your password"
+                placeholder={t('auth.confirmPasswordPlaceholder')}
                 isPassword
                 leftIcon="lock-check-outline"
                 required
             />
 
             <Button
-                title="Create Account"
+                title={t('auth.createAccount')}
                 onPress={handleRegister}
                 loading={isLoading}
                 style={{ marginTop: theme.spacing[3] }}
             />
+
+            <Text style={styles.consent}>
+                {t('auth.consentPrefix')}{' '}
+                <Text style={styles.consentLink} onPress={() => navigation.navigate('Terms')}>
+                    {t('settings.termsOfService')}
+                </Text>
+                {' '}{t('auth.consentAnd')}{' '}
+                <Text style={styles.consentLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
+                    {t('settings.privacyPolicy')}
+                </Text>.
+            </Text>
 
             <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
 
@@ -151,7 +164,7 @@ export const RegisterScreen = ({ navigation }: any) => {
             )}
 
             <Button
-                title="Already have an account? Sign In"
+                title={t('auth.alreadyHaveAccount')}
                 onPress={() => navigation.navigate('Login')}
                 variant="text"
                 style={{ marginTop: theme.spacing[4] }}
@@ -173,6 +186,17 @@ const styles = StyleSheet.create({
         ...theme.typeScale.bodyMedium,
         color: theme.roles.light.textSecondary,
         marginTop: theme.spacing[2],
+    },
+    consent: {
+        ...theme.typeScale.caption,
+        color: theme.roles.light.textSecondary,
+        textAlign: 'center',
+        marginTop: theme.spacing[3],
+        marginHorizontal: theme.spacing[2],
+    },
+    consentLink: {
+        color: theme.roles.light.primary,
+        textDecorationLine: 'underline',
     },
     errorBanner: {
         backgroundColor: theme.roles.light.dangerBg,

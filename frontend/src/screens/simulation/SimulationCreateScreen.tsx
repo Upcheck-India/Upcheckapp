@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -9,6 +10,8 @@ import { theme } from '../../theme';
 import { simulationsApi, SimulationScenarioType } from '../../api/simulations';
 
 export const SimulationCreateScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
+
     const [pondId, setPondId] = useState('');
     const [scenarioType, setScenarioType] = useState<SimulationScenarioType>('feed_change');
     const [feedPrice, setFeedPrice] = useState('');
@@ -19,14 +22,14 @@ export const SimulationCreateScreen = ({ navigation }: any) => {
     const [isLoading, setIsLoading] = useState(false);
 
     const scenarioOptions: { label: string; value: SimulationScenarioType }[] = [
-        { label: 'Feed Change', value: 'feed_change' },
-        { label: 'Price Change', value: 'price_change' },
-        { label: 'Stocking Density', value: 'stocking_density' },
+        { label: t('simulations.create.scenarioFeedChange'), value: 'feed_change' },
+        { label: t('simulations.create.scenarioPriceChange'), value: 'price_change' },
+        { label: t('simulations.create.scenarioStockingDensity'), value: 'stocking_density' },
     ];
 
     const handleRunSimulation = async () => {
         if (!pondId.trim()) {
-            Alert.alert('Validation Error', 'Please enter a Pond ID');
+            Alert.alert(t('simulations.create.validationTitle'), t('simulations.create.errorPondId'));
             return;
         }
 
@@ -44,7 +47,7 @@ export const SimulationCreateScreen = ({ navigation }: any) => {
             });
             navigation.navigate('SimulationResults', { resultData: data });
         } catch (error: any) {
-            Alert.alert('Simulation Failed', error.response?.data?.message || 'Failed to run simulation');
+            Alert.alert(t('simulations.create.simFailedTitle'), error.response?.data?.message || t('simulations.create.errorSimFailed'));
         } finally {
             setIsLoading(false);
         }
@@ -56,20 +59,25 @@ export const SimulationCreateScreen = ({ navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>New Simulation</Text>
+                <Text style={styles.title}>{t('simulations.create.title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.subtitle}>Run a what-if scenario on an active pond cycle</Text>
+                <Text style={styles.subtitle}>{t('simulations.create.subtitle')}</Text>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Pond</Text>
-                    <Input label="Pond ID *" value={pondId} onChangeText={setPondId} placeholder="UUID of the pond with an active cycle" />
+                    <Text style={styles.sectionTitle}>{t('simulations.create.sectionPond')}</Text>
+                    <Input
+                        label={t('simulations.create.labelPondId')}
+                        value={pondId}
+                        onChangeText={setPondId}
+                        placeholder={t('simulations.create.placeholderPondId')}
+                    />
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Scenario Type</Text>
+                    <Text style={styles.sectionTitle}>{t('simulations.create.sectionScenario')}</Text>
                     <View style={styles.row}>
                         {scenarioOptions.map(opt => (
                             <TouchableOpacity
@@ -84,23 +92,23 @@ export const SimulationCreateScreen = ({ navigation }: any) => {
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Variables</Text>
+                    <Text style={styles.sectionTitle}>{t('simulations.create.sectionVariables')}</Text>
                     {(scenarioType === 'feed_change') && (
                         <>
-                            <Input label="Feed Price (per kg)" value={feedPrice} onChangeText={setFeedPrice} keyboardType="decimal-pad" placeholder="e.g. 15000" />
-                            <Input label="Growth Improvement (%)" value={growthImprovement} onChangeText={setGrowthImprovement} keyboardType="decimal-pad" placeholder="e.g. 10" />
+                            <Input label={t('simulations.create.labelFeedPrice')} value={feedPrice} onChangeText={setFeedPrice} keyboardType="decimal-pad" placeholder="e.g. 15000" />
+                            <Input label={t('simulations.create.labelGrowthImprovement')} value={growthImprovement} onChangeText={setGrowthImprovement} keyboardType="decimal-pad" placeholder="e.g. 10" />
                         </>
                     )}
                     {(scenarioType === 'price_change') && (
-                        <Input label="Selling Price (per kg)" value={sellingPrice} onChangeText={setSellingPrice} keyboardType="decimal-pad" placeholder="e.g. 80000" />
+                        <Input label={t('simulations.create.labelSellingPrice')} value={sellingPrice} onChangeText={setSellingPrice} keyboardType="decimal-pad" placeholder="e.g. 80000" />
                     )}
                     {(scenarioType === 'stocking_density') && (
-                        <Input label="Stocking Density (PL/m²)" value={stockingDensity} onChangeText={setStockingDensity} keyboardType="number-pad" placeholder="e.g. 120" />
+                        <Input label={t('simulations.create.labelStockingDensity')} value={stockingDensity} onChangeText={setStockingDensity} keyboardType="number-pad" placeholder="e.g. 120" />
                     )}
                 </Card>
 
                 <Button
-                    title="Run Simulation"
+                    title={t('simulations.create.runSimulation')}
                     onPress={handleRunSimulation}
                     loading={isLoading}
                     style={styles.runBtn}

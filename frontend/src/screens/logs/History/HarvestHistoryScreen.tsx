@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
 import { ErrorState } from '../../../components/ui/ErrorState';
@@ -9,6 +10,7 @@ import { theme } from '../../../theme';
 import { harvestsApi, HarvestRecord } from '../../../api/harvests';
 
 export const HarvestHistoryScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, cycleId, cropId } = route.params;
     const [records, setRecords] = useState<HarvestRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -61,12 +63,12 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
 
             <View style={styles.metricsRow}>
                 <View style={styles.metricBlock}>
-                    <Text style={styles.metricLabel}>Total Biomass</Text>
+                    <Text style={styles.metricLabel}>{t('history.harvestMetricBiomass')}</Text>
                     <Text style={styles.metricValue}>{item.weightKg.toLocaleString()} <Text style={styles.metricUnit}>kg</Text></Text>
                 </View>
                 {item.averageSize != null && (
                     <View style={styles.metricBlock}>
-                        <Text style={styles.metricLabel}>Avg Size</Text>
+                        <Text style={styles.metricLabel}>{t('history.harvestMetricAvgSize')}</Text>
                         <Text style={styles.metricValue}>{item.averageSize} <Text style={styles.metricUnit}>g</Text></Text>
                     </View>
                 )}
@@ -75,13 +77,13 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
             {item.buyerName && (
                 <View style={styles.detailRow}>
                     <MaterialCommunityIcons name="account-outline" size={16} color={theme.roles.light.textSecondary} />
-                    <Text style={styles.detailText}>Buyer: {item.buyerName}</Text>
+                    <Text style={styles.detailText}>{t('history.harvestBuyerLabel', { name: item.buyerName })}</Text>
                 </View>
             )}
             {item.salePriceTotal != null && (
                 <View style={styles.detailRow}>
                     <MaterialCommunityIcons name="cash-multiple" size={16} color={theme.roles.light.textSecondary} />
-                    <Text style={styles.detailText}>Sale: {item.salePriceTotal}</Text>
+                    <Text style={styles.detailText}>{t('history.harvestSaleLabel', { amount: item.salePriceTotal })}</Text>
                 </View>
             )}
             {item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
@@ -94,20 +96,20 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Harvest Records</Text>
+                <Text style={styles.title}>{t('history.harvestTitle')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             {isLoading ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
             ) : error && records.length === 0 ? (
-                <ErrorState title="Couldn't Load Records" error={error} onRetry={handleRetry} />
+                <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={handleRetry} />
             ) : (
                 <>
                     {records.length > 0 && (
                         <View style={styles.summaryBar}>
                             <Text style={styles.summaryText}>
-                                Total Biomass: <Text style={styles.summaryValue}>{totalBiomass.toLocaleString()} kg</Text>
+                                {t('history.harvestTotalLabel')}<Text style={styles.summaryValue}>{t('history.harvestTotalValue', { amount: totalBiomass.toLocaleString() })}</Text>
                             </Text>
                         </View>
                     )}
@@ -122,8 +124,8 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
                         ListEmptyComponent={
                             <View style={styles.emptyState}>
                                 <MaterialCommunityIcons name="basket-outline" size={64} color={theme.roles.light.borderDefault} />
-                                <Text style={styles.emptyTitle}>No Harvests Yet</Text>
-                                <Text style={styles.emptyText}>This pond has not recorded any harvests.</Text>
+                                <Text style={styles.emptyTitle}>{t('history.harvestEmptyTitle')}</Text>
+                                <Text style={styles.emptyText}>{t('history.harvestEmptyText')}</Text>
                             </View>
                         }
                     />

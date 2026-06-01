@@ -54,8 +54,8 @@ export type SimulationResult = SavedSimulation;
 
 export const simulationsApi = {
     run: (data: RunSimulationRequest) => apiClient.post<RunSimulationResponse>('/simulations/run', data),
-    // Legacy aliases - backend doesn't have GET endpoints yet, these will 404
     create: (data: RunSimulationRequest) => apiClient.post<RunSimulationResponse>('/simulations/run', data),
     getAll: () => apiClient.get<SavedSimulation[]>('/simulations'),
     getById: (id: string) => apiClient.get<SavedSimulation>(`/simulations/${id}`),
+    delete: (id: string) => apiClient.delete(`/simulations/${id}`),
 };

@@ -69,6 +69,37 @@ export class SupabaseAuthService {
         };
     }
 
+    // ==================== Passwordless email OTP ====================
+
+    /**
+     * Send a one-time login code to an existing user's email (Supabase native
+     * OTP). `shouldCreateUser: false` keeps this a *login* flow — it will not
+     * silently provision a new account for an unknown email.
+     */
+    async sendEmailOtp(email: string) {
+        const { error } = await this.supabase.auth.signInWithOtp({
+            email,
+            options: { shouldCreateUser: false },
+        });
+        if (error) {
+            throw new BadRequestException(error.message);
+        }
+        return { message: 'A login code has been sent to your email.' };
+    }
+
+    /** Verify an emailed OTP and return a full session. */
+    async verifyEmailOtp(email: string, token: string) {
+        const { data, error } = await this.supabase.auth.verifyOtp({
+            email,
+            token,
+            type: 'email',
+        });
+        if (error) {
+            throw new UnauthorizedException(error.message);
+        }
+        return { user: data.user, session: data.session };
+    }
+
     // ==================== OAuth ====================
 
     /**

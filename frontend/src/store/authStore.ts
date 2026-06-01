@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import type { Session, User } from '@supabase/supabase-js';
 import { authApi } from '../api/auth';
+import { profilesApi } from '../api/profiles';
 import { TruecallerAuth } from '../native/TruecallerAuth';
 
 export type AuthStatus =
@@ -32,6 +33,9 @@ interface AuthState {
     accessToken: string | null;
     isAuthenticated: boolean;
 
+    // ── Persisted (via partialize) — refresh token restored on hydration ──
+    refreshToken?: string | null;
+
     // ── Pending verification ──
     pendingVerificationEmail: string | null;
 
@@ -50,7 +54,7 @@ interface AuthState {
 
     // ── API Actions ──
     initialize: () => Promise<void>;
-    login: (email: string, password: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
     googleLogin: (idToken: string) => Promise<void>;
     truecallerLogin: (profile: {
         accessToken: string;
@@ -62,6 +66,7 @@ interface AuthState {
     }) => Promise<void>;
     signup: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
     logout: () => Promise<void>;
+    deleteAccount: () => Promise<void>;
     forgotPassword: (email: string) => Promise<void>;
 }
 
@@ -144,7 +149,7 @@ export const useAuthStore = create<AuthState>()(
             initialize: async () => {
                 const state = get();
                 // Check if we have a refresh token stored
-                const refreshToken = (state as any).refreshToken;
+                const refreshToken = state.refreshToken;
 
                 if (refreshToken) {
                     try {
@@ -167,9 +172,15 @@ export const useAuthStore = create<AuthState>()(
                 set({ isLoading: true, error: null });
                 try {
                     const { data } = await authApi.signin({ email, password });
+                    if (data.requires2FA) {
+                        // Session is withheld until a TOTP code is verified.
+                        set({ isLoading: false });
+                        return { requires2FA: true, tempToken: data.tempToken };
+                    }
                     if (data.session) {
                         get().setSession(data.session);
                     }
+                    return { requires2FA: false };
                 } catch (err: any) {
                     const message = err.response?.data?.message || err.message || 'Login failed';
                     get().setError(message);
@@ -243,6 +254,18 @@ export const useAuthStore = create<AuthState>()(
                     TruecallerAuth.clear();
                 } catch {
                     // Ignore Truecaller clear errors — sign-out must still proceed
+                }
+                get().clearSession();
+            },
+
+            deleteAccount: async () => {
+                // Permanently removes the account + owned data server-side, then
+                // clears the local session (returns the user to the sign-in stack).
+                await profilesApi.deleteMe();
+                try {
+                    TruecallerAuth.clear();
+                } catch {
+                    // ignore
                 }
                 get().clearSession();
             },

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -9,6 +10,7 @@ import { theme } from '../../theme';
 import { mortalityApi } from '../../api/mortalities';
 
 export const MortalityLogScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -20,7 +22,7 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
 
     const handleSave = async () => {
         if (!quantity || isNaN(parseInt(quantity))) {
-            Alert.alert('Validation Error', 'Quantity is required');
+            Alert.alert(t('common.error'), t('logs.mortality_validationQuantity'));
             return;
         }
 
@@ -36,7 +38,7 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
             });
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to save mortality record');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.mortality_errorSave'));
         } finally {
             setIsLoading(false);
         }
@@ -48,17 +50,17 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Mortality Entry</Text>
+                <Text style={styles.title}>{t('logs.mortality_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.subtitle}>Logging for {pondName}</Text>
+                <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 <Card style={styles.card}>
-                    <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
+                    <Input label={t('common.date')} value={date} onChangeText={setDate} placeholder={t('logs.datePlaceholder')} required />
                     <Input
-                        label="Quantity (pieces) *"
+                        label={t('logs.mortality_labelQuantity')}
                         value={quantity}
                         onChangeText={setQuantity}
                         keyboardType="number-pad"
@@ -68,9 +70,9 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Weight</Text>
+                    <Text style={styles.sectionTitle}>{t('logs.mortality_sectionWeight')}</Text>
                     <Input
-                        label="Est. Total Weight (kg)"
+                        label={t('logs.mortality_labelEstWeight')}
                         value={estimatedWeightKg}
                         onChangeText={setEstimatedWeightKg}
                         keyboardType="decimal-pad"
@@ -80,10 +82,10 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
 
                 <Card style={styles.card}>
                     <Input
-                        label="Observations / Suspected Cause"
+                        label={t('logs.mortality_labelObservations')}
                         value={note}
                         onChangeText={setNote}
-                        placeholder="Symptoms, water color changes, etc."
+                        placeholder={t('logs.mortality_placeholderObservations')}
                         multiline
                         numberOfLines={4}
                         style={styles.textArea}
@@ -91,7 +93,7 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Button
-                    title="Save Record"
+                    title={t('logs.saveRecord')}
                     onPress={handleSave}
                     loading={isLoading}
                     style={styles.saveBtn}

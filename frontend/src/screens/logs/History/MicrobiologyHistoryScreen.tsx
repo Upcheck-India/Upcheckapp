@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
 import { ErrorState } from '../../../components/ui/ErrorState';
@@ -21,15 +22,16 @@ const pillStyles = StyleSheet.create({
     value: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, fontWeight: '600' },
 });
 
-const getVibrioLevel = (tvc?: number): { label: string; color: string } => {
-    if (!tvc) return { label: 'N/A', color: theme.roles.light.textSecondary };
-    if (tvc > 1000) return { label: 'Critical', color: theme.roles.light.dangerText };
-    if (tvc > 100) return { label: 'Warning', color: theme.roles.light.warningText };
-    return { label: 'Safe', color: theme.roles.light.successText };
-};
-
 export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, cropId } = route.params;
+
+    const getVibrioLevel = (tvc?: number): { label: string; color: string } => {
+        if (!tvc) return { label: t('history.microbiologyLevelNa'), color: theme.roles.light.textSecondary };
+        if (tvc > 1000) return { label: t('history.microbiologyLevelCritical'), color: theme.roles.light.dangerText };
+        if (tvc > 100) return { label: t('history.microbiologyLevelWarning'), color: theme.roles.light.warningText };
+        return { label: t('history.microbiologyLevelSafe'), color: theme.roles.light.successText };
+    };
     const [records, setRecords] = useState<MicrobiologyRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -67,6 +69,28 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
         fetchRecords(true);
     }, [fetchRecords]);
 
+    const handleDelete = useCallback((item: MicrobiologyRecord) => {
+        Alert.alert(
+            t('common.delete') + ' ' + t('common.date'),
+            t('history.microbiologyDeleteMsg', { date: new Date(item.measurementDate).toLocaleDateString() }),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('common.delete'),
+                    style: 'destructive',
+                    onPress: async () => {
+                        setRecords((prev) => prev.filter((r) => r.id !== item.id));
+                        try {
+                            await logResourcesApi.removeMicrobiology(item.id);
+                        } catch {
+                            fetchRecords(true);
+                        }
+                    },
+                },
+            ],
+        );
+    }, [fetchRecords]);
+
     const renderItem = ({ item }: { item: MicrobiologyRecord }) => {
         const vibrioLevel = getVibrioLevel(item.totalVibrioCountTvcCfuMl);
         return (
@@ -75,8 +99,13 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
                     <Text style={styles.dateText}>
                         {new Date(item.measurementDate).toLocaleDateString()}
                     </Text>
-                    <View style={[styles.statusChip, { backgroundColor: vibrioLevel.color + '20' }]}>
-                        <Text style={[styles.statusText, { color: vibrioLevel.color }]}>{vibrioLevel.label}</Text>
+                    <View style={styles.rowRight}>
+                        <View style={[styles.statusChip, { backgroundColor: vibrioLevel.color + '20' }]}>
+                            <Text style={[styles.statusText, { color: vibrioLevel.color }]}>{vibrioLevel.label}</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.deleteBtn}>
+                            <MaterialCommunityIcons name="trash-can-outline" size={18} color={theme.roles.light.textTertiary} />
+                        </TouchableOpacity>
                     </View>
                 </View>
                 <View style={styles.grid}>
@@ -107,14 +136,14 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Microbiology History</Text>
+                <Text style={styles.title}>{t('history.microbiologyTitle')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             {isLoading ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
             ) : error && records.length === 0 ? (
-                <ErrorState title="Couldn't Load Records" error={error} onRetry={handleRetry} />
+                <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={handleRetry} />
             ) : (
                 <FlatList
                     data={records}
@@ -127,8 +156,8 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <MaterialCommunityIcons name="bacteria-outline" size={64} color={theme.roles.light.borderDefault} />
-                            <Text style={styles.emptyTitle}>No Microbiology Logs</Text>
-                            <Text style={styles.emptyText}>No microbiology data recorded yet.</Text>
+                            <Text style={styles.emptyTitle}>{t('history.microbiologyEmptyTitle')}</Text>
+                            <Text style={styles.emptyText}>{t('history.microbiologyEmptyText')}</Text>
                         </View>
                     }
                 />
@@ -147,7 +176,9 @@ const styles = StyleSheet.create({
     listContent: { padding: theme.spacing[4], paddingBottom: 100 },
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[3] },
+    rowRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
+    deleteBtn: { padding: 2 },
     statusChip: { paddingHorizontal: theme.spacing[3], paddingVertical: 4, borderRadius: theme.radius.full },
     statusText: { ...theme.typeScale.labelSmall, fontWeight: '700' },
     grid: { flexDirection: 'row', flexWrap: 'wrap' },

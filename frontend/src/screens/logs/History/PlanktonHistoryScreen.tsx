@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
 import { ErrorState } from '../../../components/ui/ErrorState';
@@ -22,6 +23,7 @@ const pillStyles = StyleSheet.create({
 });
 
 export const PlanktonHistoryScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, cropId } = route.params;
     const [records, setRecords] = useState<PlanktonRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -60,6 +62,28 @@ export const PlanktonHistoryScreen = ({ route, navigation }: any) => {
         fetchRecords(true);
     }, [fetchRecords]);
 
+    const handleDelete = useCallback((item: PlanktonRecord) => {
+        Alert.alert(
+            t('common.delete') + ' ' + t('common.date'),
+            t('history.planktonDeleteMsg', { date: new Date(item.measurementDate).toLocaleDateString() }),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('common.delete'),
+                    style: 'destructive',
+                    onPress: async () => {
+                        setRecords((prev) => prev.filter((r) => r.id !== item.id));
+                        try {
+                            await logResourcesApi.removePlankton(item.id);
+                        } catch {
+                            fetchRecords(true);
+                        }
+                    },
+                },
+            ],
+        );
+    }, [fetchRecords]);
+
     const getTotalCount = (item: PlanktonRecord): number => {
         const fields: (number | undefined)[] = [
             item.greenAlgaeGaCellMl, item.blueGreenAlgaeBgaCellMl, item.dinoflagellataCellMl,
@@ -78,9 +102,14 @@ export const PlanktonHistoryScreen = ({ route, navigation }: any) => {
                     <Text style={styles.dateText}>
                         {new Date(item.measurementDate).toLocaleDateString()}
                     </Text>
-                    <Text style={styles.timeText}>{item.measurementTime}</Text>
+                    <View style={styles.rowRight}>
+                        <Text style={styles.timeText}>{item.measurementTime}</Text>
+                        <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.deleteBtn}>
+                            <MaterialCommunityIcons name="trash-can-outline" size={18} color={theme.roles.light.textTertiary} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
-                <Text style={styles.totalText}>Total: {total.toLocaleString()} cells/mL</Text>
+                <Text style={styles.totalText}>{t('history.planktonTotalLabel', { total: total.toLocaleString() })}</Text>
                 <View style={styles.grid}>
                     {item.greenAlgaeGaCellMl != null && <MetricPill label="Green Algae" value={item.greenAlgaeGaCellMl} />}
                     {item.blueGreenAlgaeBgaCellMl != null && <MetricPill label="BGA" value={item.blueGreenAlgaeBgaCellMl} />}
@@ -106,14 +135,14 @@ export const PlanktonHistoryScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Plankton History</Text>
+                <Text style={styles.title}>{t('history.planktonTitle')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             {isLoading ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
             ) : error && records.length === 0 ? (
-                <ErrorState title="Couldn't Load Records" error={error} onRetry={handleRetry} />
+                <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={handleRetry} />
             ) : (
                 <FlatList
                     data={records}
@@ -126,8 +155,8 @@ export const PlanktonHistoryScreen = ({ route, navigation }: any) => {
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <MaterialCommunityIcons name="leaf" size={64} color={theme.roles.light.borderDefault} />
-                            <Text style={styles.emptyTitle}>No Plankton Logs</Text>
-                            <Text style={styles.emptyText}>No plankton data recorded yet.</Text>
+                            <Text style={styles.emptyTitle}>{t('history.planktonEmptyTitle')}</Text>
+                            <Text style={styles.emptyText}>{t('history.planktonEmptyText')}</Text>
                         </View>
                     }
                 />
@@ -146,8 +175,10 @@ const styles = StyleSheet.create({
     listContent: { padding: theme.spacing[4], paddingBottom: 100 },
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[2] },
+    rowRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
     timeText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
+    deleteBtn: { padding: 2 },
     totalText: { ...theme.typeScale.h4, color: theme.roles.light.textPrimary, marginBottom: theme.spacing[3] },
     grid: { flexDirection: 'row', flexWrap: 'wrap' },
     emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },

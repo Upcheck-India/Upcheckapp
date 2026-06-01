@@ -1,0 +1,33 @@
+import common from './common';
+import history from './history';
+import auth from './auth';
+import home from './home';
+import navigation from './navigation';
+import farms from './farms';
+import ponds from './ponds';
+import cycles from './cycles';
+import logs from './logs';
+import calculators from './calculators';
+import simulations from './simulations';
+import finance from './finance';
+import inventory from './inventory';
+import content from './content';
+import settings from './settings';
+
+export default {
+  common,
+  history,
+  auth,
+  home,
+  navigation,
+  farms,
+  ponds,
+  cycles,
+  logs,
+  calculators,
+  simulations,
+  finance,
+  inventory,
+  content,
+  settings,
+};

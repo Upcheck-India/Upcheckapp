@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -18,6 +19,8 @@ const FEEDING_RATE_TABLE = [
 ];
 
 export const DailyFeedCalculatorScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
+
     const [mbwG, setMbwG] = useState('');
     const [srPct, setSrPct] = useState('');
     const [pondAreaM2, setPondAreaM2] = useState('');
@@ -35,26 +38,26 @@ export const DailyFeedCalculatorScreen = ({ navigation }: any) => {
         const fr = parseFloat(feedingRatePct);
 
         if (!mbw || mbw <= 0) {
-            Alert.alert('Validation Error', 'MBW must be a positive number');
+            Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorMbw'));
             return;
         }
         if (!sr || sr <= 0 || sr > 100) {
-            Alert.alert('Validation Error', 'Survival rate must be between 0 and 100');
+            Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorSr'));
             return;
         }
         if (!count || count <= 0) {
-            Alert.alert('Validation Error', 'Initial count must be a positive number');
+            Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorCount'));
             return;
         }
         if (!fr || fr <= 0) {
-            Alert.alert('Validation Error', 'Feeding rate must be a positive number');
+            Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorFeedingRate'));
             return;
         }
 
         const computedBiomass = (count * sr / 100) * mbw / 1000;
 
         if (computedBiomass <= 0) {
-            Alert.alert('Error', 'Computed biomass is zero or negative. Check inputs.');
+            Alert.alert(t('common.error'), t('calculators.dailyFeed.errorBiomassZero'));
             return;
         }
 
@@ -67,7 +70,7 @@ export const DailyFeedCalculatorScreen = ({ navigation }: any) => {
             });
             setResult(data);
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Calculation failed');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.dailyFeed.errorCalc'));
         } finally {
             setIsLoading(false);
         }
@@ -79,17 +82,17 @@ export const DailyFeedCalculatorScreen = ({ navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Daily Feed Amount</Text>
+                <Text style={styles.title}>{t('calculators.dailyFeed.title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Pond & Stock Data</Text>
+                    <Text style={styles.sectionTitle}>{t('calculators.dailyFeed.sectionPondStock')}</Text>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
                             <Input
-                                label="MBW (g)"
+                                label={t('calculators.dailyFeed.labelMbw')}
                                 value={mbwG}
                                 onChangeText={setMbwG}
                                 keyboardType="decimal-pad"
@@ -99,7 +102,7 @@ export const DailyFeedCalculatorScreen = ({ navigation }: any) => {
                         </View>
                         <View style={styles.halfCol}>
                             <Input
-                                label="SR (%)"
+                                label={t('calculators.dailyFeed.labelSr')}
                                 value={srPct}
                                 onChangeText={setSrPct}
                                 keyboardType="decimal-pad"
@@ -111,7 +114,7 @@ export const DailyFeedCalculatorScreen = ({ navigation }: any) => {
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
                             <Input
-                                label="Initial Count"
+                                label={t('calculators.dailyFeed.labelInitialCount')}
                                 value={initialCount}
                                 onChangeText={setInitialCount}
                                 keyboardType="number-pad"
@@ -121,7 +124,7 @@ export const DailyFeedCalculatorScreen = ({ navigation }: any) => {
                         </View>
                         <View style={styles.halfCol}>
                             <Input
-                                label="Pond Area (m²)"
+                                label={t('calculators.dailyFeed.labelPondArea')}
                                 value={pondAreaM2}
                                 onChangeText={setPondAreaM2}
                                 keyboardType="decimal-pad"
@@ -130,7 +133,7 @@ export const DailyFeedCalculatorScreen = ({ navigation }: any) => {
                         </View>
                     </View>
                     <Input
-                        label="Feeding Rate (% of body weight)"
+                        label={t('calculators.dailyFeed.labelFeedingRate')}
                         value={feedingRatePct}
                         onChangeText={setFeedingRatePct}
                         keyboardType="decimal-pad"
@@ -138,29 +141,29 @@ export const DailyFeedCalculatorScreen = ({ navigation }: any) => {
                         required
                     />
 
-                    <Button title="Calculate" onPress={handleCalculate} loading={isLoading} style={styles.calcBtn} />
+                    <Button title={t('calculators.dailyFeed.calculate')} onPress={handleCalculate} loading={isLoading} style={styles.calcBtn} />
                 </Card>
 
                 {biomassKg !== null && (
                     <Card variant="flat" style={styles.biomassCard}>
-                        <Text style={styles.biomassLabel}>Estimated Biomass</Text>
+                        <Text style={styles.biomassLabel}>{t('calculators.dailyFeed.estimatedBiomass')}</Text>
                         <Text style={styles.biomassValue}>{biomassKg.toFixed(1)} kg</Text>
                     </Card>
                 )}
 
                 {result && (
                     <View style={styles.resultBox}>
-                        <Text style={styles.resultLabel}>Required Daily Feed</Text>
+                        <Text style={styles.resultLabel}>{t('calculators.dailyFeed.requiredDailyFeed')}</Text>
                         <Text style={styles.resultValue}>{result.dailyFeedKg.toFixed(2)} kg</Text>
-                        <Text style={styles.resultSubtext}>Distribute across daily meals</Text>
+                        <Text style={styles.resultSubtext}>{t('calculators.dailyFeed.distributeAcrossFeedings')}</Text>
                     </View>
                 )}
 
                 <Card style={styles.tableCard}>
-                    <Text style={styles.tableTitle}>Feeding Rate Reference</Text>
+                    <Text style={styles.tableTitle}>{t('calculators.dailyFeed.feedingRateReference')}</Text>
                     <View style={styles.tableHeader}>
-                        <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Shrimp Size</Text>
-                        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>Rate (% BW)</Text>
+                        <Text style={[styles.tableHeaderCell, { flex: 1 }]}>{t('calculators.dailyFeed.colShrimpSize')}</Text>
+                        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>{t('calculators.dailyFeed.colRateBw')}</Text>
                     </View>
                     {FEEDING_RATE_TABLE.map((row, i) => (
                         <View key={i} style={[styles.tableRow, i % 2 === 0 && styles.tableRowEven]}>

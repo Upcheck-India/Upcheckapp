@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -9,6 +10,7 @@ import { theme } from '../../theme';
 import { samplingApi } from '../../api/sampling';
 
 export const SamplingLogScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, pondName } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -22,7 +24,7 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
 
     const handleSave = async () => {
         if (!mbwG || isNaN(parseFloat(mbwG))) {
-            Alert.alert('Validation Error', 'Mean body weight is required');
+            Alert.alert(t('common.error'), t('logs.sampling_validationMbw'));
             return;
         }
 
@@ -40,7 +42,7 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
             });
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to save sampling record');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.sampling_errorSave'));
         } finally {
             setIsLoading(false);
         }
@@ -52,47 +54,47 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Sampling Entry</Text>
+                <Text style={styles.title}>{t('logs.sampling_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.subtitle}>Logging for {pondName}</Text>
+                <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 <Card style={styles.card}>
-                    <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
+                    <Input label={t('common.date')} value={date} onChangeText={setDate} placeholder={t('logs.datePlaceholder')} required />
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Measurements</Text>
+                    <Text style={styles.sectionTitle}>{t('logs.sampling_sectionMeasurements')}</Text>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label="MBW (g) *" value={mbwG} onChangeText={setMbwG} keyboardType="decimal-pad" placeholder="0.0" />
+                            <Input label={t('logs.sampling_labelMbw')} value={mbwG} onChangeText={setMbwG} keyboardType="decimal-pad" placeholder="0.0" />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label="Total Samples" value={totalSamples} onChangeText={setTotalSamples} keyboardType="number-pad" placeholder="0" />
+                            <Input label={t('logs.sampling_labelTotalSamples')} value={totalSamples} onChangeText={setTotalSamples} keyboardType="number-pad" placeholder="0" />
                         </View>
                     </View>
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Population Estimates</Text>
+                    <Text style={styles.sectionTitle}>{t('logs.sampling_sectionPopulation')}</Text>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label="Est. SR (%)" value={srEstimation} onChangeText={setSrEstimation} keyboardType="decimal-pad" placeholder="0-100" />
+                            <Input label={t('logs.sampling_labelEstSr')} value={srEstimation} onChangeText={setSrEstimation} keyboardType="decimal-pad" placeholder={t('logs.sampling_placeholderEstSr')} />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label="Est. Biomass (kg)" value={biomassEstimation} onChangeText={setBiomassEstimation} keyboardType="decimal-pad" placeholder="0.0" />
+                            <Input label={t('logs.sampling_labelEstBiomass')} value={biomassEstimation} onChangeText={setBiomassEstimation} keyboardType="decimal-pad" placeholder="0.0" />
                         </View>
                     </View>
                 </Card>
 
                 <Card style={styles.card}>
                     <Input
-                        label="Notes / Abnormalities"
+                        label={t('logs.sampling_labelNotesAbnormalities')}
                         value={notes}
                         onChangeText={setNotes}
-                        placeholder="Any visible signs of disease, molting state..."
+                        placeholder={t('logs.sampling_placeholderNotes')}
                         multiline
                         numberOfLines={3}
                         style={styles.textArea}
@@ -100,7 +102,7 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Button
-                    title="Save Record"
+                    title={t('logs.saveRecord')}
                     onPress={handleSave}
                     loading={isLoading}
                     style={styles.saveBtn}

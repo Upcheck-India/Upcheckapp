@@ -50,7 +50,8 @@ backend/coverage/
 .gemini/
 
 # Truecaller SDK Partner Key (do not commit real keys)
-# Note: if this file is already tracked, run:
-#   git rm --cached frontend/android/app/src/main/res/values/strings.xml
-# then commit the removal so future changes are ignored.
-frontend/android/app/src/main/res/values/strings.xml
+# Real partner key lives in this file at build time; it is merged into the same
+# string resource pool as strings.xml so AndroidManifest.xml references like
+# @string/partnerKey resolve correctly. Provide it via your secret store before
+# building.
+frontend/android/app/src/main/res/values/partner-keys.xml

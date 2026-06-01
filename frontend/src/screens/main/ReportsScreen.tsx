@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { MetricCard } from '../../components/ui/MetricCard';
@@ -8,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { Skeleton, SkeletonGrid, SkeletonMetric } from '../../components/ui/Skeleton';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
+import { BarChart } from '../../components/charts/BarChart';
 import { reportsApi, DashboardSummary } from '../../api/reports';
 import { farmsApi, Farm } from '../../api/farms';
 
@@ -19,6 +21,7 @@ interface FinancialReport {
 }
 
 export const ReportsScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
     const [farms, setFarms] = useState<Farm[]>([]);
     const [selectedFarmId, setSelectedFarmId] = useState<string | null>(null);
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -124,9 +127,9 @@ export const ReportsScreen = ({ navigation }: any) => {
 
     const renderSkeleton = () => (
         <View style={styles.content}>
-            <Text style={styles.sectionTitle}>Overview</Text>
+            <Text style={styles.sectionTitle}>{t('home.reportsOverview')}</Text>
             <SkeletonGrid count={4} columns={2} />
-            <Text style={[styles.sectionTitle, { marginTop: theme.spacing[6] }]}>Financial Summary</Text>
+            <Text style={[styles.sectionTitle, { marginTop: theme.spacing[6] }]}>{t('home.reportsFinancialSummary')}</Text>
             <Card style={styles.financialCard}>
                 <View style={styles.financialRow}>
                     <View style={styles.financialItem}>
@@ -147,7 +150,7 @@ export const ReportsScreen = ({ navigation }: any) => {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Reports</Text>
+                    <Text style={styles.headerTitle}>{t('home.reportsTitle')}</Text>
                     <View style={styles.farmSelector}>
                         <MaterialCommunityIcons name="barn" size={20} color={theme.roles.light.textSecondary} />
                         <Skeleton width={80} height={16} />
@@ -162,7 +165,7 @@ export const ReportsScreen = ({ navigation }: any) => {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Reports</Text>
+                    <Text style={styles.headerTitle}>{t('home.reportsTitle')}</Text>
                 </View>
                 <NetworkError onRetry={handleRetry} />
             </ScreenWrapper>
@@ -173,10 +176,10 @@ export const ReportsScreen = ({ navigation }: any) => {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Reports</Text>
+                    <Text style={styles.headerTitle}>{t('home.reportsTitle')}</Text>
                 </View>
                 <ErrorState
-                    title="Couldn't Load Reports"
+                    title={t('home.reportsErrorTitle')}
                     error={error}
                     onRetry={handleRetry}
                 />
@@ -187,14 +190,14 @@ export const ReportsScreen = ({ navigation }: any) => {
     return (
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Reports</Text>
+                <Text style={styles.headerTitle}>{t('home.reportsTitle')}</Text>
                 <TouchableOpacity
                     onPress={() => setShowFarmPicker(!showFarmPicker)}
                     style={styles.farmSelector}
                 >
                     <MaterialCommunityIcons name="barn" size={20} color={theme.roles.light.primary} />
                     <Text style={styles.farmSelectorText}>
-                        {selectedFarm?.name || 'Select Farm'}
+                        {selectedFarm?.name || t('home.reportsSelectFarm')}
                     </Text>
                     <MaterialCommunityIcons name="chevron-down" size={20} color={theme.roles.light.textSecondary} />
                 </TouchableOpacity>
@@ -230,61 +233,61 @@ export const ReportsScreen = ({ navigation }: any) => {
                     {farms.length === 0 ? (
                         <View style={styles.emptyState}>
                             <MaterialCommunityIcons name="barn" size={64} color={theme.roles.light.textDisabled} />
-                            <Text style={styles.emptyTitle}>No Farms Yet</Text>
-                            <Text style={styles.emptySubtitle}>Create a farm to see reports</Text>
+                            <Text style={styles.emptyTitle}>{t('home.reportsNoFarmsTitle')}</Text>
+                            <Text style={styles.emptySubtitle}>{t('home.reportsNoFarmsSubtitle')}</Text>
                             <Button
-                                title="Create Farm"
+                                title={t('home.reportsCreateFarm')}
                                 onPress={() => navigation.navigate('CreateFarm')}
                                 style={styles.emptyButton}
                             />
                         </View>
                     ) : (
                         <>
-                            <Text style={styles.sectionTitle}>Overview</Text>
+                            <Text style={styles.sectionTitle}>{t('home.reportsOverview')}</Text>
                             <View style={styles.summaryGrid}>
                                 <MetricCard
-                                    label="Active Ponds"
+                                    label={t('home.reportsActivePonds')}
                                     value={summary?.activePondsCount?.toString() || '0'}
                                     icon="water"
                                 />
                                 <MetricCard
-                                    label="Total Ponds"
+                                    label={t('home.reportsTotalPonds')}
                                     value={summary?.totalPondsCount?.toString() || '0'}
                                     icon="water-outline"
                                 />
                                 <MetricCard
-                                    label="Low Stock"
+                                    label={t('home.reportsLowStock')}
                                     value={(summary?.lowStockAlerts || 0).toString()}
                                     icon="alert"
                                     status={(summary?.lowStockAlerts || 0) > 0 ? 'warning' : 'normal'}
                                 />
                                 <MetricCard
-                                    label="Today's Feed"
+                                    label={t('home.reportsTodayFeed')}
                                     value={summary?.todayFeedUsage?.toString() || '0'}
                                     unit="kg"
                                     icon="corn"
                                 />
                             </View>
 
-                            <Text style={styles.sectionTitle}>Financial Summary</Text>
+                            <Text style={styles.sectionTitle}>{t('home.reportsFinancialSummary')}</Text>
                             <Card style={styles.financialCard}>
                                 <View style={styles.financialRow}>
                                     <View style={styles.financialItem}>
-                                        <Text style={styles.financialLabel}>Total Revenue</Text>
+                                        <Text style={styles.financialLabel}>{t('home.reportsTotalRevenue')}</Text>
                                         <Text style={[styles.financialValue, styles.revenue]}>
                                             {formatCurrency(financialReport?.revenue || 0)}
                                         </Text>
                                     </View>
                                     <View style={styles.financialDivider} />
                                     <View style={styles.financialItem}>
-                                        <Text style={styles.financialLabel}>Total Expenses</Text>
+                                        <Text style={styles.financialLabel}>{t('home.reportsTotalExpenses')}</Text>
                                         <Text style={[styles.financialValue, styles.expense]}>
                                             {formatCurrency(financialReport?.totalExpenses || 0)}
                                         </Text>
                                     </View>
                                 </View>
                                 <View style={styles.profitRow}>
-                                    <Text style={styles.profitLabel}>Net Profit</Text>
+                                    <Text style={styles.profitLabel}>{t('home.reportsNetProfit')}</Text>
                                     <Text style={[
                                         styles.profitValue,
                                         (financialReport?.profit || 0) >= 0 ? styles.profitPositive : styles.profitNegative,
@@ -296,7 +299,19 @@ export const ReportsScreen = ({ navigation }: any) => {
 
                             {(financialReport?.expensesByCategory?.length ?? 0) > 0 && (
                                 <Card style={styles.expensesCard}>
-                                    <Text style={styles.cardTitle}>Expenses Breakdown</Text>
+                                    <Text style={styles.cardTitle}>{t('home.reportsExpensesBreakdown')}</Text>
+                                    <BarChart
+                                        data={{
+                                            labels: financialReport!.expensesByCategory.map(item =>
+                                                item.category.length > 8
+                                                    ? item.category.slice(0, 7) + '…'
+                                                    : item.category
+                                            ),
+                                            datasets: [{ data: financialReport!.expensesByCategory.map(item => item.amount) }],
+                                        }}
+                                        yAxisLabel="Rp "
+                                        yAxisSuffix=""
+                                    />
                                     {financialReport?.expensesByCategory?.map((item, index) => (
                                         <View key={item.category + index} style={styles.expenseRow}>
                                             <Text style={styles.expenseCategory}>{item.category}</Text>
@@ -306,28 +321,28 @@ export const ReportsScreen = ({ navigation }: any) => {
                                 </Card>
                             )}
 
-                            <Text style={styles.sectionTitle}>Quick Actions</Text>
+                            <Text style={styles.sectionTitle}>{t('home.reportsQuickActions')}</Text>
                             <View style={styles.actionsGrid}>
                                 <TouchableOpacity
                                     style={styles.actionCard}
                                     onPress={() => navigation.navigate('CalculatorHub')}
                                 >
                                     <MaterialCommunityIcons name="calculator-variant" size={32} color={theme.roles.light.primary} />
-                                    <Text style={styles.actionLabel}>Calculators</Text>
+                                    <Text style={styles.actionLabel}>{t('home.reportsCalculators')}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={styles.actionCard}
                                     onPress={() => navigation.navigate('SimulationList')}
                                 >
                                     <MaterialCommunityIcons name="chart-timeline-variant" size={32} color={theme.roles.light.successText} />
-                                    <Text style={styles.actionLabel}>Simulations</Text>
+                                    <Text style={styles.actionLabel}>{t('home.reportsSimulations')}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={styles.actionCard}
                                     onPress={() => navigation.navigate('Farms')}
                                 >
                                     <MaterialCommunityIcons name="barn" size={32} color={theme.roles.light.infoBorder} />
-                                    <Text style={styles.actionLabel}>Farms</Text>
+                                    <Text style={styles.actionLabel}>{t('home.reportsFarms')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </>

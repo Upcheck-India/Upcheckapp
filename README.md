@@ -133,7 +133,7 @@ Full Truecaller verifier notes are in [`backend/README.md`](./backend/README.md#
 | `EXPO_PUBLIC_TRUECALLER_ANDROID_CLIENT_ID` | Optional override for the Truecaller console client ID |
 | `EXPO_PUBLIC_TRUECALLER_IOS_APP_KEY` / `EXPO_PUBLIC_TRUECALLER_IOS_APP_LINK` | iOS Truecaller bridge config |
 
-The Android Truecaller `partnerKey` lives in `frontend/android/app/src/main/res/values/strings.xml`, which is git-ignored. Supply it via your secret store before building a release APK; see [`README-AUTH.md`](./README-AUTH.md#truecaller-setup).
+The Android Truecaller `partnerKey` lives in `frontend/android/app/src/main/res/values/partner-keys.xml`, which is git-ignored. The non-secret string resources (`app_name`, splash entries, runtime version) stay in the tracked `strings.xml`. Supply the partner key via your secret store before building a release APK; see [`README-AUTH.md`](./README-AUTH.md#truecaller-setup).
 
 ## Architecture
 

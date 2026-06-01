@@ -5,6 +5,14 @@
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+  <!-- Truecaller verification. READ_PHONE_STATE is a normal permission and is
+       sufficient for Truecaller One-Tap. The restricted READ_CALL_LOG / SMS /
+       CALL_PHONE / ANSWER_PHONE_CALLS permissions (used only by the legacy
+       missed-call / SMS-retriever fallback) were removed for Play Store
+       compliance — Google restricts those to default Phone/SMS handler apps.
+       Phone sign-in still works via Truecaller One-Tap; users can also sign in
+       with email, Google, or the in-app email OTP. -->
+  <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>

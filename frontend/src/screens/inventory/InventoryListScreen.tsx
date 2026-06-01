@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated, Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
@@ -11,15 +12,17 @@ import { theme } from '../../theme';
 import { inventoryApi, InventoryItem } from '../../api/inventory';
 import { useFocusEffect } from '@react-navigation/native';
 
-const CATEGORIES = [
-    { key: 'all', label: 'All', icon: 'database' },
-    { key: 'feed', label: 'Feed', icon: 'corn' },
-    { key: 'chemical', label: 'Chemicals', icon: 'flask' },
-    { key: 'equipment', label: 'Equipment', icon: 'tools' },
-    { key: 'other', label: 'Other', icon: 'package-variant' },
-];
-
 export const InventoryListScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
+
+    const CATEGORIES = [
+        { key: 'all', label: t('inventory.catAll'), icon: 'database' },
+        { key: 'feed', label: t('inventory.catFeed'), icon: 'corn' },
+        { key: 'chemical', label: t('inventory.catChemicals'), icon: 'flask' },
+        { key: 'equipment', label: t('inventory.catEquipment'), icon: 'tools' },
+        { key: 'other', label: t('inventory.catOther'), icon: 'package-variant' },
+    ];
+
     const [inventory, setInventory] = useState<InventoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -102,12 +105,12 @@ export const InventoryListScreen = ({ navigation }: any) => {
         ? inventory
         : inventory.filter(item => item.category === selectedCategory);
 
-    const lowStockItems = inventory.filter(item => item.currentStock <= item.minStockThreshold);
+    const lowStockItems = inventory.filter(item => item.quantity <= (item.reorderLevel ?? 0));
 
     const getStockStatus = (item: InventoryItem) => {
-        if (item.currentStock <= 0) return { color: theme.roles.light.dangerText, label: 'Out of Stock' };
-        if (item.currentStock <= item.minStockThreshold) return { color: theme.roles.light.warningText, label: 'Low Stock' };
-        return { color: theme.roles.light.successText, label: 'In Stock' };
+        if (item.quantity <= 0) return { color: theme.roles.light.dangerText, label: t('inventory.outOfStock') };
+        if (item.quantity <= (item.reorderLevel ?? 0)) return { color: theme.roles.light.warningText, label: t('inventory.lowStock') };
+        return { color: theme.roles.light.successText, label: t('inventory.inStock') };
     };
 
     const renderSkeleton = () => (
@@ -171,22 +174,22 @@ export const InventoryListScreen = ({ navigation }: any) => {
                         </View>
                         <View style={styles.itemFooter}>
                             <Text style={styles.stockText}>
-                                <Text style={styles.stockValue}>{item.currentStock}</Text> {item.unit}
+                                <Text style={styles.stockValue}>{item.quantity}</Text> {item.unit}
                             </Text>
                             <Text style={styles.thresholdText}>
-                                Min: {item.minStockThreshold} {item.unit}
+                                {t('inventory.minLabel')} {(item.reorderLevel ?? 0)} {item.unit}
                             </Text>
                         </View>
                     </Card>
                 </TouchableOpacity>
             </Animated.View>
         );
-    }, [navigation, fadeAnim, scaleAnim]);
+    }, [navigation, fadeAnim, scaleAnim, t]);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Inventory</Text>
+                <Text style={styles.headerTitle}>{t('inventory.title')}</Text>
                 {lowStockItems.length > 0 && (
                     <TouchableOpacity style={styles.alertBadge}>
                         <MaterialCommunityIcons name="alert-circle" size={20} color={theme.roles.light.warningText} />
@@ -205,7 +208,7 @@ export const InventoryListScreen = ({ navigation }: any) => {
                 <NetworkError onRetry={handleRetry} />
             ) : error && inventory.length === 0 ? (
                 <ErrorState
-                    title="Couldn't Load Inventory"
+                    title={t('inventory.errorTitle')}
                     error={error}
                     onRetry={handleRetry}
                 />
@@ -226,16 +229,16 @@ export const InventoryListScreen = ({ navigation }: any) => {
                     ListEmptyComponent={
                         <EmptyState
                             icon="database"
-                            title="No Inventory Items"
-                            subtitle="Start tracking your feed, chemicals, and equipment stock."
-                            actionLabel="Add Item"
-                            onAction={() => Alert.alert('Add Item', 'Create inventory item functionality coming soon!')}
+                            title={t('inventory.emptyTitle')}
+                            subtitle={t('inventory.emptySubtitle')}
+                            actionLabel={t('inventory.addItem')}
+                            onAction={() => Alert.alert(t('inventory.addItem'), t('inventory.addItemComingSoon'))}
                         />
                     }
                 />
             )}
 
-            <FAB icon="plus" onPress={() => Alert.alert('Add Item', 'Create inventory item functionality coming soon!')} />
+            <FAB icon="plus" onPress={() => Alert.alert(t('inventory.addItem'), t('inventory.addItemComingSoon'))} />
         </ScreenWrapper>
     );
 };
