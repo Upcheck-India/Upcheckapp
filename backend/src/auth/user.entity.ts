@@ -69,4 +69,15 @@ export class User {
 
     @Column({ name: 'google_id', type: 'varchar', nullable: true, unique: true })
     googleId: string | null; // Keep for backward compatibility/OAuth
+
+    // ── TOTP two-factor authentication ──
+    @Column({ name: 'is_2fa_enabled', type: 'boolean', default: false })
+    is2faEnabled: boolean;
+
+    @Column({ name: 'totp_secret', type: 'text', nullable: true })
+    totpSecret: string | null;
+
+    // ── Expo push notifications ──
+    @Column({ name: 'push_token', type: 'text', nullable: true })
+    pushToken: string | null;
 }

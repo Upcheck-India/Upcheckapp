@@ -32,4 +32,6 @@ export const samplingApi = {
     getAll: (cropId?: string) => apiClient.get<SamplingRecord[]>('/sampling', { params: cropId ? { cropId } : {} }),
     getByCrop: (cropId: string) => apiClient.get<SamplingRecord[]>('/sampling', { params: { cropId } }),
     create: (data: CreateSamplingDto) => apiClient.post<SamplingRecord>('/sampling', data),
+    update: (id: string, data: Partial<CreateSamplingDto>) => apiClient.patch<SamplingRecord>(`/sampling/${id}`, data),
+    remove: (id: string) => apiClient.delete<void>(`/sampling/${id}`),
 };

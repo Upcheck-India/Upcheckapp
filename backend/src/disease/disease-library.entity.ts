@@ -11,7 +11,7 @@ export class DiseaseLibrary {
     @Column({ name: 'scientific_name', type: 'text', nullable: true })
     scientificName: string;
 
-    @Column({ type: 'text', array: true, nullable: true, default: [] })
+    @Column({ name: 'common_names', type: 'text', array: true, nullable: true, default: [] })
     commonNames: string[];
 
     @Column({ type: 'text', array: true, nullable: true, default: [] })

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Switch } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -9,6 +10,7 @@ import { theme } from '../../theme';
 import { feedApi } from '../../api/feedRecords';
 
 export const FeedLogScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, pondName } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -29,7 +31,7 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
     const handleSave = async () => {
         if (!fasting) {
             if (!totalFeed || isNaN(parseFloat(totalFeed))) {
-                Alert.alert('Validation', 'Please enter a valid total feed amount');
+                Alert.alert(t('common.error'), t('logs.feed_validationFeedAmount'));
                 return;
             }
         }
@@ -52,7 +54,7 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
             });
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to save feed record');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.feed_errorSave'));
         } finally {
             setIsLoading(false);
         }
@@ -64,18 +66,18 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Feed Entry</Text>
+                <Text style={styles.title}>{t('logs.feed_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.subtitle}>Logging for {pondName}</Text>
+                <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 <Card style={styles.card}>
                     <View style={styles.fastingRow}>
                         <View>
-                            <Text style={styles.sectionTitle}>Fasting Day</Text>
-                            <Text style={styles.labelDesc}>Check if no feed was given today</Text>
+                            <Text style={styles.sectionTitle}>{t('logs.feed_fastingDayTitle')}</Text>
+                            <Text style={styles.labelDesc}>{t('logs.feed_fastingDayDesc')}</Text>
                         </View>
                         <Switch
                             value={fasting}
@@ -86,16 +88,16 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                     </View>
 
                     <View style={[styles.dateInput, { marginTop: theme.spacing[4] }]}>
-                        <Input label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" required />
+                        <Input label={t('common.date')} value={date} onChangeText={setDate} placeholder={t('logs.datePlaceholder')} required />
                     </View>
                 </Card>
 
                 {!fasting && (
                     <>
                         <Card style={styles.card}>
-                            <Text style={styles.sectionTitle}>Feeding Amount</Text>
+                            <Text style={styles.sectionTitle}>{t('logs.feed_sectionFeedingAmount')}</Text>
                             <Input
-                                label="Total Feed Given (kg)"
+                                label={t('logs.feed_labelTotalFeed')}
                                 value={totalFeed}
                                 onChangeText={setTotalFeed}
                                 keyboardType="decimal-pad"
@@ -103,31 +105,31 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                                 required
                             />
                             <Input
-                                label="Feed Type/Brand"
+                                label={t('logs.feed_labelFeedType')}
                                 value={feedType}
                                 onChangeText={setFeedType}
-                                placeholder="e.g. Grower 2mm"
+                                placeholder={t('logs.feed_placeholderFeedType')}
                             />
                         </Card>
 
                         <Card style={styles.card}>
-                            <Text style={styles.sectionTitle}>Feeding Trays (Leftover %)</Text>
-                            <Text style={styles.labelDesc}>Estimate remaining feed after 2 hours</Text>
+                            <Text style={styles.sectionTitle}>{t('logs.feed_sectionFeedingTrays')}</Text>
+                            <Text style={styles.labelDesc}>{t('logs.feed_trayDesc')}</Text>
 
                             <View style={styles.trayGrid}>
                                 <View style={styles.trayItem}>
-                                    <Input label="Tray 1" value={tray1} onChangeText={setTray1} keyboardType="number-pad" placeholder="0%" />
+                                    <Input label={t('logs.feed_labelTray1')} value={tray1} onChangeText={setTray1} keyboardType="number-pad" placeholder="0%" />
                                 </View>
                                 <View style={styles.trayItem}>
-                                    <Input label="Tray 2" value={tray2} onChangeText={setTray2} keyboardType="number-pad" placeholder="0%" />
+                                    <Input label={t('logs.feed_labelTray2')} value={tray2} onChangeText={setTray2} keyboardType="number-pad" placeholder="0%" />
                                 </View>
                             </View>
                             <View style={styles.trayGrid}>
                                 <View style={styles.trayItem}>
-                                    <Input label="Tray 3" value={tray3} onChangeText={setTray3} keyboardType="number-pad" placeholder="0%" />
+                                    <Input label={t('logs.feed_labelTray3')} value={tray3} onChangeText={setTray3} keyboardType="number-pad" placeholder="0%" />
                                 </View>
                                 <View style={styles.trayItem}>
-                                    <Input label="Tray 4" value={tray4} onChangeText={setTray4} keyboardType="number-pad" placeholder="0%" />
+                                    <Input label={t('logs.feed_labelTray4')} value={tray4} onChangeText={setTray4} keyboardType="number-pad" placeholder="0%" />
                                 </View>
                             </View>
                         </Card>
@@ -136,10 +138,10 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
 
                 <Card style={styles.card}>
                     <Input
-                        label="Notes / Behavior"
+                        label={t('logs.feed_labelNotesBehavior')}
                         value={notes}
                         onChangeText={setNotes}
-                        placeholder="Appetite, weather during feeding..."
+                        placeholder={t('logs.feed_placeholderNotesBehavior')}
                         multiline
                         numberOfLines={3}
                         style={styles.textArea}
@@ -147,7 +149,7 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Button
-                    title="Save Record"
+                    title={t('logs.saveRecord')}
                     onPress={handleSave}
                     loading={isLoading}
                     style={styles.saveBtn}

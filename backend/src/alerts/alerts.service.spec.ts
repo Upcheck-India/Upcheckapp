@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { AlertsService } from './alerts.service';
 import { Alert } from './alert.entity';
 import { CreateAlertDto } from './dto/create-alert.dto';
+import { PushService } from '../push/push.service';
 
 describe('AlertsService', () => {
   let service: AlertsService;
@@ -48,6 +49,7 @@ describe('AlertsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
+        { provide: PushService, useValue: { sendToUser: jest.fn().mockResolvedValue(false) } },
         AlertsService,
         {
           provide: getRepositoryToken(Alert),

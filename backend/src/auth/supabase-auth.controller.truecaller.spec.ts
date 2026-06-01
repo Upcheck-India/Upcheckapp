@@ -26,6 +26,8 @@ import request from 'supertest';
 
 import { SupabaseAuthController } from './supabase-auth.controller';
 import { SupabaseAuthService } from './supabase-auth.service';
+import { TwoFactorService } from './two-factor.service';
+import { RedisService } from '../redis/redis.service';
 import {
   TruecallerService,
   VerifiedTruecallerProfile,
@@ -89,6 +91,8 @@ describe('SupabaseAuthController — POST /auth/supabase/oauth/truecaller', () =
       providers: [
         { provide: TruecallerService, useValue: truecallerServiceMock },
         { provide: SupabaseAuthService, useValue: supabaseAuthServiceMock },
+        { provide: TwoFactorService, useValue: { isEnabled: jest.fn().mockResolvedValue(false) } },
+        { provide: RedisService, useValue: { get: jest.fn(), set: jest.fn(), del: jest.fn() } },
       ],
     }).compile();
 

@@ -26,6 +26,16 @@ export interface AuthResponse {
     message: string;
     user: any;
     session: AuthSession | null;
+    // Present when the account has TOTP 2FA enabled: the session is withheld
+    // until a code is verified via twoFactor.login(tempToken, code).
+    requires2FA?: boolean;
+    tempToken?: string;
+}
+
+export interface TwoFactorSetup {
+    secret: string;
+    otpauthUrl: string;
+    qrCodeDataUrl: string;
 }
 
 export const authApi = {
@@ -64,4 +74,21 @@ export const authApi = {
         email?: string;
         avatarUrl?: string;
     }) => apiClient.post<AuthResponse>('/auth/supabase/oauth/truecaller', payload),
+
+    // ── Passwordless email OTP login ──
+    loginOtpRequest: (email: string) =>
+        apiClient.post('/auth/supabase/login-otp/request', { email }),
+
+    loginOtpVerify: (email: string, otp: string) =>
+        apiClient.post<AuthResponse>('/auth/supabase/login-otp/verify', { email, otp }),
+
+    // ── TOTP two-factor authentication ──
+    twoFactor: {
+        setup: () => apiClient.post<TwoFactorSetup>('/auth/supabase/2fa/setup'),
+        enable: (token: string) => apiClient.post<{ enabled: true }>('/auth/supabase/2fa/enable', { token }),
+        disable: (token: string) => apiClient.post<{ enabled: false }>('/auth/supabase/2fa/disable', { token }),
+        status: () => apiClient.get<{ enabled: boolean }>('/auth/supabase/2fa/status'),
+        login: (tempToken: string, token: string) =>
+            apiClient.post<AuthResponse>('/auth/supabase/2fa/login', { tempToken, token }),
+    },
 };

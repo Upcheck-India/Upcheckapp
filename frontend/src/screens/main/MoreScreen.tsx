@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { theme } from '../../theme';
@@ -16,28 +17,29 @@ interface MenuItem {
 }
 
 export const MoreScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
     const { user, logout } = useAuthStore();
 
     const mainMenuItems: MenuItem[] = [
         {
             icon: 'account-circle',
-            label: 'Profile',
+            label: t('home.moreProfile'),
             route: 'Profile',
-            description: 'View and edit your profile',
+            description: t('home.moreProfileDesc'),
             color: theme.roles.light.primary,
         },
         {
             icon: 'cog',
-            label: 'Settings',
+            label: t('home.moreSettings'),
             route: 'Settings',
-            description: 'App preferences and notifications',
+            description: t('home.moreSettingsDesc'),
             color: theme.roles.light.infoBorder,
         },
         {
             icon: 'bell',
-            label: 'Notifications',
+            label: t('home.moreNotifications'),
             route: 'Notifications',
-            description: 'Alerts and reminders',
+            description: t('home.moreNotificationsDesc'),
             color: theme.roles.light.warningText,
         },
     ];
@@ -45,75 +47,103 @@ export const MoreScreen = ({ navigation }: any) => {
     const toolsMenuItems: MenuItem[] = [
         {
             icon: 'calculator-variant',
-            label: 'Calculators',
+            label: t('home.moreCalculators'),
             route: 'CalculatorHub',
-            description: 'FCR, feed, ammonia calculations',
+            description: t('home.moreCalculatorsDesc'),
             color: theme.roles.light.successText,
         },
         {
             icon: 'chart-timeline-variant',
-            label: 'Simulations',
+            label: t('home.moreSimulations'),
             route: 'SimulationList',
-            description: 'Run growth simulations',
+            description: t('home.moreSimulationsDesc'),
             color: theme.roles.light.primary,
         },
         {
             icon: 'chart-box',
-            label: 'Reports',
+            label: t('home.moreReports'),
             route: 'Reports',
-            description: 'Cycle analysis and financials',
+            description: t('home.moreReportsDesc'),
             color: theme.roles.light.infoBorder,
         },
         {
             icon: 'book-open-variant',
-            label: 'Disease Encyclopedia',
+            label: t('home.moreDiseaseEncyclopedia'),
             route: 'DiseaseList',
-            description: 'Browse and search disease library',
+            description: t('home.moreDiseaseEncyclopediaDesc'),
             color: theme.roles.light.dangerText,
+        },
+        {
+            icon: 'newspaper-variant-outline',
+            label: t('home.moreNews'),
+            route: 'NewsList',
+            description: t('home.moreNewsDesc'),
+            color: theme.roles.light.infoBorder,
+        },
+        {
+            icon: 'database-search',
+            label: t('home.moreReference'),
+            route: 'Reference',
+            description: t('home.moreReferenceDesc'),
+            color: theme.roles.light.successText,
         },
     ];
 
     const farmMenuItems: MenuItem[] = [
         {
             icon: 'barn',
-            label: 'My Farms',
+            label: t('home.moreMyFarms'),
             route: 'Farms',
-            description: 'Manage your farms',
+            description: t('home.moreMyFarmsDesc'),
             color: theme.roles.light.primary,
         },
         {
             icon: 'database',
-            label: 'Inventory',
+            label: t('home.moreInventory'),
             route: 'Inventory',
-            description: 'Feed and chemical stock',
+            description: t('home.moreInventoryDesc'),
             color: theme.roles.light.warningText,
+        },
+        {
+            icon: 'storefront-outline',
+            label: t('home.moreShop'),
+            route: 'Shop',
+            description: t('home.moreShopDesc'),
+            color: theme.roles.light.primary,
+        },
+        {
+            icon: 'food-variant',
+            label: t('home.moreFeedProducts'),
+            route: 'FeedProducts',
+            description: t('home.moreFeedProductsDesc'),
+            color: theme.roles.light.successText,
         },
     ];
 
     const helpMenuItems: MenuItem[] = [
         {
             icon: 'help-circle',
-            label: 'Help & Support',
+            label: t('home.moreHelp'),
             route: 'Help',
-            description: 'FAQs and tutorials',
+            description: t('home.moreHelpDesc'),
             color: theme.roles.light.successText,
         },
         {
             icon: 'information',
-            label: 'About UpCheck',
+            label: t('home.moreAbout'),
             route: 'About',
-            description: 'App version and credits',
+            description: t('home.moreAboutDesc'),
             color: theme.roles.light.infoBorder,
         },
     ];
 
     const handleLogout = () => {
         Alert.alert(
-            'Sign Out',
-            'Are you sure you want to sign out?',
+            t('home.moreSignOutTitle'),
+            t('home.moreSignOutMessage'),
             [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Sign Out', style: 'destructive', onPress: logout },
+                { text: t('common.cancel'), style: 'cancel' },
+                { text: t('common.signOut'), style: 'destructive', onPress: logout },
             ]
         );
     };
@@ -147,7 +177,7 @@ export const MoreScreen = ({ navigation }: any) => {
     return (
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>More</Text>
+                <Text style={styles.headerTitle}>{t('home.moreTitle')}</Text>
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
@@ -159,16 +189,16 @@ export const MoreScreen = ({ navigation }: any) => {
                         </View>
                         <View style={styles.userDetails}>
                             <Text style={styles.userName}>
-                                {user?.name || user?.email?.split('@')[0] || 'User'}
+                                {user?.name || user?.email?.split('@')[0] || t('home.moreUserFallback')}
                             </Text>
-                            <Text style={styles.userEmail}>{user?.email || 'No email'}</Text>
+                            <Text style={styles.userEmail}>{user?.email || t('home.moreEmailFallback')}</Text>
                         </View>
                     </View>
                 </Card>
 
                 {/* Main Menu */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Account</Text>
+                    <Text style={styles.sectionTitle}>{t('home.moreSectionAccount')}</Text>
                     <Card style={styles.menuCard}>
                         {mainMenuItems.map(renderMenuItem)}
                     </Card>
@@ -176,7 +206,7 @@ export const MoreScreen = ({ navigation }: any) => {
 
                 {/* Tools */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Tools</Text>
+                    <Text style={styles.sectionTitle}>{t('home.moreSectionTools')}</Text>
                     <Card style={styles.menuCard}>
                         {toolsMenuItems.map(renderMenuItem)}
                     </Card>
@@ -184,7 +214,7 @@ export const MoreScreen = ({ navigation }: any) => {
 
                 {/* Farm Management */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Farm Management</Text>
+                    <Text style={styles.sectionTitle}>{t('home.moreSectionFarm')}</Text>
                     <Card style={styles.menuCard}>
                         {farmMenuItems.map(renderMenuItem)}
                     </Card>
@@ -192,7 +222,7 @@ export const MoreScreen = ({ navigation }: any) => {
 
                 {/* Help */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Help & Info</Text>
+                    <Text style={styles.sectionTitle}>{t('home.moreSectionHelp')}</Text>
                     <Card style={styles.menuCard}>
                         {helpMenuItems.map(renderMenuItem)}
                     </Card>
@@ -201,11 +231,11 @@ export const MoreScreen = ({ navigation }: any) => {
                 {/* Logout */}
                 <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                     <MaterialCommunityIcons name="logout" size={24} color={theme.roles.light.dangerText} />
-                    <Text style={styles.logoutText}>Sign Out</Text>
+                    <Text style={styles.logoutText}>{t('common.signOut')}</Text>
                 </TouchableOpacity>
 
                 {/* Version */}
-                <Text style={styles.versionText}>UpCheck v1.0.0</Text>
+                <Text style={styles.versionText}>{t('home.moreVersion')}</Text>
             </ScrollView>
         </ScreenWrapper>
     );

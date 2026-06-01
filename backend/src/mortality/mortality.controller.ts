@@ -13,7 +13,7 @@ export class MortalityController {
     @Post()
     @UseGuards(OwnershipGuard)
     @OwnsResource('Crop', 'cropId', 'pond.farm.userId')
-    create(@Body() dto: CreateMortalityRecordDto, @CurrentUser() user) {
+    create(@Body() dto: CreateMortalityRecordDto) {
         return this.mortalityService.create(dto);
     }
 

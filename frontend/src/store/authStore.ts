@@ -32,6 +32,9 @@ interface AuthState {
     accessToken: string | null;
     isAuthenticated: boolean;
 
+    // ── Persisted (via partialize) — refresh token restored on hydration ──
+    refreshToken?: string | null;
+
     // ── Pending verification ──
     pendingVerificationEmail: string | null;
 
@@ -50,7 +53,7 @@ interface AuthState {
 
     // ── API Actions ──
     initialize: () => Promise<void>;
-    login: (email: string, password: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
     googleLogin: (idToken: string) => Promise<void>;
     truecallerLogin: (profile: {
         accessToken: string;
@@ -144,7 +147,7 @@ export const useAuthStore = create<AuthState>()(
             initialize: async () => {
                 const state = get();
                 // Check if we have a refresh token stored
-                const refreshToken = (state as any).refreshToken;
+                const refreshToken = state.refreshToken;
 
                 if (refreshToken) {
                     try {
@@ -167,9 +170,15 @@ export const useAuthStore = create<AuthState>()(
                 set({ isLoading: true, error: null });
                 try {
                     const { data } = await authApi.signin({ email, password });
+                    if (data.requires2FA) {
+                        // Session is withheld until a TOTP code is verified.
+                        set({ isLoading: false });
+                        return { requires2FA: true, tempToken: data.tempToken };
+                    }
                     if (data.session) {
                         get().setSession(data.session);
                     }
+                    return { requires2FA: false };
                 } catch (err: any) {
                     const message = err.response?.data?.message || err.message || 'Login failed';
                     get().setError(message);

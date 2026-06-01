@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
@@ -8,6 +9,7 @@ import { theme } from '../../theme';
 import { inventoryApi, InventoryItem } from '../../api/inventory';
 
 export const InventoryDetailScreen = ({ navigation, route }: any) => {
+    const { t } = useTranslation();
     const { inventoryId, itemName } = route.params;
     const [item, setItem] = useState<InventoryItem | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -22,33 +24,33 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
             setItem(data);
         } catch (error) {
             console.error('Failed to fetch inventory item:', error);
-            Alert.alert('Error', 'Failed to load inventory item');
+            Alert.alert(t('common.error'), t('inventory.loadItemError'));
         } finally {
             setIsLoading(false);
         }
     };
 
     const getStockStatus = () => {
-        if (!item) return { color: theme.roles.light.textDisabled, label: 'Unknown' };
-        if (item.currentStock <= 0) return { color: theme.roles.light.dangerText, label: 'Out of Stock', icon: 'alert-circle' };
-        if (item.currentStock <= item.minStockThreshold) return { color: theme.roles.light.warningText, label: 'Low Stock', icon: 'alert' };
-        return { color: theme.roles.light.successText, label: 'In Stock', icon: 'check-circle' };
+        if (!item) return { color: theme.roles.light.textDisabled, label: t('common.status') };
+        if (item.quantity <= 0) return { color: theme.roles.light.dangerText, label: t('inventory.outOfStock'), icon: 'alert-circle' };
+        if (item.quantity <= (item.reorderLevel ?? 0)) return { color: theme.roles.light.warningText, label: t('inventory.lowStock'), icon: 'alert' };
+        return { color: theme.roles.light.successText, label: t('inventory.inStock'), icon: 'check-circle' };
     };
 
     const handleAdjustStock = () => {
         Alert.alert(
-            'Adjust Stock',
-            'Choose an action',
+            t('inventory.adjustStock'),
+            t('inventory.adjustStockChoose'),
             [
-                { text: 'Add Stock', onPress: () => Alert.alert('Coming Soon', 'Stock adjustment feature coming soon!') },
-                { text: 'Reduce Stock', onPress: () => Alert.alert('Coming Soon', 'Stock adjustment feature coming soon!') },
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('inventory.addStock'), onPress: () => Alert.alert(t('inventory.comingSoon'), t('inventory.stockAdjustComingSoon')) },
+                { text: t('inventory.reduceStock'), onPress: () => Alert.alert(t('inventory.comingSoon'), t('inventory.stockAdjustComingSoon')) },
+                { text: t('common.cancel'), style: 'cancel' },
             ]
         );
     };
 
     const handleEdit = () => {
-        Alert.alert('Coming Soon', 'Edit inventory item feature coming soon!');
+        Alert.alert(t('inventory.comingSoon'), t('inventory.editComingSoon'));
     };
 
     if (isLoading) {
@@ -68,12 +70,12 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                         <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                     </TouchableOpacity>
-                    <Text style={styles.title}>{itemName || 'Inventory Item'}</Text>
+                    <Text style={styles.title}>{itemName || t('inventory.inventoryItemFallback')}</Text>
                     <View style={{ width: 40 }} />
                 </View>
                 <View style={styles.errorContainer}>
                     <MaterialCommunityIcons name="database-off" size={64} color={theme.roles.light.textDisabled} />
-                    <Text style={styles.errorText}>Item not found</Text>
+                    <Text style={styles.errorText}>{t('inventory.itemNotFound')}</Text>
                 </View>
             </ScreenWrapper>
         );
@@ -100,22 +102,22 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                 </View>
 
                 <Card style={styles.stockCard}>
-                    <Text style={styles.stockLabel}>Current Stock</Text>
-                    <Text style={styles.stockValue}>{item.currentStock}</Text>
+                    <Text style={styles.stockLabel}>{t('inventory.currentStock')}</Text>
+                    <Text style={styles.stockValue}>{item.quantity}</Text>
                     <Text style={styles.stockUnit}>{item.unit}</Text>
                     <View style={styles.stockBar}>
                         <View
                             style={[
                                 styles.stockBarFill,
                                 {
-                                    width: `${Math.min(100, (item.currentStock / (item.minStockThreshold * 2)) * 100)}%`,
+                                    width: `${Math.min(100, (item.quantity / ((item.reorderLevel ?? 0) * 2)) * 100)}%`,
                                     backgroundColor: status.color,
                                 }
                             ]}
                         />
                     </View>
                     <Text style={styles.thresholdText}>
-                        Minimum threshold: {item.minStockThreshold} {item.unit}
+                        {t('inventory.minimumThreshold', { count: item.reorderLevel ?? 0, unit: item.unit })}
                     </Text>
                 </Card>
 
@@ -123,7 +125,7 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                     <View style={styles.infoRow}>
                         <MaterialCommunityIcons name="shape" size={20} color={theme.roles.light.textSecondary} />
                         <View style={styles.infoTextContainer}>
-                            <Text style={styles.infoLabel}>Category</Text>
+                            <Text style={styles.infoLabel}>{t('inventory.labelCategory')}</Text>
                             <Text style={styles.infoValue}>{item.category}</Text>
                         </View>
                     </View>
@@ -131,18 +133,18 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                     <View style={styles.infoRow}>
                         <MaterialCommunityIcons name="cube-outline" size={20} color={theme.roles.light.textSecondary} />
                         <View style={styles.infoTextContainer}>
-                            <Text style={styles.infoLabel}>Unit</Text>
+                            <Text style={styles.infoLabel}>{t('inventory.labelUnit')}</Text>
                             <Text style={styles.infoValue}>{item.unit}</Text>
                         </View>
                     </View>
 
-                    {item.lastPurchaseDate && (
+                    {item.expiryDate && (
                         <View style={styles.infoRow}>
                             <MaterialCommunityIcons name="calendar" size={20} color={theme.roles.light.textSecondary} />
                             <View style={styles.infoTextContainer}>
-                                <Text style={styles.infoLabel}>Last Purchase</Text>
+                                <Text style={styles.infoLabel}>{t('inventory.labelLastPurchase')}</Text>
                                 <Text style={styles.infoValue}>
-                                    {new Date(item.lastPurchaseDate).toLocaleDateString()}
+                                    {new Date(item.expiryDate).toLocaleDateString()}
                                 </Text>
                             </View>
                         </View>
@@ -152,7 +154,7 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                         <View style={[styles.infoRow, styles.noBorder]}>
                             <MaterialCommunityIcons name="note-text" size={20} color={theme.roles.light.textSecondary} />
                             <View style={styles.infoTextContainer}>
-                                <Text style={styles.infoLabel}>Notes</Text>
+                                <Text style={styles.infoLabel}>{t('common.notes')}</Text>
                                 <Text style={styles.infoValue}>{item.notes}</Text>
                             </View>
                         </View>
@@ -160,18 +162,18 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                 </Card>
 
                 <Button
-                    title="Adjust Stock"
+                    title={t('inventory.adjustStock')}
                     onPress={handleAdjustStock}
                     style={styles.adjustBtn}
                     icon="package-variant-closed"
                 />
 
-                <Text style={styles.sectionTitle}>Stock History</Text>
+                <Text style={styles.sectionTitle}>{t('inventory.stockHistory')}</Text>
                 <Card style={styles.historyCard}>
                     <View style={styles.historyPlaceholder}>
                         <MaterialCommunityIcons name="history" size={32} color={theme.roles.light.textDisabled} />
                         <Text style={styles.historyPlaceholderText}>
-                            Stock adjustment history coming soon
+                            {t('inventory.stockHistoryComingSoon')}
                         </Text>
                     </View>
                 </Card>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
@@ -11,6 +12,7 @@ import { theme } from '../../theme';
 import { cropsApi, Crop } from '../../api/crops';
 
 export const CycleDetailScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { cycleId } = route.params;
     const [cycle, setCycle] = useState<Crop | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -34,19 +36,19 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
 
     const handleCloseCycle = () => {
         Alert.alert(
-            'Close Cycle',
-            'Are you sure you want to close this cycle? This action cannot be undone.',
+            t('cycles.closeCycleTitle'),
+            t('cycles.closeCycleMessage'),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                    text: 'Confirm',
+                    text: t('common.confirm'),
                     style: 'destructive',
                     onPress: async () => {
                         try {
                             await cropsApi.close(cycleId);
                             navigation.goBack(); // returns to pond dashboard
                         } catch (error: any) {
-                            Alert.alert('Error', 'Failed to close the cycle');
+                            Alert.alert(t('common.error'), t('cycles.errorCloseCycle'));
                         }
                     }
                 },
@@ -55,7 +57,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
     };
 
     if (isLoading || !cycle) {
-        return <ScreenWrapper><Text>Loading...</Text></ScreenWrapper>;
+        return <ScreenWrapper><Text>{t('common.loading')}</Text></ScreenWrapper>;
     }
 
     const calculateDOC = (stockingDateStr: string) => {
@@ -71,13 +73,13 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Cycle Details</Text>
+                <Text style={styles.title}>{t('cycles.detailTitle')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.statusRow}>
-                    <Text style={styles.label}>Status:</Text>
+                    <Text style={styles.label}>{t('common.status')}:</Text>
                     <StatusBadge
                         status={cycle.status === 'active' ? 'active' : 'info'}
                         label={cycle.status}
@@ -85,54 +87,54 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                 </View>
 
                 <Card style={styles.sectionCard}>
-                    <Text style={styles.sectionTitle}>Stocking Info</Text>
+                    <Text style={styles.sectionTitle}>{t('cycles.sectionStockingInfo')}</Text>
                     <View style={styles.row}>
                         <View style={styles.col}>
-                            <Text style={styles.infoLabel}>Stocking Date</Text>
+                            <Text style={styles.infoLabel}>{t('cycles.infoStockingDate')}</Text>
                             <Text style={styles.infoValue}>{cycle.stockingDate ? new Date(cycle.stockingDate).toLocaleDateString() : 'N/A'}</Text>
                         </View>
                         <View style={styles.col}>
-                            <Text style={styles.infoLabel}>DOC</Text>
-                            <Text style={styles.infoValue}>{cycle.stockingDate ? calculateDOC(cycle.stockingDate) : (cycle.doc ?? 0)} days</Text>
+                            <Text style={styles.infoLabel}>{t('cycles.infoDoc')}</Text>
+                            <Text style={styles.infoValue}>{cycle.stockingDate ? calculateDOC(cycle.stockingDate) : (cycle.doc ?? 0)} {t('cycles.infoDocUnit')}</Text>
                         </View>
                     </View>
                     <View style={styles.row}>
                         <View style={styles.col}>
-                            <Text style={styles.infoLabel}>Total Seed</Text>
+                            <Text style={styles.infoLabel}>{t('cycles.infoTotalSeed')}</Text>
                             <Text style={styles.infoValue}>{(cycle.stockingCount ?? cycle.totalSeed)?.toLocaleString() ?? 'N/A'}</Text>
                         </View>
                         <View style={styles.col}>
-                            <Text style={styles.infoLabel}>Species</Text>
+                            <Text style={styles.infoLabel}>{t('cycles.infoSpecies')}</Text>
                             <Text style={styles.infoValue}>{cycle.speciesType ?? 'N/A'}</Text>
                         </View>
                     </View>
                 </Card>
 
-                <Text style={styles.sectionHeading}>Targets vs Current</Text>
+                <Text style={styles.sectionHeading}>{t('cycles.sectionTargets')}</Text>
                 <View style={styles.metricsGrid}>
                     <MetricCard
-                        label="Target SR"
+                        label={t('cycles.targetSr')}
                         value={`${cycle.targetSrPercent ?? 0}%`}
                     />
                     <MetricCard
-                        label="Target Days"
+                        label={t('cycles.targetDays')}
                         value={`${cycle.targetCultivationDays ?? 120}`}
                     />
                     <MetricCard
-                        label="Target Size"
-                        value={`${cycle.targetSize ?? 0} pcs/kg`}
+                        label={t('cycles.targetSize')}
+                        value={`${cycle.targetSize ?? 0} ${t('cycles.targetSizeUnit')}`}
                     />
                 </View>
 
                 {cycle.status === 'active' && (
                     <View style={styles.actionContainer}>
                         <Button
-                            title="Record Harvest"
-                            onPress={() => navigation.navigate('HarvestHistory', { pondId: cycle.pondId, cycleId: cycle.id })}
+                            title={t('cycles.btnRecordHarvest')}
+                            onPress={() => navigation.navigate('HarvestHistory', { pondId: cycle.pondId, cycleId: cycle.id, cropId: cycle.id })}
                             style={styles.actionBtn}
                         />
                         <Button
-                            title="Close Cycle"
+                            title={t('cycles.btnCloseCycle')}
                             onPress={handleCloseCycle}
                             variant="outlined"
                             style={[styles.actionBtn, styles.dangerBtn]}
@@ -140,6 +142,21 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                         />
                     </View>
                 )}
+
+                <View style={styles.actionContainer}>
+                    <Button
+                        title={t('cycles.btnExpenses')}
+                        variant="outlined"
+                        onPress={() => navigation.navigate('Expenses', { cropId: cycle.id })}
+                        style={styles.actionBtn}
+                    />
+                    <Button
+                        title={t('cycles.btnHarvestPlans')}
+                        variant="outlined"
+                        onPress={() => navigation.navigate('HarvestPlans', { pondId: cycle.pondId, cropId: cycle.id })}
+                        style={styles.actionBtn}
+                    />
+                </View>
             </ScrollView>
         </ScreenWrapper>
     );

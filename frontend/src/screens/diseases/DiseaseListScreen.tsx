@@ -10,20 +10,22 @@ import {
     TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { theme } from '../../theme';
 import { diseaseApi, DiseaseLibrary } from '../../api/diseases';
 
-const SEVERITY_CONFIG = {
-    low: { label: 'Low', color: theme.roles.light.successText, bg: theme.roles.light.successBg },
-    medium: { label: 'Medium', color: theme.roles.light.warningText, bg: theme.roles.light.warningBg },
-    high: { label: 'High', color: theme.roles.light.dangerText, bg: theme.roles.light.dangerBg },
-} as const;
-
-type Severity = keyof typeof SEVERITY_CONFIG;
+type Severity = 'low' | 'medium' | 'high';
 
 export const DiseaseListScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
+
+    const SEVERITY_CONFIG: Record<Severity, { label: string; color: string; bg: string }> = {
+        low: { label: t('content.diseases.severityLow'), color: theme.roles.light.successText, bg: theme.roles.light.successBg },
+        medium: { label: t('content.diseases.severityMedium'), color: theme.roles.light.warningText, bg: theme.roles.light.warningBg },
+        high: { label: t('content.diseases.severityHigh'), color: theme.roles.light.dangerText, bg: theme.roles.light.dangerBg },
+    };
     const [diseases, setDiseases] = useState<DiseaseLibrary[]>([]);
     const [filteredDiseases, setFilteredDiseases] = useState<DiseaseLibrary[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -91,7 +93,7 @@ export const DiseaseListScreen = ({ navigation }: any) => {
     };
 
     const renderDiseaseItem = ({ item }: { item: DiseaseLibrary }) => {
-        const sevConfig = getSeverityConfig(item.severity);
+        const sevConfig = getSeverityConfig(item.severityLevel);
 
         return (
             <TouchableOpacity
@@ -117,7 +119,9 @@ export const DiseaseListScreen = ({ navigation }: any) => {
                     ) : null}
                     {item.symptoms ? (
                         <Text style={styles.symptomCount}>
-                            {item.symptoms.length} symptom{item.symptoms.length !== 1 ? 's' : ''}
+                            {item.symptoms.length !== 1
+                                ? t('content.diseases.symptomOther', { count: item.symptoms.length })
+                                : t('content.diseases.symptomOne', { count: item.symptoms.length })}
                         </Text>
                     ) : null}
                 </View>
@@ -149,12 +153,12 @@ export const DiseaseListScreen = ({ navigation }: any) => {
                     color={theme.roles.light.textDisabled}
                 />
                 <Text style={styles.emptyTitle}>
-                    {searchQuery ? 'No diseases found' : 'No diseases available'}
+                    {searchQuery ? t('content.diseases.emptySearchTitle') : t('content.diseases.emptyTitle')}
                 </Text>
                 <Text style={styles.emptySubtitle}>
                     {searchQuery
-                        ? 'Try a different search term'
-                        : 'Disease library will appear here when available'}
+                        ? t('content.diseases.emptySearchSubtitle')
+                        : t('content.diseases.emptySubtitle')}
                 </Text>
             </View>
         );
@@ -169,7 +173,7 @@ export const DiseaseListScreen = ({ navigation }: any) => {
                     color={theme.roles.light.textPrimary}
                 />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Disease Encyclopedia</Text>
+            <Text style={styles.headerTitle}>{t('content.diseases.title')}</Text>
             <View style={{ width: 40 }} />
         </View>
     );
@@ -184,7 +188,7 @@ export const DiseaseListScreen = ({ navigation }: any) => {
                 />
                 <TextInput
                     style={styles.searchInput}
-                    placeholder="Search diseases..."
+                    placeholder={t('content.diseases.searchPlaceholder')}
                     placeholderTextColor={theme.roles.light.textTertiary}
                     value={searchQuery}
                     onChangeText={handleSearch}
@@ -217,10 +221,10 @@ export const DiseaseListScreen = ({ navigation }: any) => {
                         size={48}
                         color={theme.roles.light.dangerText}
                     />
-                    <Text style={styles.errorTitle}>Failed to load diseases</Text>
+                    <Text style={styles.errorTitle}>{t('content.diseases.errorTitle')}</Text>
                     <Text style={styles.errorMessage}>{error}</Text>
                     <TouchableOpacity style={styles.retryBtn} onPress={fetchDiseases}>
-                        <Text style={styles.retryText}>Retry</Text>
+                        <Text style={styles.retryText}>{t('common.retry')}</Text>
                     </TouchableOpacity>
                 </View>
             </ScreenWrapper>

@@ -32,6 +32,20 @@ export interface CreateWaterQualityRecordDto {
     notes?: string;
 }
 
+export interface UpdateWaterQualityRecordDto {
+    ph?: number;
+    dissolvedOxygen?: number;
+    temperature?: number;
+    salinity?: number;
+    ammonia?: number;
+    nitrite?: number;
+    nitrate?: number;
+    alkalinity?: number;
+    hardness?: number;
+    transparency?: number;
+    notes?: string;
+}
+
 export const waterQualityApi = {
     getAll: (pondId: string, params?: { page?: number; take?: number }) =>
         apiClient.get<any>('/water-quality', { params: { pondId, ...params } }),
@@ -41,4 +55,10 @@ export const waterQualityApi = {
 
     create: (data: CreateWaterQualityRecordDto) =>
         apiClient.post<WaterQualityRecord>('/water-quality', data),
+
+    update: (id: string, data: UpdateWaterQualityRecordDto) =>
+        apiClient.patch<WaterQualityRecord>(`/water-quality/${id}`, data),
+
+    remove: (id: string) =>
+        apiClient.delete<void>(`/water-quality/${id}`),
 };

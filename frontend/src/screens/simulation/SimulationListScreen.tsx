@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { FAB } from '../../components/ui/FAB';
@@ -8,6 +9,8 @@ import { theme } from '../../theme';
 import { simulationsApi, SavedSimulation } from '../../api/simulations';
 
 export const SimulationListScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
+
     const [simulations, setSimulations] = useState<SavedSimulation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -30,10 +33,29 @@ export const SimulationListScreen = ({ navigation }: any) => {
         return unsubscribe;
     }, [navigation]);
 
+    const handleDelete = (item: SavedSimulation) => {
+        Alert.alert(t('simulations.list.deleteTitle'), t('simulations.list.deleteMessage'), [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+                text: t('common.delete'),
+                style: 'destructive',
+                onPress: async () => {
+                    try {
+                        await simulationsApi.delete(item.id);
+                        setSimulations((prev) => prev.filter((s) => s.id !== item.id));
+                    } catch (error) {
+                        Alert.alert(t('common.error'), t('simulations.list.errorDelete'));
+                    }
+                },
+            },
+        ]);
+    };
+
     const renderItem = ({ item }: { item: SavedSimulation }) => (
         <TouchableOpacity
             style={styles.card}
             onPress={() => navigation.navigate('SimulationResults', { resultData: item })}
+            onLongPress={() => handleDelete(item)}
         >
             <View style={styles.cardHeader}>
                 <Text style={styles.cardTitle}>{item.scenarioType.replace(/_/g, ' ')} — {new Date(item.createdAt).toLocaleDateString()}</Text>
@@ -42,11 +64,11 @@ export const SimulationListScreen = ({ navigation }: any) => {
             <View style={styles.statsRow}>
                 <View style={styles.stat}>
                     <MaterialCommunityIcons name="target" size={16} color={theme.roles.light.textSecondary} />
-                    <Text style={styles.statText}>{item.resultProjectedBiomass?.toFixed(1) ?? 'N/A'} kg Biomass</Text>
+                    <Text style={styles.statText}>{item.resultProjectedBiomass !== null && item.resultProjectedBiomass !== undefined ? t('simulations.list.statBiomass', { value: item.resultProjectedBiomass.toFixed(1) }) : t('simulations.list.statNa')}</Text>
                 </View>
                 <View style={styles.stat}>
                     <MaterialCommunityIcons name="cash" size={16} color={theme.roles.light.textSecondary} />
-                    <Text style={styles.statText}>Profit: {item.resultNetProfit?.toFixed(0) ?? 'N/A'}</Text>
+                    <Text style={styles.statText}>{t('simulations.list.statProfit', { value: item.resultNetProfit !== null && item.resultNetProfit !== undefined ? item.resultNetProfit.toFixed(0) : t('simulations.list.statNa') })}</Text>
                 </View>
             </View>
         </TouchableOpacity>
@@ -58,7 +80,7 @@ export const SimulationListScreen = ({ navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Simulations</Text>
+                <Text style={styles.title}>{t('simulations.list.title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -75,8 +97,8 @@ export const SimulationListScreen = ({ navigation }: any) => {
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <MaterialCommunityIcons name="chart-timeline-variant-shimmer" size={64} color={theme.roles.light.borderDefault} />
-                            <Text style={styles.emptyTitle}>No Simulations yet</Text>
-                            <Text style={styles.emptyDesc}>Create your first forecast to plan your next cycle effectively.</Text>
+                            <Text style={styles.emptyTitle}>{t('simulations.list.emptyTitle')}</Text>
+                            <Text style={styles.emptyDesc}>{t('simulations.list.emptyDesc')}</Text>
                         </View>
                     }
                 />

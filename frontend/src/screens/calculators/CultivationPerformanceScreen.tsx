@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -24,6 +25,8 @@ interface PerformanceResults {
 }
 
 export const CultivationPerformanceScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
+
     const [totalSeed, setTotalSeed] = useState('');
     const [totalHarvestKg, setTotalHarvestKg] = useState('');
     const [totalFeedKg, setTotalFeedKg] = useState('');
@@ -45,31 +48,31 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
         const area = areaM2 ? parseFloat(areaM2) : 0;
 
         if (!seed || seed <= 0) {
-            Alert.alert('Validation Error', 'Total seed must be a positive number');
+            Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorSeed'));
             return;
         }
         if (!harvestKg || harvestKg <= 0) {
-            Alert.alert('Validation Error', 'Total harvested weight must be a positive number');
+            Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorHarvest'));
             return;
         }
         if (!feedKg || feedKg <= 0) {
-            Alert.alert('Validation Error', 'Total feed consumed must be a positive number');
+            Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorFeed'));
             return;
         }
         if (!days || days <= 0) {
-            Alert.alert('Validation Error', 'Cultivation days must be a positive number');
+            Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorDays'));
             return;
         }
         if (!mbw || mbw <= 0) {
-            Alert.alert('Validation Error', 'Final MBW must be a positive number');
+            Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorMbw'));
             return;
         }
         if (!sr || sr <= 0 || sr > 100) {
-            Alert.alert('Validation Error', 'Final SR must be between 0 and 100');
+            Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorSr'));
             return;
         }
         if (areaM2 && (area <= 0)) {
-            Alert.alert('Validation Error', 'Pond area must be a positive number');
+            Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorArea'));
             return;
         }
 
@@ -110,7 +113,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                 perf: perfRes.data,
             });
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Calculation failed');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.performance.errorCalc'));
         } finally {
             setIsLoading(false);
         }
@@ -145,17 +148,17 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Cultivation Performance</Text>
+                <Text style={styles.title}>{t('calculators.performance.title')}</Text>
                 <TouchableOpacity onPress={clearForm} style={styles.backBtn}>
-                    <Text style={styles.clearText}>Clear</Text>
+                    <Text style={styles.clearText}>{t('calculators.performance.clear')}</Text>
                 </TouchableOpacity>
             </View>
 
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Input Data</Text>
+                    <Text style={styles.sectionTitle}>{t('calculators.performance.sectionInput')}</Text>
                     <Input
-                        label="Total Seed (count)"
+                        label={t('calculators.performance.labelTotalSeed')}
                         value={totalSeed}
                         onChangeText={setTotalSeed}
                         keyboardType="number-pad"
@@ -165,7 +168,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
                             <Input
-                                label="Total Harvested (kg)"
+                                label={t('calculators.performance.labelTotalHarvested')}
                                 value={totalHarvestKg}
                                 onChangeText={setTotalHarvestKg}
                                 keyboardType="decimal-pad"
@@ -175,7 +178,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                         </View>
                         <View style={styles.halfCol}>
                             <Input
-                                label="Total Feed (kg)"
+                                label={t('calculators.performance.labelTotalFeed')}
                                 value={totalFeedKg}
                                 onChangeText={setTotalFeedKg}
                                 keyboardType="decimal-pad"
@@ -187,7 +190,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
                             <Input
-                                label="Days of Culture"
+                                label={t('calculators.performance.labelDaysOfCulture')}
                                 value={daysOfCulture}
                                 onChangeText={setDaysOfCulture}
                                 keyboardType="number-pad"
@@ -197,7 +200,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                         </View>
                         <View style={styles.halfCol}>
                             <Input
-                                label="Final MBW (g)"
+                                label={t('calculators.performance.labelFinalMbw')}
                                 value={finalMbwG}
                                 onChangeText={setFinalMbwG}
                                 keyboardType="decimal-pad"
@@ -209,7 +212,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
                             <Input
-                                label="Final SR (%)"
+                                label={t('calculators.performance.labelFinalSr')}
                                 value={finalSrPct}
                                 onChangeText={setFinalSrPct}
                                 keyboardType="decimal-pad"
@@ -219,41 +222,41 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                         </View>
                         <View style={styles.halfCol}>
                             <Input
-                                label="Pond Area (m²)"
+                                label={t('calculators.performance.labelPondArea')}
                                 value={areaM2}
                                 onChangeText={setAreaM2}
                                 keyboardType="decimal-pad"
-                                placeholder="Optional"
+                                placeholder={t('common.optional')}
                             />
                         </View>
                     </View>
 
-                    <Button title="Calculate" onPress={handleCalculate} loading={isLoading} style={styles.calcBtn} />
+                    <Button title={t('calculators.performance.calculate')} onPress={handleCalculate} loading={isLoading} style={styles.calcBtn} />
                 </Card>
 
                 {results && (
                     <View style={styles.resultsContainer}>
-                        <Text style={styles.sectionTitle}>Results</Text>
+                        <Text style={styles.sectionTitle}>{t('calculators.performance.sectionResults')}</Text>
                         <View style={styles.metricsGrid}>
                             <MetricCard
-                                label="FCR"
+                                label={t('calculators.performance.resultFcr')}
                                 value={results.fcr !== null ? results.fcr.toFixed(2) : 'N/A'}
                                 unit="ratio"
                                 status={results.fcr !== null ? fcrStatus(results.fcr) : 'normal'}
                             />
                             <MetricCard
-                                label="ADG"
+                                label={t('calculators.performance.resultAdg')}
                                 value={results.adg !== null ? results.adg.toFixed(3) : 'N/A'}
                                 unit="g/day"
                             />
                             <MetricCard
-                                label="Survival Rate"
+                                label={t('calculators.performance.resultSurvivalRate')}
                                 value={results.sr !== null ? `${results.sr.toFixed(1)}%` : 'N/A'}
                                 status={results.sr !== null ? srStatus(results.sr) : 'normal'}
                             />
                             {results.productivity !== null && (
                                 <MetricCard
-                                    label="Productivity"
+                                    label={t('calculators.performance.resultProductivity')}
                                     value={results.productivity.toFixed(2)}
                                     unit="kg/m²"
                                 />

@@ -1,0 +1,110 @@
+const settings = {
+  // ── SettingsScreen ────────────────────────────────────────────────────────
+  title: 'அமைப்புகள்',
+  language: 'மொழி',
+  languageDesc: 'உங்கள் விருப்பமான ஆப் மொழியை தேர்ந்தெடுக்கவும்',
+  appPreferences: 'ஆப் விருப்பங்கள்',
+  offlineSync: 'ஆஃப்லைன் ஒத்திசைவு',
+  offlineSyncDesc: 'ஆஃப்லைன் பயன்பாட்டிற்கு தரவை தற்காலிகமாக சேமி',
+  notifications: 'அறிவிப்புகள்',
+  pushNotifications: 'புஷ் அறிவிப்புகள்',
+  pushNotificationsDesc: 'நீர் தரம் & தீவனம் குறித்த எச்சரிக்கைகள்',
+  emailSummaries: 'மின்னஞ்சல் சுருக்கங்கள்',
+  emailSummariesDesc: 'வாராந்திர செயல்திறன் அறிக்கைகள்',
+  security: 'பாதுகாப்பு',
+  twoFactor: 'இரு-படி அங்கீகரிப்பு',
+  about: 'Upcheck பற்றி',
+  privacyPolicy: 'தனியுரிமை கொள்கை',
+  termsOfService: 'சேவை விதிமுறைகள்',
+
+  // ── ProfileScreen ─────────────────────────────────────────────────────────
+  profile: 'சுயவிவரம்',
+  editProfile: 'சுயவிவரம் திருத்து',
+  emailAddress: 'மின்னஞ்சல் முகவரி',
+  fullName: 'முழு பெயர்',
+  phoneNumber: 'தொலைபேசி எண்',
+  memberSince: 'உறுப்பினர் ஆனது',
+  firstNameLabel: 'முதல் பெயர்',
+  firstNamePlaceholder: 'முதல் பெயரை உள்ளிடுக',
+  lastNameLabel: 'கடைசி பெயர்',
+  lastNamePlaceholder: 'கடைசி பெயரை உள்ளிடுக',
+  phonePlaceholder: 'தொலைபேசி எண்ணை உள்ளிடுக',
+  profileUpdated: 'சுயவிவரம் வெற்றிகரமாக புதுப்பிக்கப்பட்டது',
+  profileUpdateFailed: 'சுயவிவரம் புதுப்பிக்கத் தோல்வியடைந்தது',
+  profileLoadError: 'சுயவிவரத்தை ஏற்ற முடியவில்லை',
+  profileNotSet: 'அமைக்கப்படவில்லை',
+
+  // ── HelpScreen ────────────────────────────────────────────────────────────
+  helpAndSupport: 'உதவி & ஆதரவு',
+  helpIntroTitle: 'எவ்வாறு உதவலாம்?',
+  helpIntroText:
+    'UpCheck உங்கள் இறால் மீன்வளர்ப்பு மேலாண்மை உதவியாளர். இதை சிறப்பாக பயன்படுத்த கீழே காணுங்கள்.',
+  quickGuides: 'விரைவு வழிகாட்டிகள்',
+  contactUs: 'எங்களை தொடர்பு கொள்',
+  // Help topic titles
+  helpTopicWaterTitle: 'நீர் தர கண்காணிப்பு',
+  helpTopicWaterDesc:
+    'தினமும் pH, DO, வெப்பநிலை, உப்புத்தன்மை மற்றும் பிற அளவுருக்களை பதிவு செய்யுங்கள். மதிப்புகள் உகந்த வரம்பை மீறும்போது எச்சரிக்கை பெறுங்கள்.',
+  helpTopicFeedTitle: 'தீவன மேலாண்மை',
+  helpTopicFeedDesc:
+    'தீவன பயன்பாட்டை கண்காணிக்கவும், MBW அடிப்படையில் தினசரி தீவன அளவை கணக்கிடவும், தீவன திறனை (FCR) கவனிக்கவும்.',
+  helpTopicSamplingTitle: 'மாதிரி பதிவுகள்',
+  helpTopicSamplingDesc:
+    'தொடர்ந்த மாதிரி சேகரிப்பு உயிரி நிறை, உயிர்வாழ்வு விகிதம் மற்றும் சராசரி உடல் எடையை (ABW/MBW) மதிப்பிட உதவுகிறது.',
+  helpTopicCalculatorsTitle: 'கணக்கீடுகள்',
+  helpTopicCalculatorsDesc:
+    'FCR, தீவன அளவு, பொருள் அளவு மற்றும் சுதந்திர அம்மோனியா கணக்கீட்டுக்கு உள்ளமைக்கப்பட்ட கணக்கீடுகளை பயன்படுத்துங்கள்.',
+  helpTopicSimulationsTitle: 'உருவகப்படுத்தல்கள்',
+  helpTopicSimulationsDesc:
+    'அறுவடை தேதிகளை கணிக்க, எதிர்பார்க்கப்படும் விளைச்சலை மதிப்பிட, மற்றும் வளர்ப்பு உத்திகளை மேம்படுத்த வளர்ச்சி உருவகப்படுத்தல்களை இயக்குங்கள்.',
+  helpTopicFarmTitle: 'பண்ணை மேலாண்மை',
+  helpTopicFarmDesc:
+    'குளங்களை ஒழுங்கமைக்கவும், சுழற்சிகளை நிர்வகிக்கவும், சரக்கை கண்காணிக்கவும், பண்ணைவாரியாக நிதி அறிக்கைகளை பார்க்கவும்.',
+
+  // ── AboutScreen ───────────────────────────────────────────────────────────
+  aboutUpcheck: 'UpCheck பற்றி',
+  appTagline: 'இறால் மீன்வளர்ப்பு மேலாண்மை',
+  versionLabel: 'பதிப்பு',
+  buildInfo: 'Build 2026.04.30',
+  descriptionLabel: 'விளக்கம்',
+  descriptionText:
+    'UpCheck என்பது நீர் தரம் கண்காணிக்க, தீவனம் நிர்வகிக்க, வளர்ச்சியை கண்காணிக்க மற்றும் வளர்ப்பு முறைகளை மேம்படுத்த விவசாயிகளுக்கு உதவும் விரிவான இறால் மீன்வளர்ப்பு மேலாண்மை பயன்பாடு.',
+  featuresLabel: 'அம்சங்கள்',
+  featureMultiFarm: 'பல பண்ணை மேலாண்மை',
+  featurePondMonitoring: 'குளம் கண்காணிப்பு & பதிவுகள்',
+  featureWaterQuality: 'நீர் தர கண்காணிப்பு',
+  featureFeedManagement: 'தீவன மேலாண்மை',
+  featureGrowthSimulations: 'வளர்ச்சி உருவகப்படுத்தல்கள்',
+  featureFinancialReports: 'நிதி அறிக்கைகள்',
+  developedByLabel: 'உருவாக்கியவர்கள்',
+  developedByTeam: 'UpCheck குழு',
+  developedByLocation: 'இந்தியா',
+  footerCopyright: '© 2026 UpCheck. அனைத்து உரிமைகளும் பாதுகாக்கப்பட்டவை.',
+
+  // ── TwoFactorScreen ───────────────────────────────────────────────────────
+  twoFactorTitle: 'இரு-படி அங்கீகரிப்பு',
+  twoFactorEnabled: 'இயக்கப்பட்டது',
+  twoFactorNotEnabled: 'இயக்கப்படவில்லை',
+  twoFactorSetup: '2FA அமை',
+  twoFactorScanHelp:
+    'அங்கீகரிப்பு ஆப் (Google Authenticator, Authy…) மூலம் இந்த QR குறியீட்டை ஸ்கேன் செய்து, முடிக்க உருவாக்கப்பட்ட குறியீட்டை உள்ளிடுக.',
+  twoFactorManualKey: 'கைமுறை விசை: {{secret}}',
+  twoFactorCodeLabel: 'ஆப்பிலிருந்து குறியீடு',
+  twoFactorVerifyEnable: 'சரிபார்த்து இயக்கு',
+  twoFactorDisableHelp: 'இரு-படி அங்கீகரிப்பை முடக்க தற்போதைய குறியீட்டை உள்ளிடுக.',
+  twoFactorAuthCodeLabel: 'அங்கீகரிப்பு குறியீடு',
+  twoFactorDisable: '2FA முடக்கு',
+  twoFactorInvalidCode: 'அங்கீகரிப்பு ஆப்பிலிருந்து 6 இலக்க குறியீட்டை உள்ளிடுக.',
+  twoFactorCodeRequired: '2FA முடக்க தற்போதைய 6 இலக்க குறியீட்டை உள்ளிடுக.',
+  twoFactorEnabledSuccess: 'இரு-படி அங்கீகரிப்பு இப்போது இயக்கப்பட்டது.',
+  twoFactorDisabledSuccess: 'இரு-படி அங்கீகரிப்பு இப்போது முடக்கப்பட்டது.',
+  twoFactorSetupError: '2FA அமைவு தொடங்க முடியவில்லை',
+
+  // ── NotificationsScreen ───────────────────────────────────────────────────
+  notificationsTitle: 'அறிவிப்புகள்',
+  notificationsEmpty: 'அனைத்தும் சரிபார்க்கப்பட்டது!',
+  notificationsEmptyDesc: 'புதிய அறிவிப்புகள் எதுவும் இல்லை.',
+  notificationsLoadError: 'அறிவிப்புகளை ஏற்ற முடியவில்லை',
+};
+
+export default settings;

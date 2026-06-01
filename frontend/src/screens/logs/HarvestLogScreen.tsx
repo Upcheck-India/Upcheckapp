@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -9,6 +10,7 @@ import { theme } from '../../theme';
 import { harvestsApi } from '../../api/harvests';
 
 export const HarvestLogScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, pondName, cropId } = route.params;
 
     const [harvestDate, setHarvestDate] = useState(new Date().toISOString().split('T')[0]);
@@ -21,7 +23,7 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
 
     const handleSave = async () => {
         if (!weightKg) {
-            Alert.alert('Validation Error', 'Weight is required');
+            Alert.alert(t('common.error'), t('logs.harvest_validationWeight'));
             return;
         }
 
@@ -40,7 +42,7 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
             navigation.goBack();
         } catch (error) {
             console.error('Failed to log harvest', error);
-            Alert.alert('Error', 'Failed to log harvest. Please try again.');
+            Alert.alert(t('common.error'), t('logs.harvest_errorSave'));
         } finally {
             setIsSubmitting(false);
         }
@@ -53,7 +55,7 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <View>
-                    <Text style={styles.title}>Log Harvest</Text>
+                    <Text style={styles.title}>{t('logs.harvest_title')}</Text>
                     <Text style={styles.subtitle}>{pondName}</Text>
                 </View>
                 <View style={{ width: 40 }} />
@@ -61,13 +63,13 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
 
             <ScrollView contentContainerStyle={styles.content}>
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Harvest Details</Text>
+                    <Text style={styles.sectionTitle}>{t('logs.harvest_sectionDetails')}</Text>
 
                     <Input
-                        label="Harvest Date (YYYY-MM-DD)"
+                        label={t('logs.harvest_labelHarvestDate')}
                         value={harvestDate}
                         onChangeText={setHarvestDate}
-                        placeholder="e.g. 2025-04-18"
+                        placeholder={t('logs.harvest_placeholderHarvestDate')}
                     />
 
                     <View style={styles.typeSelector}>
@@ -75,54 +77,54 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                             style={[styles.typeBtn, harvestType === 'partial' && styles.typeBtnActive]}
                             onPress={() => setHarvestType('partial')}
                         >
-                            <Text style={[styles.typeText, harvestType === 'partial' && styles.typeTextActive]}>Partial</Text>
+                            <Text style={[styles.typeText, harvestType === 'partial' && styles.typeTextActive]}>{t('logs.harvest_typePartial')}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.typeBtn, harvestType === 'full' && styles.typeBtnActive]}
                             onPress={() => setHarvestType('full')}
                         >
-                            <Text style={[styles.typeText, harvestType === 'full' && styles.typeTextActive]}>Full (Close Cycle)</Text>
+                            <Text style={[styles.typeText, harvestType === 'full' && styles.typeTextActive]}>{t('logs.harvest_typeFull')}</Text>
                         </TouchableOpacity>
                     </View>
 
                     <Input
-                        label="Total Weight (kg)"
+                        label={t('logs.harvest_labelTotalWeight')}
                         value={weightKg}
                         onChangeText={setWeightKg}
                         keyboardType="numeric"
-                        placeholder="e.g. 1500"
+                        placeholder={t('logs.harvest_placeholderTotalWeight')}
                     />
 
                     <Input
-                        label="Average Size (g / piece)"
+                        label={t('logs.harvest_labelAvgSize')}
                         value={averageSize}
                         onChangeText={setAverageSize}
                         keyboardType="numeric"
-                        placeholder="e.g. 14.5"
+                        placeholder={t('logs.harvest_placeholderAvgSize')}
                     />
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Sales Information (Optional)</Text>
+                    <Text style={styles.sectionTitle}>{t('logs.harvest_sectionSales')}</Text>
 
                     <Input
-                        label="Buyer Name"
+                        label={t('logs.harvest_labelBuyerName')}
                         value={buyerName}
                         onChangeText={setBuyerName}
-                        placeholder="e.g. John's Seafood"
+                        placeholder={t('logs.harvest_placeholderBuyerName')}
                     />
 
                     <Input
-                        label="Total Sale Price"
+                        label={t('logs.harvest_labelSalePrice')}
                         value={salePriceTotal}
                         onChangeText={setSalePriceTotal}
                         keyboardType="numeric"
-                        placeholder="e.g. 50000"
+                        placeholder={t('logs.harvest_placeholderSalePrice')}
                     />
                 </Card>
 
                 <Button
-                    title="Save Harvest"
+                    title={t('logs.harvest_saveBtn')}
                     onPress={handleSave}
                     loading={isSubmitting}
                     style={styles.saveBtn}

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
+import { Alert } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
+import { authApi } from '../../api/auth';
 import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
 import { TruecallerLoginButton } from '../../components/ui/TruecallerLoginButton';
 import { PhoneVerificationModal } from '../../components/ui/PhoneVerificationModal';
@@ -12,21 +15,36 @@ import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import { useTruecallerAuth } from '../../hooks/useTruecallerAuth';
 
 export const LoginScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
     const [showPhoneModal, setShowPhoneModal] = useState(false);
 
-    const { login, isLoading, error, clearError } = useAuthStore();
+    const { login, isLoading, error, clearError, pendingVerificationEmail } = useAuthStore();
     const { signInWithGoogle } = useGoogleAuth();
+
+    const handleResendVerification = async () => {
+        const target = pendingVerificationEmail || email.trim();
+        if (!target) {
+            Alert.alert(t('auth.emailRequiredAlert'), t('auth.enterEmailFirst'));
+            return;
+        }
+        try {
+            await authApi.resendVerification(target);
+            Alert.alert(t('auth.verificationSent'), t('auth.verificationResentTo', { email: target }));
+        } catch (err: any) {
+            Alert.alert(t('common.error'), err.response?.data?.message || t('auth.couldNotResend'));
+        }
+    };
     const { signInWithTruecaller, isAvailable, isSdkReady, verificationStep } = useTruecallerAuth();
 
     const validate = (): boolean => {
         const newErrors: { email?: string; password?: string } = {};
-        if (!email.trim()) newErrors.email = 'Email is required';
-        else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Enter a valid email';
-        if (!password) newErrors.password = 'Password is required';
-        else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+        if (!email.trim()) newErrors.email = t('auth.emailRequired');
+        else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = t('auth.emailInvalid');
+        if (!password) newErrors.password = t('auth.passwordRequired');
+        else if (password.length < 6) newErrors.password = t('auth.passwordTooShort');
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -35,7 +53,10 @@ export const LoginScreen = ({ navigation }: any) => {
         if (!validate()) return;
         clearError();
         try {
-            await login(email.trim(), password);
+            const result = await login(email.trim(), password);
+            if (result?.requires2FA && result.tempToken) {
+                navigation.navigate('TwoFactorChallenge', { tempToken: result.tempToken });
+            }
         } catch {
             // Error is set in the store
         }
@@ -50,8 +71,8 @@ export const LoginScreen = ({ navigation }: any) => {
         <ScreenWrapper backgroundColor={theme.roles.light.primary} keyboardAvoiding>
             <View style={styles.header}>
                 <Text style={styles.logo}>🦐</Text>
-                <Text style={styles.title}>UpCheck</Text>
-                <Text style={styles.subtitle}>Shrimp Aquaculture Management</Text>
+                <Text style={styles.title}>{t('auth.title')}</Text>
+                <Text style={styles.subtitle}>{t('auth.subtitle')}</Text>
             </View>
 
             <View style={styles.card}>
@@ -61,12 +82,20 @@ export const LoginScreen = ({ navigation }: any) => {
                     </View>
                 )}
 
+                {pendingVerificationEmail && (
+                    <TouchableOpacity style={styles.verifyBanner} onPress={handleResendVerification}>
+                        <Text style={styles.verifyText}>
+                            {t('auth.verifyBanner', { email: pendingVerificationEmail })}
+                        </Text>
+                    </TouchableOpacity>
+                )}
+
                 <Input
-                    label="Email"
+                    label={t('auth.emailLabel')}
                     value={email}
                     onChangeText={setEmail}
                     error={errors.email}
-                    placeholder="your@email.com"
+                    placeholder={t('auth.emailPlaceholder')}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     leftIcon="email-outline"
@@ -74,25 +103,25 @@ export const LoginScreen = ({ navigation }: any) => {
                 />
 
                 <Input
-                    label="Password"
+                    label={t('auth.passwordLabel')}
                     value={password}
                     onChangeText={setPassword}
                     error={errors.password}
-                    placeholder="Enter your password"
+                    placeholder={t('auth.passwordPlaceholder')}
                     isPassword
                     leftIcon="lock-outline"
                     required
                 />
 
                 <Button
-                    title="Sign In"
+                    title={t('auth.signIn')}
                     onPress={handleLogin}
                     loading={isLoading}
                     style={styles.signInBtn}
                 />
 
                 <View style={styles.socialSection}>
-                    <Text style={styles.socialLabel}>Or continue with</Text>
+                    <Text style={styles.socialLabel}>{t('auth.orContinueWith')}</Text>
                     <View style={styles.socialButtons}>
                         <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
                         <TruecallerLoginButton
@@ -104,15 +133,21 @@ export const LoginScreen = ({ navigation }: any) => {
                 </View>
 
                 <Button
-                    title="Forgot Password?"
+                    title={t('auth.forgotPassword')}
                     onPress={() => navigation.navigate('ForgotPassword')}
+                    variant="text"
+                />
+
+                <Button
+                    title={t('auth.signInWithEmailCode')}
+                    onPress={() => navigation.navigate('OtpLogin')}
                     variant="text"
                 />
 
                 <View style={styles.divider} />
 
                 <Button
-                    title="Create Account"
+                    title={t('auth.createAccount')}
                     onPress={() => navigation.navigate('Register')}
                     variant="outlined"
                 />
@@ -164,6 +199,18 @@ const styles = StyleSheet.create({
     errorText: {
         ...theme.typeScale.bodySmall,
         color: theme.roles.light.dangerText,
+    },
+    verifyBanner: {
+        backgroundColor: theme.roles.light.warningBg,
+        borderRadius: theme.radius.sm,
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[4],
+        borderLeftWidth: 3,
+        borderLeftColor: theme.roles.light.warningText,
+    },
+    verifyText: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.warningText,
     },
     signInBtn: {
         marginTop: theme.spacing[3],

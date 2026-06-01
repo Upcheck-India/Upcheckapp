@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
 import { ErrorState } from '../../../components/ui/ErrorState';
@@ -9,6 +10,7 @@ import { theme } from '../../../theme';
 import { treatmentsApi, TreatmentRecord } from '../../../api/treatments';
 
 export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, pondName, cropId } = route.params;
     const [records, setRecords] = useState<TreatmentRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -75,14 +77,14 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Treatment History</Text>
+                <Text style={styles.title}>{t('history.treatmentTitle')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             {isLoading ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
             ) : error && records.length === 0 ? (
-                <ErrorState title="Couldn't Load Records" error={error} onRetry={handleRetry} />
+                <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={handleRetry} />
             ) : (
                 <FlatList
                     data={records}
@@ -95,8 +97,8 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <MaterialCommunityIcons name="medical-bag" size={64} color={theme.roles.light.borderDefault} />
-                            <Text style={styles.emptyTitle}>No Treatments Logged</Text>
-                            <Text style={styles.emptyText}>This pond has no recorded treatments.</Text>
+                            <Text style={styles.emptyTitle}>{t('history.treatmentEmptyTitle')}</Text>
+                            <Text style={styles.emptyText}>{t('history.treatmentEmptyText')}</Text>
                         </View>
                     }
                 />

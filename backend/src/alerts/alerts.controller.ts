@@ -8,8 +8,9 @@ export class AlertsController {
     constructor(private readonly alertsService: AlertsService) { }
 
     @Post()
-    create(@Body() createDto: CreateAlertDto) {
-        return this.alertsService.create(createDto);
+    create(@CurrentUser() user, @Body() createDto: CreateAlertDto) {
+        // Force ownership to the authenticated caller; never trust a userId in the body.
+        return this.alertsService.create({ ...createDto, userId: user.id });
     }
 
     @Get('me')
@@ -27,16 +28,6 @@ export class AlertsController {
         return this.alertsService.markAllAsRead(user.id);
     }
 
-    @Get('user/:userId')
-    findByUser(@Param('userId') userId: string, @Query('unreadOnly') unreadOnly?: string) {
-        return this.alertsService.findByUser(userId, unreadOnly === 'true');
-    }
-
-    @Get('user/:userId/count')
-    getUnreadCount(@Param('userId') userId: string) {
-        return this.alertsService.getUnreadCount(userId);
-    }
-
     @Get(':id')
     findOne(@Param('id') id: string, @CurrentUser() user) {
         return this.alertsService.findOneForUser(id, user.id);
@@ -44,12 +35,7 @@ export class AlertsController {
 
     @Patch(':id/read')
     markAsRead(@Param('id') id: string, @CurrentUser() user) {
-        return this.alertsService.markAsRead(id);
-    }
-
-    @Patch('user/:userId/read-all')
-    markAllAsRead(@Param('userId') userId: string) {
-        return this.alertsService.markAllAsRead(userId);
+        return this.alertsService.markAsReadForUser(id, user.id);
     }
 
     @Delete(':id')

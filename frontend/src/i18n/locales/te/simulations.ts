@@ -1,0 +1,55 @@
+const simulations = {
+  // ── SimulationListScreen ──────────────────────────────────────────────────
+  list: {
+    title: 'సిమ్యులేషన్లు',
+    statBiomass: '{{value}} kg బయోమాస్',
+    statProfit: 'లాభం: {{value}}',
+    statNa: 'వర్తించదు',
+    emptyTitle: 'ఇంకా సిమ్యులేషన్లు లేవు',
+    emptyDesc: 'తదుపరి సైకిల్‌ను సమర్థవంతంగా ప్రణాళిక వేయడానికి మీ మొదటి అంచనాను సృష్టించండి.',
+    deleteTitle: 'సిమ్యులేషన్ తొలగించు',
+    deleteMessage: 'ఈ సేవ్ చేసిన సిమ్యులేషన్‌ను తీసివేయాలా?',
+    errorDelete: 'సిమ్యులేషన్ తొలగించడం విఫలమైంది',
+  },
+
+  // ── SimulationCreateScreen ────────────────────────────────────────────────
+  create: {
+    title: 'కొత్త సిమ్యులేషన్',
+    subtitle: 'క్రియాశీల చెరువు సైకిల్‌పై what-if దృశ్యం నడపండి',
+    sectionPond: 'చెరువు',
+    labelPondId: 'చెరువు ID *',
+    placeholderPondId: 'క్రియాశీల సైకిల్‌తో చెరువు UUID',
+    sectionScenario: 'దృశ్య రకం',
+    scenarioFeedChange: 'దాణా మార్పు',
+    scenarioPriceChange: 'ధర మార్పు',
+    scenarioStockingDensity: 'స్టాకింగ్ సాంద్రత',
+    sectionVariables: 'వేరియబుళ్ళు',
+    labelFeedPrice: 'దాణా ధర (kg కి)',
+    labelGrowthImprovement: 'వృద్ధి మెరుగుదల (%)',
+    labelSellingPrice: 'అమ్మకపు ధర (kg కి)',
+    labelStockingDensity: 'స్టాకింగ్ సాంద్రత (PL/m²)',
+    runSimulation: 'సిమ్యులేషన్ నడపు',
+    errorPondId: 'దయచేసి చెరువు ID నమోదు చేయండి',
+    errorSimFailed: 'సిమ్యులేషన్ నడపడం విఫలమైంది',
+    validationTitle: 'ధృవీకరణ లోపం',
+    simFailedTitle: 'సిమ్యులేషన్ విఫలమైంది',
+  },
+
+  // ── SimulationResultsScreen ───────────────────────────────────────────────
+  results: {
+    title: 'సిమ్యులేషన్ ఫలితాలు',
+    vsBaseline: 'బేస్‌లైన్ తో పోలిక',
+    profitDifference: 'లాభ తేడా',
+    sectionResults: 'సిమ్యులేషన్ ఫలితాలు',
+    labelProjectedBiomass: 'అంచనా బయోమాస్',
+    labelProjectedFcr: 'అంచనా FCR',
+    labelTotalRevenue: 'మొత్తం ఆదాయం',
+    labelTotalCost: 'మొత్తం ఖర్చు',
+    sectionProfitComparison: 'లాభ పోలిక',
+    labelBaselineProfit: 'బేస్‌లైన్ నికర లాభం:',
+    labelSimulatedProfit: 'సిమ్యులేటెడ్ నికర లాభం:',
+    labelRiskWarning: 'రిస్క్ హెచ్చరిక:',
+    noData: 'సిమ్యులేషన్ డేటా కనుగొనబడలేదు.',
+  },
+};
+export default simulations;

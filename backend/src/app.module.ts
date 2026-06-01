@@ -1,3 +1,4 @@
+import { join } from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -36,6 +37,8 @@ import { FeedProductsModule } from './feed-products/feed-products.module';
 import { FeedingTrayChecksModule } from './feeding-tray-checks/feeding-tray-checks.module';
 import { FinancesModule } from './finances/finances.module';
 import { ReportsModule } from './reports/reports.module';
+import { TasksModule } from './tasks/tasks.module';
+import { PushModule } from './push/push.module';
 
 @Module({
   imports: [
@@ -66,6 +69,11 @@ import { ReportsModule } from './reports/reports.module';
           type: 'postgres',
           url: configService.get<string>('DATABASE_URL'),
           ssl: { rejectUnauthorized: false },
+          // In production `synchronize` is off, so the schema is provisioned by
+          // migrations instead. Run any pending migrations automatically on boot
+          // (idempotent — TypeORM skips already-applied ones).
+          migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
+          migrationsRun: isProduction,
         };
       },
       inject: [ConfigService],
@@ -99,6 +107,8 @@ import { ReportsModule } from './reports/reports.module';
     FeedingTrayChecksModule,
     FinancesModule,
     ReportsModule,
+    TasksModule,
+    PushModule,
   ],
   controllers: [AppController],
   providers: [

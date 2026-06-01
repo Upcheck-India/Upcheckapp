@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
@@ -9,6 +10,8 @@ import { theme } from '../../theme';
 import { calculatorsApi, ProductDosageResponse } from '../../api/calculators';
 
 export const ProductAmountScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
+
     const [pondArea, setPondArea] = useState('');
     const [waterDepth, setWaterDepth] = useState('');
     const [targetPpm, setTargetPpm] = useState('');
@@ -25,19 +28,19 @@ export const ProductAmountScreen = ({ navigation }: any) => {
         const conc = concentration ? parseFloat(concentration) : 100;
 
         if (!area || area <= 0) {
-            Alert.alert('Validation Error', 'Pond area must be a positive number');
+            Alert.alert(t('calculators.productDosage.validationTitle'), t('calculators.productDosage.errorArea'));
             return;
         }
         if (!depth || depth <= 0) {
-            Alert.alert('Validation Error', 'Water depth must be a positive number');
+            Alert.alert(t('calculators.productDosage.validationTitle'), t('calculators.productDosage.errorDepth'));
             return;
         }
         if (!ppm || ppm <= 0) {
-            Alert.alert('Validation Error', 'Target ppm must be a positive number');
+            Alert.alert(t('calculators.productDosage.validationTitle'), t('calculators.productDosage.errorPpm'));
             return;
         }
         if (concentration && (conc <= 0 || conc > 100)) {
-            Alert.alert('Validation Error', 'Concentration must be between 0 and 100');
+            Alert.alert(t('calculators.productDosage.validationTitle'), t('calculators.productDosage.errorConc'));
             return;
         }
 
@@ -59,7 +62,7 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                 setClientResult(null);
             }
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Calculation failed');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.productDosage.errorCalc'));
         } finally {
             setIsLoading(false);
         }
@@ -75,17 +78,17 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Product Dosage</Text>
+                <Text style={styles.title}>{t('calculators.productDosage.title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Pond & Dosage Settings</Text>
+                    <Text style={styles.sectionTitle}>{t('calculators.productDosage.sectionSettings')}</Text>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
                             <Input
-                                label="Pond Area (m²)"
+                                label={t('calculators.productDosage.labelPondArea')}
                                 value={pondArea}
                                 onChangeText={setPondArea}
                                 keyboardType="decimal-pad"
@@ -95,7 +98,7 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                         </View>
                         <View style={styles.halfCol}>
                             <Input
-                                label="Water Depth (m)"
+                                label={t('calculators.productDosage.labelWaterDepth')}
                                 value={waterDepth}
                                 onChangeText={setWaterDepth}
                                 keyboardType="decimal-pad"
@@ -105,7 +108,7 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                         </View>
                     </View>
                     <Input
-                        label="Target Concentration (ppm / mg/L)"
+                        label={t('calculators.productDosage.labelTargetConc')}
                         value={targetPpm}
                         onChangeText={setTargetPpm}
                         keyboardType="decimal-pad"
@@ -113,34 +116,34 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                         required
                     />
                     <Input
-                        label="Product Concentration (%)"
+                        label={t('calculators.productDosage.labelProductConc')}
                         value={concentration}
                         onChangeText={setConcentration}
                         keyboardType="decimal-pad"
                         placeholder="e.g. 100 (default)"
-                        hint="Leave empty for 100% pure product"
+                        hint={t('calculators.productDosage.hintProductConc')}
                     />
 
-                    <Button title="Calculate" onPress={handleCalculate} loading={isLoading} style={styles.calcBtn} />
+                    <Button title={t('calculators.productDosage.calculate')} onPress={handleCalculate} loading={isLoading} style={styles.calcBtn} />
                 </Card>
 
                 {pondVolume !== null && pondVolume > 0 && (
                     <Card variant="flat" style={styles.volumeCard}>
-                        <Text style={styles.volumeLabel}>Pond Volume</Text>
+                        <Text style={styles.volumeLabel}>{t('calculators.productDosage.pondVolume')}</Text>
                         <Text style={styles.volumeValue}>{pondVolume.toFixed(0)} m³</Text>
                     </Card>
                 )}
 
                 {result && (
                     <View style={styles.resultBox}>
-                        <Text style={styles.resultLabel}>Required Product Amount</Text>
+                        <Text style={styles.resultLabel}>{t('calculators.productDosage.requiredAmount')}</Text>
                         <Text style={styles.resultValue}>{result.amountKg.toFixed(2)}</Text>
                         <Text style={styles.resultUnit}>kg</Text>
 
                         {clientResult !== null && (
                             <View style={styles.clientResultSection}>
                                 <View style={styles.divider} />
-                                <Text style={styles.clientLabel}>With {concentration || '100'}% concentration:</Text>
+                                <Text style={styles.clientLabel}>{t('calculators.productDosage.withConcentration', { conc: concentration || '100' })}</Text>
                                 <Text style={styles.clientValue}>{clientResult.toFixed(3)} kg</Text>
                                 <Text style={styles.clientFormula}>
                                     ({pondVolume?.toFixed(0)} m³ × {targetPpm} ppm) / ({concentration || 100}% × 10,000)

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -10,6 +11,7 @@ import { theme } from '../../theme';
 import { waterQualityApi } from '../../api/waterQuality';
 
 export const WaterQualityLogScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, pondName } = route.params;
 
     const [ph, setPh] = useState('');
@@ -18,7 +20,9 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
     const [salinity, setSalinity] = useState('');
     const [ammonia, setAmmonia] = useState('');
     const [nitrite, setNitrite] = useState('');
+    const [nitrate, setNitrate] = useState('');
     const [alkalinity, setAlkalinity] = useState('');
+    const [hardness, setHardness] = useState('');
     const [transparency, setTransparency] = useState('');
 
     const [notes, setNotes] = useState('');
@@ -36,13 +40,15 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                 salinity: salinity ? parseFloat(salinity) : undefined,
                 ammonia: ammonia ? parseFloat(ammonia) : undefined,
                 nitrite: nitrite ? parseFloat(nitrite) : undefined,
+                nitrate: nitrate ? parseFloat(nitrate) : undefined,
                 alkalinity: alkalinity ? parseFloat(alkalinity) : undefined,
+                hardness: hardness ? parseFloat(hardness) : undefined,
                 transparency: transparency ? parseFloat(transparency) : undefined,
                 notes: notes.trim() || undefined,
             });
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to save water quality log');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.waterQuality_errorSave'));
         } finally {
             setIsLoading(false);
         }
@@ -54,41 +60,46 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Water Quality</Text>
+                <Text style={styles.title}>{t('logs.waterQuality_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.subtitle}>Logging for {pondName}</Text>
+                <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Physical Parameters</Text>
+                    <Text style={styles.sectionTitle}>{t('logs.waterQuality_sectionPhysical')}</Text>
                     <View style={styles.row}>
-                        <ParameterInput label="Temperature" unit="°C" value={temperature} onChangeText={setTemperature} parameterKey="temperature" />
+                        <ParameterInput label={t('logs.waterQuality_labelTemperature')} unit="°C" value={temperature} onChangeText={setTemperature} parameterKey="temperature" />
                         <View style={styles.spacer} />
-                        <ParameterInput label="Transparency" unit="cm" value={transparency} onChangeText={setTransparency} parameterKey="transparency" />
+                        <ParameterInput label={t('logs.waterQuality_labelTransparency')} unit="cm" value={transparency} onChangeText={setTransparency} parameterKey="transparency" />
                     </View>
                     <View style={styles.row}>
-                        <ParameterInput label="Salinity" unit="ppt" value={salinity} onChangeText={setSalinity} parameterKey="salinity" />
+                        <ParameterInput label={t('logs.waterQuality_labelSalinity')} unit="ppt" value={salinity} onChangeText={setSalinity} parameterKey="salinity" />
                         <View style={styles.spacer} />
                         <View style={styles.halfCol} />
                     </View>
                 </Card>
 
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>Chemical Parameters</Text>
+                    <Text style={styles.sectionTitle}>{t('logs.waterQuality_sectionChemical')}</Text>
                     <View style={styles.row}>
-                        <ParameterInput label="pH" value={ph} onChangeText={setPh} parameterKey="ph" />
+                        <ParameterInput label={t('logs.waterQuality_labelPh')} value={ph} onChangeText={setPh} parameterKey="ph" />
                         <View style={styles.spacer} />
-                        <ParameterInput label="DO" unit="mg/L" value={dissolvedOxygen} onChangeText={setDissolvedOxygen} parameterKey="do" />
+                        <ParameterInput label={t('logs.waterQuality_labelDo')} unit="mg/L" value={dissolvedOxygen} onChangeText={setDissolvedOxygen} parameterKey="do" />
                     </View>
                     <View style={styles.row}>
-                        <ParameterInput label="Ammonia" unit="mg/L" value={ammonia} onChangeText={setAmmonia} parameterKey="ammonia" />
+                        <ParameterInput label={t('logs.waterQuality_labelAmmonia')} unit="mg/L" value={ammonia} onChangeText={setAmmonia} parameterKey="ammonia" />
                         <View style={styles.spacer} />
-                        <ParameterInput label="Nitrite" unit="mg/L" value={nitrite} onChangeText={setNitrite} parameterKey="nitrite" />
+                        <ParameterInput label={t('logs.waterQuality_labelNitrite')} unit="mg/L" value={nitrite} onChangeText={setNitrite} parameterKey="nitrite" />
                     </View>
                     <View style={styles.row}>
-                        <ParameterInput label="Alkalinity" unit="mg/L" value={alkalinity} onChangeText={setAlkalinity} parameterKey="alkalinity" />
+                        <ParameterInput label={t('logs.waterQuality_labelAlkalinity')} unit="mg/L" value={alkalinity} onChangeText={setAlkalinity} parameterKey="alkalinity" />
+                        <View style={styles.spacer} />
+                        <ParameterInput label={t('logs.waterQuality_labelNitrate')} unit="mg/L" value={nitrate} onChangeText={setNitrate} />
+                    </View>
+                    <View style={styles.row}>
+                        <ParameterInput label={t('logs.waterQuality_labelHardness')} unit="mg/L" value={hardness} onChangeText={setHardness} />
                         <View style={styles.spacer} />
                         <View style={styles.halfCol} />
                     </View>
@@ -96,10 +107,10 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
 
                 <Card style={styles.card}>
                     <Input
-                        label="Notes / Observations"
+                        label={t('logs.waterQuality_labelNotesObservations')}
                         value={notes}
                         onChangeText={setNotes}
-                        placeholder="Any unusual observations..."
+                        placeholder={t('logs.waterQuality_placeholderNotes')}
                         multiline
                         numberOfLines={3}
                         style={styles.textArea}
@@ -107,7 +118,7 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Button
-                    title="Save Log"
+                    title={t('logs.waterQuality_saveBtn')}
                     onPress={handleSave}
                     loading={isLoading}
                     style={styles.saveBtn}

@@ -3,12 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alert } from './alert.entity';
 import { CreateAlertDto } from './dto/create-alert.dto';
+import { PushService } from '../push/push.service';
 
 @Injectable()
 export class AlertsService {
     constructor(
         @InjectRepository(Alert)
         private alertsRepository: Repository<Alert>,
+        private pushService: PushService,
     ) { }
 
     create(createDto: CreateAlertDto) {
@@ -38,7 +40,19 @@ export class AlertsService {
             isRead: false,
             isPushSent: false,
         });
-        return this.alertsRepository.save(alert);
+        const saved = await this.alertsRepository.save(alert);
+
+        // Best-effort Expo push to the owner; reflect the outcome on the row.
+        const pushed = await this.pushService.sendToUser(userId, {
+            title,
+            body: message,
+            data: { alertId: saved.id, type, ...(data ?? {}) },
+        });
+        if (pushed) {
+            saved.isPushSent = true;
+            await this.alertsRepository.update(saved.id, { isPushSent: true });
+        }
+        return saved;
     }
 
     findByUser(userId: string, unreadOnly = false) {
@@ -66,6 +80,12 @@ export class AlertsService {
 
     async markAsRead(id: string) {
         await this.findOne(id);
+        await this.alertsRepository.update(id, { isRead: true });
+        return this.findOne(id);
+    }
+
+    async markAsReadForUser(id: string, userId: string) {
+        await this.findOneForUser(id, userId);
         await this.alertsRepository.update(id, { isRead: true });
         return this.findOne(id);
     }

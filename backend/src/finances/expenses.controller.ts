@@ -1,5 +1,5 @@
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Controller, Get, Post, Body, Param, UseGuards, Req, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 @Controller('expenses')

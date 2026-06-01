@@ -16,6 +16,7 @@
 
 import React, { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
@@ -113,8 +114,9 @@ export const PhoneEntrySection: React.FC<PhoneEntrySectionProps> = ({
   onSubmit,
   loading = false,
   disabled = false,
-  submitLabel = 'Send verification code',
+  submitLabel,
 }) => {
+  const { t } = useTranslation();
   const [firstName, setFirstName] = useState<string>(
     initialValues?.firstName ?? '',
   );
@@ -148,14 +150,14 @@ export const PhoneEntrySection: React.FC<PhoneEntrySectionProps> = ({
     let ok = true;
 
     if (!isValidFirstName(firstName)) {
-      setFirstNameError(MESSAGE_INVALID_FIRST_NAME);
+      setFirstNameError(t('auth.invalidFirstNameError'));
       ok = false;
     } else {
       setFirstNameError(undefined);
     }
 
     if (!isValidPhoneNumber(phoneNumber)) {
-      setPhoneError(MESSAGE_INVALID_PHONE);
+      setPhoneError(t('auth.invalidPhoneError'));
       ok = false;
     } else {
       setPhoneError(undefined);
@@ -169,7 +171,7 @@ export const PhoneEntrySection: React.FC<PhoneEntrySectionProps> = ({
     }
 
     return ok;
-  }, [firstName, lastName, phoneNumber]);
+  }, [firstName, lastName, phoneNumber, t]);
 
   const handleSubmit = useCallback(async () => {
     if (submitting || loading) return;
@@ -207,21 +209,23 @@ export const PhoneEntrySection: React.FC<PhoneEntrySectionProps> = ({
     [disabled, isBusy],
   );
 
+  const resolvedSubmitLabel = submitLabel ?? t('auth.sendVerificationCode');
+
   return (
     <View style={styles.container} accessibilityLabel="Phone number entry form">
       <Text style={styles.heading} accessibilityRole="header">
-        Verify your phone number
+        {t('auth.verifyPhoneTitle')}
       </Text>
       <Text style={styles.subheading}>
-        We will send a verification code to your Indian mobile number.
+        {t('auth.verifyPhoneSubtitle')}
       </Text>
 
       <Input
-        label="First name"
+        label={t('auth.firstNameInputLabel')}
         value={firstName}
         onChangeText={handleFirstNameChange}
         error={firstNameError}
-        placeholder="Your first name"
+        placeholder={t('auth.firstNameInputPlaceholder')}
         leftIcon="account-outline"
         autoCapitalize="words"
         autoComplete="given-name"
@@ -234,10 +238,10 @@ export const PhoneEntrySection: React.FC<PhoneEntrySectionProps> = ({
       />
 
       <Input
-        label="Last name (optional)"
+        label={t('auth.lastNameInputLabel')}
         value={lastName}
         onChangeText={handleLastNameChange}
-        placeholder="Your last name"
+        placeholder={t('auth.lastNameInputPlaceholder')}
         leftIcon="account-outline"
         autoCapitalize="words"
         autoComplete="family-name"
@@ -249,11 +253,11 @@ export const PhoneEntrySection: React.FC<PhoneEntrySectionProps> = ({
       />
 
       <Input
-        label="Mobile number"
+        label={t('auth.mobileNumberLabel')}
         value={phoneNumber}
         onChangeText={handlePhoneChange}
         error={phoneError}
-        hint={phoneError ? undefined : '10-digit Indian mobile number'}
+        hint={phoneError ? undefined : t('auth.mobileNumberHint')}
         placeholder="9876543210"
         keyboardType="number-pad"
         leftIcon="phone-outline"
@@ -267,7 +271,7 @@ export const PhoneEntrySection: React.FC<PhoneEntrySectionProps> = ({
       />
 
       <Button
-        title={submitLabel}
+        title={resolvedSubmitLabel}
         onPress={handleSubmit}
         loading={isBusy}
         disabled={submitDisabled}

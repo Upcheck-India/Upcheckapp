@@ -1,17 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import {
+    Injectable,
+    NotFoundException,
+    BadRequestException,
+    Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThanOrEqual } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { InventoryItem } from './inventory-item.entity';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
 
 import { AlertsService } from '../alerts/alerts.service';
 import { FarmsService } from '../farms/farms.service';
-import { PageOptionsDto } from '../common/dto/page-options.dto';
-import { PageMetaDto, PageDto } from '../common/dto/page.dto';
 
 @Injectable()
 export class InventoryService {
+    private readonly logger = new Logger(InventoryService.name);
+
     constructor(
         @InjectRepository(InventoryItem)
         private itemsRepository: Repository<InventoryItem>,
@@ -19,62 +24,64 @@ export class InventoryService {
         private farmsService: FarmsService,
     ) { }
 
-    // ... (create, findAll, findOne, update, remove methods remain same)
-
-    create(createDto: CreateInventoryItemDto) {
+    async create(createDto: CreateInventoryItemDto, userId: string) {
+        await this.farmsService.verifyOwnership(createDto.farmId, userId);
         const item = this.itemsRepository.create(createDto);
         return this.itemsRepository.save(item);
     }
 
-    async findAll(farmId?: string, category?: string, pageOptionsDto?: PageOptionsDto): Promise<PageDto<InventoryItem>> {
-        const skip = pageOptionsDto?.skip || 0;
-        const take = pageOptionsDto?.take || 10;
-        const order = pageOptionsDto?.order || 'DESC';
-
+    async findAll(userId: string, farmId?: string, category?: string): Promise<InventoryItem[]> {
         const where: any = {};
-        if (farmId) where.farmId = farmId;
         if (category) where.category = category;
 
-        const [items, itemCount] = await this.itemsRepository.findAndCount({
-            where,
-            order: { name: order }, // or createdAt if it existed
-            take,
-            skip,
-        });
+        if (farmId) {
+            await this.farmsService.verifyOwnership(farmId, userId);
+            where.farmId = farmId;
+        } else {
+            const farms = await this.farmsService.findAll(userId);
+            const farmIds = farms.map((f) => f.id);
+            if (farmIds.length === 0) return [];
+            where.farmId = In(farmIds);
+        }
 
-        const pageMetaDto = new PageMetaDto({ itemCount, pageOptionsDto: pageOptionsDto || { page: 1, take } });
-        return new PageDto(items, pageMetaDto);
+        return this.itemsRepository.find({ where, order: { name: 'ASC' } });
     }
 
-    findOne(id: string) {
+    private async findOwned(id: string, userId: string): Promise<InventoryItem> {
+        const item = await this.itemsRepository.findOneBy({ id });
+        if (!item) {
+            throw new NotFoundException(`Inventory item with ID ${id} not found`);
+        }
+        await this.farmsService.verifyOwnership(item.farmId, userId);
+        return item;
+    }
+
+    findOne(id: string, userId: string) {
+        return this.findOwned(id, userId);
+    }
+
+    async update(id: string, updateDto: UpdateInventoryItemDto, userId: string) {
+        await this.findOwned(id, userId);
+        if (updateDto.farmId) {
+            await this.farmsService.verifyOwnership(updateDto.farmId, userId);
+        }
+        await this.itemsRepository.update(id, updateDto);
         return this.itemsRepository.findOneBy({ id });
     }
 
-    async update(id: string, updateDto: UpdateInventoryItemDto) {
-        await this.itemsRepository.update(id, updateDto);
-        return this.findOne(id);
-    }
-
-    remove(id: string) {
+    async remove(id: string, userId: string) {
+        await this.findOwned(id, userId);
         return this.itemsRepository.delete(id);
     }
 
-    async getLowStock(farmId: string, pageOptionsDto?: PageOptionsDto): Promise<PageDto<InventoryItem>> {
-        const skip = pageOptionsDto?.skip || 0;
-        const take = pageOptionsDto?.take || 10;
-        const order = pageOptionsDto?.order || 'DESC';
-
-        const [items, itemCount] = await this.itemsRepository
+    async getLowStock(farmId: string, userId: string): Promise<InventoryItem[]> {
+        await this.farmsService.verifyOwnership(farmId, userId);
+        return this.itemsRepository
             .createQueryBuilder('item')
             .where('item.farmId = :farmId', { farmId })
             .andWhere('item.quantity <= item.reorderLevel')
-            .orderBy('item.name', order as 'ASC' | 'DESC')
-            .skip(skip)
-            .take(take)
-            .getManyAndCount();
-
-        const pageMetaDto = new PageMetaDto({ itemCount, pageOptionsDto: pageOptionsDto || { page: 1, take } });
-        return new PageDto(items, pageMetaDto);
+            .orderBy('item.name', 'ASC')
+            .getMany();
     }
 
     async countLowStock(farmId: string): Promise<number> {
@@ -85,45 +92,22 @@ export class InventoryService {
             .getCount();
     }
 
-    async adjustStock(id: string, quantityChange: number) {
-        const item = await this.findOne(id);
-        if (!item) {
-            throw new Error('Inventory item not found');
-        }
+    async adjustStock(id: string, quantityChange: number, userId: string) {
+        const item = await this.findOwned(id, userId);
 
         const newQuantity = Number(item.quantity) + quantityChange;
         if (newQuantity < 0) {
-            throw new Error(`Insufficient stock. Available: ${item.quantity}, Required: ${Math.abs(quantityChange)}`);
+            throw new BadRequestException(
+                `Insufficient stock. Available: ${item.quantity}, Required: ${Math.abs(quantityChange)}`,
+            );
         }
 
         item.quantity = newQuantity;
         const savedItem = await this.itemsRepository.save(item);
 
-        // Check for Low Stock Alert
-        if (savedItem.quantity <= savedItem.reorderLevel) {
+        // Auto-raise a low-stock alert for the farm owner when crossing the threshold.
+        if (savedItem.reorderLevel != null && savedItem.quantity <= savedItem.reorderLevel) {
             try {
-                // Fetch the farm to get the userId
-                // We mock userId for now as FarmsService.findOne might behave differently or be expensive repeatedly.
-                // But let's try to do it right.
-                // Note: FarmsService.findOne requires userId for ownership check usually...
-                // But we can add a method just to get farm owner?
-                // Or we can rely on `item.farmId` to get the farm directly via repository if injected?
-                // Let's rely on FarmsService having a method to get generic farm info or fallback.
-
-                // Workaround: We don't have direct access to farm owner USER ID efficiently here without a new query.
-                // However, this operation is triggered by a user action usually.
-                // Assuming the user needs to know. 
-
-                // Let's implement a `getFarmOwner` in FarmsService or just query it here via repo?
-                // Cleanest: FarmsService.getFarmOwner(farmId).
-                // Existing FarmsService doesn't have it.
-
-                // Let's assume we can add it or for this iteration just log it?
-                // User requirement: "Integrate with InventoryService (Low Stock -> Alert)"
-                // Let's assume the current user is the owner for simplicity or pass userId?
-                // But `adjustStock` signature is `(id, quantityChange)`.
-
-                // Let's query the farm owner.
                 const farm = await this.farmsService.findOneInternal(savedItem.farmId);
                 if (farm) {
                     await this.alertsService.createAutoAlert(
@@ -131,13 +115,13 @@ export class InventoryService {
                         farm.id,
                         'inventory_low_stock',
                         'Low Stock Alert',
-                        `${savedItem.name} is running low (${savedItem.quantity} ${savedItem.unit}).`,
+                        `${savedItem.name} is running low (${savedItem.quantity} ${savedItem.unit ?? ''}).`,
                         'warning',
-                        { inventoryItemId: savedItem.id }
+                        { inventoryItemId: savedItem.id },
                     );
                 }
-            } catch (error) {
-                console.error('Failed to create low stock alert:', error);
+            } catch (error: any) {
+                this.logger.error(`Failed to create low stock alert: ${error?.message ?? error}`);
             }
         }
 

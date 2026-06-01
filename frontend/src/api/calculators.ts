@@ -81,6 +81,37 @@ export interface FreeAmmoniaResponse {
     toxicityLevel: string;
 }
 
+// ── Growth Projection ──────────────────────────────────────
+export interface GrowthProjectionRequest {
+    currentWeightG: number;
+    adgG: number;
+    daysToProject: number;
+}
+
+export interface GrowthProjectionResponse {
+    projectedWeightG: number;
+    projectedWeightByWeek: number[];
+}
+
+// ── Biomass ────────────────────────────────────────────────
+export interface BiomassParams {
+    stockCount: number;
+    averageWeightG: number;
+}
+
+export interface BiomassResponse {
+    biomassKg: number;
+}
+
+// ── Recommended Feeding Rate ───────────────────────────────
+export interface RecommendedFeedingRateParams {
+    averageWeightG: number;
+}
+
+export interface RecommendedFeedingRateResponse {
+    recommendedFeedingRatePercent: number;
+}
+
 // ── Product Dosage ─────────────────────────────────────────
 export interface ProductDosageRequest {
     pondArea: number;
@@ -117,4 +148,13 @@ export const calculatorsApi = {
 
     calculateProductDosage: (data: ProductDosageRequest) =>
         apiClient.post<ProductDosageResponse>('/shrimp-calculations/product-amount', data),
+
+    calculateGrowthProjection: (data: GrowthProjectionRequest) =>
+        apiClient.post<GrowthProjectionResponse>('/shrimp-calculations/growth-projection', data),
+
+    calculateBiomass: (params: BiomassParams) =>
+        apiClient.get<BiomassResponse>('/shrimp-calculations/biomass', { params }),
+
+    getRecommendedFeedingRate: (params: RecommendedFeedingRateParams) =>
+        apiClient.get<RecommendedFeedingRateResponse>('/shrimp-calculations/recommended-feeding-rate', { params }),
 };

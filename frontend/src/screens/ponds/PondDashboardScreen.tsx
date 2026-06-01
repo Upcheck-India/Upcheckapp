@@ -10,6 +10,7 @@ import {
     Dimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
@@ -37,19 +38,6 @@ type ActionConfig = {
     logRoute: string;
     historyRoute: string;
 };
-
-const ACTION_CONFIG: ActionConfig[] = [
-    { label: 'Water Quality', icon: 'water-percent', color: '#2196F3', bg: '#E3F2FD', logRoute: 'WaterQualityLog', historyRoute: 'WaterQualityHistory' },
-    { label: 'Feed', icon: 'corn', color: '#FF9800', bg: '#FFF3E0', logRoute: 'FeedLog', historyRoute: 'FeedHistory' },
-    { label: 'Sampling', icon: 'scale', color: '#4CAF50', bg: '#E8F5E9', logRoute: 'SamplingLog', historyRoute: 'SamplingHistory' },
-    { label: 'Treatment', icon: 'pill', color: '#F44336', bg: '#FFEBEE', logRoute: 'TreatmentLog', historyRoute: 'TreatmentHistory' },
-    { label: 'Mortality', icon: 'alert-circle', color: '#E53935', bg: '#FCE4EC', logRoute: 'MortalityLog', historyRoute: 'MortalityHistory' },
-    { label: 'Disease', icon: 'virus', color: '#9C27B0', bg: '#F3E5F5', logRoute: 'DiseaseLog', historyRoute: 'DiseaseHistory' },
-    { label: 'Chemical', icon: 'flask', color: '#FF6D00', bg: '#FFF8E1', logRoute: 'ChemicalLog', historyRoute: 'ChemicalHistory' },
-    { label: 'Plankton', icon: 'leaf', color: '#00897B', bg: '#E0F2F1', logRoute: 'PlanktonLog', historyRoute: 'PlanktonHistory' },
-    { label: 'Microbiology', icon: 'microscope', color: '#607D8B', bg: '#ECEFF1', logRoute: 'MicrobiologyLog', historyRoute: 'MicrobiologyHistory' },
-    { label: 'Harvest', icon: 'basket', color: '#43A047', bg: '#F1F8E9', logRoute: 'HarvestLog', historyRoute: 'HarvestHistory' },
-];
 
 type ChipMode = 'log' | 'history';
 
@@ -136,7 +124,21 @@ const tileStyles = StyleSheet.create({
 });
 
 export const PondDashboardScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, pondName } = route.params;
+
+    const ACTION_CONFIG: ActionConfig[] = [
+        { label: t('ponds.actionWaterQuality'), icon: 'water-percent', color: '#2196F3', bg: '#E3F2FD', logRoute: 'WaterQualityLog', historyRoute: 'WaterQualityHistory' },
+        { label: t('ponds.actionFeed'), icon: 'corn', color: '#FF9800', bg: '#FFF3E0', logRoute: 'FeedLog', historyRoute: 'FeedHistory' },
+        { label: t('ponds.actionSampling'), icon: 'scale', color: '#4CAF50', bg: '#E8F5E9', logRoute: 'SamplingLog', historyRoute: 'SamplingHistory' },
+        { label: t('ponds.actionTreatment'), icon: 'pill', color: '#F44336', bg: '#FFEBEE', logRoute: 'TreatmentLog', historyRoute: 'TreatmentHistory' },
+        { label: t('ponds.actionMortality'), icon: 'alert-circle', color: '#E53935', bg: '#FCE4EC', logRoute: 'MortalityLog', historyRoute: 'MortalityHistory' },
+        { label: t('ponds.actionDisease'), icon: 'virus', color: '#9C27B0', bg: '#F3E5F5', logRoute: 'DiseaseLog', historyRoute: 'DiseaseHistory' },
+        { label: t('ponds.actionChemical'), icon: 'flask', color: '#FF6D00', bg: '#FFF8E1', logRoute: 'ChemicalLog', historyRoute: 'ChemicalHistory' },
+        { label: t('ponds.actionPlankton'), icon: 'leaf', color: '#00897B', bg: '#E0F2F1', logRoute: 'PlanktonLog', historyRoute: 'PlanktonHistory' },
+        { label: t('ponds.actionMicrobiology'), icon: 'microscope', color: '#607D8B', bg: '#ECEFF1', logRoute: 'MicrobiologyLog', historyRoute: 'MicrobiologyHistory' },
+        { label: t('ponds.actionHarvest'), icon: 'basket', color: '#43A047', bg: '#F1F8E9', logRoute: 'HarvestLog', historyRoute: 'HarvestHistory' },
+    ];
     const [pond, setPond] = useState<Pond | null>(null);
     const [activeCycle, setActiveCycle] = useState<Crop | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -344,12 +346,12 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
             ) : isOffline ? (
                 <NetworkError onRetry={handleRetry} />
             ) : error && !pond ? (
-                <ErrorState title="Couldn't Load Pond" error={error} onRetry={handleRetry} />
+                <ErrorState title={t('ponds.errorPondTitle')} error={error} onRetry={handleRetry} />
             ) : (
                 <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
                     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={['#2196F3']} tintColor="#2196F3" />}>
                         {activeCycle && wqAlert && (
-                            <AlertBanner title="Water Quality Alert" message="No reading recorded in the last 24 hours" type="warning" />
+                            <AlertBanner title={t('ponds.wqAlertTitle')} message={t('ponds.wqAlertMessage')} type="warning" />
                         )}
 
                         {activeCycle ? (
@@ -357,27 +359,27 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                 <View style={styles.heroTop}>
                                     <DocBadge doc={doc} />
                                     <View style={styles.heroInfo}>
-                                        <Text style={styles.heroLabel}>ACTIVE CYCLE</Text>
+                                        <Text style={styles.heroLabel}>{t('ponds.activeCycleLabel')}</Text>
                                         <Text style={styles.heroName} numberOfLines={1}>{activeCycle.name}</Text>
                                         {activeCycle.stockingDate && (
                                             <Text style={styles.heroDate}>
-                                                Stocked {new Date(activeCycle.stockingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                {t('ponds.stocked', { date: new Date(activeCycle.stockingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) })}
                                             </Text>
                                         )}
                                     </View>
                                     <TouchableOpacity style={styles.harvestBtn} onPress={() => navigation.navigate('HarvestLog', { pondId, pondName, cropId: activeCycle.id })} activeOpacity={0.8}>
                                         <MaterialCommunityIcons name="basket-outline" size={16} color="#fff" />
-                                        <Text style={styles.harvestBtnText}>Harvest</Text>
+                                        <Text style={styles.harvestBtnText}>{t('ponds.harvest')}</Text>
                                     </TouchableOpacity>
                                 </View>
                                 <View style={styles.metricsRow}>
-                                    <MetricTile label="MBW" value={mbw} unit="g" icon="scale" />
+                                    <MetricTile label={t('ponds.metricMbw')} value={mbw} unit="g" icon="scale" />
                                     <View style={styles.metricDivider} />
-                                    <MetricTile label="Survival" value={survival} unit="%" icon="heart-pulse" />
+                                    <MetricTile label={t('ponds.metricSurvival')} value={survival} unit="%" icon="heart-pulse" />
                                     <View style={styles.metricDivider} />
-                                    <MetricTile label="Biomass" value={biomass} unit="T" icon="weight-kilogram" />
+                                    <MetricTile label={t('ponds.metricBiomass')} value={biomass} unit="T" icon="weight-kilogram" />
                                     <View style={styles.metricDivider} />
-                                    <MetricTile label="FCR" value={fcr} unit="" icon="swap-horizontal" />
+                                    <MetricTile label={t('ponds.metricFcr')} value={fcr} unit="" icon="swap-horizontal" />
                                 </View>
                             </View>
                         ) : (
@@ -385,11 +387,11 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                 <View style={styles.idleIconWrap}>
                                     <MaterialCommunityIcons name="water-outline" size={40} color="#9CA3AF" />
                                 </View>
-                                <Text style={styles.idleTitle}>Pond is Idle</Text>
-                                <Text style={styles.idleSubtitle}>Ready for the next crop cycle</Text>
+                                <Text style={styles.idleTitle}>{t('ponds.idleTitle')}</Text>
+                                <Text style={styles.idleSubtitle}>{t('ponds.idleSubtitle')}</Text>
                                 <TouchableOpacity style={styles.startBtn} onPress={() => navigation.navigate('CreateCycle', { pondId })} activeOpacity={0.8}>
                                     <MaterialCommunityIcons name="plus" size={18} color="#fff" />
-                                    <Text style={styles.startBtnText}>Start New Cycle</Text>
+                                    <Text style={styles.startBtnText}>{t('ponds.startNewCycle')}</Text>
                                 </TouchableOpacity>
                             </View>
                         )}
@@ -397,8 +399,8 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                         {activeCycle && (
                             <View style={styles.actionsSection}>
                                 <View style={styles.tabBar}>
-                                    <SectionTab label="Log Data" active={activeTab === 'log'} onPress={() => setActiveTab('log')} />
-                                    <SectionTab label="View History" active={activeTab === 'history'} onPress={() => setActiveTab('history')} />
+                                    <SectionTab label={t('ponds.tabLogData')} active={activeTab === 'log'} onPress={() => setActiveTab('log')} />
+                                    <SectionTab label={t('ponds.tabViewHistory')} active={activeTab === 'history'} onPress={() => setActiveTab('history')} />
                                 </View>
                                 <View style={styles.actionGrid}>
                                     {ACTION_CONFIG.map((item) => (

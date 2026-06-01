@@ -11,8 +11,8 @@ export class ReportsController {
     }
 
     @Get('cycle/:id/analysis')
-    async getCycleAnalysis(@Param('id') id: string) {
-        return this.reportsService.getCycleAnalysis(id);
+    async getCycleAnalysis(@CurrentUser() user, @Param('id') id: string) {
+        return this.reportsService.getCycleAnalysis(id, user.id);
     }
 
     @Get('financials')

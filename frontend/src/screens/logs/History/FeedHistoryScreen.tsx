@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
 import { ErrorState } from '../../../components/ui/ErrorState';
@@ -9,6 +10,7 @@ import { theme } from '../../../theme';
 import { feedApi, FeedRecord } from '../../../api/feedRecords';
 
 export const FeedHistoryScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { pondId, pondName, cropId } = route.params;
     const [records, setRecords] = useState<FeedRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -56,8 +58,8 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
                 </Text>
                 <Text style={styles.amountText}>{item.quantityKg} kg</Text>
             </View>
-            {item.feedType && <Text style={styles.typeText}>Type: {item.feedType}</Text>}
-            {item.feedingMethod && <Text style={styles.methodText}>Method: {item.feedingMethod}</Text>}
+            {item.feedType && <Text style={styles.typeText}>{t('history.feedTypeLabel', { type: item.feedType })}</Text>}
+            {item.feedingMethod && <Text style={styles.methodText}>{t('history.feedMethodLabel', { method: item.feedingMethod })}</Text>}
             {item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
         </Card>
     );
@@ -68,20 +70,20 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Feed History</Text>
+                <Text style={styles.title}>{t('history.feedTitle')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             {isLoading ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
             ) : error && records.length === 0 ? (
-                <ErrorState title="Couldn't Load Records" error={error} onRetry={handleRetry} />
+                <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={handleRetry} />
             ) : (
                 <>
                     {records.length > 0 && (
                         <View style={styles.summaryBar}>
                             <Text style={styles.summaryText}>
-                                Total Feed: <Text style={styles.summaryValue}>{totalFeed.toFixed(1)} kg</Text>
+                                {t('history.feedTotalLabel')}<Text style={styles.summaryValue}>{t('history.feedTotalValue', { amount: totalFeed.toFixed(1) })}</Text>
                             </Text>
                         </View>
                     )}
@@ -96,8 +98,8 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
                         ListEmptyComponent={
                             <View style={styles.emptyState}>
                                 <MaterialCommunityIcons name="food-drumstick-outline" size={64} color={theme.roles.light.borderDefault} />
-                                <Text style={styles.emptyTitle}>No Feed Records</Text>
-                                <Text style={styles.emptyText}>Start logging feed to track consumption.</Text>
+                                <Text style={styles.emptyTitle}>{t('history.feedEmptyTitle')}</Text>
+                                <Text style={styles.emptyText}>{t('history.feedEmptyText')}</Text>
                             </View>
                         }
                     />

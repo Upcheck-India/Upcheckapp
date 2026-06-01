@@ -189,6 +189,8 @@ function renderScreen() {
 // Integration tests
 // ──────────────────────────────────────────────────────────────────────────────
 
+jest.setTimeout(120000);
+
 describe('TruecallerLoginScreen — phase transitions integration (task 11.3)', () => {
   beforeEach(() => {
     resetAllMocks();

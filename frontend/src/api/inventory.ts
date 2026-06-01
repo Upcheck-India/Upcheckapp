@@ -5,10 +5,12 @@ export interface InventoryItem {
     farmId: string;
     name: string;
     category: string;
-    unit: string;
-    currentStock: number;
-    minStockThreshold: number;
-    lastPurchaseDate?: string;
+    unit?: string;
+    quantity: number;
+    reorderLevel?: number;
+    unitPrice?: number;
+    supplier?: string;
+    expiryDate?: string;
     notes?: string;
     createdAt: string;
     updatedAt: string;
@@ -18,16 +20,24 @@ export interface CreateInventoryItemDto {
     farmId: string;
     name: string;
     category: string;
-    unit: string;
-    currentStock: number;
-    minStockThreshold?: number;
+    unit?: string;
+    quantity?: number;
+    reorderLevel?: number;
+    unitPrice?: number;
+    supplier?: string;
+    expiryDate?: string;
     notes?: string;
 }
 
 export interface UpdateInventoryItemDto {
     name?: string;
-    currentStock?: number;
-    minStockThreshold?: number;
+    category?: string;
+    unit?: string;
+    quantity?: number;
+    reorderLevel?: number;
+    unitPrice?: number;
+    supplier?: string;
+    expiryDate?: string;
     notes?: string;
 }
 

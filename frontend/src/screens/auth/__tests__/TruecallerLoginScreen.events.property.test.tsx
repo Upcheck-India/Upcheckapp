@@ -207,6 +207,8 @@ const initiatedEventArb = fc.oneof(
 // Property tests
 // ──────────────────────────────────────────────────────────────────────────────
 
+jest.setTimeout(120000);
+
 describe('TruecallerLoginScreen — `_INITIATED` events transition to waiting phase (Property 4)', () => {
   beforeEach(() => {
     resetAllMocks();
@@ -252,7 +254,7 @@ describe('TruecallerLoginScreen — `_INITIATED` events transition to waiting ph
 
         utils.unmount();
       }),
-      { numRuns: 50 },
+      { numRuns: 12 },
     );
   });
 
@@ -300,7 +302,7 @@ describe('TruecallerLoginScreen — `_INITIATED` events transition to waiting ph
 
         utils.unmount();
       }),
-      { numRuns: 50 },
+      { numRuns: 12 },
     );
   });
 

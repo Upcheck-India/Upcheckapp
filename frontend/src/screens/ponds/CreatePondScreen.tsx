@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -11,15 +12,16 @@ import { pondsApi } from '../../api/ponds';
 type GeometryType = 'rectangular' | 'circular' | 'irregular' | 'raceway';
 type ConstructionType = 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
 
-const CONSTRUCTION_TYPES: { value: ConstructionType; label: string; icon: string }[] = [
-    { value: 'earthen', label: 'Earthen', icon: 'terrain' },
-    { value: 'lined', label: 'Lined', icon: 'texture-box' },
-    { value: 'cage', label: 'Cage', icon: 'cube-outline' },
-    { value: 'biofloc_ras', label: 'Biofloc/RAS', icon: 'recycle' },
-];
-
 export const CreatePondScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { farmId } = route.params;
+
+    const CONSTRUCTION_TYPES: { value: ConstructionType; label: string; icon: string }[] = [
+        { value: 'earthen', label: t('ponds.constructionEarthen'), icon: 'terrain' },
+        { value: 'lined', label: t('ponds.constructionLined'), icon: 'texture-box' },
+        { value: 'cage', label: t('ponds.constructionCage'), icon: 'cube-outline' },
+        { value: 'biofloc_ras', label: t('ponds.constructionBioflocRas'), icon: 'recycle' },
+    ];
     const [namePrefix, setNamePrefix] = useState('');
     const [geometryType, setGeometryType] = useState<GeometryType>('rectangular');
     const [constructionType, setConstructionType] = useState<ConstructionType>('earthen');
@@ -50,10 +52,10 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
     const handleSave = async () => {
         const newErrors: { namePrefix?: string; depthM?: string } = {};
         if (!namePrefix.trim() || namePrefix.trim().length > 4) {
-            newErrors.namePrefix = 'Prefix is required (1-4 characters, e.g. "A")';
+            newErrors.namePrefix = t('ponds.errorNamePrefix');
         }
         if (!depthM || parseFloat(depthM) < 0.5 || parseFloat(depthM) > 5.0) {
-            newErrors.depthM = 'Depth is required (0.5 - 5.0 m)';
+            newErrors.depthM = t('ponds.errorDepth');
         }
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
@@ -76,7 +78,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
             });
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert('Error', error.response?.data?.message || 'Failed to create pond');
+            Alert.alert(t('common.error'), error.response?.data?.message || t('ponds.errorCreatePond'));
         } finally {
             setIsLoading(false);
         }
@@ -88,28 +90,28 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Add Pond</Text>
+                <Text style={styles.headerTitle}>{t('ponds.addPond')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
                 <Input
-                    label="Name Prefix"
+                    label={t('ponds.fieldNamePrefix')}
                     value={namePrefix}
                     onChangeText={setNamePrefix}
-                    placeholder="e.g. A (max 4 chars)"
+                    placeholder={t('ponds.placeholderNamePrefix')}
                     error={errors.namePrefix}
                     required
                 />
 
                 <Input
-                    label="Display Name (Optional)"
+                    label={t('ponds.fieldDisplayName')}
                     value={displayName}
                     onChangeText={setDisplayName}
-                    placeholder="e.g. North Pond"
+                    placeholder={t('ponds.placeholderDisplayName')}
                 />
 
-                <Text style={styles.label}>Pond Shape</Text>
+                <Text style={styles.label}>{t('ponds.labelPondShape')}</Text>
                 <View style={styles.toggleRow}>
                     <TouchableOpacity
                         style={[styles.toggleBtn, geometryType === 'rectangular' && styles.toggleActive]}
@@ -121,7 +123,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                             size={22}
                             color={geometryType === 'rectangular' ? theme.roles.light.primary : theme.roles.light.textSecondary}
                         />
-                        <Text style={[styles.toggleText, geometryType === 'rectangular' && styles.toggleTextActive]}>Rect</Text>
+                        <Text style={[styles.toggleText, geometryType === 'rectangular' && styles.toggleTextActive]}>{t('ponds.shapeRect')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.toggleBtn, geometryType === 'circular' && styles.toggleActive]}
@@ -133,7 +135,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                             size={22}
                             color={geometryType === 'circular' ? theme.roles.light.primary : theme.roles.light.textSecondary}
                         />
-                        <Text style={[styles.toggleText, geometryType === 'circular' && styles.toggleTextActive]}>Circular</Text>
+                        <Text style={[styles.toggleText, geometryType === 'circular' && styles.toggleTextActive]}>{t('ponds.shapeCircular')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.toggleBtn, geometryType === 'raceway' && styles.toggleActive]}
@@ -145,11 +147,11 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                             size={22}
                             color={geometryType === 'raceway' ? theme.roles.light.primary : theme.roles.light.textSecondary}
                         />
-                        <Text style={[styles.toggleText, geometryType === 'raceway' && styles.toggleTextActive]}>Raceway</Text>
+                        <Text style={[styles.toggleText, geometryType === 'raceway' && styles.toggleTextActive]}>{t('ponds.shapeRaceway')}</Text>
                     </TouchableOpacity>
                 </View>
 
-                <Text style={styles.label}>Construction Type</Text>
+                <Text style={styles.label}>{t('ponds.labelConstructionType')}</Text>
                 <View style={styles.toggleRow}>
                     {CONSTRUCTION_TYPES.map((ct) => (
                         <TouchableOpacity
@@ -171,33 +173,33 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 {(geometryType === 'rectangular' || geometryType === 'raceway') ? (
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label="Length (m)" value={lengthM} onChangeText={setLengthM} keyboardType="decimal-pad" placeholder="0.0" />
+                            <Input label={t('ponds.fieldLength')} value={lengthM} onChangeText={setLengthM} keyboardType="decimal-pad" placeholder={t('ponds.placeholderDecimal')} />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label="Width (m)" value={widthM} onChangeText={setWidthM} keyboardType="decimal-pad" placeholder="0.0" />
+                            <Input label={t('ponds.fieldWidth')} value={widthM} onChangeText={setWidthM} keyboardType="decimal-pad" placeholder={t('ponds.placeholderDecimal')} />
                         </View>
                     </View>
                 ) : geometryType === 'circular' ? (
-                    <Input label="Diameter (m)" value={diameterM} onChangeText={setDiameterM} keyboardType="decimal-pad" placeholder="0.0" />
+                    <Input label={t('ponds.fieldDiameter')} value={diameterM} onChangeText={setDiameterM} keyboardType="decimal-pad" placeholder={t('ponds.placeholderDecimal')} />
                 ) : null}
 
                 <Input
-                    label="Depth (m)"
+                    label={t('ponds.fieldDepth')}
                     value={depthM}
                     onChangeText={setDepthM}
                     keyboardType="decimal-pad"
-                    placeholder="e.g. 1.5"
+                    placeholder={t('ponds.placeholderDepth')}
                     error={errors.depthM}
                     required
                 />
 
                 <Card style={styles.previewCard} variant="flat">
-                    <Text style={styles.previewLabel}>Computed Area</Text>
+                    <Text style={styles.previewLabel}>{t('ponds.computedArea')}</Text>
                     <Text style={styles.previewValue}>{computedArea > 0 ? computedArea.toFixed(2) : '0.00'} m²</Text>
                 </Card>
 
                 <Button
-                    title="Save Pond"
+                    title={t('ponds.savePond')}
                     onPress={handleSave}
                     loading={isLoading}
                     style={styles.saveBtn}

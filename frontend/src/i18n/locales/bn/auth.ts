@@ -1,0 +1,151 @@
+const auth = {
+  // ── App header (LoginScreen) ──────────────────────────────────────────────
+  title: 'UpCheck',
+  subtitle: 'চিংড়ি অ্যাকুয়াকালচার ম্যানেজমেন্ট',
+
+  // ── Shared field labels / placeholders ───────────────────────────────────
+  emailLabel: 'ইমেইল',
+  emailPlaceholder: 'your@email.com',
+  passwordLabel: 'পাসওয়ার্ড',
+  passwordPlaceholder: 'আপনার পাসওয়ার্ড লিখুন',
+
+  // ── Shared validation messages ────────────────────────────────────────────
+  emailRequired: 'ইমেইল আবশ্যক',
+  emailInvalid: 'সঠিক ইমেইল লিখুন',
+  passwordRequired: 'পাসওয়ার্ড আবশ্যক',
+
+  // ── LoginScreen ───────────────────────────────────────────────────────────
+  signIn: 'সাইন ইন',
+  orContinueWith: 'অথবা এর মাধ্যমে চালিয়ে যান',
+  forgotPassword: 'পাসওয়ার্ড ভুলে গেছেন?',
+  signInWithEmailCode: 'ইমেইল কোড দিয়ে সাইন ইন',
+  createAccount: 'অ্যাকাউন্ট তৈরি করুন',
+
+  // Verify-email banner (shown when pendingVerificationEmail is set)
+  verifyBanner: 'সাইনআপ সম্পন্ন করতে {{email}} যাচাই করুন। পুনরায় পাঠাতে ট্যাপ করুন।',
+
+  // Resend-verification alerts
+  emailRequiredAlert: 'ইমেইল আবশ্যক',
+  enterEmailFirst: 'আগে উপরে আপনার ইমেইল লিখুন।',
+  verificationSent: 'যাচাইকরণ পাঠানো হয়েছে',
+  verificationResentTo: 'আমরা {{email}}-এ যাচাইকরণ ইমেইল পুনরায় পাঠিয়েছি।',
+  couldNotResend: 'যাচাইকরণ ইমেইল পুনরায় পাঠানো যায়নি',
+
+  // Login-time validation
+  passwordTooShort: 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে',
+
+  // ── RegisterScreen ────────────────────────────────────────────────────────
+  createAccountTitle: 'অ্যাকাউন্ট তৈরি করুন',
+  registerSubtitle: 'চিংড়ি খামার পরিচালনা করতে UpCheck-এ যোগ দিন',
+
+  firstNameLabel: 'প্রথম নাম',
+  firstNamePlaceholder: 'আপনার প্রথম নাম লিখুন',
+  firstNameRequired: 'প্রথম নাম আবশ্যক',
+
+  lastNameLabel: 'পদবি',
+  lastNamePlaceholder: 'আপনার পদবি লিখুন',
+
+  passwordAtLeast8Placeholder: 'কমপক্ষে ৮ অক্ষর',
+  passwordTooShortRegister: 'পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে',
+  passwordHint: 'সর্বনিম্ন ৮ অক্ষর',
+
+  confirmPasswordLabel: 'পাসওয়ার্ড নিশ্চিত করুন',
+  confirmPasswordPlaceholder: 'পাসওয়ার্ড পুনরায় লিখুন',
+  passwordsDoNotMatch: 'পাসওয়ার্ড মিলছে না',
+
+  alreadyHaveAccount: 'ইতিমধ্যে অ্যাকাউন্ট আছে? সাইন ইন করুন',
+
+  // Registration success screen
+  checkYourEmail: 'ইমেইল চেক করুন',
+  verificationLinkSent:
+    'আমরা {{email}}-এ একটি যাচাইকরণ লিংক পাঠিয়েছি। চালিয়ে যেতে আপনার ইমেইল যাচাই করুন।',
+  backToLogin: 'লগইনে ফিরুন',
+
+  // ── ForgotPasswordScreen ──────────────────────────────────────────────────
+  resetPassword: 'পাসওয়ার্ড রিসেট করুন',
+  resetPasswordSubtitle:
+    'আপনার ইমেইল ঠিকানা লিখুন, আমরা পাসওয়ার্ড রিসেটের একটি লিংক পাঠাব।',
+  sendResetLink: 'রিসেট লিংক পাঠান',
+  failedToSendReset: 'রিসেট ইমেইল পাঠাতে ব্যর্থ',
+  passwordResetSent:
+    'আমরা {{email}}-এ পাসওয়ার্ড রিসেট লিংক পাঠিয়েছি। পাসওয়ার্ড রিসেট করতে ইমেইলের নির্দেশনা অনুসরণ করুন।',
+
+  // ── OtpLoginScreen ────────────────────────────────────────────────────────
+  signInWithEmailCodeTitle: 'ইমেইল কোড দিয়ে সাইন ইন',
+  emailRequiredBody: 'আপনার অ্যাকাউন্টের ইমেইল লিখুন।',
+  codeSent: 'কোড পাঠানো হয়েছে',
+  checkEmailForCode: '৬ সংখ্যার লগইন কোডের জন্য আপনার ইমেইল দেখুন।',
+  couldNotSendCode: 'কোড পাঠানো যায়নি',
+  noSessionReturned: 'কোনো সেশন পাওয়া যায়নি। আবার চেষ্টা করুন।',
+  invalidOrExpiredCode: 'অবৈধ বা মেয়াদোত্তীর্ণ কোড',
+  invalidCode: 'অবৈধ কোড',
+  enterSixDigitCode: 'আপনার ইমেইল থেকে ৬ সংখ্যার কোডটি লিখুন।',
+  sixDigitCodeLabel: '৬ সংখ্যার কোড',
+  sendCode: 'কোড পাঠান',
+  verifyAndSignIn: 'যাচাই করুন ও সাইন ইন করুন',
+  resendCode: 'কোড পুনরায় পাঠান',
+
+  // ── TwoFactorChallengeScreen ──────────────────────────────────────────────
+  twoFactorTitle: 'দ্বি-স্তরীয় যাচাইকরণ',
+  twoFactorHelp:
+    'সাইন ইন সম্পন্ন করতে আপনার অথেনটিকেটর অ্যাপ থেকে ৬ সংখ্যার কোডটি লিখুন।',
+  authenticatorCodeLabel: 'অথেনটিকেটর কোড',
+  invalidCodeAlert: 'আপনার অথেনটিকেটর অ্যাপ থেকে ৬ সংখ্যার কোডটি লিখুন।',
+  noSessionSignInAgain: 'কোনো সেশন পাওয়া যায়নি। আবার সাইন ইন করুন।',
+  invalidVerificationCode: 'অবৈধ যাচাইকরণ কোড',
+  verify: 'যাচাই করুন',
+
+  // ── TruecallerLoginScreen ─────────────────────────────────────────────────
+  truecallerTitle: 'Truecaller দিয়ে সাইন ইন',
+  truecallerSubtitle: 'কয়েক সেকেন্ডে আপনার ভারতীয় মোবাইল নম্বর দিয়ে যাচাই করুন।',
+  requestPhonePermissions:
+    'আপনার নম্বর যাচাই করতে আমরা ফোন অনুমতি চাইব।',
+  permissionsRequired:
+    'Truecaller{{suffix}} দিয়ে চালিয়ে যেতে ফোন অনুমতি আবশ্যক। সেটিংসে গিয়ে অনুমতি দিন অথবা পরিবর্তে ইমেইল দিয়ে সাইন ইন করুন।',
+  loginFailed: 'লগইন ব্যর্থ',
+  noSessionByServer: 'সার্ভার থেকে কোনো সেশন পাওয়া যায়নি।',
+  networkError: 'নেটওয়ার্ক ত্রুটি',
+  truecallerAuthFailed: 'Truecaller যাচাইকরণ ব্যর্থ',
+  verificationFailed: 'যাচাইকরণ ব্যর্থ',
+  missingAccessToken: 'Truecaller থেকে অ্যাক্সেস টোকেন পাওয়া যায়নি।',
+  incompleteSignedPayload: 'Truecaller থেকে অসম্পূর্ণ স্বাক্ষরিত পেলোড।',
+  truecallerCannotVerify: 'Truecaller নম্বরটি যাচাই করতে পারেনি।',
+  unknownError: 'অজানা ত্রুটি',
+  networkCheckMessage:
+    'ইন্টারনেট সংযোগ নেই। আপনার নেটওয়ার্ক চেক করুন এবং আবার চেষ্টা করুন',
+  truecallerErrorPrefix: 'Truecaller ত্রুটি: ',
+  waitingForMissedCall: 'মিসড কলের জন্য অপেক্ষা করছে',
+  missedCallBody:
+    'শীঘ্রই আপনার কাছে একটি মিসড কল আসবে। কলটি তুলবেন না — Truecaller স্বয়ংক্রিয়ভাবে যাচাই করবে।',
+  expiresIn: '{{seconds}}s-এ মেয়াদ শেষ',
+  verifyingWithUpcheck: 'Upcheck-এর সাথে যাচাই হচ্ছে...',
+  signInWithEmail: 'ইমেইল দিয়ে সাইন ইন',
+
+  // ── OtpEntrySection ───────────────────────────────────────────────────────
+  enterOtpTitle: 'OTP লিখুন',
+  otpSubtitle:
+    'আমরা আপনার ফোনে একটি যাচাইকরণ কোড পাঠিয়েছি। চালিয়ে যেতে নিচে লিখুন।',
+  otpExpired: 'OTP মেয়াদোত্তীর্ণ',
+  otpExpiresIn: '{{time}}-এ মেয়াদ শেষ',
+  otpLabel: 'OTP',
+  otpPlaceholder: 'কোড লিখুন',
+  invalidOtp: 'অবৈধ OTP',
+  resendOtp: 'OTP পুনরায় পাঠান',
+  resendOtpIn: '{{time}}-এ OTP পুনরায় পাঠান',
+  verificationFailedError: 'যাচাইকরণ ব্যর্থ',
+
+  // ── PhoneEntrySection ─────────────────────────────────────────────────────
+  verifyPhoneTitle: 'আপনার ফোন নম্বর যাচাই করুন',
+  verifyPhoneSubtitle:
+    'আমরা আপনার ভারতীয় মোবাইল নম্বরে একটি যাচাইকরণ কোড পাঠাব।',
+  firstNameInputLabel: 'প্রথম নাম',
+  firstNameInputPlaceholder: 'আপনার প্রথম নাম',
+  lastNameInputLabel: 'পদবি (ঐচ্ছিক)',
+  lastNameInputPlaceholder: 'আপনার পদবি',
+  mobileNumberLabel: 'মোবাইল নম্বর',
+  mobileNumberHint: '১০ সংখ্যার ভারতীয় মোবাইল নম্বর',
+  invalidPhoneError: 'সঠিক ১০ সংখ্যার ভারতীয় মোবাইল নম্বর লিখুন',
+  invalidFirstNameError: 'আপনার প্রথম নাম লিখুন',
+  sendVerificationCode: 'যাচাইকরণ কোড পাঠান',
+};
+export default auth;

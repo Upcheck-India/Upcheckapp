@@ -132,7 +132,9 @@ describe('CropsService', () => {
 
       expect(repository.findOneBy).toHaveBeenCalledWith({ id: cropId });
       expect(pondsService.findOne).toHaveBeenCalledWith(mockCrop.pondId, userId);
-      expect(result).toEqual(mockCrop);
+      // findOne enriches the entity with a derived `computedDOC` field, so assert
+      // the original fields are present rather than strict equality.
+      expect(result).toEqual(expect.objectContaining(mockCrop));
     });
 
     it('should throw NotFoundException when crop not found', async () => {

@@ -1,14 +1,17 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { SkeletonList } from '../../components/ui/Skeleton';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { alertsApi, AlertData } from '../../api/alerts';
+import { useNotificationStore } from '../../store/notificationStore';
 
 export const NotificationsScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
     const [notifications, setNotifications] = useState<AlertData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -48,6 +51,18 @@ export const NotificationsScreen = ({ navigation }: any) => {
             const { data } = await alertsApi.findMine();
             setNotifications(data || []);
             cacheRef.current = { data: data || [], timestamp: Date.now() };
+            // Mirror into the global notification store so the unread badge /
+            // other surfaces stay in sync.
+            useNotificationStore.getState().setNotifications(
+                (data || []).map((a) => ({
+                    id: a.id,
+                    title: a.title,
+                    message: a.message,
+                    level: a.severity,
+                    isRead: a.isRead,
+                    createdAt: a.createdAt,
+                })) as any,
+            );
             fadeIn();
         } catch (err: any) {
             const statusCode = err?.response?.status;
@@ -61,9 +76,9 @@ export const NotificationsScreen = ({ navigation }: any) => {
         }
     }, [fadeIn]);
 
-    useState(() => {
+    useEffect(() => {
         fetchAlerts();
-    });
+    }, [fetchAlerts]);
 
     const handleRefresh = useCallback(() => {
         setIsRefreshing(true);
@@ -149,7 +164,7 @@ export const NotificationsScreen = ({ navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Notifications</Text>
+                <Text style={styles.title}>{t('settings.notificationsTitle')}</Text>
                 <TouchableOpacity onPress={markAllAsRead} style={styles.actionBtn}>
                     <MaterialCommunityIcons name="check-all" size={24} color={theme.roles.light.primary} />
                 </TouchableOpacity>
@@ -161,7 +176,7 @@ export const NotificationsScreen = ({ navigation }: any) => {
                 <NetworkError onRetry={handleRetry} />
             ) : error && notifications.length === 0 ? (
                 <ErrorState
-                    title="Couldn't Load Notifications"
+                    title={t('settings.notificationsLoadError')}
                     error={error}
                     onRetry={handleRetry}
                 />
@@ -182,8 +197,8 @@ export const NotificationsScreen = ({ navigation }: any) => {
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <MaterialCommunityIcons name="bell-outline" size={64} color={theme.roles.light.borderDefault} />
-                            <Text style={styles.emptyTitle}>All Caught Up!</Text>
-                            <Text style={styles.emptyText}>You have no new notifications.</Text>
+                            <Text style={styles.emptyTitle}>{t('settings.notificationsEmpty')}</Text>
+                            <Text style={styles.emptyText}>{t('settings.notificationsEmptyDesc')}</Text>
                         </View>
                     }
                 />

@@ -74,7 +74,7 @@ export class DatabaseQualityFixes1740487200000 implements MigrationInterface {
         // Crop → Broodstock
         await queryRunner.query(`
             DO $$ BEGIN
-                ALTER TABLE "crops" ADD CONSTRAINT "FK_crops_broodstock_id" FOREIGN KEY ("broodstock_id") REFERENCES "broodstock"("id") ON DELETE SET NULL;
+                ALTER TABLE "crops" ADD CONSTRAINT "FK_crops_broodstock_id" FOREIGN KEY ("broodstock_id") REFERENCES "broodstocks"("id") ON DELETE SET NULL;
             EXCEPTION WHEN duplicate_object THEN NULL;
             END $$
         `);

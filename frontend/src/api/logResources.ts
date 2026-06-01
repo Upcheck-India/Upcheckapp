@@ -115,17 +115,29 @@ export const logResourcesApi = {
         apiClient.get<ChemicalRecord[]>(`/chemical-data/crop/${cropId}`),
     createChemical: (data: CreateChemicalDataDto) =>
         apiClient.post<ChemicalRecord>('/chemical-data', data),
+    updateChemical: (id: string, data: Partial<CreateChemicalDataDto>) =>
+        apiClient.patch<ChemicalRecord>(`/chemical-data/${id}`, data),
+    removeChemical: (id: string) =>
+        apiClient.delete(`/chemical-data/${id}`),
 
     // Plankton - requires cropId for fetching
     getPlanktonByCrop: (cropId: string) =>
         apiClient.get<PlanktonRecord[]>(`/plankton-data/crop/${cropId}`),
     createPlankton: (data: CreatePlanktonDataDto) =>
         apiClient.post<PlanktonRecord>('/plankton-data', data),
+    updatePlankton: (id: string, data: Partial<CreatePlanktonDataDto>) =>
+        apiClient.patch<PlanktonRecord>(`/plankton-data/${id}`, data),
+    removePlankton: (id: string) =>
+        apiClient.delete(`/plankton-data/${id}`),
 
     // Microbiology - requires cropId for fetching
     getMicrobiologyByCrop: (cropId: string) =>
         apiClient.get<MicrobiologyRecord[]>(`/microbiology-data/crop/${cropId}`),
     createMicrobiology: (data: CreateMicrobiologyDataDto) =>
         apiClient.post<MicrobiologyRecord>('/microbiology-data', data),
+    updateMicrobiology: (id: string, data: Partial<CreateMicrobiologyDataDto>) =>
+        apiClient.patch<MicrobiologyRecord>(`/microbiology-data/${id}`, data),
+    removeMicrobiology: (id: string) =>
+        apiClient.delete(`/microbiology-data/${id}`),
 };
 

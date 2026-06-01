@@ -183,4 +183,18 @@ export class DiseaseService {
             order: { recordedDate: 'DESC' },
         });
     }
+
+    async updateRecord(id: string, dto: Partial<CreateDiseaseRecordDto>): Promise<DiseaseRecord> {
+        const record = await this.diseaseRecordRepository.findOneBy({ id });
+        if (!record) throw new NotFoundException(`Disease record ${id} not found`);
+        await this.diseaseRecordRepository.update(id, dto);
+        return this.diseaseRecordRepository.findOneBy({ id }) as Promise<DiseaseRecord>;
+    }
+
+    async removeRecord(id: string): Promise<{ message: string }> {
+        const record = await this.diseaseRecordRepository.findOneBy({ id });
+        if (!record) throw new NotFoundException(`Disease record ${id} not found`);
+        await this.diseaseRecordRepository.delete(id);
+        return { message: 'Disease record deleted' };
+    }
 }

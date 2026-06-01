@@ -15,6 +15,17 @@ export interface Species {
     createdAt: string;
 }
 
+export interface CreateSpeciesDto {
+    scientificName: string;
+    commonName?: string;
+    optimalPhMin?: number;
+    optimalPhMax?: number;
+    optimalSalinityMin?: number;
+    optimalSalinityMax?: number;
+    optimalTempMin?: number;
+    optimalTempMax?: number;
+}
+
 // ── Hatchery ──
 
 export interface Hatchery {
@@ -24,6 +35,13 @@ export interface Hatchery {
     contactInfo?: object;
     isActive: boolean;
     createdAt: string;
+}
+
+export interface CreateHatcheryDto {
+    name: string;
+    location?: string;
+    contactInfo?: object;
+    isActive?: boolean;
 }
 
 // ── Broodstock ──
@@ -38,6 +56,14 @@ export interface Broodstock {
     createdAt: string;
 }
 
+export interface CreateBroodstockDto {
+    supplier: string;
+    lineCode?: string;
+    origin?: string;
+    specifications?: object;
+    isActive?: boolean;
+}
+
 export const referenceApi = {
     // Species
     getAllSpecies: () =>
@@ -46,6 +72,9 @@ export const referenceApi = {
     getSpeciesById: (id: string) =>
         apiClient.get<Species>(`/reference/species/${id}`),
 
+    createSpecies: (data: CreateSpeciesDto) =>
+        apiClient.post<Species>('/reference/species', data),
+
     // Hatcheries
     getAllHatcheries: () =>
         apiClient.get<Hatchery[]>('/reference/hatcheries'),
@@ -53,10 +82,16 @@ export const referenceApi = {
     getHatcheryById: (id: string) =>
         apiClient.get<Hatchery>(`/reference/hatcheries/${id}`),
 
+    createHatchery: (data: CreateHatcheryDto) =>
+        apiClient.post<Hatchery>('/reference/hatcheries', data),
+
     // Broodstocks
     getAllBroodstocks: () =>
         apiClient.get<Broodstock[]>('/reference/broodstocks'),
 
     getBroodstockById: (id: string) =>
         apiClient.get<Broodstock>(`/reference/broodstocks/${id}`),
+
+    createBroodstock: (data: CreateBroodstockDto) =>
+        apiClient.post<Broodstock>('/reference/broodstocks', data),
 };

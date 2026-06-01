@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query } from '@nestjs/common';
 import { ShrimpCalculationsService } from './shrimp-calculations.service';
 import {
     CalculateFcrDto,

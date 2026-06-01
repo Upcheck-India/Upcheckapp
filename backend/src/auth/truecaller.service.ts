@@ -1,7 +1,8 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, Optional, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import * as crypto from 'crypto';
+import { RedisService } from '../redis/redis.service';
 
 /**
  * RSA public key entry returned by `https://api4.truecaller.com/v1/key`.
@@ -366,6 +367,52 @@ export class InMemoryNonceReplayStore implements NonceReplayStore {
 }
 
 /**
+ * Redis-backed {@link NonceReplayStore} for multi-instance deployments.
+ *
+ * A nonce is stored under `truecaller:nonce:<nonce>` with a TTL equal to the
+ * configured nonce window, so a replay attempted on any instance sharing the
+ * same Redis is rejected (the documented `SET … EX` strategy). When Redis is
+ * unavailable, {@link RedisService} transparently falls back to its own
+ * per-process in-memory map — i.e. behaviour degrades to the single-process
+ * guarantee rather than failing closed.
+ */
+export class RedisNonceReplayStore implements NonceReplayStore {
+  private static readonly PREFIX = 'truecaller:nonce:';
+
+  constructor(
+    private readonly redis: {
+      get(key: string): Promise<string | null>;
+      set(key: string, value: string, mode?: 'EX', duration?: number): Promise<void>;
+    },
+    private readonly ttlMs: number,
+  ) {
+    if (!Number.isFinite(ttlMs) || ttlMs <= 0) {
+      throw new Error(
+        `RedisNonceReplayStore: ttlMs must be a positive finite number (got ${ttlMs})`,
+      );
+    }
+  }
+
+  private key(nonce: string): string {
+    return `${RedisNonceReplayStore.PREFIX}${nonce}`;
+  }
+
+  async assertUnused(nonce: string): Promise<void> {
+    const existing = await this.redis.get(this.key(nonce));
+    if (existing !== null) {
+      throw new UnauthorizedException({
+        success: false,
+        message: 'Nonce already used',
+      });
+    }
+  }
+
+  async markUsed(nonce: string): Promise<void> {
+    await this.redis.set(this.key(nonce), '1', 'EX', Math.ceil(this.ttlMs / 1000));
+  }
+}
+
+/**
  * Server-side verifier for Truecaller One-Tap signed payloads (Flow A) and
  * OTP / missed-call access tokens (Flow B).
  *
@@ -387,7 +434,10 @@ export class TruecallerService {
   private readonly keyCache: TruecallerKeyCache;
   private readonly nonceStore: NonceReplayStore;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    @Optional() private readonly redisService?: RedisService,
+  ) {
     this.keysApiUrl =
       this.configService.get<string>('TRUECALLER_KEYS_API_URL') ||
       TRUECALLER_DEFAULT_KEYS_API_URL;
@@ -408,7 +458,12 @@ export class TruecallerService {
     this.nonceTtlMs = nonceTtlSec * 1000;
 
     this.keyCache = this.buildInMemoryKeyCache();
-    this.nonceStore = this.buildInMemoryNonceStore();
+    // Prefer a Redis-backed replay store so replay rejection holds across
+    // multiple backend instances; fall back to in-memory when Redis is not
+    // wired in (e.g. unit tests constructing the service directly).
+    this.nonceStore = this.redisService
+      ? new RedisNonceReplayStore(this.redisService, this.nonceTtlMs)
+      : this.buildInMemoryNonceStore();
   }
 
   // ──────────────────────────────────────────────────────────────────

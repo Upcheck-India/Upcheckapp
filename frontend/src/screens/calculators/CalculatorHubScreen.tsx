@@ -1,57 +1,68 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { theme } from '../../theme';
 
-const calculators = [
-    {
-        id: 'performance',
-        title: 'Cultivation Performance',
-        description: 'Calculate FCR, ADG, Survival Rate, and Productivity',
-        icon: 'chart-line',
-        route: 'CultivationPerformance',
-        color: theme.roles.light.primary,
-    },
-    {
-        id: 'dailyFeed',
-        title: 'Daily Feed Amount',
-        description: 'Determine required feed based on MBW, SR and Feeding table',
-        icon: 'corn',
-        route: 'DailyFeedCalculator',
-        color: theme.roles.light.warningText,
-    },
-    {
-        id: 'productAmount',
-        title: 'Product Dosage',
-        description: 'Calculate product/chemical amount based on pond volume and ppm target',
-        icon: 'flask-outline',
-        route: 'ProductAmount',
-        color: theme.roles.light.infoBorder,
-    },
-    {
-        id: 'freeAmmonia',
-        title: 'Free Ammonia (NH3)',
-        description: 'Calculate toxic free ammonia from TAN, pH, Temp and Salinity',
-        icon: 'alert-decagram',
-        route: 'FreeAmmonia',
-        color: theme.roles.light.dangerText,
-    }
-];
-
 export const CalculatorHubScreen = ({ navigation }: any) => {
+    const { t } = useTranslation();
+
+    const calculators = [
+        {
+            id: 'performance',
+            title: t('calculators.hub.performance.title'),
+            description: t('calculators.hub.performance.description'),
+            icon: 'chart-line',
+            route: 'CultivationPerformance',
+            color: theme.roles.light.primary,
+        },
+        {
+            id: 'dailyFeed',
+            title: t('calculators.hub.dailyFeed.title'),
+            description: t('calculators.hub.dailyFeed.description'),
+            icon: 'corn',
+            route: 'DailyFeedCalculator',
+            color: theme.roles.light.warningText,
+        },
+        {
+            id: 'productAmount',
+            title: t('calculators.hub.productAmount.title'),
+            description: t('calculators.hub.productAmount.description'),
+            icon: 'flask-outline',
+            route: 'ProductAmount',
+            color: theme.roles.light.infoBorder,
+        },
+        {
+            id: 'freeAmmonia',
+            title: t('calculators.hub.freeAmmonia.title'),
+            description: t('calculators.hub.freeAmmonia.description'),
+            icon: 'alert-decagram',
+            route: 'FreeAmmonia',
+            color: theme.roles.light.dangerText,
+        },
+        {
+            id: 'growthHarvest',
+            title: t('calculators.hub.growthHarvest.title'),
+            description: t('calculators.hub.growthHarvest.description'),
+            icon: 'shrimp',
+            route: 'GrowthAndHarvest',
+            color: theme.roles.light.successText,
+        },
+    ];
+
     return (
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Tools & Calculators</Text>
+                <Text style={styles.title}>{t('calculators.hub.title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.subtitle}>Select a calculator</Text>
+                <Text style={styles.subtitle}>{t('calculators.hub.subtitle')}</Text>
 
                 <View style={styles.grid}>
                     {calculators.map((calc) => (

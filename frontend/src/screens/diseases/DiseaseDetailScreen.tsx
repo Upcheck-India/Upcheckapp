@@ -9,22 +9,24 @@ import {
     RefreshControl,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { diseaseApi, DiseaseLibrary } from '../../api/diseases';
 
-const SEVERITY_CONFIG = {
-    low: { label: 'Low', color: theme.roles.light.successText, bg: theme.roles.light.successBg, border: theme.roles.light.successBorder },
-    medium: { label: 'Medium', color: theme.roles.light.warningText, bg: theme.roles.light.warningBg, border: theme.roles.light.warningBorder },
-    high: { label: 'High', color: theme.roles.light.dangerText, bg: theme.roles.light.dangerBg, border: theme.roles.light.dangerBorder },
-} as const;
-
-type Severity = keyof typeof SEVERITY_CONFIG;
+type Severity = 'low' | 'medium' | 'high';
 
 export const DiseaseDetailScreen = ({ route, navigation }: any) => {
     const { diseaseId } = route.params;
+    const { t } = useTranslation();
+
+    const SEVERITY_CONFIG: Record<Severity, { label: string; color: string; bg: string; border: string }> = {
+        low: { label: t('content.diseases.severityLow'), color: theme.roles.light.successText, bg: theme.roles.light.successBg, border: theme.roles.light.successBorder },
+        medium: { label: t('content.diseases.severityMedium'), color: theme.roles.light.warningText, bg: theme.roles.light.warningBg, border: theme.roles.light.warningBorder },
+        high: { label: t('content.diseases.severityHigh'), color: theme.roles.light.dangerText, bg: theme.roles.light.dangerBg, border: theme.roles.light.dangerBorder },
+    };
 
     const [disease, setDisease] = useState<DiseaseLibrary | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -60,7 +62,7 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
             cropId: '',
             prefillDiseaseId: disease?.id,
             prefillDiseaseName: disease?.name,
-            prefillSeverity: disease?.severity,
+            prefillSeverity: disease?.severityLevel,
         });
     };
 
@@ -107,7 +109,7 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
                             color={theme.roles.light.textPrimary}
                         />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Disease Details</Text>
+                    <Text style={styles.headerTitle}>{t('content.diseases.detailTitle')}</Text>
                     <View style={{ width: 40 }} />
                 </View>
                 <View style={styles.loadingContainer}>
@@ -128,7 +130,7 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
                             color={theme.roles.light.textPrimary}
                         />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Disease Details</Text>
+                    <Text style={styles.headerTitle}>{t('content.diseases.detailTitle')}</Text>
                     <View style={{ width: 40 }} />
                 </View>
                 <View style={styles.errorState}>
@@ -137,17 +139,17 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
                         size={48}
                         color={theme.roles.light.dangerText}
                     />
-                    <Text style={styles.errorTitle}>Failed to load disease</Text>
-                    <Text style={styles.errorMessage}>{error || 'Disease not found'}</Text>
+                    <Text style={styles.errorTitle}>{t('content.diseases.detailErrorTitle')}</Text>
+                    <Text style={styles.errorMessage}>{error || t('content.diseases.detailErrorFallback')}</Text>
                     <TouchableOpacity style={styles.retryBtn} onPress={fetchDisease}>
-                        <Text style={styles.retryText}>Retry</Text>
+                        <Text style={styles.retryText}>{t('common.retry')}</Text>
                     </TouchableOpacity>
                 </View>
             </ScreenWrapper>
         );
     }
 
-    const sevConfig = getSeverityConfig(disease.severity);
+    const sevConfig = getSeverityConfig(disease.severityLevel);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -193,7 +195,7 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
                             ) : null}
                             {disease.commonNames && disease.commonNames.length > 0 ? (
                                 <Text style={styles.commonNames}>
-                                    Also known as: {disease.commonNames.join(', ')}
+                                    {t('content.diseases.alsoKnownAs', { names: disease.commonNames.join(', ') })}
                                 </Text>
                             ) : null}
                         </View>
@@ -206,7 +208,7 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
                                 color={sevConfig.color}
                             />
                             <Text style={[styles.severityLabel, { color: sevConfig.color }]}>
-                                Severity: {sevConfig.label}
+                                {t('content.diseases.severityLabel', { level: sevConfig.label })}
                             </Text>
                         </View>
                     ) : null}
@@ -221,7 +223,7 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
                                 size={20}
                                 color={theme.roles.light.primary}
                             />
-                            <Text style={styles.sectionTitle}>Description</Text>
+                            <Text style={styles.sectionTitle}>{t('content.diseases.sectionDescription')}</Text>
                         </View>
                         <Text style={styles.descriptionText}>{disease.description}</Text>
                     </Card>
@@ -235,7 +237,7 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
                             size={20}
                             color={theme.roles.light.primary}
                         />
-                        <Text style={styles.sectionTitle}>Images</Text>
+                        <Text style={styles.sectionTitle}>{t('content.diseases.sectionImages')}</Text>
                     </View>
                     <View style={styles.galleryPlaceholder}>
                         <MaterialCommunityIcons
@@ -245,24 +247,26 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
                         />
                         <Text style={styles.galleryText}>
                             {disease.imageUrls && disease.imageUrls.length > 0
-                                ? `${disease.imageUrls.length} image${disease.imageUrls.length !== 1 ? 's' : ''} available`
-                                : 'No images available'}
+                                ? (disease.imageUrls.length !== 1
+                                    ? t('content.diseases.imagesAvailableOther', { count: disease.imageUrls.length })
+                                    : t('content.diseases.imagesAvailable', { count: disease.imageUrls.length }))
+                                : t('content.diseases.noImages')}
                         </Text>
                     </View>
                 </Card>
 
                 {/* Symptoms */}
-                {renderSection('Symptoms', 'stethoscope', disease.symptoms)}
+                {renderSection(t('content.diseases.sectionSymptoms'), 'stethoscope', disease.symptoms)}
 
                 {/* Prevention Measures */}
-                {renderSection('Prevention', 'shield-check', disease.preventionMeasures)}
+                {renderSection(t('content.diseases.sectionPrevention'), 'shield-check', disease.preventionMeasures)}
 
                 {/* Treatment Recommendations */}
-                {renderSection('Treatment', 'medical-bag', disease.treatmentRecommendations)}
+                {renderSection(t('content.diseases.sectionTreatment'), 'medical-bag', disease.treatmentRecommendations)}
 
                 {/* Log Disease Button */}
                 <Button
-                    title="Log This Disease"
+                    title={t('content.diseases.logButton')}
                     onPress={handleLogDisease}
                     icon={
                         <MaterialCommunityIcons

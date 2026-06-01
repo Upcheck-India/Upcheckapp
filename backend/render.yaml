@@ -7,7 +7,7 @@ services:
     rootDir: backend
     buildCommand: npm ci && npm run build
     startCommand: npm run start:prod
-    healthCheckPath: /api/auth/health
+    healthCheckPath: /api/health
     autoDeploy: true
     envVars:
       - key: NODE_ENV
@@ -48,19 +48,4 @@ services:
         value: Upcheck
       - key: SMTP_SENDER_EMAIL
         sync: false
-  # Cron Job for OTP Cleanup (hourly)
-  - type: cron
-    name: otp-cleanup
-    env: node
-    plan: free
-    rootDir: backend
-    schedule: "0 * * * *"
-    buildCommand: npm ci
-    startCommand: npm run otp-cleanup
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
+  # Note: former otp-cleanup cron removed — OTP is Supabase-native and 2FA tokens auto-expire in Redis.

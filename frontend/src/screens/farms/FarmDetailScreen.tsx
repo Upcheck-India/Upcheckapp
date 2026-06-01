@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
@@ -13,6 +14,7 @@ import { theme } from '../../theme';
 import { pondsApi, Pond } from '../../api/ponds';
 
 export const FarmDetailScreen = ({ route, navigation }: any) => {
+    const { t } = useTranslation();
     const { farmId, farmName } = route.params;
     const [ponds, setPonds] = useState<Pond[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -144,12 +146,12 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                             {item.activeCycleId ? (
                                 <View style={styles.metric}>
                                     <MaterialCommunityIcons name="water-check" size={16} color={theme.roles.light.successText} />
-                                    <Text style={[styles.metricText, { color: theme.roles.light.successText }]}>Active Cycle</Text>
+                                    <Text style={[styles.metricText, { color: theme.roles.light.successText }]}>{t('farms.activeCycle')}</Text>
                                 </View>
                             ) : (
                                 <View style={styles.metric}>
                                     <MaterialCommunityIcons name="water-off" size={16} color={theme.roles.light.textDisabled} />
-                                    <Text style={styles.metricText}>No Active Cycle</Text>
+                                    <Text style={styles.metricText}>{t('farms.noActiveCycle')}</Text>
                                 </View>
                             )}
                         </View>
@@ -166,9 +168,17 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{farmName}</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('CreatePond', { farmId })}>
-                    <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] }}>
+                    <TouchableOpacity onPress={() => navigation.navigate('TaskList', { farmId, farmName })} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <MaterialCommunityIcons name="clipboard-check-outline" size={24} color={theme.roles.light.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate('Transactions', { farmId, farmName })} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <MaterialCommunityIcons name="cash-multiple" size={24} color={theme.roles.light.primary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate('CreatePond', { farmId })}>
+                        <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {isLoading ? (
@@ -177,7 +187,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 <NetworkError onRetry={handleRetry} />
             ) : error && ponds.length === 0 ? (
                 <ErrorState
-                    title="Couldn't Load Ponds"
+                    title={t('farms.errorPondsTitle')}
                     error={error}
                     onRetry={handleRetry}
                 />
@@ -198,9 +208,9 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                     ListEmptyComponent={
                         <EmptyState
                             icon="water-outline"
-                            title="No Ponds Found"
-                            subtitle="Add ponds to this farm to begin tracking cycles."
-                            actionLabel="Add Pond"
+                            title={t('farms.noPondsTitle')}
+                            subtitle={t('farms.noPondsSubtitle')}
+                            actionLabel={t('farms.addPond')}
                             onAction={() => navigation.navigate('CreatePond', { farmId })}
                         />
                     }

@@ -34,7 +34,7 @@ export class FeedRecordsService {
 
         // If inventory item selected, deduct stock (skip for fasting days)
         if (createDto.inventoryItemId && !createDto.isFasting) {
-            await this.inventoryService.adjustStock(createDto.inventoryItemId, -createDto.quantityKg);
+            await this.inventoryService.adjustStock(createDto.inventoryItemId, -createDto.quantityKg, userId);
         }
 
         const record = this.recordsRepository.create({
@@ -52,13 +52,17 @@ export class FeedRecordsService {
         return this.recordsRepository.save(record);
     }
 
-    async findAll(pondId?: string, pageOptionsDto?: PageOptionsDto): Promise<PageDto<FeedRecord>> {
+    async findAll(pondId?: string, cropId?: string, pageOptionsDto?: PageOptionsDto): Promise<PageDto<FeedRecord>> {
         const skip = pageOptionsDto?.skip || 0;
         const take = pageOptionsDto?.take || 10;
         const order = pageOptionsDto?.order || 'DESC';
 
+        const where: any = {};
+        if (pondId) where.pondId = pondId;
+        if (cropId) where.cropId = cropId;
+
         const [items, itemCount] = await this.recordsRepository.findAndCount({
-            where: pondId ? { pondId } : {},
+            where,
             order: { recordedAt: order },
             take,
             skip,
