@@ -156,8 +156,8 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
-    // Truecaller SDK 3.1.0 (for TruecallerAuthModule.java)
-    implementation 'com.truecaller.android.sdk:truecaller-sdk:3.1.0'
+    // Truecaller SDK is already included by @dhana-cs/react-native-truecaller package
+    // No need to add it here - autolinking handles it
 
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
