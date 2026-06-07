@@ -3,7 +3,15 @@
     "allow": [
       "Bash(eas build *)",
       "Bash(npx expo *)",
-      "Bash(npx expo-modules-autolinking *)"
+      "Bash(npx expo-modules-autolinking *)",
+      "WebSearch",
+      "WebFetch(domain:docs.truecaller.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:developer.truecaller.com)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }
