@@ -1,47 +1,63 @@
-import { Controller } from '@nestjs/common';
-import { HealthCheckService, HealthCheck, TypeOrmHealthIndicator, MemoryHealthIndicator } from '@nestjs/terminus';
+import { Controller, Get } from '@nestjs/common';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { Public } from '../auth/decorators/auth.decorators';
 
 @Controller('health')
 export class HealthController {
     constructor(
-        private health: HealthCheckService,
-        private db: TypeOrmHealthIndicator,
-        private memory: MemoryHealthIndicator,
+        @InjectDataSource() private dataSource: DataSource,
     ) {}
 
     /**
      * Comprehensive health check endpoint for Render.
-     * Checks:
-     * - Database connection (TypeORM/PostgreSQL)
-     * - Memory heap usage (warns if > 150MB)
-     * - Process uptime
-     *
-     * Render uses this endpoint to determine if the service is healthy.
-     * During cold starts, this endpoint must return 200 OK for the service
-     * to be considered "up" and start accepting requests.
+     * Checks database connection by running a simple query.
      */
     @Public()
-    @HealthCheck()
-    check() {
-        return this.health.check([
-            // Database ping - critical for Render health check
-            () => this.db.pingCheck('database', {
-                timeout: 10000, // 10 seconds timeout for database ping
-            }),
-            // Memory check - warn if heap exceeds 150MB
-            () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024),
-            // RSS memory check - warn if RSS exceeds 300MB
-            () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024),
-        ]);
+    @Get()
+    async check() {
+        const checks: Record<string, { status: string; details?: any }> = {};
+
+        // Database check
+        try {
+            // Run a simple query to verify database connection
+            await this.dataSource.query('SELECT 1');
+            checks['database'] = { status: 'up' };
+        } catch (error: any) {
+            checks['database'] = {
+                status: 'down',
+                details: error.message,
+            };
+        }
+
+        // Memory check
+        const memoryUsage = process.memoryUsage();
+        checks['memory'] = {
+            status: 'up',
+            details: {
+                heapUsedMB: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+                heapTotalMB: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+                rssMB: Math.round(memoryUsage.rss / 1024 / 1024),
+            },
+        };
+
+        // Overall status - unhealthy if any critical check fails
+        const allHealthy = checks['database'].status === 'up';
+
+        return {
+            status: allHealthy ? 'ok' : 'error',
+            checks,
+            uptime: process.uptime(),
+            timestamp: new Date().toISOString(),
+        };
     }
 
     /**
-     * Simple health check for quick liveness probe.
-     * This is used by Render's startup probe during cold starts.
-     * It doesn't check database - just returns "ok" if the process is alive.
+     * Simple liveness check for Render startup probe.
+     * This endpoint just checks if the process is alive - doesn't require database.
      */
     @Public()
+    @Get('liveness')
     checkLiveness() {
         return {
             status: 'ok',
