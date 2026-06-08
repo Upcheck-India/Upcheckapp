@@ -94,11 +94,11 @@ import { HealthModule } from './health/health.module';
           },
           // Retry connection on startup (important for cold starts)
           connectTimeoutMS: 10000,
-          // In production `synchronize` is off, so the schema is provisioned by
-          // migrations instead. Run any pending migrations automatically on boot
-          // (idempotent — TypeORM skips already-applied ones).
+          // In production `synchronize` is off, so the schema is not modified.
+          // migrationsRun is disabled because the database already has the schema
+          // from previous deployments. New migrations should be run manually via CLI.
           migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
-          migrationsRun: isProduction,
+          migrationsRun: false,
           // Keep connection alive during cold start spin-up
           keepConnectionAlive: true,
         };
