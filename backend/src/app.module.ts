@@ -39,6 +39,7 @@ import { FinancesModule } from './finances/finances.module';
 import { ReportsModule } from './reports/reports.module';
 import { TasksModule } from './tasks/tasks.module';
 import { PushModule } from './push/push.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -52,6 +53,13 @@ import { PushModule } from './push/push.module';
       useFactory: (configService: ConfigService) => {
         const type = configService.get('DB_TYPE') || 'postgres';
         const isProduction = configService.get('NODE_ENV') === 'production';
+        const databaseUrl = configService.get<string>('DATABASE_URL');
+
+        // Log for debugging (remove in production if desired)
+        if (!databaseUrl && type === 'postgres') {
+          console.error('DATABASE_URL is not set! Falling back to localhost.');
+        }
+
         const common = {
           autoLoadEntities: true,
           synchronize: !isProduction,
@@ -67,17 +75,37 @@ import { PushModule } from './push/push.module';
         return {
           ...common,
           type: 'postgres',
-          url: configService.get<string>('DATABASE_URL'),
+          url: databaseUrl,
           ssl: { rejectUnauthorized: false },
+          // Connection retry settings for Render cold starts
+          // Render may spin down the service after inactivity, and the
+          // database connection pool needs to handle reconnection gracefully.
+          extra: {
+            // Maximum time to wait for connection (10 seconds)
+            connectionTimeoutMillis: 10000,
+            // Pool size - keep small for Render free tier
+            max: 5,
+            // Minimum connections to maintain (helps with cold starts)
+            min: 1,
+            // Idle timeout - close connections after 30 seconds of inactivity
+            idleTimeoutMillis: 30000,
+            // How long a connection can be used before being closed
+            maxLifetimeMillis: 60000,
+          },
+          // Retry connection on startup (important for cold starts)
+          connectTimeoutMS: 10000,
           // In production `synchronize` is off, so the schema is provisioned by
           // migrations instead. Run any pending migrations automatically on boot
           // (idempotent — TypeORM skips already-applied ones).
           migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
           migrationsRun: isProduction,
+          // Keep connection alive during cold start spin-up
+          keepConnectionAlive: true,
         };
       },
       inject: [ConfigService],
     }),
+    HealthModule,
     ProfilesModule,
     FarmsModule,
     AuthModule,

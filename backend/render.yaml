@@ -7,23 +7,59 @@ services:
     rootDir: backend
     buildCommand: npm ci && npm run build
     startCommand: npm run start:prod
-    healthCheckPath: /api/health
+    # Health check path - checks if app is ready to serve requests
+    # Render uses this to determine service health
+    # During cold starts (after inactivity), Render gives ~30s for startup
+    # The /api/liveness endpoint is used for quick startup detection
+    # The /api/health endpoint checks database + memory (more comprehensive)
+    healthCheckPath: /api/liveness
     autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
+      # ============================================
+      # IMPORTANT: Set these in Render Dashboard!
+      # ============================================
+      # 'sync: false' means these are NOT auto-synced from this file
+      # You MUST manually add these in Render Dashboard:
+      # Dashboard > Your Service > Environment > Add Environment Variable
+      #
+      # REQUIRED for app to start:
+      # - DATABASE_URL (Supabase PostgreSQL connection string)
+      # - SUPABASE_URL
+      # - SUPABASE_ANON_KEY
+      # - SUPABASE_SERVICE_ROLE_KEY
+      # - SUPABASE_JWT_SECRET
+      # - JWT_SECRET (or JWT_PRIVATE_KEY/JWT_PUBLIC_KEY for RS256)
+      #
+      # Without DATABASE_URL, the app will fail to connect to PostgreSQL
+      # and show "ECONNREFUSED localhost:5432" error
+      # ============================================
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      # DATABASE_URL - Supabase PostgreSQL connection string
+      # Use the POOLER connection (port 6543) for better performance:
+      # Format: postgresql://postgres.[project-ref]:[password]@aws-1-[region].pooler.supabase.com:6543/postgres
+      # Example: postgresql://postgres.hporygudvkfoegxzsivt:PASSWORD@aws-1-ap-south-1.pooler.supabase.com:6543/postgres
+      # IMPORTANT: This MUST be set in Render Dashboard or app will crash!
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      # Google OAuth Client IDs - must match Google Cloud Console
+      # These are used by Supabase to verify Google OAuth tokens
       - key: GOOGLE_CLIENT_ID_WEB
         sync: false
       - key: GOOGLE_CLIENT_ID_IOS
@@ -34,6 +70,7 @@ services:
         value: "*"
       - key: FRONTEND_URL
         value: "upcheck://"
+      # Brevo/SMTP for emails
       - key: SMTP_HOST
         value: smtp-relay.brevo.com
       - key: SMTP_PORT
@@ -48,4 +85,12 @@ services:
         value: Upcheck
       - key: SMTP_SENDER_EMAIL
         sync: false
-  # Note: former otp-cleanup cron removed — OTP is Supabase-native and 2FA tokens auto-expire in Redis.
+      - key: BREVO_API_KEY
+        sync: false
+      # Truecaller SDK
+      - key: TRUECALLER_CLIENT_ID
+        sync: false
+      # Redis (optional - app falls back to in-memory store)
+      - key: REDIS_URL
+        sync: false
+  # Note: OTP is Supabase-native; 2FA tokens auto-expire in Redis or in-memory fallback.
