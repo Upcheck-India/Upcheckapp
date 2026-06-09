@@ -15,9 +15,9 @@ export function useGoogleAuth() {
     const hasClientIds = !!(extra.googleClientIdWeb || extra.googleClientIdIos || extra.googleClientIdAndroid);
 
     const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-        clientId: extra.googleClientIdWeb,
-        iosClientId: extra.googleClientIdIos,
-        androidClientId: extra.googleClientIdAndroid,
+        clientId: extra.googleClientIdWeb || undefined,
+        iosClientId: extra.googleClientIdIos || undefined,
+        androidClientId: extra.googleClientIdAndroid || undefined,
     });
 
     useEffect(() => {
