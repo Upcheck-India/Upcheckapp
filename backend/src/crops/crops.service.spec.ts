@@ -151,10 +151,7 @@ describe('CropsService', () => {
     it('should update a crop', async () => {
       const cropId = 'crop-1';
       const userId = 'user-1';
-      const updatedCrop = {
-        ...mockCrop,
-        status: 'completed',
-      };
+      const updatedCrop = Object.assign(new Crop(), mockCrop, { status: 'completed' });
 
       jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
       (repository.update as jest.Mock).mockResolvedValue(undefined);
@@ -197,12 +194,11 @@ describe('CropsService', () => {
       jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
       pondsService.findOne.mockResolvedValue(mockPond as any);
       (repository.update as jest.Mock).mockResolvedValue(undefined);
-      jest.spyOn(service, 'findOne').mockResolvedValue({
-        ...mockCrop,
+      jest.spyOn(service, 'findOne').mockResolvedValue(Object.assign(new Crop(), mockCrop, {
         status: 'harvested',
         actualHarvestDate: harvestData.actualHarvestDate,
-        harvestWeightKg: harvestData.harvestWeightKg
-      });
+        harvestWeightKg: harvestData.harvestWeightKg,
+      }));
 
       const result = await service.harvest(cropId, harvestData, userId);
 

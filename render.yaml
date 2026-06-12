@@ -18,23 +18,25 @@ services:
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
-      - key: SUPABASE_JWT_SECRET
+      # Boot-critical: SupabaseAuthService throws at startup when this is
+      # missing, which crash-loops the deploy (requests then hang at the edge).
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      # Must be a Supavisor pooler URL (aws-0-<region>.pooler.supabase.com).
+      # Render has no IPv6 egress and Supabase direct hosts
+      # (db.<ref>.supabase.co) are IPv6-only without the IPv4 add-on — a direct
+      # URL makes the DB connection hang and the deploy never becomes healthy.
       - key: DATABASE_URL
         sync: false
-      - key: SMTP_HOST
-        value: smtp-relay.brevo.com
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_SECURE
-        value: "false"
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
+      # Email goes through the Brevo HTTP API (src/email.service.ts), not SMTP.
+      - key: BREVO_API_KEY
         sync: false
       - key: SMTP_SENDER_NAME
         value: Upcheck
       - key: SMTP_SENDER_EMAIL
+        sync: false
+      # Used in password-reset / verification email links.
+      - key: FRONTEND_URL
         sync: false
   # Note: a former "otp-cleanup" cron was removed — OTP login is Supabase-native
   # and 2FA pending/temp tokens auto-expire in Redis, so there is nothing to prune.

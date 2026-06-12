@@ -1,3 +1,4 @@
+/// <reference types="node" />
 const TRUECALLER_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_TRUECALLER_ANDROID_CLIENT_ID || 'e98dcupeqtmcocbxr7qb4g7b4sub8blazhxrt-1ikmw';
 
 export default {
@@ -67,12 +68,6 @@ export default {
           color: "#ffffff"
         }
       ],
-      [
-        "./node_modules/@dhana-cs/react-native-truecaller/plugins/withTruecaller.js",
-        {
-          clientId: TRUECALLER_ANDROID_CLIENT_ID,
-        }
-      ]
     ],
     runtimeVersion: "1.0.0",
     updates: {

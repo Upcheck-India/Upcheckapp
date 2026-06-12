@@ -25,4 +25,7 @@ export const alertsApi = {
 
     markAllAsRead: () =>
         apiClient.patch('/alerts/me/read-all'),
+
+    remove: (id: string) =>
+        apiClient.delete(`/alerts/${id}`),
 };

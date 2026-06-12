@@ -126,6 +126,19 @@ export const NotificationsScreen = ({ navigation }: any) => {
         }
     };
 
+    const deleteAlert = async (id: string) => {
+        const previous = notifications;
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        cacheRef.current = null;
+        useNotificationStore.getState().removeNotification(id);
+        try {
+            await alertsApi.remove(id);
+        } catch (e) {
+            console.error('Failed to delete alert', e);
+            setNotifications(previous);
+        }
+    };
+
     const renderSkeleton = () => (
         <View style={styles.listContent}>
             <SkeletonList count={4} />
@@ -152,11 +165,18 @@ export const NotificationsScreen = ({ navigation }: any) => {
                             </Text>
                         </View>
                         {!item.isRead && <View style={styles.unreadDot} />}
+                        <TouchableOpacity
+                            onPress={() => deleteAlert(item.id)}
+                            style={styles.deleteBtn}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                            <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.textDisabled} />
+                        </TouchableOpacity>
                     </Card>
                 </TouchableOpacity>
             </Animated.View>
         );
-    }, [fadeAnim]);
+    }, [fadeAnim, notifications]);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -262,6 +282,10 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         backgroundColor: theme.roles.light.primary,
         marginTop: theme.spacing[3],
+    },
+    deleteBtn: {
+        marginLeft: theme.spacing[2],
+        alignSelf: 'center',
     },
     emptyState: {
         alignItems: 'center',

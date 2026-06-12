@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
@@ -55,6 +55,28 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
         fetchRecords(true);
     }, [fetchRecords]);
 
+    const handleDelete = useCallback((item: DiseaseRecord) => {
+        Alert.alert(
+            t('common.delete'),
+            t('history.diseaseDeleteMsg', { date: new Date(item.recordedDate).toLocaleDateString() }),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('common.delete'),
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await diseaseApi.remove(item.id);
+                            setRecords((prev) => prev.filter((r) => r.id !== item.id));
+                        } catch {
+                            Alert.alert(t('common.error'), t('history.diseaseDeleteError'));
+                        }
+                    },
+                },
+            ],
+        );
+    }, [t]);
+
     const renderItem = ({ item }: { item: DiseaseRecord }) => {
         const severity = item.severityAtDetection?.toLowerCase() || '';
         const chipColors = severityColors[severity] || { bg: theme.roles.light.surfaceVariant, text: theme.roles.light.textSecondary };
@@ -64,13 +86,18 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
                     <Text style={styles.dateText}>
                         {new Date(item.recordedDate).toLocaleDateString()}
                     </Text>
-                    {item.severityAtDetection && (
-                        <View style={[styles.severityChip, { backgroundColor: chipColors.bg }]}>
-                            <Text style={[styles.severityText, { color: chipColors.text }]}>
-                                {item.severityAtDetection}
-                            </Text>
-                        </View>
-                    )}
+                    <View style={styles.headerActions}>
+                        {item.severityAtDetection && (
+                            <View style={[styles.severityChip, { backgroundColor: chipColors.bg }]}>
+                                <Text style={[styles.severityText, { color: chipColors.text }]}>
+                                    {item.severityAtDetection}
+                                </Text>
+                            </View>
+                        )}
+                        <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.textDisabled} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
                 <Text style={styles.diseaseId}>{t('history.diseaseIdLabel', { id: item.diseaseId })}</Text>
                 {item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
@@ -130,6 +157,7 @@ const styles = StyleSheet.create({
     listContent: { padding: theme.spacing[4], paddingBottom: 100 },
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[2] },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3] },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
     severityChip: { paddingHorizontal: theme.spacing[3], paddingVertical: 4, borderRadius: theme.radius.full },
     severityText: { ...theme.typeScale.labelSmall, fontWeight: '700', textTransform: 'capitalize' as const },

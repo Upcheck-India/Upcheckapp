@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsLatitude, IsLongitude, IsEnum, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsLatitude, IsLongitude, IsIn, IsArray } from 'class-validator';
 
 export class CreateFarmDto {
     @IsString()
@@ -25,7 +25,7 @@ export class CreateFarmDto {
     latitude?: number;
 
     @IsOptional()
-    @IsEnum(['tidal', 'river', 'borehole', 'reservoir', 'recycled'])
+    @IsIn(['tidal', 'river', 'borehole', 'reservoir', 'recycled'])
     waterSourceType?: string;
 
     @IsOptional()

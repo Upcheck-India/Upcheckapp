@@ -52,8 +52,15 @@ apiClient.interceptors.response.use(
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+        // No response at all — timeout or no connectivity. Surface a friendly
+        // message instead of axios internals like "timeout of 15000ms exceeded".
+        if (!error.response) {
+            error.message = 'Cannot reach the Upcheck server. Check your internet connection and try again.';
+            return Promise.reject(error);
+        }
+
         // Only handle 401s, and don't retry if already retried
-        if (error.response?.status !== 401 || originalRequest._retry) {
+        if (error.response.status !== 401 || originalRequest._retry) {
             return Promise.reject(error);
         }
 
