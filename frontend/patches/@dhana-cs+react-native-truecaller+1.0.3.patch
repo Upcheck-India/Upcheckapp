@@ -1,0 +1,40 @@
+diff --git a/node_modules/@dhana-cs/react-native-truecaller/react-native.config.js b/node_modules/@dhana-cs/react-native-truecaller/react-native.config.js
+new file mode 100644
+index 0000000..ca9f246
+--- /dev/null
++++ b/node_modules/@dhana-cs/react-native-truecaller/react-native.config.js
+@@ -0,0 +1,14 @@
++module.exports = {
++  dependency: {
++    platforms: {
++      android: {
++        sourceDir: './android',
++        packageImportPath: 'import com.reactnativetruecallersdk.TrueCallerPackage;',
++        packageInstance: 'new TrueCallerPackage()',
++      },
++      ios: {
++        sourceDir: './ios',
++      },
++    },
++  },
++};
+\ No newline at end of file
+diff --git a/node_modules/@dhana-cs/react-native-truecaller/src/TrueCallerModule.ts b/node_modules/@dhana-cs/react-native-truecaller/src/TrueCallerModule.ts
+index 1fbc259..dc64bfc 100644
+--- a/node_modules/@dhana-cs/react-native-truecaller/src/TrueCallerModule.ts
++++ b/node_modules/@dhana-cs/react-native-truecaller/src/TrueCallerModule.ts
+@@ -12,12 +12,8 @@ const LINKING_ERROR =
+   '- You rebuilt the app after installing the package\n' +
+   '- You are not using Expo managed workflow\n';
+ 
+-// @ts-expect-error
+-const isTurboModuleEnabled = global.__turboModuleProxy != null;
+-
+-const TrueCallerModule = isTurboModuleEnabled
+-  ? require('./NativeTrueCallerSDK').default
+-  : NativeModules.TrueCallerModule;
++// Always use NativeModules for backward compatibility with bridge module
++const TrueCallerModule = NativeModules.TrueCallerModule;
+ 
+ export interface TrueCallerSpec {
+   // SDK Initialization
