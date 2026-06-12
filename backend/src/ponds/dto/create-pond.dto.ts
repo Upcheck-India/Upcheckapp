@@ -1,5 +1,5 @@
 import {
-    IsString, IsOptional, IsNumber, IsUUID, IsEnum, IsInt, Min, Max,
+    IsString, IsOptional, IsNumber, IsUUID, IsIn, IsInt, Min, Max,
     MaxLength, MinLength, ValidateIf, IsLatitude, IsLongitude, IsArray,
 } from 'class-validator';
 
@@ -12,10 +12,10 @@ export class CreatePondDto {
     @MaxLength(4)
     namePrefix: string;
 
-    @IsEnum(['rectangular', 'circular', 'irregular', 'raceway'])
+    @IsIn(['rectangular', 'circular', 'irregular', 'raceway'])
     geometryType: string;
 
-    @IsEnum(['earthen', 'lined', 'cage', 'biofloc_ras'])
+    @IsIn(['earthen', 'lined', 'cage', 'biofloc_ras'])
     constructionType: string;
 
     // Conditional: required for rectangular and raceway

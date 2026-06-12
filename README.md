@@ -42,7 +42,7 @@ UPCHECKAPP/
 | Layer | Choices |
 | --- | --- |
 | Mobile / web client | Expo SDK 54, React Native 0.81, React 19, React Navigation 7, Zustand, React Native Paper, i18next |
-| Native bridges | Java native module for Truecaller SDK 2.6.0 (`com.upcheck.app.TruecallerAuthModule`) |
+| Native bridges | Java native module for Truecaller SDK 2.7.0 (`com.upcheck.app.TruecallerAuthModule`) |
 | Backend | NestJS 11, Express, TypeORM 0.3, class-validator, Throttler, Schedule |
 | Auth | Supabase Auth (Postgres-backed), JWT, Google OAuth, Truecaller One-Tap + OTP |
 | Persistence | Supabase Postgres, Redis (rate limits + caches), WatermelonDB on the client for offline-first sync |
@@ -172,7 +172,7 @@ flowchart LR
     end
 
     ApiClient -- HTTPS / JWT --> Backend
-    TCBridge -- Truecaller SDK 2.6.0 --> TCApp[Truecaller app]
+    TCBridge -- Truecaller SDK 2.7.0 --> TCApp[Truecaller app]
 ```
 
 The backend exposes a single `/api` prefix and uses Supabase as the system of record for users, farms, ponds, crops, finance, and reference data. Redis backs rate limiters and the Truecaller public-key + nonce caches in development; production should swap the in-memory caches for Redis-backed implementations before scaling out replicas.
@@ -249,7 +249,7 @@ The completed `truecaller-auth` spec is the working reference. Each spec ships i
 | --- | --- |
 | [`backend/README.md`](./backend/README.md) | Backend modules, endpoints, env vars, Truecaller verifier |
 | [`README-AUTH.md`](./README-AUTH.md) | Auth flows and Truecaller console setup |
-| [`TruecallerAuth.md`](./TruecallerAuth.md) | Source-of-truth implementation guide for SDK 2.6.0 |
+| [`TruecallerAuth.md`](./TruecallerAuth.md) | Source-of-truth implementation guide for SDK 2.7.0 |
 | [`.kiro/specs/truecaller-auth/`](./.kiro/specs/truecaller-auth/) | Requirements, design, tasks, and QA runbooks for Truecaller auth |
 | [`supabase_setup.sql`](./supabase_setup.sql) | One-shot Supabase schema and trigger bootstrap |
 | [`render.yaml`](./render.yaml) | Render deploy manifest |

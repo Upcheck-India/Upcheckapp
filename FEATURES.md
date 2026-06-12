@@ -26,7 +26,7 @@ This document drifted from the implementation; the following corrections apply (
 - **Email verification** via Brevo SMTP, with resend-verification flow.
 - **Forgot password / reset password** through Supabase magic links.
 - **Google OAuth** for Web, iOS, and Android client IDs (server-side ID-token verification with `google-auth-library`).
-- **Truecaller One-Tap (Flow A)** using Truecaller Android SDK 2.6.0 via a native Java bridge. Verified server-side with RSA signature checking against cached Truecaller public keys, plus replay protection via a nonce store.
+- **Truecaller One-Tap (Flow A)** using Truecaller Android SDK 2.7.0 via a native Java bridge. Verified server-side with RSA signature checking against cached Truecaller public keys, plus replay protection via a nonce store.
 - **Truecaller OTP / missed-call fallback (Flow B)** for users without the Truecaller app, with server-to-server access-token verification against `api5.truecaller.com`.
 - **Two-factor authentication (2FA)** TOTP-based via `otplib`, with QR enrolment using `qrcode`.
 - **OTP login** (separate from 2FA) for passwordless sign-in via SMS code.
@@ -140,7 +140,7 @@ UPCHECKAPP/
 ├── render.yaml             Render.com deploy manifest for the backend
 ├── supabase_setup.sql      One-shot DB bootstrap + trigger for Supabase
 ├── README-AUTH.md          Auth module + Truecaller console setup guide
-└── TruecallerAuth.md       Source-of-truth implementation guide for SDK 2.6.0
+└── TruecallerAuth.md       Source-of-truth implementation guide for SDK 2.7.0
 ```
 
 ---
@@ -150,7 +150,7 @@ UPCHECKAPP/
 | Layer | Choices |
 | --- | --- |
 | Mobile / web client | Expo SDK 54, React Native 0.81, React 19, React Navigation 7, Zustand 5, React Native Paper, i18next, WatermelonDB |
-| Native bridges | Java native module for Truecaller SDK 2.6.0 (`com.upcheck.app.TruecallerAuthModule`); also `@dhana-cs/react-native-truecaller` Expo plugin used to wire the Android manifest |
+| Native bridges | Java native module for Truecaller SDK 2.7.0 (`com.upcheck.app.TruecallerAuthModule`); also `@dhana-cs/react-native-truecaller` Expo plugin used to wire the Android manifest |
 | Backend | NestJS 11, Express, TypeORM 0.3, class-validator, `@nestjs/throttler`, `@nestjs/schedule` |
 | Auth | Supabase Auth (Postgres-backed), JWT (`jsonwebtoken`), Google OAuth (`google-auth-library`), Truecaller One-Tap + OTP, TOTP (`otplib`), bcrypt + argon2 for password hashing, `zxcvbn` for password strength |
 | Persistence | Supabase Postgres, Redis (`ioredis` via `@nestjs-modules/ioredis`), WatermelonDB on the client |
@@ -198,7 +198,7 @@ flowchart LR
     end
 
     ApiClient -- HTTPS / JWT --> Backend
-    TCBridge -- Truecaller SDK 2.6.0 --> TCApp[Truecaller app]
+    TCBridge -- Truecaller SDK 2.7.0 --> TCApp[Truecaller app]
 ```
 
 Key conventions:
@@ -357,7 +357,7 @@ This trigger covers email/password, Google OAuth, and Truecaller flows uniformly
 Account-linking logic in `SupabaseAuthService.signInWithTruecaller` is covered by `supabase-auth.service.linking.property.spec.ts` (fast-check property tests for branch correctness and idempotence).
 
 ### 8.2 Truecaller verification service
-`TruecallerService` (`backend/src/auth/truecaller.service.ts`) verifies the two flows produced by Truecaller Android SDK 2.6.0:
+`TruecallerService` (`backend/src/auth/truecaller.service.ts`) verifies the two flows produced by Truecaller Android SDK 2.7.0:
 
 **Flow A — One-Tap (signed payload).**
 Client posts `{ payload, signature, signatureAlgorithm, requestNonce, phoneNumber, firstName, lastName }`.
@@ -391,7 +391,7 @@ The in-memory nonce replay store and public-key cache are single-process. Multi-
 
 ## 9. Truecaller Android integration (client side)
 
-- **SDK**: `com.truecaller.android.sdk:truecaller-sdk:2.6.0` (legacy v2.x, Partner-Key based, **not** the OAuth 3.0 SDK).
+- **SDK**: `com.truecaller.android.sdk:truecaller-sdk:2.7.0` (legacy v2.x, Partner-Key based, **not** the OAuth 3.0 SDK).
 - **Native bridge**: `com.upcheck.app.TruecallerAuthModule` plus a corresponding `TruecallerAuthPackage`. The full reference implementation lives in `TruecallerAuth.md`.
 - **JS wrapper**: `frontend/src/native/TruecallerAuth.ts` exposes `isUsable()`, `authenticate()`, `startManualVerification(phoneNumber, firstName, lastName)`, `verifyOtp(otp, firstName, lastName)`, and `clear()`.
 - **Permissions helper**: `frontend/src/native/truecallerPermissions.ts` requests the runtime subset of `READ_PHONE_STATE`, `READ_CALL_LOG`, `ANSWER_PHONE_CALLS` (API 26+) or `CALL_PHONE` (≤25). Denials are surfaced in `TruecallerLoginScreen` so the SDK is never called without consent.

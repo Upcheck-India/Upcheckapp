@@ -1,4 +1,4 @@
-import { IsUUID, IsDateString, IsNumber, IsOptional, IsString, IsEnum } from 'class-validator';
+import { IsUUID, IsDateString, IsNumber, IsOptional, IsString, IsIn } from 'class-validator';
 
 export class CreateHarvestDto {
     @IsUUID()
@@ -26,10 +26,10 @@ export class CreateHarvestDto {
     @IsOptional()
     buyerName?: string;
 
-    @IsEnum(['partial', 'full'])
+    @IsIn(['partial', 'full'])
     harvestType: 'partial' | 'full';
 
-    @IsEnum(['pending', 'sold', 'discarded'])
+    @IsIn(['pending', 'sold', 'discarded'])
     @IsOptional()
     status?: 'pending' | 'sold' | 'discarded';
 

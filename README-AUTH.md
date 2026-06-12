@@ -68,7 +68,7 @@ This project implements a complete authentication system using NestJS (Backend) 
 
 ## Truecaller setup
 
-The Truecaller flow uses SDK 2.6.0 (legacy v2.x with Partner Key, not OAuth
+The Truecaller flow uses SDK 2.7.0 (legacy v2.x with Partner Key, not OAuth
 3.0). Setup spans the Truecaller developer console, the Android project, and
 the backend verifier. Backend env vars and the verification flow are documented
 in `backend/README.md` ("Truecaller verification"); this section covers the

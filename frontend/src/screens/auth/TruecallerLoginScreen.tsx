@@ -299,7 +299,7 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                             payload,
                             signature,
                             // Bridge does not carry the algorithm on this
-                            // event; SDK 2.6.0 signs PROFILE_VERIFIED_BEFORE
+                            // event; SDK 2.7.0 signs PROFILE_VERIFIED_BEFORE
                             // payloads with SHA512withRSA by default.
                             signatureAlgorithm: DEFAULT_SIGNATURE_ALGORITHM,
                             requestNonce,

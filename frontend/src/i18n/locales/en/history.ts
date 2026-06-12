@@ -14,6 +14,8 @@ const history = {
   diseasePhotoCount: '{{count}} photo(s)',
   diseaseEmptyTitle: 'No Disease Logs',
   diseaseEmptyText: 'No disease events recorded yet.',
+  diseaseDeleteMsg: 'Delete the disease record from {{date}}?',
+  diseaseDeleteError: 'Could not delete the record. Please try again.',
 
   // ── FeedHistoryScreen ─────────────────────────────────────────────────────
   feedTitle: 'Feed History',

@@ -217,7 +217,7 @@ SUPABASE_ANON_KEY=your-anon-key
 ## 🔐 Truecaller verification
 
 The `TruecallerService` (`backend/src/auth/truecaller.service.ts`) verifies the
-two flows produced by the Android Truecaller SDK 2.6.0 and exchanges the result
+two flows produced by the Android Truecaller SDK 2.7.0 and exchanges the result
 for a Supabase session via `POST /auth/supabase/oauth/truecaller`.
 
 ### Flows

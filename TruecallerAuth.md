@@ -1,7 +1,7 @@
 # Truecaller SDK — React Native Integration Guide
 
 **Target:** React Native app | Market: India | Mode: TC users + non-TC users with OTP fallback  
-**SDK Version:** `truecaller-sdk:2.6.0` (Legacy v2.x — the only version officially wrapped for RN)
+**SDK Version:** `truecaller-sdk:2.7.0` (Legacy v2.x — the only version officially wrapped for RN)
 
 ---
 
@@ -166,7 +166,7 @@ android {
 }
 
 dependencies {
-    implementation "com.truecaller.android.sdk:truecaller-sdk:2.6.0"
+    implementation "com.truecaller.android.sdk:truecaller-sdk:2.7.0"
     // ... your other deps
 }
 ```
@@ -182,7 +182,7 @@ Sync gradle. If you see a duplicate-class error from `okhttp` or `retrofit`, you
 >
 > **✓ Expected:** You see (at least) this line in the output:
 > ```
-> +--- com.truecaller.android.sdk:truecaller-sdk:2.6.0
+> +--- com.truecaller.android.sdk:truecaller-sdk:2.7.0
 > ```
 > Plus transitive deps (okhttp, retrofit, gson) underneath it.
 >
@@ -1285,7 +1285,7 @@ Before going live:
 **4. Build fails with "Duplicate class okhttp3.*"**
 → Truecaller pulls okhttp 3.x; if you have okhttp 4.x elsewhere, exclude one. Usually:
 ```gradle
-implementation("com.truecaller.android.sdk:truecaller-sdk:2.6.0") {
+implementation("com.truecaller.android.sdk:truecaller-sdk:2.7.0") {
     exclude group: 'com.squareup.okhttp3'
 }
 ```
@@ -1332,7 +1332,7 @@ Each gate must pass before moving to the next. If you're debugging later, walk b
 ## Quick Reference: Files You Touched
 
 ```
-android/app/build.gradle                     # Added truecaller-sdk:2.6.0
+android/app/build.gradle                     # Added truecaller-sdk:2.7.0
 android/app/src/main/res/values/strings.xml  # Added partnerKey
 android/app/src/main/AndroidManifest.xml     # PartnerKey meta-data + permissions
 android/app/src/main/java/com/yourapp/

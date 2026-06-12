@@ -33,10 +33,6 @@ expoAutolinking.useExpoModules()
 
 rootProject.name = 'upcheck'
 
-// Manually link Truecaller SDK
-include ':react-native-truecaller-sdk'
-project(':react-native-truecaller-sdk').projectDir = new File(rootProject.projectDir, '../node_modules/@dhana-cs/react-native-truecaller/android')
-
 expoAutolinking.useExpoVersionCatalog()
 
 include ':app'

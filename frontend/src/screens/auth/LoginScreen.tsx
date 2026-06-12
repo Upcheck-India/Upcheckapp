@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
@@ -10,16 +10,13 @@ import { useAuthStore } from '../../store/authStore';
 import { authApi } from '../../api/auth';
 import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
 import { TruecallerLoginButton } from '../../components/ui/TruecallerLoginButton';
-import { PhoneVerificationModal } from '../../components/ui/PhoneVerificationModal';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
-import { useTruecallerAuth } from '../../hooks/useTruecallerAuth';
 
 export const LoginScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-    const [showPhoneModal, setShowPhoneModal] = useState(false);
 
     const { login, isLoading, error, clearError, pendingVerificationEmail } = useAuthStore();
     const { signInWithGoogle } = useGoogleAuth();
@@ -37,7 +34,6 @@ export const LoginScreen = ({ navigation }: any) => {
             Alert.alert(t('common.error'), err.response?.data?.message || t('auth.couldNotResend'));
         }
     };
-    const { signInWithTruecaller, isAvailable, isSdkReady, verificationStep } = useTruecallerAuth();
 
     const validate = (): boolean => {
         const newErrors: { email?: string; password?: string } = {};
@@ -124,11 +120,13 @@ export const LoginScreen = ({ navigation }: any) => {
                     <Text style={styles.socialLabel}>{t('auth.orContinueWith')}</Text>
                     <View style={styles.socialButtons}>
                         <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
-                        <TruecallerLoginButton
-                            onPress={handleTruecallerPress}
-                            loading={isLoading}
-                            disabled={!isAvailable}
-                        />
+                        {/* Truecaller SDK bridge is Android-only — hide the entry point elsewhere */}
+                        {Platform.OS === 'android' && (
+                            <TruecallerLoginButton
+                                onPress={handleTruecallerPress}
+                                loading={isLoading}
+                            />
+                        )}
                     </View>
                 </View>
 
@@ -152,11 +150,6 @@ export const LoginScreen = ({ navigation }: any) => {
                     variant="outlined"
                 />
             </View>
-
-            <PhoneVerificationModal
-                visible={showPhoneModal}
-                onClose={() => setShowPhoneModal(false)}
-            />
         </ScreenWrapper>
     );
 };

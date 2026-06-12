@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class UpdateHarvestDto {
     @IsOptional()
@@ -26,11 +26,11 @@ export class UpdateHarvestDto {
     buyerName?: string;
 
     @IsOptional()
-    @IsEnum(['partial', 'full'])
+    @IsIn(['partial', 'full'])
     harvestType?: 'partial' | 'full';
 
     @IsOptional()
-    @IsEnum(['pending', 'sold', 'discarded'])
+    @IsIn(['pending', 'sold', 'discarded'])
     status?: 'pending' | 'sold' | 'discarded';
 
     @IsOptional()
