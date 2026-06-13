@@ -10,7 +10,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
-
+    "@dhana-cs/react-native-truecaller": "^1.0.3",
     "@expo-google-fonts/dm-mono": "^0.4.2",
     "@expo-google-fonts/dm-sans": "^0.4.2",
     "@expo-google-fonts/nunito": "^0.4.2",
@@ -19,6 +19,7 @@
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-community/slider": "5.0.1",
+    "@react-native-google-signin/google-signin": "^16.1.2",
     "@react-native-picker/picker": "^2.11.4",
     "@react-navigation/bottom-tabs": "^7.10.1",
     "@react-navigation/native": "^7.1.28",
@@ -26,7 +27,6 @@
     "@supabase/supabase-js": "^2.97.0",
     "axios": "^1.13.5",
     "expo": "~54.0.32",
-    "expo-auth-session": "~7.0.10",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.8",

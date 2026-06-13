@@ -68,6 +68,7 @@ export default {
           color: "#ffffff"
         }
       ],
+      "@react-native-google-signin/google-signin"
     ],
     runtimeVersion: "1.0.0",
     updates: {
