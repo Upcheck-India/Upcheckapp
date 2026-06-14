@@ -723,8 +723,11 @@ export class TruecallerService {
     }
 
     if (tokenRes.status < 200 || tokenRes.status >= 300) {
+      // Surface Truecaller's actual error (e.g. invalid_client / invalid_grant /
+      // unauthorized_client) so a portal/client-id misconfig is diagnosable from
+      // the logs instead of hiding behind a generic 401.
       this.logger.warn(
-        `Truecaller OAuth token endpoint returned ${tokenRes.status}`,
+        `Truecaller OAuth token endpoint returned ${tokenRes.status}: ${JSON.stringify(tokenRes.data)?.slice(0, 500)}`,
       );
       throw new UnauthorizedException({
         success: false,
@@ -762,7 +765,7 @@ export class TruecallerService {
 
     if (infoRes.status < 200 || infoRes.status >= 300) {
       this.logger.warn(
-        `Truecaller OAuth userinfo returned ${infoRes.status}`,
+        `Truecaller OAuth userinfo returned ${infoRes.status}: ${JSON.stringify(infoRes.data)?.slice(0, 500)}`,
       );
       throw new UnauthorizedException({
         success: false,

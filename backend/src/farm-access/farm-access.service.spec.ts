@@ -51,6 +51,29 @@ describe('FarmAccessService', () => {
             farmsRepo.findOne.mockResolvedValue({ id: FARM, userId: OWNER });
             expect(await service.getRoleOnFarm(STRANGER, FARM)).toBeNull();
         });
+
+        it('degrades to owner-only when farm_members is missing (42P01)', async () => {
+            // Simulate the migration not being run yet.
+            membersRepo.findOne.mockRejectedValue({ code: '42P01' });
+            farmsRepo.findOne.mockResolvedValue({ id: FARM, userId: OWNER });
+            expect(await service.getRoleOnFarm(OWNER, FARM)).toBe('owner'); // owner still works
+            expect(await service.getRoleOnFarm(STRANGER, FARM)).toBeNull(); // non-owner denied
+        });
+
+        it('re-throws non-missing-table errors', async () => {
+            membersRepo.findOne.mockRejectedValue({ code: '08006' }); // connection failure
+            await expect(service.getRoleOnFarm(OWNER, FARM)).rejects.toBeDefined();
+        });
+    });
+
+    describe('getAccessibleFarmIds', () => {
+        it('lists owned farms when farm_members is missing (42P01)', async () => {
+            membersRepo.find.mockRejectedValue({ code: '42P01' });
+            farmsRepo.find
+                .mockResolvedValueOnce([{ id: FARM }]) // owned
+                .mockResolvedValueOnce([{ id: FARM }]); // live
+            expect(await service.getAccessibleFarmIds(OWNER)).toEqual([FARM]);
+        });
     });
 
     describe('assertCanAccessFarm', () => {

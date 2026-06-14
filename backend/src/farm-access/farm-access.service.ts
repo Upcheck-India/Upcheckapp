@@ -1,10 +1,20 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { FarmMember, FarmRole } from './farm-member.entity';
 import { Farm } from '../farms/farm.entity';
 import { Pond } from '../ponds/pond.entity';
 import { FarmCapability, roleSatisfies } from './farm-capability';
+
+/**
+ * Postgres "undefined_table" (42P01) — raised when the `farm_members` table
+ * doesn't exist yet (the CreateFarmMembers migration hasn't been run). Lets the
+ * app degrade to owner-only access during a deploy-before-migrate window instead
+ * of hard-failing every farm-scoped request.
+ */
+function isMissingTable(err: any): boolean {
+    return (err?.code ?? err?.driverError?.code) === '42P01';
+}
 
 /**
  * FarmAccessService — the single source of truth for "can this user perform an
@@ -17,6 +27,8 @@ import { FarmCapability, roleSatisfies } from './farm-capability';
  */
 @Injectable()
 export class FarmAccessService {
+    private readonly logger = new Logger(FarmAccessService.name);
+
     constructor(
         @InjectRepository(FarmMember)
         private readonly membersRepo: Repository<FarmMember>,
@@ -32,8 +44,13 @@ export class FarmAccessService {
      * but no membership row exists (e.g. pre-backfill data), treat as owner.
      */
     async getRoleOnFarm(userId: string, farmId: string): Promise<FarmRole | null> {
-        const member = await this.membersRepo.findOne({ where: { farmId, userId } });
-        if (member) return member.role;
+        try {
+            const member = await this.membersRepo.findOne({ where: { farmId, userId } });
+            if (member) return member.role;
+        } catch (err) {
+            if (!isMissingTable(err)) throw err;
+            this.logger.warn('farm_members table missing — run migrations; using owner-only access');
+        }
 
         const farm = await this.farmsRepo.findOne({
             where: { id: farmId },
@@ -45,11 +62,17 @@ export class FarmAccessService {
 
     /** Farm ids the user can access (owner or worker), excluding soft-deleted farms. */
     async getAccessibleFarmIds(userId: string): Promise<string[]> {
-        const members = await this.membersRepo.find({
-            where: { userId },
-            select: { farmId: true },
-        });
-        const memberFarmIds = members.map((m) => m.farmId);
+        let memberFarmIds: string[] = [];
+        try {
+            const members = await this.membersRepo.find({
+                where: { userId },
+                select: { farmId: true },
+            });
+            memberFarmIds = members.map((m) => m.farmId);
+        } catch (err) {
+            if (!isMissingTable(err)) throw err;
+            this.logger.warn('farm_members table missing — run migrations; listing owned farms only');
+        }
 
         // Defensive union with the legacy owner column, in case any farm lacks a
         // backfilled membership row.
