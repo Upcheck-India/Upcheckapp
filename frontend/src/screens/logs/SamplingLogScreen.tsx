@@ -8,9 +8,11 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { samplingApi } from '../../api/sampling';
+import { useUIStore } from '../../store/uiStore';
 
 export const SamplingLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
+    const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -40,6 +42,7 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
                 srEstimationPercent: srEstimation ? parseFloat(srEstimation) : undefined,
                 notes: notes.trim() || undefined,
             });
+            showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.sampling_errorSave'));

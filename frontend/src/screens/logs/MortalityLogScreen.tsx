@@ -8,9 +8,11 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { mortalityApi } from '../../api/mortalities';
+import { useUIStore } from '../../store/uiStore';
 
 export const MortalityLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
+    const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -36,6 +38,7 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
                 estimatedWeightKg: estimatedWeightKg ? parseFloat(estimatedWeightKg) : undefined,
                 note: note.trim() || undefined,
             });
+            showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.mortality_errorSave'));

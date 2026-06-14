@@ -8,9 +8,11 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
+import { useUIStore } from '../../store/uiStore';
 
 export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
+    const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -37,6 +39,7 @@ export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
                 luminescentBacteriaLbCfuMl: luminescentBacteria ? parseFloat(luminescentBacteria) : undefined,
                 note: note.trim() || undefined,
             });
+            showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.microbiology_errorSave'));

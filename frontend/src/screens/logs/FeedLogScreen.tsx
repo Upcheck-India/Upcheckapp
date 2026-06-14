@@ -8,9 +8,11 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { feedApi } from '../../api/feedRecords';
+import { useUIStore } from '../../store/uiStore';
 
 export const FeedLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
+    const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -52,6 +54,7 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                 feedingTime: date,
                 notes: combinedNotes || undefined,
             });
+            showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.feed_errorSave'));

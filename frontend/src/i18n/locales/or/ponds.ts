@@ -58,6 +58,8 @@ const ponds = {
   actionWeeklyChem: 'ସାପ୍ତାହିକ ରସାୟନ',
   actionMeasurements: 'ମାପ',
   actionAdvisor: 'ପରାମର୍ଶଦାତା',
+  showMore: 'ଅଧିକ ({{count}})',
+  showLess: 'କମ୍',
   status_active: 'ସକ୍ରିୟ',
   status_fallow: 'ପଡ଼ିଆ',
   status_harvesting: 'ଅମଳ',
@@ -65,5 +67,8 @@ const ponds = {
   fieldAeratorHp: 'ସ୍ଥାପିତ ଏରେଟର HP',
   placeholderAeratorHp: 'ଯଥା 4',
   hintAeratorHp: 'ଏହି ପୋଖରୀର ମୋଟ ପ୍ୟାଡଲହ୍ୱିଲ/ଏରେଟର ଶକ୍ତି। ଏରେସନ୍ ଅପ୍ଟିମାଇଜର ଏହାକୁ ବ୍ୟବହାର କରେ।',
+  economicsTitle: 'ଅର୍ଥ',
+  viewExpenses: 'ଖର୍ଚ୍ଚ',
+  harvestPlans: 'ଅମଳ ଯୋଜନା',
 };
 export default ponds;

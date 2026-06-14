@@ -10,9 +10,11 @@ import { AlertBanner } from '../../components/ui/AlertBanner';
 import { theme } from '../../theme';
 import { diseaseApi, DiseaseLibrary } from '../../api/diseases';
 import { findBannedSubstances } from '../../features/bannedSubstances';
+import { useUIStore } from '../../store/uiStore';
 
 export const DiseaseLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
+    const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -65,6 +67,7 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
                 severityAtDetection: severity.trim() || undefined,
                 notes: notesParts.length > 0 ? notesParts.join('. ') : undefined,
             });
+            showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.disease_errorSave'));

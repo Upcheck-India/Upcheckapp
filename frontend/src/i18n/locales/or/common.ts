@@ -33,5 +33,13 @@ const common = {
   tabFarms: 'ଫାର୍ମ',
   tabReports: 'ରିପୋର୍ଟ',
   tabMore: 'ଆଧିକ',
+  savedSuccess: 'ସେଭ୍ ହୋଇଛି',
+  networkError: 'ସର୍ଭର ସହ ସଂଯୋଗ ହେଉନାହିଁ। ଆପଣଙ୍କ ଇଣ୍ଟରନେଟ୍ ସଂଯୋଗ ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
+  noInternet: 'ଇଣ୍ଟରନେଟ୍ ସଂଯୋଗ ନାହିଁ',
+  checkConnection: 'ଦୟାକରି ଆପଣଙ୍କ ନେଟୱର୍କ ସଂଯୋଗ ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
+  serverErrorTitle: 'ସର୍ଭର ତ୍ରୁଟି',
+  serverErrorMessage: 'ଆମ ସର୍ଭରରେ ସମସ୍ୟା ଅଛି। ଦୟାକରି ପରେ ଚେଷ୍ଟା କରନ୍ତୁ।',
+  showPassword: 'ପାସୱାର୍ଡ ଦେଖାନ୍ତୁ',
+  hidePassword: 'ପାସୱାର୍ଡ ଲୁଚାନ୍ତୁ',
 };
 export default common;

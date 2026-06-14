@@ -33,5 +33,13 @@ const common = {
   tabFarms: 'ఫారాలు',
   tabReports: 'నివేదికలు',
   tabMore: 'మరిన్ని',
+  savedSuccess: 'సేవ్ చేయబడింది',
+  networkError: 'సర్వర్‌ను చేరుకోలేకపోతున్నాం. మీ ఇంటర్నెట్ కనెక్షన్‌ను తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
+  noInternet: 'ఇంటర్నెట్ కనెక్షన్ లేదు',
+  checkConnection: 'దయచేసి మీ నెట్‌వర్క్ కనెక్షన్‌ను తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
+  serverErrorTitle: 'సర్వర్ లోపం',
+  serverErrorMessage: 'మా సర్వర్‌లలో సమస్య ఉంది. దయచేసి తర్వాత ప్రయత్నించండి.',
+  showPassword: 'పాస్‌వర్డ్ చూపించు',
+  hidePassword: 'పాస్‌వర్డ్ దాచు',
 };
 export default common;

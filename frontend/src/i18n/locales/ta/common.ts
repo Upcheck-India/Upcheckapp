@@ -33,5 +33,13 @@ const common = {
   tabFarms: 'பண்ணைகள்',
   tabReports: 'அறிக்கைகள்',
   tabMore: 'மேலும்',
+  savedSuccess: 'சேமிக்கப்பட்டது',
+  networkError: 'சர்வரை அணுக முடியவில்லை. உங்கள் இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
+  noInternet: 'இணைய இணைப்பு இல்லை',
+  checkConnection: 'உங்கள் நெட்வொர்க் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
+  serverErrorTitle: 'சர்வர் பிழை',
+  serverErrorMessage: 'எங்கள் சர்வர்களில் சிக்கல் உள்ளது. பின்னர் முயற்சிக்கவும்.',
+  showPassword: 'கடவுச்சொல்லைக் காட்டு',
+  hidePassword: 'கடவுச்சொல்லை மறை',
 };
 export default common;

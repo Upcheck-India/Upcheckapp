@@ -58,6 +58,8 @@ const ponds = {
   actionWeeklyChem: 'সাপ্তাহিক রসায়ন',
   actionMeasurements: 'পরিমাপ',
   actionAdvisor: 'পরামর্শক',
+  showMore: 'আরও ({{count}})',
+  showLess: 'কম',
   status_active: 'সক্রিয়',
   status_fallow: 'পতিত',
   status_harvesting: 'সংগ্রহ',
@@ -65,5 +67,8 @@ const ponds = {
   fieldAeratorHp: 'স্থাপিত এয়ারেটর HP',
   placeholderAeratorHp: 'যেমন 4',
   hintAeratorHp: 'এই পুকুরের মোট প্যাডেলহুইল/এয়ারেটর শক্তি। এয়ারেশন অপ্টিমাইজার এটি ব্যবহার করে।',
+  economicsTitle: 'অর্থ',
+  viewExpenses: 'খরচ',
+  harvestPlans: 'ফসল কাটার পরিকল্পনা',
 };
 export default ponds;

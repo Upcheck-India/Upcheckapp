@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput } from 'react-native';
 import { theme } from '../../theme';
-import { getParameterStatus, ParameterStatus } from '../../constants/ranges';
+import { getParameterStatus, getParameterRangeHint, ParameterStatus } from '../../constants/ranges';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface ParameterInputProps {
@@ -25,6 +25,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
 }) => {
     const numValue = value ? parseFloat(value) : undefined;
     const status: ParameterStatus = parameterKey ? getParameterStatus(parameterKey, numValue) : 'none';
+    const rangeHint = getParameterRangeHint(parameterKey);
 
     const getStatusColor = () => {
         switch (status) {
@@ -66,6 +67,13 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
                     </View>
                 )}
             </View>
+
+            {rangeHint && (
+                <View style={styles.hintRow}>
+                    <MaterialCommunityIcons name="target" size={12} color={theme.roles.light.textSecondary} />
+                    <Text style={styles.hintText}>{rangeHint}{unit ? ` ${unit}` : ''}</Text>
+                </View>
+            )}
         </View>
     );
 };
@@ -100,5 +108,16 @@ const styles = StyleSheet.create({
     },
     iconWrapper: {
         paddingRight: theme.spacing[4],
+    },
+    hintRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[1],
+        marginTop: theme.spacing[1],
+        marginLeft: theme.spacing[1],
+    },
+    hintText: {
+        ...theme.typeScale.caption,
+        color: theme.roles.light.textSecondary,
     },
 });

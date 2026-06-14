@@ -8,9 +8,11 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { harvestsApi } from '../../api/harvests';
+import { useUIStore } from '../../store/uiStore';
 
 export const HarvestLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
+    const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName, cropId } = route.params;
 
     const [harvestDate, setHarvestDate] = useState(new Date().toISOString().split('T')[0]);
@@ -39,6 +41,7 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                 buyerName: buyerName || undefined,
             });
 
+            showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error) {
             console.error('Failed to log harvest', error);

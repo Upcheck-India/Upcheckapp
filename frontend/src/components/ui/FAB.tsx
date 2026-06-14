@@ -8,18 +8,22 @@ interface FABProps {
     onPress: () => void;
     icon?: keyof typeof MaterialCommunityIcons.glyphMap;
     style?: ViewStyle;
+    accessibilityLabel?: string;
 }
 
 export const FAB: React.FC<FABProps> = ({
     onPress,
     icon,
     style,
+    accessibilityLabel,
 }) => {
     return (
         <TouchableOpacity
             style={[styles.container, style, theme.shadows.brandGlow]}
             onPress={onPress}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={accessibilityLabel ?? 'Add'}
         >
             <LinearGradient
                 colors={theme.gradients.brand.colors as [string, string, ...string[]]}

@@ -94,7 +94,7 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
                                 </Text>
                             </View>
                         )}
-                        <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
                             <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.textDisabled} />
                         </TouchableOpacity>
                     </View>

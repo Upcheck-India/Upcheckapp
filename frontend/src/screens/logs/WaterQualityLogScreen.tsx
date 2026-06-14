@@ -9,9 +9,11 @@ import { Input } from '../../components/ui/Input';
 import { ParameterInput } from '../../components/forms/ParameterInput';
 import { theme } from '../../theme';
 import { waterQualityApi } from '../../api/waterQuality';
+import { useUIStore } from '../../store/uiStore';
 
 export const WaterQualityLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
+    const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName } = route.params;
 
     const [ph, setPh] = useState('');
@@ -46,6 +48,7 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                 transparency: transparency ? parseFloat(transparency) : undefined,
                 notes: notes.trim() || undefined,
             });
+            showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.waterQuality_errorSave'));

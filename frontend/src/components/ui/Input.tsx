@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TextInputProps, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 
 interface InputProps extends TextInputProps {
@@ -25,6 +26,7 @@ export const Input: React.FC<InputProps> = ({
     multiline = false,
     ...props
 }) => {
+    const { t } = useTranslation();
     const [isFocused, setIsFocused] = useState(false);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
@@ -74,6 +76,9 @@ export const Input: React.FC<InputProps> = ({
                         style={styles.rightIconContainer}
                         onPress={() => setIsPasswordVisible(!isPasswordVisible)}
                         activeOpacity={0.7}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={isPasswordVisible ? t('common.hidePassword') : t('common.showPassword')}
                     >
                         <MaterialCommunityIcons
                             name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}

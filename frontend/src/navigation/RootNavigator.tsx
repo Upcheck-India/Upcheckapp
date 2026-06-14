@@ -12,6 +12,7 @@ import { TruecallerLoginScreen } from '../screens/auth/TruecallerLoginScreen';
 
 // Main Navigation
 import { MainNavigator } from './MainNavigator';
+import { QuickLogScreen } from '../screens/main/QuickLogScreen';
 
 // Phase 2 Screens
 import { CreateFarmScreen } from '../screens/farms/CreateFarmScreen';
@@ -90,6 +91,7 @@ import { ExpensesScreen } from '../screens/finance/ExpensesScreen';
 import { TransactionsScreen } from '../screens/finance/TransactionsScreen';
 import { ReferenceScreen } from '../screens/reference/ReferenceScreen';
 import { HarvestPlansScreen } from '../screens/harvest/HarvestPlansScreen';
+import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
 import { OtpLoginScreen } from '../screens/auth/OtpLoginScreen';
 import { TwoFactorChallengeScreen } from '../screens/auth/TwoFactorChallengeScreen';
 import { TwoFactorScreen } from '../screens/settings/TwoFactorScreen';
@@ -112,6 +114,7 @@ export type RootStackParamList = {
 
     // Main
     MainApp: undefined;
+    QuickLog: undefined;
     HarvestLog: { pondId: string; pondName: string; cropId?: string };
 
     // Phase 2
@@ -201,6 +204,9 @@ export type RootStackParamList = {
     // Harvest planning
     HarvestPlans: { pondId: string; pondName?: string; cropId?: string; farmId?: string };
 
+    // First-run onboarding
+    Welcome: undefined;
+
     // Additional calculators + feed products
     GrowthAndHarvest: undefined;
     FeedProducts: undefined;
@@ -254,6 +260,8 @@ const RootNavigator = () => {
             ) : (
                 <>
                     <Stack.Screen name="MainApp" component={MainNavigator} />
+                    <Stack.Screen name="QuickLog" component={QuickLogScreen} options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ presentation: 'modal' }} />
 
                     <Stack.Screen name="CreateFarm" component={CreateFarmScreen} />
                     <Stack.Screen name="FarmDetail" component={FarmDetailScreen} />

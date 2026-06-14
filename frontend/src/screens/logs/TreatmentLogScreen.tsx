@@ -10,9 +10,11 @@ import { AlertBanner } from '../../components/ui/AlertBanner';
 import { theme } from '../../theme';
 import { treatmentsApi } from '../../api/treatments';
 import { findBannedSubstances } from '../../features/bannedSubstances';
+import { useUIStore } from '../../store/uiStore';
 
 export const TreatmentLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
+    const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -41,6 +43,7 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
                 dosageKg: dosageKg ? parseFloat(dosageKg) : undefined,
                 notes: productName ? `Product: ${productName.trim()}. ${notes}`.trim() : (notes.trim() || undefined),
             });
+            showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.treatment_errorSave'));

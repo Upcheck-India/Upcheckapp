@@ -56,14 +56,6 @@ interface AuthState {
     initialize: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
     googleLogin: (idToken: string) => Promise<void>;
-    truecallerLogin: (profile: {
-        accessToken: string;
-        phoneNumber: string;
-        firstName?: string;
-        lastName?: string;
-        email?: string;
-        avatarUrl?: string;
-    }) => Promise<void>;
     signup: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
     logout: () => Promise<void>;
     deleteAccount: () => Promise<void>;
@@ -200,27 +192,6 @@ export const useAuthStore = create<AuthState>()(
                 } catch (err: any) {
                     const message = err.response?.data?.message || err.message || 'Google sign in failed';
                     get().setError(message);
-                }
-            },
-
-            truecallerLogin: async (profile: {
-                accessToken: string;
-                phoneNumber: string;
-                firstName?: string;
-                lastName?: string;
-                email?: string;
-                avatarUrl?: string;
-            }) => {
-                set({ isLoading: true, error: null });
-                try {
-                    const { data } = await authApi.truecallerOAuth(profile);
-                    if (data.session) {
-                        get().setSession(data.session);
-                    }
-                } catch (err: any) {
-                    const message = err.response?.data?.message || err.message || 'Truecaller sign in failed';
-                    get().setError(message);
-                    throw new Error(message);
                 }
             },
 

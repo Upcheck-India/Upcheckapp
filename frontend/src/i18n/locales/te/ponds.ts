@@ -58,6 +58,8 @@ const ponds = {
   actionWeeklyChem: 'వారపు రసాయన',
   actionMeasurements: 'కొలతలు',
   actionAdvisor: 'సలహాదారు',
+  showMore: 'మరిన్ని ({{count}})',
+  showLess: 'తక్కువ',
   status_active: 'యాక్టివ్',
   status_fallow: 'ఖాళీ',
   status_harvesting: 'హార్వెస్టింగ్',
@@ -65,5 +67,8 @@ const ponds = {
   fieldAeratorHp: 'ఇన్‌స్టాల్ చేసిన ఏరేటర్ HP',
   placeholderAeratorHp: 'ఉదా. 4',
   hintAeratorHp: 'ఈ చెరువులోని మొత్తం ప్యాడిల్‌వీల్/ఏరేటర్ శక్తి. ఏరేషన్ ఆప్టిమైజర్ దీన్ని ఉపయోగిస్తుంది.',
+  economicsTitle: 'ఆర్థికం',
+  viewExpenses: 'ఖర్చులు',
+  harvestPlans: 'పంట కోత ప్రణాళికలు',
 };
 export default ponds;

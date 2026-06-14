@@ -27,6 +27,7 @@ import { samplingApi } from '../../api/sampling';
 import { feedApi } from '../../api/feedRecords';
 import { harvestsApi } from '../../api/harvests';
 import { waterQualityApi } from '../../api/waterQuality';
+import { useMembershipStore } from '../../store/membershipStore';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -37,6 +38,7 @@ type ActionConfig = {
     bg: string;
     logRoute: string;
     historyRoute: string;
+    core?: boolean; // shown by default; non-core actions collapse under "More"
 };
 
 type ChipMode = 'log' | 'history';
@@ -127,10 +129,16 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { pondId, pondName } = route.params;
 
+    // Ordered most-used first. The six `core` actions are a farmer's daily/weekly
+    // loop and show by default; the rest (occasional clinical/lab logs) collapse
+    // under "More" to keep the daily surface uncluttered.
     const ACTION_CONFIG: ActionConfig[] = [
-        { label: t('ponds.actionWaterQuality'), icon: 'water-percent', color: '#2196F3', bg: '#E3F2FD', logRoute: 'WaterQualityLog', historyRoute: 'WaterQualityHistory' },
-        { label: t('ponds.actionFeed'), icon: 'corn', color: '#FF9800', bg: '#FFF3E0', logRoute: 'FeedLog', historyRoute: 'FeedHistory' },
-        { label: t('ponds.actionSampling'), icon: 'scale', color: '#4CAF50', bg: '#E8F5E9', logRoute: 'SamplingLog', historyRoute: 'SamplingHistory' },
+        { label: t('ponds.actionWaterQuality'), icon: 'water-percent', color: '#2196F3', bg: '#E3F2FD', logRoute: 'WaterQualityLog', historyRoute: 'WaterQualityHistory', core: true },
+        { label: t('ponds.actionFeed'), icon: 'corn', color: '#FF9800', bg: '#FFF3E0', logRoute: 'FeedLog', historyRoute: 'FeedHistory', core: true },
+        { label: t('ponds.actionDailyRoutine'), icon: 'clipboard-check-outline', color: '#0B8457', bg: '#E6F5EE', logRoute: 'DailyRoutine', historyRoute: 'DailyRoutine', core: true },
+        { label: t('ponds.actionSampling'), icon: 'scale', color: '#4CAF50', bg: '#E8F5E9', logRoute: 'SamplingLog', historyRoute: 'SamplingHistory', core: true },
+        { label: t('ponds.actionMeasurements'), icon: 'chart-line', color: '#0D84D6', bg: '#EBF4FD', logRoute: 'Measurements', historyRoute: 'Measurements', core: true },
+        { label: t('ponds.actionAdvisor'), icon: 'lightbulb-on-outline', color: '#7C4DFF', bg: '#EFEAFE', logRoute: 'EnginesHub', historyRoute: 'EnginesHub', core: true },
         { label: t('ponds.actionTreatment'), icon: 'pill', color: '#F44336', bg: '#FFEBEE', logRoute: 'TreatmentLog', historyRoute: 'TreatmentHistory' },
         { label: t('ponds.actionMortality'), icon: 'alert-circle', color: '#E53935', bg: '#FCE4EC', logRoute: 'MortalityLog', historyRoute: 'MortalityHistory' },
         { label: t('ponds.actionDisease'), icon: 'virus', color: '#9C27B0', bg: '#F3E5F5', logRoute: 'DiseaseLog', historyRoute: 'DiseaseHistory' },
@@ -138,11 +146,10 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         { label: t('ponds.actionPlankton'), icon: 'leaf', color: '#00897B', bg: '#E0F2F1', logRoute: 'PlanktonLog', historyRoute: 'PlanktonHistory' },
         { label: t('ponds.actionMicrobiology'), icon: 'microscope', color: '#607D8B', bg: '#ECEFF1', logRoute: 'MicrobiologyLog', historyRoute: 'MicrobiologyHistory' },
         { label: t('ponds.actionHarvest'), icon: 'basket', color: '#43A047', bg: '#F1F8E9', logRoute: 'HarvestLog', historyRoute: 'HarvestHistory' },
-        { label: t('ponds.actionDailyRoutine'), icon: 'clipboard-check-outline', color: '#0B8457', bg: '#E6F5EE', logRoute: 'DailyRoutine', historyRoute: 'DailyRoutine' },
         { label: t('ponds.actionWeeklyChem'), icon: 'flask-outline', color: '#FF6D00', bg: '#FFF3E6', logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistry' },
-        { label: t('ponds.actionMeasurements'), icon: 'chart-line', color: '#0D84D6', bg: '#EBF4FD', logRoute: 'Measurements', historyRoute: 'Measurements' },
-        { label: t('ponds.actionAdvisor'), icon: 'lightbulb-on-outline', color: '#7C4DFF', bg: '#EFEAFE', logRoute: 'EnginesHub', historyRoute: 'EnginesHub' },
     ];
+    const coreActions = ACTION_CONFIG.filter((a) => a.core);
+    const moreCount = ACTION_CONFIG.length - coreActions.length;
     const [pond, setPond] = useState<Pond | null>(null);
     const [activeCycle, setActiveCycle] = useState<Crop | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -150,6 +157,13 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     const [error, setError] = useState<any>(null);
     const [isOffline, setIsOffline] = useState(false);
     const [activeTab, setActiveTab] = useState<ChipMode>('log');
+    const [showAllActions, setShowAllActions] = useState(false);
+
+    // Economics (expenses, harvest planning) are owner-only; workers see only the
+    // operational logging surface. Backend enforces the real gate regardless.
+    const loadMemberships = useMembershipStore((s) => s.load);
+    const isWorker = useMembershipStore((s) => s.isWorker(pond?.farmId));
+    useEffect(() => { loadMemberships(); }, [loadMemberships]);
 
     const [mbw, setMbw] = useState<string>('--');
     const [survival, setSurvival] = useState<string>('--');
@@ -408,10 +422,50 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                     <SectionTab label={t('ponds.tabViewHistory')} active={activeTab === 'history'} onPress={() => setActiveTab('history')} />
                                 </View>
                                 <View style={styles.actionGrid}>
-                                    {ACTION_CONFIG.map((item) => (
+                                    {(showAllActions ? ACTION_CONFIG : coreActions).map((item) => (
                                         <ActionChip key={item.label} item={item} mode={activeTab} onPress={() => navigateAction(item)} />
                                     ))}
                                 </View>
+                                {moreCount > 0 && (
+                                    <TouchableOpacity
+                                        style={styles.moreToggle}
+                                        onPress={() => setShowAllActions((v) => !v)}
+                                        activeOpacity={0.7}
+                                        accessibilityRole="button"
+                                        accessibilityState={{ expanded: showAllActions }}
+                                    >
+                                        <Text style={styles.moreToggleText}>
+                                            {showAllActions ? t('ponds.showLess') : t('ponds.showMore', { count: moreCount })}
+                                        </Text>
+                                        <MaterialCommunityIcons name={showAllActions ? 'chevron-up' : 'chevron-down'} size={18} color={theme.roles.light.primary} />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        )}
+
+                        {activeCycle && !isWorker && (
+                            <View style={styles.econSection}>
+                                <Text style={styles.econTitle}>{t('ponds.economicsTitle')}</Text>
+                                <TouchableOpacity
+                                    style={styles.econRow}
+                                    onPress={() => navigation.navigate('Expenses', { cropId: activeCycle.id, pondName })}
+                                    activeOpacity={0.7}
+                                    accessibilityRole="button"
+                                >
+                                    <MaterialCommunityIcons name="cash-multiple" size={20} color="#0B8457" />
+                                    <Text style={styles.econRowText}>{t('ponds.viewExpenses')}</Text>
+                                    <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.econRow, styles.econRowLast]}
+                                    onPress={() => navigation.navigate('HarvestPlans', { pondId, pondName, cropId: activeCycle.id, farmId: pond?.farmId })}
+                                    activeOpacity={0.7}
+                                    accessibilityRole="button"
+                                >
+                                    <MaterialCommunityIcons name="calendar-check" size={20} color="#7C4DFF" />
+                                    <Text style={styles.econRowText}>{t('ponds.harvestPlans')}</Text>
+                                    <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+                                </TouchableOpacity>
                             </View>
                         )}
 
@@ -449,5 +503,12 @@ const styles = StyleSheet.create({
     actionsSection: { backgroundColor: '#FFFFFF', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2, padding: 16 },
     tabBar: { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 12, padding: 4, marginBottom: 20 },
     actionGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+    moreToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: theme.spacing[2], paddingVertical: theme.spacing[3], borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F3F4F6' },
+    moreToggleText: { fontSize: 13, fontWeight: '600', color: theme.roles.light.primary },
+    econSection: { backgroundColor: '#FFFFFF', borderRadius: 20, overflow: 'hidden', marginTop: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2, padding: 16 },
+    econTitle: { fontSize: 13, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 },
+    econRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F3F4F6' },
+    econRowLast: { borderBottomWidth: 0 },
+    econRowText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
     mb2: { marginBottom: theme.spacing[2] },
 });

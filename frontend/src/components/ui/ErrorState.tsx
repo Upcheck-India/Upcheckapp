@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { theme } from '../../theme';
 
@@ -15,28 +16,29 @@ interface ErrorStateProps {
 
 export const ErrorState: React.FC<ErrorStateProps> = ({
     icon = 'alert-circle-outline',
-    title = 'Something went wrong',
+    title,
     message,
-    retryLabel = 'Try Again',
+    retryLabel,
     onRetry,
     error,
 }) => {
+    const { t } = useTranslation();
     // Extract error message from various error formats
     const errorMessage = message ||
         (error?.response?.data?.message) ||
         (error?.message) ||
-        'An unexpected error occurred. Please check your connection and try again.';
+        t('common.checkConnection');
 
     return (
         <View style={styles.container}>
             <View style={styles.iconContainer}>
                 <MaterialCommunityIcons name={icon} size={64} color={theme.roles.light.dangerText} />
             </View>
-            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.title}>{title ?? t('common.error')}</Text>
             <Text style={styles.message}>{errorMessage}</Text>
             {onRetry && (
                 <Button
-                    title={retryLabel}
+                    title={retryLabel ?? t('common.retry')}
                     onPress={onRetry}
                     variant="outlined"
                     style={styles.button}
@@ -51,27 +53,33 @@ interface NetworkErrorProps {
     onRetry?: () => void;
 }
 
-export const NetworkError: React.FC<NetworkErrorProps> = ({ onRetry }) => (
-    <ErrorState
-        icon="wifi-off"
-        title="No Internet Connection"
-        message="Please check your network connection and try again."
-        onRetry={onRetry}
-    />
-);
+export const NetworkError: React.FC<NetworkErrorProps> = ({ onRetry }) => {
+    const { t } = useTranslation();
+    return (
+        <ErrorState
+            icon="wifi-off"
+            title={t('common.noInternet')}
+            message={t('common.checkConnection')}
+            onRetry={onRetry}
+        />
+    );
+};
 
 interface ServerErrorProps {
     onRetry?: () => void;
 }
 
-export const ServerError: React.FC<ServerErrorProps> = ({ onRetry }) => (
-    <ErrorState
-        icon="server-network-off"
-        title="Server Error"
-        message="Our servers are experiencing issues. Please try again later."
-        onRetry={onRetry}
-    />
-);
+export const ServerError: React.FC<ServerErrorProps> = ({ onRetry }) => {
+    const { t } = useTranslation();
+    return (
+        <ErrorState
+            icon="server-network-off"
+            title={t('common.serverErrorTitle')}
+            message={t('common.serverErrorMessage')}
+            onRetry={onRetry}
+        />
+    );
+};
 
 const styles = StyleSheet.create({
     container: {

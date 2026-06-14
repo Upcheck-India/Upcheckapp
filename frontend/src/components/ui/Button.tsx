@@ -60,6 +60,9 @@ export const Button: React.FC<ButtonProps> = ({
                 onPress={onPress}
                 disabled={isDisabled}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={title}
+                accessibilityState={{ disabled: isDisabled, busy: loading }}
                 style={[styles.container, style, !isDisabled && theme.shadows.brandGlow]}
             >
                 <LinearGradient
@@ -79,6 +82,9 @@ export const Button: React.FC<ButtonProps> = ({
             onPress={onPress}
             disabled={isDisabled}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={title}
+            accessibilityState={{ disabled: isDisabled, busy: loading }}
             style={[
                 styles.container,
                 styles.base,

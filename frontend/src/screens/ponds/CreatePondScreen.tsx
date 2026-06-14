@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
@@ -15,6 +16,13 @@ type ConstructionType = 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
 export const CreatePondScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { farmId } = route.params;
+
+    // Per-farm draft key so an interrupted farmer (call, app kill, network drop)
+    // doesn't lose their in-progress pond. Only plain text/selection fields are
+    // persisted — never derived/computed values.
+    const draftKey = farmId
+        ? `@upcheck:draft:createPond:${farmId}`
+        : '@upcheck:draft:createPond';
 
     const CONSTRUCTION_TYPES: { value: ConstructionType; label: string; icon: string }[] = [
         { value: 'earthen', label: t('ponds.constructionEarthen'), icon: 'terrain' },
@@ -35,6 +43,55 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
     const [computedArea, setComputedArea] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<{ namePrefix?: string; depthM?: string }>({});
+    const [draftHydrated, setDraftHydrated] = useState(false);
+
+    // Restore a saved draft once on mount. Corrupt drafts are ignored.
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const raw = await AsyncStorage.getItem(draftKey);
+                if (raw && !cancelled) {
+                    const d = JSON.parse(raw);
+                    if (typeof d.namePrefix === 'string') setNamePrefix(d.namePrefix);
+                    if (typeof d.displayName === 'string') setDisplayName(d.displayName);
+                    if (typeof d.geometryType === 'string') setGeometryType(d.geometryType);
+                    if (typeof d.constructionType === 'string') setConstructionType(d.constructionType);
+                    if (typeof d.lengthM === 'string') setLengthM(d.lengthM);
+                    if (typeof d.widthM === 'string') setWidthM(d.widthM);
+                    if (typeof d.diameterM === 'string') setDiameterM(d.diameterM);
+                    if (typeof d.depthM === 'string') setDepthM(d.depthM);
+                    if (typeof d.installedAeratorHp === 'string') setInstalledAeratorHp(d.installedAeratorHp);
+                }
+            } catch {
+                // Ignore a corrupt/unreadable draft.
+            } finally {
+                if (!cancelled) setDraftHydrated(true);
+            }
+        })();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [draftKey]);
+
+    // Persist the draft on every change (only after the initial hydrate, so we
+    // never overwrite a stored draft with the empty initial state).
+    useEffect(() => {
+        if (!draftHydrated) return;
+        AsyncStorage.setItem(
+            draftKey,
+            JSON.stringify({
+                namePrefix,
+                displayName,
+                geometryType,
+                constructionType,
+                lengthM,
+                widthM,
+                diameterM,
+                depthM,
+                installedAeratorHp,
+            }),
+        ).catch(() => { /* best-effort; non-fatal */ });
+    }, [draftHydrated, draftKey, namePrefix, displayName, geometryType, constructionType, lengthM, widthM, diameterM, depthM, installedAeratorHp]);
 
     useEffect(() => {
         let area = 0;
@@ -78,6 +135,8 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 installedAeratorHp: installedAeratorHp ? parseFloat(installedAeratorHp) : undefined,
                 displayName: displayName.trim() || undefined,
             });
+            // Pond saved — discard the draft so it isn't restored next time.
+            await AsyncStorage.removeItem(draftKey);
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('ponds.errorCreatePond'));

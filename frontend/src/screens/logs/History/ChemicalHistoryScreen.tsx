@@ -92,7 +92,7 @@ export const ChemicalHistoryScreen = ({ route, navigation }: any) => {
                 </Text>
                 <View style={styles.rowRight}>
                     <Text style={styles.timeText}>{item.measurementTime}</Text>
-                    <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.deleteBtn}>
+                    <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.deleteBtn} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
                         <MaterialCommunityIcons name="trash-can-outline" size={18} color={theme.roles.light.textTertiary} />
                     </TouchableOpacity>
                 </View>

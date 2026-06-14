@@ -58,6 +58,8 @@ const ponds = {
   actionWeeklyChem: 'Weekly Chem',
   actionMeasurements: 'Measurements',
   actionAdvisor: 'Advisor',
+  showMore: 'More ({{count}})',
+  showLess: 'Less',
   status_active: 'Active',
   status_fallow: 'Fallow',
   status_harvesting: 'Harvesting',
@@ -65,5 +67,8 @@ const ponds = {
   fieldAeratorHp: 'Installed aerator HP',
   placeholderAeratorHp: 'e.g. 4',
   hintAeratorHp: 'Total paddlewheel/aerator power on this pond. Used by the Aeration optimizer.',
+  economicsTitle: 'Finances',
+  viewExpenses: 'Expenses',
+  harvestPlans: 'Harvest Plans',
 };
 export default ponds;

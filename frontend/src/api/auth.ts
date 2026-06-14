@@ -66,15 +66,6 @@ export const authApi = {
     resendVerification: (email: string) =>
         apiClient.post('/auth/supabase/resend-verification', { email }),
 
-    truecallerOAuth: (payload: {
-        accessToken: string;
-        phoneNumber: string;
-        firstName?: string;
-        lastName?: string;
-        email?: string;
-        avatarUrl?: string;
-    }) => apiClient.post<AuthResponse>('/auth/supabase/oauth/truecaller', payload),
-
     // Truecaller OAuth 2.0 One-Tap exchange (current flow). The backend
     // completes the PKCE token exchange and userinfo lookup, then mints a
     // session — identity is never trusted from the client.

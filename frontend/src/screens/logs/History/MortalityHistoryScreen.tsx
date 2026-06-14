@@ -132,7 +132,7 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
                                 <MaterialCommunityIcons name="skull-outline" size={14} color={theme.roles.light.dangerText} />
                                 <Text style={styles.countText}>{item.quantity}</Text>
                             </View>
-                            <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
                                 <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.dangerText} />
                             </TouchableOpacity>
                         </View>

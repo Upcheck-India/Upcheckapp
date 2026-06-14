@@ -14,6 +14,8 @@ const history = {
   diseasePhotoCount: '{{count}} फोटो',
   diseaseEmptyTitle: 'कोई रोग लॉग नहीं',
   diseaseEmptyText: 'अभी कोई रोग घटना दर्ज नहीं की गई है।',
+  diseaseDeleteMsg: '{{date}} का रोग रिकॉर्ड हटाएं?',
+  diseaseDeleteError: 'रिकॉर्ड हटाया नहीं जा सका। कृपया पुनः प्रयास करें।',
 
   // ── FeedHistoryScreen ─────────────────────────────────────────────────────
   feedTitle: 'आहार इतिहास',

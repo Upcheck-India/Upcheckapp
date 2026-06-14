@@ -35,9 +35,11 @@ import {
     type DataDictionaryEntry,
     type Measurement,
 } from '../../api/measurements';
+import { useUIStore } from '../../store/uiStore';
 
 export const MeasurementsScreen = ({ route }: any) => {
     const { t } = useTranslation();
+    const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName, cropId } = route.params ?? {};
 
     const [dictionary, setDictionary] = useState<DataDictionaryEntry[]>([]);
@@ -110,6 +112,7 @@ export const MeasurementsScreen = ({ route }: any) => {
             });
             setValueNum('');
             setValueText('');
+            showToast({ message: t('common.savedSuccess'), type: 'success' });
             await loadSeries();
         } catch (err: any) {
             const message =

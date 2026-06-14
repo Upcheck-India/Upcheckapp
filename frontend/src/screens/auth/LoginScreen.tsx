@@ -249,4 +249,15 @@ const styles = StyleSheet.create({
         backgroundColor: theme.roles.light.borderDefault,
         marginVertical: theme.spacing[4],
     },
+    legal: {
+        ...theme.typeScale.caption,
+        color: theme.roles.light.textSecondary,
+        textAlign: 'center',
+        marginTop: theme.spacing[4],
+        marginHorizontal: theme.spacing[2],
+    },
+    legalLink: {
+        color: theme.roles.light.primary,
+        textDecorationLine: 'underline',
+    },
 });

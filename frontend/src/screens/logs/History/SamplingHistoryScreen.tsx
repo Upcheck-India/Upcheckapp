@@ -79,7 +79,7 @@ export const SamplingHistoryScreen = ({ route, navigation }: any) => {
                 </Text>
                 <View style={styles.rowBetween}>
                     <Text style={styles.mbwText}>{item.mbwG ?? '--'} g</Text>
-                    <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
                         <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.dangerText} />
                     </TouchableOpacity>
                 </View>

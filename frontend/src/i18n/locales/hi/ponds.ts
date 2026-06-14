@@ -58,6 +58,8 @@ const ponds = {
   actionWeeklyChem: 'साप्ताहिक रसायन',
   actionMeasurements: 'माप',
   actionAdvisor: 'सलाहकार',
+  showMore: 'और ({{count}})',
+  showLess: 'कम',
   status_active: 'सक्रिय',
   status_fallow: 'खाली',
   status_harvesting: 'कटाई',
@@ -65,5 +67,8 @@ const ponds = {
   fieldAeratorHp: 'स्थापित एयरेटर HP',
   placeholderAeratorHp: 'जैसे 4',
   hintAeratorHp: 'इस तालाब की कुल पैडलव्हील/एयरेटर शक्ति। एयरेशन ऑप्टिमाइज़र इसका उपयोग करता है।',
+  economicsTitle: 'वित्त',
+  viewExpenses: 'खर्च',
+  harvestPlans: 'कटाई योजना',
 };
 export default ponds;

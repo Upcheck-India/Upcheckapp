@@ -27,7 +27,22 @@ export const getParameterStatus = (key: keyof typeof WaterQualityRanges, value?:
     if (range.max !== null && value > range.max) return 'warning';
 
     return 'safe';
-    return 'safe';
+};
+
+/**
+ * Compact, language-neutral "ideal range" hint for a parameter, e.g. "7.5–8.5",
+ * "≥ 4", "≤ 0.1". Returned for known parameters only; null otherwise so the
+ * input simply omits the hint.
+ */
+export const getParameterRangeHint = (key?: keyof typeof WaterQualityRanges): string | null => {
+    if (!key) return null;
+    const range = WaterQualityRanges[key];
+    if (!range) return null;
+    const { min, max } = range;
+    if (min !== null && max !== null) return `${min}–${max}`;
+    if (min !== null) return `≥ ${min}`;
+    if (max !== null) return `≤ ${max}`;
+    return null;
 };
 
 export const getStatusColor = (status: ParameterStatus) => {

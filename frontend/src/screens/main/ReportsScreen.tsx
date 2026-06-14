@@ -12,6 +12,7 @@ import { theme } from '../../theme';
 import { BarChart } from '../../components/charts/BarChart';
 import { reportsApi, DashboardSummary } from '../../api/reports';
 import { farmsApi, Farm } from '../../api/farms';
+import { useMembershipStore } from '../../store/membershipStore';
 
 interface FinancialReport {
     revenue: number;
@@ -31,6 +32,12 @@ export const ReportsScreen = ({ navigation }: any) => {
     const [error, setError] = useState<any>(null);
     const [isOffline, setIsOffline] = useState(false);
     const [showFarmPicker, setShowFarmPicker] = useState(false);
+
+    // Economics (transactions) are owner-only; default to owner when membership
+    // isn't loaded yet — the backend enforces the real gate regardless.
+    const loadMemberships = useMembershipStore((s) => s.load);
+    const isWorker = useMembershipStore((s) => s.isWorker(selectedFarmId ?? undefined));
+    useEffect(() => { loadMemberships(); }, [loadMemberships]);
 
     // Animation refs
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -297,6 +304,19 @@ export const ReportsScreen = ({ navigation }: any) => {
                                 </View>
                             </Card>
 
+                            {!isWorker && selectedFarmId && (
+                                <TouchableOpacity
+                                    style={styles.drillRow}
+                                    onPress={() => navigation.navigate('Transactions', { farmId: selectedFarmId, farmName: selectedFarm?.name })}
+                                    activeOpacity={0.7}
+                                    accessibilityRole="button"
+                                >
+                                    <MaterialCommunityIcons name="swap-horizontal" size={20} color={theme.roles.light.primary} />
+                                    <Text style={styles.drillText}>{t('home.reportsViewTransactions')}</Text>
+                                    <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textSecondary} />
+                                </TouchableOpacity>
+                            )}
+
                             {(financialReport?.expensesByCategory?.length ?? 0) > 0 && (
                                 <Card style={styles.expensesCard}>
                                     <Text style={styles.cardTitle}>{t('home.reportsExpensesBreakdown')}</Text>
@@ -436,6 +456,24 @@ const styles = StyleSheet.create({
     financialCard: {
         marginBottom: theme.spacing[4],
         padding: theme.spacing[4],
+    },
+    drillRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[2],
+        backgroundColor: theme.roles.light.surface,
+        borderRadius: theme.radius.md,
+        borderWidth: 1,
+        borderColor: theme.roles.light.borderDefault,
+        paddingVertical: theme.spacing[3],
+        paddingHorizontal: theme.spacing[4],
+        marginBottom: theme.spacing[6],
+    },
+    drillText: {
+        flex: 1,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textPrimary,
+        fontWeight: '600',
     },
     financialRow: {
         flexDirection: 'row',

@@ -33,5 +33,13 @@ const common = {
   tabFarms: 'फार्म',
   tabReports: 'रिपोर्ट',
   tabMore: 'अधिक',
+  savedSuccess: 'सहेजा गया',
+  networkError: 'सर्वर से कनेक्ट नहीं हो पा रहा। अपना इंटरनेट कनेक्शन जांचें और फिर से प्रयास करें।',
+  noInternet: 'इंटरनेट कनेक्शन नहीं है',
+  checkConnection: 'कृपया अपना नेटवर्क कनेक्शन जांचें और फिर से प्रयास करें।',
+  serverErrorTitle: 'सर्वर त्रुटि',
+  serverErrorMessage: 'हमारे सर्वर में समस्या आ रही है। कृपया बाद में प्रयास करें।',
+  showPassword: 'पासवर्ड दिखाएं',
+  hidePassword: 'पासवर्ड छिपाएं',
 };
 export default common;

@@ -1,5 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
+import i18n from '../i18n';
 
 const API_URL = Constants.expoConfig?.extra?.apiBaseUrl
     || process.env.EXPO_PUBLIC_API_URL
@@ -55,7 +56,7 @@ apiClient.interceptors.response.use(
         // No response at all — timeout or no connectivity. Surface a friendly
         // message instead of axios internals like "timeout of 15000ms exceeded".
         if (!error.response) {
-            error.message = 'Cannot reach the Upcheck server. Check your internet connection and try again.';
+            error.message = i18n.t('common.networkError');
             return Promise.reject(error);
         }
 

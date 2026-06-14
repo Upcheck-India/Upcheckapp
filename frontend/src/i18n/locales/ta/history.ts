@@ -14,6 +14,8 @@ const history = {
   diseasePhotoCount: '{{count}} புகைப்படம்(கள்)',
   diseaseEmptyTitle: 'நோய் பதிவுகள் இல்லை',
   diseaseEmptyText: 'இன்னும் நோய் நிகழ்வுகள் பதிவு செய்யப்படவில்லை.',
+  diseaseDeleteMsg: '{{date}} தேதியின் நோய் பதிவை நீக்கவா?',
+  diseaseDeleteError: 'பதிவை நீக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
 
   // ── FeedHistoryScreen ─────────────────────────────────────────────────────
   feedTitle: 'தீவன வரலாறு',

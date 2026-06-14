@@ -33,5 +33,13 @@ const common = {
   tabFarms: 'Farms',
   tabReports: 'Reports',
   tabMore: 'More',
+  savedSuccess: 'Saved',
+  networkError: 'Cannot reach the server. Check your internet connection and try again.',
+  noInternet: 'No Internet Connection',
+  checkConnection: 'Please check your network connection and try again.',
+  serverErrorTitle: 'Server Error',
+  serverErrorMessage: 'Our servers are having issues. Please try again later.',
+  showPassword: 'Show password',
+  hidePassword: 'Hide password',
 };
 export default common;

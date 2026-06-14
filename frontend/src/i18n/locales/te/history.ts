@@ -14,6 +14,8 @@ const history = {
   diseasePhotoCount: '{{count}} ఫోటో(లు)',
   diseaseEmptyTitle: 'వ్యాధి లాగ్లు లేవు',
   diseaseEmptyText: 'ఇంకా వ్యాధి సంఘటనలు నమోదు కాలేదు.',
+  diseaseDeleteMsg: '{{date}} నాటి వ్యాధి రికార్డును తొలగించాలా?',
+  diseaseDeleteError: 'రికార్డును తొలగించలేకపోయాం. దయచేసి మళ్లీ ప్రయత్నించండి.',
 
   // ── FeedHistoryScreen ─────────────────────────────────────────────────────
   feedTitle: 'దాణా చరిత్ర',

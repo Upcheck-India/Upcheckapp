@@ -103,7 +103,7 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
                         <View style={[styles.statusChip, { backgroundColor: vibrioLevel.color + '20' }]}>
                             <Text style={[styles.statusText, { color: vibrioLevel.color }]}>{vibrioLevel.label}</Text>
                         </View>
-                        <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.deleteBtn}>
+                        <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.deleteBtn} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
                             <MaterialCommunityIcons name="trash-can-outline" size={18} color={theme.roles.light.textTertiary} />
                         </TouchableOpacity>
                     </View>

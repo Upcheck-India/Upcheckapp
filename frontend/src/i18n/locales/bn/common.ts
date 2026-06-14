@@ -33,5 +33,13 @@ const common = {
   tabFarms: 'খামার',
   tabReports: 'প্রতিবেদন',
   tabMore: 'আরও',
+  savedSuccess: 'সংরক্ষিত হয়েছে',
+  networkError: 'সার্ভারে পৌঁছানো যাচ্ছে না। আপনার ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।',
+  noInternet: 'ইন্টারনেট সংযোগ নেই',
+  checkConnection: 'অনুগ্রহ করে আপনার নেটওয়ার্ক সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।',
+  serverErrorTitle: 'সার্ভার ত্রুটি',
+  serverErrorMessage: 'আমাদের সার্ভারে সমস্যা হচ্ছে। অনুগ্রহ করে পরে চেষ্টা করুন।',
+  showPassword: 'পাসওয়ার্ড দেখান',
+  hidePassword: 'পাসওয়ার্ড লুকান',
 };
 export default common;
