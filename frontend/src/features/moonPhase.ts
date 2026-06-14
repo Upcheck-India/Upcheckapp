@@ -76,8 +76,9 @@ function daysFromNewOrFull(ageDays: number): number {
  *
  * @param date    Instant to evaluate (defaults left to the caller — pass one).
  * @param windowDays  Half-width of the molting window around new/full, in days.
+ *                    Default 2.0 to match the backend lunar service.
  */
-export function moonPhase(date: Date, windowDays = 1.5): MoonPhase {
+export function moonPhase(date: Date, windowDays = 2.0): MoonPhase {
   const elapsedDays = (date.getTime() - REFERENCE_NEW_MOON_MS) / MS_PER_DAY
   // Positive modulo so dates before the epoch still map into [0, SYNODIC_MONTH).
   const ageDays =

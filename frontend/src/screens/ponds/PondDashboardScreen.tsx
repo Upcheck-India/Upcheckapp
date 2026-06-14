@@ -138,6 +138,10 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         { label: t('ponds.actionPlankton'), icon: 'leaf', color: '#00897B', bg: '#E0F2F1', logRoute: 'PlanktonLog', historyRoute: 'PlanktonHistory' },
         { label: t('ponds.actionMicrobiology'), icon: 'microscope', color: '#607D8B', bg: '#ECEFF1', logRoute: 'MicrobiologyLog', historyRoute: 'MicrobiologyHistory' },
         { label: t('ponds.actionHarvest'), icon: 'basket', color: '#43A047', bg: '#F1F8E9', logRoute: 'HarvestLog', historyRoute: 'HarvestHistory' },
+        { label: t('ponds.actionDailyRoutine'), icon: 'clipboard-check-outline', color: '#0B8457', bg: '#E6F5EE', logRoute: 'DailyRoutine', historyRoute: 'DailyRoutine' },
+        { label: t('ponds.actionWeeklyChem'), icon: 'flask-outline', color: '#FF6D00', bg: '#FFF3E6', logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistry' },
+        { label: t('ponds.actionMeasurements'), icon: 'chart-line', color: '#0D84D6', bg: '#EBF4FD', logRoute: 'Measurements', historyRoute: 'Measurements' },
+        { label: t('ponds.actionAdvisor'), icon: 'lightbulb-on-outline', color: '#7C4DFF', bg: '#EFEAFE', logRoute: 'EnginesHub', historyRoute: 'EnginesHub' },
     ];
     const [pond, setPond] = useState<Pond | null>(null);
     const [activeCycle, setActiveCycle] = useState<Crop | null>(null);
@@ -286,6 +290,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         const route = activeTab === 'log' ? item.logRoute : item.historyRoute;
         const params: Record<string, any> = { pondId, pondName };
         if (activeCycle) params.cropId = activeCycle.id;
+        if (pond?.farmId) params.farmId = pond.farmId;
         navigation.navigate(route, params);
     };
 

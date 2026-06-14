@@ -35,5 +35,17 @@ const cycles = {
   closeCycleTitle: 'ଚକ୍ର ବନ୍ଦ',
   closeCycleMessage: 'ଆପଣ ସତ ଏହି ଚକ୍ର ବନ୍ଦ କରିବାକୁ ଚାହୁଁଛନ୍ତି? ଏହି ପଦକ୍ଷେପ ଅଣ-ବ୍ୟୁଛ୍ୟା।',
   errorCloseCycle: 'ଚକ୍ର ବନ୍ଦ ବିଫଳ',
+  createTargets: 'ଚକ୍ର ଲକ୍ଷ୍ୟ',
+  createTargetsHint: 'ସିମୁଲେସନ୍ ଏବଂ ହାର୍ଭେଷ୍ଟ, ଫିଡ୍ ଓ P&L ଇଞ୍ଜିନ୍ ଏହାକୁ ବ୍ୟବହାର କରେ। ଡିଫଲ୍ଟ ଉପଯୁକ୍ତ; ଆପଣଙ୍କ ଯୋଜନା ଅନୁସାରେ ବଦଳାନ୍ତୁ।',
+  fieldTotalSeed: 'ମୋଟ ବିହନ (PL)',
+  fieldFeedPrice: 'ଫିଡ୍ ମୂଲ୍ୟ (₹/kg)',
+  fieldIntensity: 'ଚାଷ ଘନତା',
+  intensityExtensive: 'ବ୍ୟାପକ',
+  intensitySemi: 'ଅର୍ଦ୍ଧ-ନିବିଡ଼',
+  intensityIntensive: 'ନିବିଡ଼',
+  intensityHint: 'ପୋଖରୀର ସର୍ବାଧିକ ବହନ କ୍ଷମତା ସ୍ଥିର କରେ। ହାର୍ଭେଷ୍ଟ ଓ ସିମୁଲେସନ୍ ଇଞ୍ଜିନ୍ ଏହାକୁ ବ୍ୟବହାର କରେ।',
+  fieldTargetDays: 'ଲକ୍ଷ୍ୟ ଦିନ',
+  fieldTargetSize: 'ଲକ୍ଷ୍ୟ ଆକାର (କାଉଣ୍ଟ)',
+  fieldTargetSr: 'ଲକ୍ଷ୍ୟ ବଞ୍ଚିବା (%)',
 };
 export default cycles;

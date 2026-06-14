@@ -123,7 +123,7 @@ export const ReportsScreen = ({ navigation }: any) => {
 
     const selectedFarm = farms.find(f => f.id === selectedFarmId);
 
-    const formatCurrency = (amount: number) => `Rp ${amount.toLocaleString('id-ID')}`;
+    const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN')}`;
 
     const renderSkeleton = () => (
         <View style={styles.content}>
@@ -309,7 +309,7 @@ export const ReportsScreen = ({ navigation }: any) => {
                                             ),
                                             datasets: [{ data: financialReport!.expensesByCategory.map(item => item.amount) }],
                                         }}
-                                        yAxisLabel="Rp "
+                                        yAxisLabel="₹"
                                         yAxisSuffix=""
                                     />
                                     {financialReport?.expensesByCategory?.map((item, index) => (

@@ -16,7 +16,7 @@ export class SamplingService {
     ) { }
 
     async create(createDto: CreateSamplingDto, userId: string) {
-        const pond = await this.pondsService.findOne(createDto.pondId, userId);
+        const pond = await this.pondsService.findOneAccessible(createDto.pondId, userId, 'WRITE_OPERATIONAL');
 
         const record = this.samplingRepository.create({
             pondId: createDto.pondId,
@@ -29,6 +29,8 @@ export class SamplingService {
             srEstimationPercent: createDto.srEstimationPercent,
             notes: createDto.notes,
             photoUrls: createDto.photoUrls,
+            createdById: userId,
+            updatedById: userId,
         });
         return this.samplingRepository.save(record);
     }
@@ -49,9 +51,9 @@ export class SamplingService {
         return record;
     }
 
-    async update(id: string, updateDto: UpdateSamplingDto): Promise<SamplingData> {
+    async update(id: string, updateDto: UpdateSamplingDto, userId?: string): Promise<SamplingData> {
         await this.findOne(id);
-        await this.samplingRepository.update(id, updateDto);
+        await this.samplingRepository.update(id, { ...updateDto, ...(userId ? { updatedById: userId } : {}) });
         return this.findOne(id);
     }
 

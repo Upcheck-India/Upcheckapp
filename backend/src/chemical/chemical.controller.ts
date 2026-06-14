@@ -14,7 +14,7 @@ export class ChemicalController {
     @UseGuards(OwnershipGuard)
     @OwnsResource('Crop', 'cropId', 'pond.farm.userId')
     create(@Body() dto: CreateChemicalDataDto, @CurrentUser() user) {
-        return this.chemicalService.create(dto);
+        return this.chemicalService.create(dto, user.id);
     }
 
     @Get('crop/:cropId')
@@ -32,8 +32,8 @@ export class ChemicalController {
     @Patch(':id')
     @UseGuards(OwnershipGuard)
     @OwnsResource('ChemicalData', 'id', 'crop.pond.farm.userId')
-    update(@Param('id') id: string, @Body() dto: UpdateChemicalDataDto) {
-        return this.chemicalService.update(id, dto);
+    update(@Param('id') id: string, @Body() dto: UpdateChemicalDataDto, @CurrentUser() user) {
+        return this.chemicalService.update(id, dto, user.id);
     }
 
     @Delete(':id')

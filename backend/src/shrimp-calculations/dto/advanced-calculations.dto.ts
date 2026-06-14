@@ -1,4 +1,4 @@
-import { IsNumber, Min } from 'class-validator';
+import { IsNumber, Min, IsOptional } from 'class-validator';
 
 export class CultivationPerformanceDto {
     @IsNumber()
@@ -34,6 +34,11 @@ export class FreeAmmoniaDto {
     @IsNumber()
     @Min(0)
     temperature: number; // Celsius
+
+    @IsNumber()
+    @Min(0)
+    @IsOptional()
+    salinity?: number; // ppt — Bower & Bidwell salinity correction (default 0 = freshwater)
 }
 
 export class ProductDosageDto {

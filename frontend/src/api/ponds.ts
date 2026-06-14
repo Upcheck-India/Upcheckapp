@@ -14,6 +14,7 @@ export interface Pond {
     widthM?: number;
     diameterM?: number;
     depthM?: number;
+    installedAeratorHp?: number;
     channelCount?: number;
     calculatedAreaM2?: number;
     overrideAreaM2?: number;
@@ -38,6 +39,7 @@ export interface CreatePondDto {
     widthM?: number;
     diameterM?: number;
     depthM: number;
+    installedAeratorHp?: number;
     channelCount?: number;
     overrideAreaM2?: number;
     displayName?: string;

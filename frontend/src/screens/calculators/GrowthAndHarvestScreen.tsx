@@ -208,13 +208,13 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                             <View style={styles.resultRow}>
                                 <View style={styles.resultItem}>
                                     <Text style={styles.resultLabel}>{t('calculators.growthHarvest.resultExpectedCount')}</Text>
-                                    <Text style={styles.resultValue}>{ehResult.expectedCount.toLocaleString()}</Text>
+                                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{ehResult.expectedCount.toLocaleString()}</Text>
                                     <Text style={styles.resultUnit}>{t('calculators.growthHarvest.unitShrimp')}</Text>
                                 </View>
                                 <View style={styles.resultDivider} />
                                 <View style={styles.resultItem}>
                                     <Text style={styles.resultLabel}>{t('calculators.growthHarvest.resultExpectedWeight')}</Text>
-                                    <Text style={styles.resultValue}>{ehResult.expectedWeightKg.toFixed(2)}</Text>
+                                    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{ehResult.expectedWeightKg.toFixed(2)}</Text>
                                     <Text style={styles.resultUnit}>kg</Text>
                                 </View>
                             </View>
@@ -263,7 +263,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                     {gpResult && (
                         <View style={styles.resultBox}>
                             <Text style={styles.resultLabel}>{t('calculators.growthHarvest.resultProjectedWeight')}</Text>
-                            <Text style={styles.resultValue}>{gpResult.projectedWeightG.toFixed(2)}</Text>
+                            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{gpResult.projectedWeightG.toFixed(2)}</Text>
                             <Text style={styles.resultUnit}>g</Text>
                             {gpResult.projectedWeightByWeek.length > 0 && (
                                 <View style={styles.weekTable}>
@@ -313,7 +313,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                     {bmResult && (
                         <View style={styles.resultBox}>
                             <Text style={styles.resultLabel}>{t('calculators.growthHarvest.resultTotalBiomass')}</Text>
-                            <Text style={styles.resultValue}>{bmResult.biomassKg.toFixed(2)}</Text>
+                            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{bmResult.biomassKg.toFixed(2)}</Text>
                             <Text style={styles.resultUnit}>kg</Text>
                         </View>
                     )}
@@ -338,7 +338,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                     {rfrResult && (
                         <View style={styles.resultBox}>
                             <Text style={styles.resultLabel}>{t('calculators.growthHarvest.resultRecommendedRate')}</Text>
-                            <Text style={styles.resultValue}>{rfrResult.recommendedFeedingRatePercent}</Text>
+                            <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{rfrResult.recommendedFeedingRatePercent}</Text>
                             <Text style={styles.resultUnit}>{t('calculators.growthHarvest.unitBodyWeight')}</Text>
                         </View>
                     )}

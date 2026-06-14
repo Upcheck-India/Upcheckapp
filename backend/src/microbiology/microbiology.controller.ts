@@ -14,7 +14,7 @@ export class MicrobiologyController {
     @UseGuards(OwnershipGuard)
     @OwnsResource('Crop', 'cropId', 'pond.farm.userId')
     create(@Body() dto: CreateMicrobiologyDataDto, @CurrentUser() user) {
-        return this.microbiologyService.create(dto);
+        return this.microbiologyService.create(dto, user.id);
     }
 
     @Get('crop/:cropId')
@@ -32,8 +32,8 @@ export class MicrobiologyController {
     @Patch(':id')
     @UseGuards(OwnershipGuard)
     @OwnsResource('MicrobiologyData', 'id', 'crop.pond.farm.userId')
-    update(@Param('id') id: string, @Body() dto: UpdateMicrobiologyDataDto) {
-        return this.microbiologyService.update(id, dto);
+    update(@Param('id') id: string, @Body() dto: UpdateMicrobiologyDataDto, @CurrentUser() user) {
+        return this.microbiologyService.update(id, dto, user.id);
     }
 
     @Delete(':id')

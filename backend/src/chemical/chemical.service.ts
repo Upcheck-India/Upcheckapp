@@ -12,8 +12,8 @@ export class ChemicalService {
         private chemicalRepository: Repository<ChemicalData>,
     ) { }
 
-    async create(dto: CreateChemicalDataDto): Promise<ChemicalData> {
-        const record = this.chemicalRepository.create(dto);
+    async create(dto: CreateChemicalDataDto, userId?: string): Promise<ChemicalData> {
+        const record = this.chemicalRepository.create({ ...dto, createdById: userId, updatedById: userId });
         return this.chemicalRepository.save(record);
     }
 
@@ -30,9 +30,9 @@ export class ChemicalService {
         return record;
     }
 
-    async update(id: string, dto: UpdateChemicalDataDto): Promise<ChemicalData> {
+    async update(id: string, dto: UpdateChemicalDataDto, userId?: string): Promise<ChemicalData> {
         await this.findOne(id);
-        await this.chemicalRepository.update(id, dto);
+        await this.chemicalRepository.update(id, { ...dto, ...(userId ? { updatedById: userId } : {}) });
         return this.findOne(id);
     }
 

@@ -59,3 +59,105 @@ export async function registerForPushNotificationsAsync() {
 
     return token;
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Daily water-quality reminders (the continuous-data loop)
+//
+// Three local notifications a day prompt the farmer to log DO / pH / salinity /
+// temperature. Those readings feed every engine (via pond-context), so the
+// decision quality compounds across the cycle. Local (on-device) scheduling —
+// no server needed, works offline.
+// ──────────────────────────────────────────────────────────────────────────────
+
+const WQ_REMINDER_TAG = 'wq-reminder';
+
+/** Morning / afternoon / evening slots (24h). Tunable. */
+export const WQ_REMINDER_TIMES = [
+    { hour: 6, minute: 30, label: 'Morning' },
+    { hour: 13, minute: 0, label: 'Afternoon' },
+    { hour: 18, minute: 0, label: 'Evening' },
+];
+
+/**
+ * (Re)schedule the three daily water-quality reminders. Idempotent — cancels
+ * any existing reminders first so calling on every app launch won't duplicate.
+ */
+export async function scheduleDailyWaterQualityReminders(): Promise<void> {
+    try {
+        await cancelWaterQualityReminders();
+        for (const slot of WQ_REMINDER_TIMES) {
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: `${slot.label} water check`,
+                    body: 'Log DO, pH, salinity and temperature so your feed and risk advice stay accurate.',
+                    data: { tag: WQ_REMINDER_TAG, slot: slot.label },
+                },
+                trigger: {
+                    type: Notifications.SchedulableTriggerInputTypes.DAILY,
+                    hour: slot.hour,
+                    minute: slot.minute,
+                },
+            });
+        }
+    } catch (e) {
+        console.warn('[Notifications] Could not schedule water-quality reminders', e);
+    }
+}
+
+/** Cancel only the water-quality reminders (leaves other notifications intact). */
+export async function cancelWaterQualityReminders(): Promise<void> {
+    try {
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        await Promise.all(
+            scheduled
+                .filter((n) => (n.content?.data as any)?.tag === WQ_REMINDER_TAG)
+                .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+        );
+    } catch (e) {
+        console.warn('[Notifications] Could not cancel water-quality reminders', e);
+    }
+}
+
+const CHEM_REMINDER_TAG = 'chem-reminder';
+
+/** Weekday for the weekly chemistry reminder (1 = Sunday … 7 = Saturday). */
+export const CHEM_REMINDER = { weekday: 1, hour: 7, minute: 30 };
+
+/**
+ * (Re)schedule the weekly chemistry reminder — test-kit values (ammonia,
+ * nitrite, nitrate, alkalinity, hardness) the farmer measures periodically, not
+ * daily. Idempotent. Logging these raises the engines' data-confidence score.
+ */
+export async function scheduleWeeklyChemistryReminder(): Promise<void> {
+    try {
+        await cancelWeeklyChemistryReminder();
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title: 'Weekly chemistry check',
+                body: 'Test ammonia, nitrite, nitrate, alkalinity and hardness — it keeps your feed and disease advice sharp.',
+                data: { tag: CHEM_REMINDER_TAG },
+            },
+            trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+                weekday: CHEM_REMINDER.weekday,
+                hour: CHEM_REMINDER.hour,
+                minute: CHEM_REMINDER.minute,
+            },
+        });
+    } catch (e) {
+        console.warn('[Notifications] Could not schedule weekly chemistry reminder', e);
+    }
+}
+
+export async function cancelWeeklyChemistryReminder(): Promise<void> {
+    try {
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        await Promise.all(
+            scheduled
+                .filter((n) => (n.content?.data as any)?.tag === CHEM_REMINDER_TAG)
+                .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+        );
+    } catch (e) {
+        console.warn('[Notifications] Could not cancel weekly chemistry reminder', e);
+    }
+}

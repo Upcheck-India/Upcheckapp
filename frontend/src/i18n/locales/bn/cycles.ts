@@ -35,5 +35,17 @@ const cycles = {
   closeCycleTitle: 'চক্র বন্ধ করুন',
   closeCycleMessage: 'আপনি কি সত্যিই এই চক্রটি বন্ধ করতে চান? এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না।',
   errorCloseCycle: 'চক্র বন্ধ করতে ব্যর্থ',
+  createTargets: 'চক্রের লক্ষ্য',
+  createTargetsHint: 'সিমুলেশন এবং হার্ভেস্ট, ফিড ও P&L ইঞ্জিন এটি ব্যবহার করে। ডিফল্ট উপযুক্ত; আপনার পরিকল্পনা অনুযায়ী পরিবর্তন করুন।',
+  fieldTotalSeed: 'মোট বীজ (PL)',
+  fieldFeedPrice: 'ফিড দাম (₹/kg)',
+  fieldIntensity: 'চাষের ঘনত্ব',
+  intensityExtensive: 'বিস্তৃত',
+  intensitySemi: 'আধা-নিবিড়',
+  intensityIntensive: 'নিবিড়',
+  intensityHint: 'পুকুরের সর্বোচ্চ বহন ক্ষমতা নির্ধারণ করে। হার্ভেস্ট ও সিমুলেশন ইঞ্জিন এটি ব্যবহার করে।',
+  fieldTargetDays: 'লক্ষ্য দিন',
+  fieldTargetSize: 'লক্ষ্য আকার (কাউন্ট)',
+  fieldTargetSr: 'লক্ষ্য বেঁচে থাকা (%)',
 };
 export default cycles;

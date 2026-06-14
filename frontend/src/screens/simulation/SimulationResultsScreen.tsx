@@ -34,7 +34,7 @@ export const SimulationResultsScreen = ({ route, navigation }: any) => {
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.summaryContainer}>
                     <Text style={styles.summaryTitle}>{t('simulations.results.profitDifference')}</Text>
-                    <Text style={styles.summaryValue}>
+                    <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
                         {(resultData.result?.profitDifference ?? resultData.resultProfitDiff ?? 0) >= 0 ? '+' : ''}
                         {Math.round(resultData.result?.profitDifference ?? resultData.resultProfitDiff ?? 0).toLocaleString()}
                     </Text>

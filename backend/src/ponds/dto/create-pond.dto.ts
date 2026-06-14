@@ -43,6 +43,13 @@ export class CreatePondDto {
     @Max(5.0)
     depthM: number;
 
+    // Total installed aerator power (HP) — feeds the Aeration & Power optimizer.
+    @IsOptional()
+    @IsNumber()
+    @Min(0)
+    @Max(200)
+    installedAeratorHp?: number;
+
     // Optional: for raceway ponds
     @IsOptional()
     @IsInt()

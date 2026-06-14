@@ -36,7 +36,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, label, style, 
 
     return (
         <View style={[styles.container, { backgroundColor: colors.bg, borderColor: colors.border }, style]}>
-            <Text style={[styles.label, { color: colors.text }, textStyle]}>
+            <Text numberOfLines={1} style={[styles.label, { color: colors.text }, textStyle]}>
                 {label}
             </Text>
         </View>
@@ -50,6 +50,8 @@ const styles = StyleSheet.create({
         borderRadius: theme.tokens.chip.borderRadius,
         borderWidth: 1,
         alignSelf: 'flex-start',
+        flexShrink: 0,
+        maxWidth: '100%',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -58,5 +60,6 @@ const styles = StyleSheet.create({
         fontSize: theme.tokens.chip.fontSize,
         letterSpacing: theme.tokens.chip.letterSpacing,
         textTransform: 'uppercase',
+        flexShrink: 1,
     },
 });

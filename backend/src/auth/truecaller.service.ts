@@ -430,6 +430,14 @@ export class TruecallerService {
   private readonly publicKeyTtlMs: number;
   private readonly nonceTtlMs: number;
 
+  // OAuth 2.0 (Truecaller "Sign in with Truecaller" / Account SDK) — used by
+  // the @dhana-cs/react-native-truecaller One-Tap flow, which returns an
+  // authorization code + PKCE code_verifier that must be exchanged
+  // server-to-server for an access token and then a userinfo profile.
+  private readonly oauthClientId: string;
+  private readonly oauthTokenUrl: string;
+  private readonly oauthUserInfoUrl: string;
+
   // In-memory cache implementations. Tasks 7.2 / 7.3 refine these.
   private readonly keyCache: TruecallerKeyCache;
   private readonly nonceStore: NonceReplayStore;
@@ -444,6 +452,24 @@ export class TruecallerService {
     this.profileApiUrl =
       this.configService.get<string>('TRUECALLER_PROFILE_API_URL') ||
       'https://api5.truecaller.com/v1/otp/installation/verify/profile';
+
+    // OAuth endpoints default to the non-EU Truecaller account host (India and
+    // most non-EU regions). EU deployments override these via env. The client
+    // id must match the one the mobile SDK was initialized with — it is the
+    // public PKCE client identifier, NOT a secret, so the same value the app
+    // ships (app.config.ts `truecallerAndroidClientId`) is correct here.
+    const oauthBase =
+      this.configService.get<string>('TRUECALLER_OAUTH_BASE_URL') ||
+      'https://oauth-account-noneu.truecaller.com';
+    this.oauthClientId =
+      this.configService.get<string>('TRUECALLER_OAUTH_CLIENT_ID') ||
+      'e98dcupeqtmcocbxr7qb4g7b4sub8blazhxrt-1ikmw';
+    this.oauthTokenUrl =
+      this.configService.get<string>('TRUECALLER_OAUTH_TOKEN_URL') ||
+      `${oauthBase}/v1/token`;
+    this.oauthUserInfoUrl =
+      this.configService.get<string>('TRUECALLER_OAUTH_USERINFO_URL') ||
+      `${oauthBase}/v1/userinfo`;
 
     // Defaults: 1h key cache, clamped to [1h, 24h] per Requirement 9.2.
     const keyTtlSec = resolvePublicKeyTtlSeconds(
@@ -649,6 +675,138 @@ export class TruecallerService {
       avatarUrl:
         typeof profile.avatarUrl === 'string' ? profile.avatarUrl : undefined,
     };
+  }
+
+  /**
+   * Verify a Truecaller OAuth 2.0 authorization code (One-Tap flow from
+   * `@dhana-cs/react-native-truecaller`) by completing the PKCE exchange
+   * server-to-server and reading the userinfo profile.
+   *
+   * Two server-side calls:
+   *   1. POST {tokenUrl} (form-urlencoded) with
+   *      `grant_type=authorization_code`, `client_id`, `code`, `code_verifier`
+   *      → `{ access_token }`.
+   *   2. GET {userInfoUrl} with `Authorization: Bearer <access_token>`
+   *      → OIDC-style profile (`phone_number`, `given_name`, ...).
+   *
+   * Failure modes (all throw `UnauthorizedException`, never leaking the code
+   * or token):
+   * - `Invalid authorization code` — token endpoint returned non-2xx / no
+   *   access_token, or a transport error occurred.
+   * - `Invalid Truecaller profile` — userinfo lacked a usable phone number.
+   */
+  async verifyOAuthCode(
+    authorizationCode: string,
+    codeVerifier: string,
+  ): Promise<VerifiedTruecallerProfile> {
+    // 1. Exchange the authorization code + PKCE verifier for an access token.
+    let tokenRes;
+    try {
+      const form = new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: this.oauthClientId,
+        code: authorizationCode,
+        code_verifier: codeVerifier,
+      });
+      tokenRes = await axios.post(this.oauthTokenUrl, form.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        validateStatus: () => true,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Truecaller OAuth token exchange transport error: ${(err as Error).message}`,
+      );
+      throw new UnauthorizedException({
+        success: false,
+        message: 'Invalid authorization code',
+      });
+    }
+
+    if (tokenRes.status < 200 || tokenRes.status >= 300) {
+      this.logger.warn(
+        `Truecaller OAuth token endpoint returned ${tokenRes.status}`,
+      );
+      throw new UnauthorizedException({
+        success: false,
+        message: 'Invalid authorization code',
+      });
+    }
+
+    const accessToken =
+      tokenRes.data && typeof tokenRes.data.access_token === 'string'
+        ? tokenRes.data.access_token
+        : '';
+    if (!accessToken) {
+      throw new UnauthorizedException({
+        success: false,
+        message: 'Invalid authorization code',
+      });
+    }
+
+    // 2. Fetch the userinfo profile with the access token.
+    let infoRes;
+    try {
+      infoRes = await axios.get(this.oauthUserInfoUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        validateStatus: () => true,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Truecaller OAuth userinfo transport error: ${(err as Error).message}`,
+      );
+      throw new UnauthorizedException({
+        success: false,
+        message: 'Invalid authorization code',
+      });
+    }
+
+    if (infoRes.status < 200 || infoRes.status >= 300) {
+      this.logger.warn(
+        `Truecaller OAuth userinfo returned ${infoRes.status}`,
+      );
+      throw new UnauthorizedException({
+        success: false,
+        message: 'Invalid authorization code',
+      });
+    }
+
+    const profile = infoRes.data ?? {};
+    // Truecaller's OIDC userinfo uses `phone_number` (E.164) and
+    // `given_name` / `family_name`; fall back to legacy camelCase fields
+    // defensively in case the host returns the SDK-style shape.
+    const rawPhone =
+      typeof profile.phone_number === 'string'
+        ? profile.phone_number
+        : typeof profile.phoneNumber === 'string'
+          ? profile.phoneNumber
+          : '';
+    if (!rawPhone) {
+      throw new UnauthorizedException({
+        success: false,
+        message: 'Invalid Truecaller profile',
+      });
+    }
+
+    const firstName =
+      (typeof profile.given_name === 'string' && profile.given_name) ||
+      (typeof profile.firstName === 'string' && profile.firstName) ||
+      'User';
+    const lastName =
+      (typeof profile.family_name === 'string' && profile.family_name) ||
+      (typeof profile.lastName === 'string' && profile.lastName) ||
+      undefined;
+    const email =
+      (typeof profile.email === 'string' && profile.email) || undefined;
+    const avatarUrl =
+      (typeof profile.picture === 'string' && profile.picture) ||
+      (typeof profile.avatarUrl === 'string' && profile.avatarUrl) ||
+      undefined;
+
+    this.logger.log(
+      `Truecaller OAuth code verified for ${this.maskPhone(rawPhone)}`,
+    );
+
+    return { phoneNumber: rawPhone, firstName, lastName, email, avatarUrl };
   }
 
   /**

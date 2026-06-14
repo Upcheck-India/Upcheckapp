@@ -8,6 +8,7 @@ import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
 import { TruecallerLoginButton } from '../../components/ui/TruecallerLoginButton';
+import { LanguagePill } from '../../components/ui/LanguagePill';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 
 export const RegisterScreen = ({ navigation }: any) => {
@@ -67,6 +68,9 @@ export const RegisterScreen = ({ navigation }: any) => {
 
     return (
         <ScreenWrapper>
+            <View style={styles.langBar}>
+                <LanguagePill variant="dark" />
+            </View>
             <View style={styles.header}>
                 <Text style={styles.title}>{t('auth.createAccountTitle')}</Text>
                 <Text style={styles.subtitle}>{t('auth.registerSubtitle')}</Text>
@@ -173,8 +177,13 @@ export const RegisterScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
+    langBar: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        paddingTop: theme.spacing[3],
+    },
     header: {
-        paddingTop: theme.spacing[8],
+        paddingTop: theme.spacing[4],
         paddingBottom: theme.spacing[6],
     },
     title: {

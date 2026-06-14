@@ -12,10 +12,13 @@ import { SkeletonList } from '../../components/ui/Skeleton';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { theme } from '../../theme';
 import { pondsApi, Pond } from '../../api/ponds';
+import { useMembershipStore } from '../../store/membershipStore';
 
 export const FarmDetailScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { farmId, farmName } = route.params;
+    const loadMemberships = useMembershipStore((s) => s.load);
+    const isWorker = useMembershipStore((s) => s.isWorker(farmId));
     const [ponds, setPonds] = useState<Pond[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -29,6 +32,9 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
     // Cache ref
     const cacheRef = useRef<{ data: Pond[]; timestamp: number } | null>(null);
     const CACHE_TTL = 30000;
+
+    // Resolve my role on this farm so owner-only controls can be hidden.
+    useEffect(() => { loadMemberships(); }, [loadMemberships]);
 
     const fadeIn = useCallback(() => {
         Animated.parallel([
@@ -127,10 +133,10 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                                 <MaterialCommunityIcons name="water" size={24} color={theme.roles.light.primary} />
                             </View>
                             <View style={styles.titleContainer}>
-                                <Text style={styles.pondName}>{item.displayName || item.name}</Text>
-                                <Text style={styles.pondType}>{item.constructionType || item.geometryType || 'N/A'}</Text>
+                                <Text style={styles.pondName} numberOfLines={1}>{item.displayName || item.name}</Text>
+                                <Text style={styles.pondType} numberOfLines={1}>{item.constructionType || item.geometryType || 'N/A'}</Text>
                             </View>
-                            <StatusBadge status={getStatusType(item.status)} label={item.status} />
+                            <StatusBadge status={getStatusType(item.status)} label={t(`ponds.status_${item.status}`, { defaultValue: item.status })} />
                         </View>
 
                         <View style={styles.cardBody}>
@@ -167,17 +173,24 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>{farmName}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] }}>
+                <Text style={styles.headerTitle} numberOfLines={1}>{farmName}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2], flexShrink: 0 }}>
                     <TouchableOpacity onPress={() => navigation.navigate('TaskList', { farmId, farmName })} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                         <MaterialCommunityIcons name="clipboard-check-outline" size={24} color={theme.roles.light.primary} />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => navigation.navigate('Transactions', { farmId, farmName })} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                        <MaterialCommunityIcons name="cash-multiple" size={24} color={theme.roles.light.primary} />
+                    <TouchableOpacity onPress={() => navigation.navigate('FarmMembers', { farmId, farmName })} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                        <MaterialCommunityIcons name="account-multiple-plus-outline" size={24} color={theme.roles.light.primary} />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => navigation.navigate('CreatePond', { farmId })}>
-                        <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
-                    </TouchableOpacity>
+                    {!isWorker && (
+                        <TouchableOpacity onPress={() => navigation.navigate('Transactions', { farmId, farmName })} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                            <MaterialCommunityIcons name="cash-multiple" size={24} color={theme.roles.light.primary} />
+                        </TouchableOpacity>
+                    )}
+                    {!isWorker && (
+                        <TouchableOpacity onPress={() => navigation.navigate('CreatePond', { farmId })}>
+                            <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
 
@@ -216,7 +229,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                     }
                 />
             )}
-            <FAB icon="plus" onPress={() => navigation.navigate('CreatePond', { farmId })} />
+            {!isWorker && <FAB icon="plus" onPress={() => navigation.navigate('CreatePond', { farmId })} />}
         </ScreenWrapper>
     );
 };
@@ -237,6 +250,8 @@ const styles = StyleSheet.create({
     headerTitle: {
         ...theme.typeScale.h3,
         color: theme.roles.light.textPrimary,
+        flex: 1,
+        marginHorizontal: theme.spacing[2],
     },
     listContent: {
         padding: theme.spacing[4],

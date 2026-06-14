@@ -35,4 +35,11 @@ export class FeedingTrayCheck {
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
     createdAt: Date;
+
+    // Audit: who created / last updated this record (member or owner).
+    @Column({ name: 'created_by_id', type: 'uuid', nullable: true })
+    createdById: string | null;
+
+    @Column({ name: 'updated_by_id', type: 'uuid', nullable: true })
+    updatedById: string | null;
 }

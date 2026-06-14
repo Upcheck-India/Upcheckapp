@@ -12,7 +12,7 @@ export class HarvestsController {
 
     @Post()
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Crop', 'cropId', 'pond.farm.userId')
+    @OwnsResource('Crop', 'cropId', 'pond.farm.userId', 'OWNER_ONLY')
     create(@Body() createDto: CreateHarvestDto, @CurrentUser() user) {
         return this.harvestsService.create(createDto, user.id);
     }
@@ -24,21 +24,21 @@ export class HarvestsController {
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Harvest', 'id', 'crop.pond.farm.userId')
+    @OwnsResource('Harvest', 'id', 'crop.pond.farm.userId', 'OWNER_ONLY')
     findOne(@Param('id') id: string) {
         return this.harvestsService.findOne(id);
     }
 
     @Patch(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Harvest', 'id', 'crop.pond.farm.userId')
+    @OwnsResource('Harvest', 'id', 'crop.pond.farm.userId', 'OWNER_ONLY')
     update(@Param('id') id: string, @Body() dto: UpdateHarvestDto) {
         return this.harvestsService.update(id, dto);
     }
 
     @Delete(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Harvest', 'id', 'crop.pond.farm.userId')
+    @OwnsResource('Harvest', 'id', 'crop.pond.farm.userId', 'OWNER_ONLY')
     remove(@Param('id') id: string) {
         return this.harvestsService.remove(id);
     }

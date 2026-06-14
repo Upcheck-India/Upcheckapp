@@ -1,21 +1,24 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { Farm } from './farm.entity';
 import { CreateFarmDto } from './dto/create-farm.dto';
 import { UpdateFarmDto } from './dto/update-farm.dto';
+import { FarmAccessService } from '../farm-access/farm-access.service';
+import { FarmCapability } from '../farm-access/farm-capability';
 
 @Injectable()
 export class FarmsService {
     constructor(
         @InjectRepository(Farm)
         private farmsRepository: Repository<Farm>,
+        private readonly farmAccess: FarmAccessService,
     ) { }
 
     /**
-     * Verify that the user owns the farm. Returns the farm or throws.
-     * Extracted per decision 7A — all services call this instead of duplicating checks.
+     * Verify that the user OWNS the farm (strict). Returns the farm or throws.
+     * Used for owner-only operations (economics, farm/pond lifecycle).
      */
     async verifyOwnership(farmId: string, userId: string): Promise<Farm> {
         const farm = await this.farmsRepository.findOneBy({ id: farmId });
@@ -29,6 +32,14 @@ export class FarmsService {
             throw new ForbiddenException('You do not have permission to access this farm');
         }
         return farm;
+    }
+
+    /**
+     * Member-aware access check: passes for owner OR worker per the requested
+     * capability. Use for worker-permitted reads/writes (e.g. viewing inventory).
+     */
+    async verifyAccess(farmId: string, userId: string, capability: FarmCapability): Promise<Farm> {
+        return this.farmAccess.assertCanAccessFarm(userId, farmId, capability);
     }
 
     /**
@@ -79,10 +90,21 @@ export class FarmsService {
         return this.farmsRepository.save(farm);
     }
 
-    findAll(userId: string) {
+    /** Farms the user can access — owned plus any they're a member (worker) of. */
+    async findAll(userId: string) {
+        const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+        if (farmIds.length === 0) return [];
         return this.farmsRepository.find({
-            where: { userId },
+            where: { id: In(farmIds) },
         });
+    }
+
+    /**
+     * Farms the user OWNS (strict). Used by economic listings (e.g. transactions)
+     * that must never surface a member-farm owner's financial data to a worker.
+     */
+    async findOwnedByUser(userId: string) {
+        return this.farmsRepository.find({ where: { userId } });
     }
 
     async findOne(id: string) {

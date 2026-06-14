@@ -2,12 +2,15 @@ import { Injectable, CanActivate, ExecutionContext, ForbiddenException, NotFound
 import { Reflector } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { OWNS_RESOURCE_KEY, OwnsResourceOptions } from '../decorators/owns-resource.decorator';
+import { FarmAccessService } from '../../farm-access/farm-access.service';
+import { roleSatisfies } from '../../farm-access/farm-capability';
 
 @Injectable()
 export class OwnershipGuard implements CanActivate {
     constructor(
         private reflector: Reflector,
-        private dataSource: DataSource
+        private dataSource: DataSource,
+        private farmAccessService: FarmAccessService,
     ) { }
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -76,11 +79,41 @@ export class OwnershipGuard implements CanActivate {
             }
         }
 
-        // Check ownership
-        if (actualOwnerId !== user.id) {
-            throw new ForbiddenException(`You do not have permission to access this ${options.entityType}`);
+        // Fast path: the direct farm owner always passes (any capability).
+        if (actualOwnerId === user.id) {
+            return true;
         }
 
-        return true;
+        // Otherwise resolve the requester's per-farm role and apply the
+        // route's capability. The owner path tail is always '*.userId'; the
+        // object one level up is the farm node, whose id we need for the lookup.
+        const farmNode = this.resolveFarmNode(record, pathParts);
+        const farmId = farmNode?.id ?? farmNode?.farmId;
+
+        if (farmId) {
+            const role = await this.farmAccessService.getRoleOnFarm(user.id, farmId);
+            if (roleSatisfies(role, options.capability)) {
+                return true;
+            }
+        }
+
+        throw new ForbiddenException(`You do not have permission to access this ${options.entityType}`);
+    }
+
+    /**
+     * Walk the owner path but stop one level before the final '*.userId' segment,
+     * returning the object that carries the farm id (either a Farm entity with
+     * `.id`, or — when ownerPath is just 'userId' on the Farm itself — the record).
+     */
+    private resolveFarmNode(record: any, pathParts: string[]): any {
+        if (pathParts.length === 1) {
+            // ownerPath === 'userId' → the record IS the farm.
+            return record;
+        }
+        let node: any = record;
+        for (let i = 0; i < pathParts.length - 1; i++) {
+            if (node) node = node[pathParts[i]];
+        }
+        return node;
     }
 }

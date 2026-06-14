@@ -7,6 +7,7 @@ import { PondsService } from './ponds.service';
 import { Pond } from './pond.entity';
 import { PondDimensionHistory } from './pond-dimension-history.entity';
 import { FarmsService } from '../farms/farms.service';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 import { PondDimensionService } from './pond-dimension.service';
 import { PondNamingService } from './pond-naming.service';
 import { CreatePondDto } from './dto/create-pond.dto';
@@ -87,6 +88,7 @@ describe('PondsService', () => {
 
     farmsService = {
       verifyOwnership: jest.fn().mockResolvedValue(mockFarm),
+      verifyAccess: jest.fn().mockResolvedValue(mockFarm),
       findOne: jest.fn().mockResolvedValue(mockFarm),
     };
 
@@ -123,6 +125,13 @@ describe('PondsService', () => {
         { provide: PondDimensionService, useValue: dimensionService },
         { provide: PondNamingService, useValue: namingService },
         { provide: DataSource, useValue: dataSource },
+        {
+          provide: FarmAccessService,
+          useValue: {
+            getAccessibleFarmIds: jest.fn().mockResolvedValue([mockFarm.id]),
+            assertCanAccessFarm: jest.fn().mockResolvedValue(mockFarm),
+          },
+        },
       ],
     }).compile();
 

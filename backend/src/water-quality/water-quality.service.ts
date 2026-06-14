@@ -26,10 +26,10 @@ export class WaterQualityService {
     ) { }
 
     async create(createDto: CreateWaterQualityRecordDto, userId: string) {
-        // Verify user owns the pond
-        const pond = await this.pondsService.findOne(createDto.pondId, userId);
+        // Verify the user can write to this pond's farm (owner or worker).
+        const pond = await this.pondsService.findOneAccessible(createDto.pondId, userId, 'WRITE_OPERATIONAL');
 
-        const record = this.recordsRepository.create(createDto);
+        const record = this.recordsRepository.create({ ...createDto, createdById: userId, updatedById: userId });
         const savedRecord = await this.recordsRepository.save(record);
 
         // Check critical values and generate alerts
@@ -133,8 +133,8 @@ export class WaterQualityService {
     }
 
     async findByPond(pondId: string, userId: string, startDate?: Date, endDate?: Date) {
-        // Verify user owns the pond
-        await this.pondsService.verifyOwner(pondId, userId);
+        // Verify user can access the pond (owner or worker)
+        await this.pondsService.verifyAccess(pondId, userId, 'READ');
 
         if (startDate && endDate) {
             return this.recordsRepository.find({
@@ -156,14 +156,14 @@ export class WaterQualityService {
         if (!record) {
             throw new NotFoundException(`WaterQualityRecord with ID ${id} not found`);
         }
-        // Verify ownership via pond
-        await this.pondsService.verifyOwner(record.pondId, userId);
+        // Verify access via pond (owner or worker)
+        await this.pondsService.verifyAccess(record.pondId, userId, 'READ');
         return record;
     }
 
     async update(id: string, updateDto: UpdateWaterQualityRecordDto, userId: string) {
-        await this.findOne(id, userId); // Verify ownership
-        await this.recordsRepository.update(id, updateDto);
+        await this.findOne(id, userId); // Verify access
+        await this.recordsRepository.update(id, { ...updateDto, updatedById: userId });
         return this.findOne(id, userId);
     }
 
@@ -173,8 +173,8 @@ export class WaterQualityService {
     }
 
     async getLatestByPond(pondId: string, userId: string) {
-        // Verify user owns the pond
-        await this.pondsService.verifyOwner(pondId, userId);
+        // Verify user can access the pond (owner or worker)
+        await this.pondsService.verifyAccess(pondId, userId, 'READ');
 
         return this.recordsRepository.findOne({
             where: { pondId },

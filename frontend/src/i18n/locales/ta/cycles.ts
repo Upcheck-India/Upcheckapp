@@ -35,5 +35,17 @@ const cycles = {
   closeCycleTitle: 'சுழற்சி மூடு',
   closeCycleMessage: 'இந்த சுழற்சியை மூட விரும்புகிறீர்களா? இந்த செயலை மாற்ற முடியாது.',
   errorCloseCycle: 'சுழற்சியை மூட முடியவில்லை',
+  createTargets: 'சுழற்சி இலக்குகள்',
+  createTargetsHint: 'சிமுலேஷன் மற்றும் அறுவடை, தீவன & P&L எஞ்ஜின்கள் இதைப் பயன்படுத்துகின்றன. இயல்புநிலை பொருத்தமானது; உங்கள் திட்டப்படி மாற்றவும்.',
+  fieldTotalSeed: 'மொத்த விதை (PL)',
+  fieldFeedPrice: 'தீவன விலை (₹/kg)',
+  fieldIntensity: 'வளர்ப்பு அடர்த்தி',
+  intensityExtensive: 'விரிவான',
+  intensitySemi: 'அரை-தீவிர',
+  intensityIntensive: 'தீவிர',
+  intensityHint: 'குளத்தின் அதிகபட்ச தாங்கு திறனை அமைக்கிறது. அறுவடை & சிமுலேஷன் எஞ்ஜின்கள் இதைப் பயன்படுத்துகின்றன.',
+  fieldTargetDays: 'இலக்கு நாட்கள்',
+  fieldTargetSize: 'இலக்கு அளவு (எண்ணிக்கை)',
+  fieldTargetSr: 'இலக்கு உயிர்வாழ்வு (%)',
 };
 export default cycles;

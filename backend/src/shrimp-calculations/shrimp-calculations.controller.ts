@@ -72,7 +72,8 @@ export class ShrimpCalculationsController {
         return this.calculationsService.calculateFreeAmmonia(
             dto.tan,
             dto.ph,
-            dto.temperature
+            dto.temperature,
+            dto.salinity,
         );
     }
 

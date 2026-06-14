@@ -1,5 +1,21 @@
 import { Injectable } from '@nestjs/common';
 
+/** Cultured species the engines tune their constants for. */
+export type ShrimpSpecies = 'vannamei' | 'monodon' | 'indicus' | 'scampi';
+
+/**
+ * Coerce a free-text species string (scientific name, common name, or code) to a
+ * supported ShrimpSpecies, defaulting to vannamei. Mirrors the frontend
+ * normalizeSpecies / toThresholdSpecies coercion so all surfaces agree.
+ */
+export function normalizeShrimpSpecies(raw: string | null | undefined): ShrimpSpecies {
+    const s = (raw ?? '').toLowerCase();
+    if (s.includes('monodon') || s.includes('tiger') || s.includes('black')) return 'monodon';
+    if (s.includes('scampi') || s.includes('macrobrachium') || s.includes('rosenbergii')) return 'scampi';
+    if (s.includes('indicus')) return 'indicus';
+    return 'vannamei';
+}
+
 @Injectable()
 export class ShrimpCalculationsService {
     /**
@@ -78,18 +94,46 @@ export class ShrimpCalculationsService {
     }
 
     /**
-     * Get feeding rate recommendation based on shrimp size
+     * Species-specific feeding-rate (% body weight / day) by mean body weight.
+     * Different cultured species feed at different rates and grow to different
+     * sizes, so a single table mis-advises non-vannamei farmers.
+     *
+     * Sources: vannamei penaeid baseline; P. monodon grow-out ~3–5% BW (FAO
+     * AFFRIS / CP charts); M. rosenbergii (scampi) ~5% juvenile grow-out, lower
+     * tail (freshwater prawn). Step thresholds on ABW(g). Values are tunable —
+     * confirm against your local feed brand's chart.
      */
-    /**
-     * Get feeding rate recommendation based on shrimp size
-     */
-    getRecommendedFeedingRate(averageWeightG: number): number {
-        if (averageWeightG < 3) return 10;
-        if (averageWeightG < 5) return 8;
-        if (averageWeightG < 10) return 5;
-        if (averageWeightG < 15) return 4;
-        if (averageWeightG < 20) return 3;
-        return 2.5;
+    getRecommendedFeedingRate(
+        averageWeightG: number,
+        species: ShrimpSpecies | string = 'vannamei',
+    ): number {
+        switch (normalizeShrimpSpecies(species)) {
+            case 'monodon': // Giant tiger prawn — grows larger, longer cycle.
+                if (averageWeightG < 3) return 9;
+                if (averageWeightG < 5) return 7;
+                if (averageWeightG < 10) return 5;
+                if (averageWeightG < 15) return 3.8;
+                if (averageWeightG < 20) return 3;
+                if (averageWeightG < 25) return 2.5;
+                return 2;
+            case 'scampi': // Macrobrachium rosenbergii — freshwater prawn.
+                if (averageWeightG < 3) return 8;
+                if (averageWeightG < 6) return 6;
+                if (averageWeightG < 12) return 4;
+                if (averageWeightG < 20) return 3;
+                return 2.5;
+            case 'indicus': // Indian white shrimp — penaeid, smaller final size.
+            case 'vannamei':
+            default:
+                if (averageWeightG < 3) return 10;
+                if (averageWeightG < 5) return 8;
+                if (averageWeightG < 10) return 5;
+                if (averageWeightG < 15) return 4;
+                if (averageWeightG < 20) return 3;
+                if (averageWeightG <= 25) return 2.5; // 20–25 g
+                if (averageWeightG <= 30) return 2.0; // 25–30 g — large shrimp eat less
+                return 1.8; // > 30 g (tapers near harvest; was a flat 2.5% floor)
+        }
     }
 
     /**
@@ -113,13 +157,17 @@ export class ShrimpCalculationsService {
             return { biomass: 0, population: 0, fcr: 0, sr: 0 };
         }
 
-        // Biomass = Daily Feed / (FR / 100)
+        // Biomass back-estimate = Daily Feed / (FR / 100): if the farmer feeds
+        // `dailyFeed` at the size-appropriate rate, standing biomass ≈ that ratio
+        // (used mid-cycle when there's no fresh sampling).
         const biomass = dailyFeed / (fr / 100);
 
         // Population = (Biomass (kg) * 1000) / ABW (g)
         const population = (biomass * 1000) / abw;
 
-        // FCR = Cumulative Feed / Biomass
+        // Running FCR = cumulative feed / standing biomass (JALA §10 convention —
+        // same definition as PondContextService.runningFcr; an in-cycle efficiency
+        // proxy, NOT the final feed-per-gain FCR which needs harvested + dead weight).
         const fcr = biomass > 0 ? cumulativeFeed / biomass : 0;
 
         // SR = (Population / Initial Stocking) * 100
@@ -134,16 +182,25 @@ export class ShrimpCalculationsService {
     }
 
     /**
-     * Calculate Free Ammonia (Toxic NH3)
-     * NH3 = TAN * (1 / (1 + 10^(pKa - pH)))
-     * pKa = 0.09018 + (2729.92 / (Temperature(K)))
+     * Calculate Free (un-ionised) Ammonia NH3-N.
+     *   NH3 = TAN × 1 / (1 + 10^(pKa − pH))
+     *   pKa = 0.0901821 + 2729.92/T(K) + (0.1552 − 0.0003142·T_°C)·I   (Bower & Bidwell 1978)
+     *   I (molal ionic strength) = 19.924·S / (1000 − 1.005·S),  S = salinity (ppt)
+     * At S=0 the ionic-strength term vanishes → the freshwater Emerson form, so
+     * existing freshwater callers are unaffected. Higher salinity raises pKa →
+     * LESS un-ionised (toxic) ammonia, matching seawater chemistry.
      */
-    calculateFreeAmmonia(tan: number, ph: number, temperature: number): {
+    calculateFreeAmmonia(tan: number, ph: number, temperature: number, salinity = 0): {
         unionizedAmmonia: number;
         toxicityLevel: string;
     } {
         const tempK = temperature + 273.15;
-        const pKa = 0.09018 + (2729.92 / tempK);
+        const s = Math.max(0, salinity || 0);
+        const ionicStrength = s > 0 ? (19.924 * s) / (1000 - 1.005 * s) : 0;
+        const pKa =
+            0.0901821 +
+            2729.92 / tempK +
+            (0.1552 - 0.0003142 * temperature) * ionicStrength;
         const nh3 = tan * (1 / (1 + Math.pow(10, pKa - ph)));
 
         let toxicityLevel = 'safe';

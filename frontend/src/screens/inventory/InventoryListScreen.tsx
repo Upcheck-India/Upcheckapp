@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated, Alert, ScrollView } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -133,7 +133,7 @@ export const InventoryListScreen = ({ navigation }: any) => {
                 size={18}
                 color={selectedCategory === category.key ? theme.roles.light.primary : theme.roles.light.textSecondary}
             />
-            <Text style={[
+            <Text numberOfLines={1} style={[
                 styles.categoryLabel,
                 selectedCategory === category.key && styles.categoryLabelActive
             ]}>
@@ -199,7 +199,9 @@ export const InventoryListScreen = ({ navigation }: any) => {
             </View>
 
             <View style={styles.categoryBar}>
-                {CATEGORIES.map(renderCategoryTab)}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryBarContent}>
+                    {CATEGORIES.map(renderCategoryTab)}
+                </ScrollView>
             </View>
 
             {isLoading ? (
@@ -272,13 +274,15 @@ const styles = StyleSheet.create({
         marginLeft: theme.spacing[1],
     },
     categoryBar: {
+        backgroundColor: theme.roles.light.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.roles.light.borderDefault,
+    },
+    categoryBarContent: {
         flexDirection: 'row',
         paddingHorizontal: theme.spacing[4],
         paddingVertical: theme.spacing[3],
         gap: theme.spacing[2],
-        backgroundColor: theme.roles.light.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.roles.light.borderDefault,
     },
     categoryTab: {
         flexDirection: 'row',

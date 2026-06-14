@@ -148,6 +148,7 @@ const auth = {
   invalidFirstNameError: 'कृपया अपना पहला नाम दर्ज करें',
   sendVerificationCode: 'सत्यापन कोड भेजें',
   consentPrefix: "खाता बनाकर, आप हमारी",
+  legalPrefix: "जारी रखकर, आप हमारी",
   consentAnd: "और",
 };
 export default auth;

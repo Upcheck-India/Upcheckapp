@@ -45,6 +45,20 @@ export interface CreateCropDto {
     stockingDate?: string;
     expectedHarvestDate?: string;
     status?: string;
+    // Stocking detail + cycle targets consumed by the decision engines/simulation.
+    totalSeed?: number;
+    feedPriceRpPerKg?: number;
+    carryingCapacityKgM2?: number;
+    targetCultivationDays?: number;
+    targetSize?: number;
+    targetSrPercent?: number;
+    srPredictionMethod?: string;
+    initialAgeDays?: number;
+    preparationDays?: number;
+    totalFeedingTrays?: number;
+    hatcheryId?: string;
+    speciesId?: string;
+    broodstockId?: string;
 }
 
 export interface UpdateCropDto extends Partial<Omit<CreateCropDto, 'pondId'>> {

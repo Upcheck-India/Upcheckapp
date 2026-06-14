@@ -10,6 +10,8 @@ import { useAuthStore } from '../../store/authStore';
 import { authApi } from '../../api/auth';
 import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
 import { TruecallerLoginButton } from '../../components/ui/TruecallerLoginButton';
+import { LanguagePill } from '../../components/ui/LanguagePill';
+import { ShrimpLogo } from '../../components/ui/ShrimpLogo';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 
 export const LoginScreen = ({ navigation }: any) => {
@@ -65,8 +67,13 @@ export const LoginScreen = ({ navigation }: any) => {
 
     return (
         <ScreenWrapper backgroundColor={theme.roles.light.primary} keyboardAvoiding>
+            <View style={styles.langBar}>
+                <LanguagePill variant="light" />
+            </View>
             <View style={styles.header}>
-                <Text style={styles.logo}>🦐</Text>
+                <View style={styles.logo}>
+                    <ShrimpLogo size={64} color={theme.roles.light.textInverse} eyeColor={theme.roles.light.primary} />
+                </View>
                 <Text style={styles.title}>{t('auth.title')}</Text>
                 <Text style={styles.subtitle}>{t('auth.subtitle')}</Text>
             </View>
@@ -149,19 +156,35 @@ export const LoginScreen = ({ navigation }: any) => {
                     onPress={() => navigation.navigate('Register')}
                     variant="outlined"
                 />
+
+                <Text style={styles.legal}>
+                    {t('auth.legalPrefix')}{' '}
+                    <Text style={styles.legalLink} onPress={() => navigation.navigate('Terms')}>
+                        {t('settings.termsOfService')}
+                    </Text>
+                    {' '}{t('auth.consentAnd')}{' '}
+                    <Text style={styles.legalLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
+                        {t('settings.privacyPolicy')}
+                    </Text>.
+                </Text>
             </View>
         </ScreenWrapper>
     );
 };
 
 const styles = StyleSheet.create({
+    langBar: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        paddingTop: theme.spacing[3],
+        paddingHorizontal: theme.spacing[1],
+    },
     header: {
         alignItems: 'center',
-        paddingTop: 60,
+        paddingTop: theme.spacing[5],
         paddingBottom: 32,
     },
     logo: {
-        fontSize: 56,
         marginBottom: theme.spacing[3],
     },
     title: {

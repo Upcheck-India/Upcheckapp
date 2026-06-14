@@ -54,5 +54,16 @@ const ponds = {
   actionPlankton: 'பிளாங்க்டன்',
   actionMicrobiology: 'நுண்ணுயிரியல்',
   actionHarvest: 'அறுவடை',
+  actionDailyRoutine: 'தினசரி வழக்கம்',
+  actionWeeklyChem: 'வாராந்திர வேதியியல்',
+  actionMeasurements: 'அளவீடுகள்',
+  actionAdvisor: 'ஆலோசகர்',
+  status_active: 'செயலில்',
+  status_fallow: 'தரிசு',
+  status_harvesting: 'அறுவடை',
+  status_archived: 'காப்பகம்',
+  fieldAeratorHp: 'நிறுவிய ஏரேட்டர் HP',
+  placeholderAeratorHp: 'எ.கா. 4',
+  hintAeratorHp: 'இக்குளத்தின் மொத்த பேடில்வீல்/ஏரேட்டர் சக்தி. ஏரேஷன் ஆப்டிமைசர் இதைப் பயன்படுத்துகிறது.',
 };
 export default ponds;

@@ -137,7 +137,7 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                 {result && (
                     <View style={styles.resultBox}>
                         <Text style={styles.resultLabel}>{t('calculators.productDosage.requiredAmount')}</Text>
-                        <Text style={styles.resultValue}>{result.amountKg.toFixed(2)}</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{result.amountKg.toFixed(2)}</Text>
                         <Text style={styles.resultUnit}>kg</Text>
 
                         {clientResult !== null && (

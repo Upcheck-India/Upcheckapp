@@ -32,6 +32,10 @@ export class CropsService {
             }
         }
 
+        // Default status to 'active' — and use the SAME resolved value below so a
+        // cycle created without an explicit status still links to the pond.
+        const finalStatus = createCropDto.status || 'active';
+
         const crop = this.cropsRepository.create({
             pondId: createCropDto.pondId,
             name: createCropDto.name,
@@ -41,13 +45,28 @@ export class CropsService {
             stockingCount: createCropDto.stockingCount,
             stockingDate: createCropDto.stockingDate,
             expectedHarvestDate: createCropDto.expectedHarvestDate,
-            status: createCropDto.status || 'active',
+            status: finalStatus,
             stockingDensity,
+            // Stocking detail + cycle targets — undefined values fall back to the
+            // entity column defaults (carrying capacity 1.25, target SR 75, etc.).
+            totalSeed: createCropDto.totalSeed,
+            feedPriceRpPerKg: createCropDto.feedPriceRpPerKg,
+            carryingCapacityKgM2: createCropDto.carryingCapacityKgM2,
+            targetCultivationDays: createCropDto.targetCultivationDays,
+            targetSize: createCropDto.targetSize,
+            targetSrPercent: createCropDto.targetSrPercent,
+            srPredictionMethod: createCropDto.srPredictionMethod,
+            initialAgeDays: createCropDto.initialAgeDays,
+            preparationDays: createCropDto.preparationDays,
+            totalFeedingTrays: createCropDto.totalFeedingTrays,
+            hatcheryId: createCropDto.hatcheryId,
+            speciesId: createCropDto.speciesId,
+            broodstockId: createCropDto.broodstockId,
         });
         const savedCrop = await this.cropsRepository.save(crop);
 
-        // If status is active, update the pond's active cycle
-        if (createCropDto.status === 'active') {
+        // If the cycle is active, link it as the pond's active cycle.
+        if (finalStatus === 'active') {
             await this.pondsService.update(pond.id, { activeCycleId: savedCrop.id } as any, userId);
         }
 
@@ -83,9 +102,29 @@ export class CropsService {
         if (!crop) {
             throw new NotFoundException(`Crop with ID ${id} not found`);
         }
-        // Verify ownership via pond
+        // Verify ownership via pond (STRICT — this path feeds economics/PNL)
         await this.pondsService.findOne(crop.pondId, userId);
         return this.enrichWithDOC(crop);
+    }
+
+    /** Member-aware crop read (owner or worker). Does NOT feed economics. */
+    async findOneAccessible(id: string, userId: string) {
+        const crop = await this.cropsRepository.findOneBy({ id });
+        if (!crop) {
+            throw new NotFoundException(`Crop with ID ${id} not found`);
+        }
+        await this.pondsService.verifyAccess(crop.pondId, userId, 'READ');
+        return this.enrichWithDOC(crop);
+    }
+
+    /** Member-aware crop list for a pond (owner or worker). */
+    async findAllAccessible(pondId: string, userId: string) {
+        if (!pondId) return [];
+        await this.pondsService.verifyAccess(pondId, userId, 'READ');
+        return this.cropsRepository.find({
+            where: { pondId },
+            order: { createdAt: 'DESC' },
+        });
     }
 
     /**

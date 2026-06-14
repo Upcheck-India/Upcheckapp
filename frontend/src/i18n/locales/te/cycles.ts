@@ -35,5 +35,17 @@ const cycles = {
   closeCycleTitle: 'సైకిల్ మూసివేయి',
   closeCycleMessage: 'మీరు నిజంగా ఈ సైకిల్ మూసివేయాలనుకుంటున్నారా? ఈ చర్యను రద్దు చేయడం సాధ్యం కాదు.',
   errorCloseCycle: 'సైకిల్ మూసివేయడం విఫలమైంది',
+  createTargets: 'సైకిల్ లక్ష్యాలు',
+  createTargetsHint: 'సిమ్యులేషన్ మరియు హార్వెస్ట్, ఫీడ్ & P&L ఇంజన్లు దీన్ని ఉపయోగిస్తాయి. డిఫాల్ట్‌లు సరిపోతాయి; మీ ప్రణాళిక ప్రకారం మార్చండి.',
+  fieldTotalSeed: 'మొత్తం సీడ్ (PL)',
+  fieldFeedPrice: 'ఫీడ్ ధర (₹/kg)',
+  fieldIntensity: 'పెంపక సాంద్రత',
+  intensityExtensive: 'విస్తృత',
+  intensitySemi: 'సెమీ-ఇంటెన్సివ్',
+  intensityIntensive: 'ఇంటెన్సివ్',
+  intensityHint: 'చెరువు గరిష్ఠ మోత సామర్థ్యాన్ని నిర్ణయిస్తుంది. హార్వెస్ట్ & సిమ్యులేషన్ ఇంజన్లు దీన్ని ఉపయోగిస్తాయి.',
+  fieldTargetDays: 'లక్ష్య రోజులు',
+  fieldTargetSize: 'లక్ష్య పరిమాణం (కౌంట్)',
+  fieldTargetSr: 'లక్ష్య మనుగడ (%)',
 };
 export default cycles;

@@ -6,6 +6,8 @@ import { PondDimensionHistory } from './pond-dimension-history.entity';
 import { CreatePondDto } from './dto/create-pond.dto';
 import { UpdatePondDto } from './dto/update-pond.dto';
 import { FarmsService } from '../farms/farms.service';
+import { FarmCapability } from '../farm-access/farm-capability';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 import { PondDimensionService } from './pond-dimension.service';
 import { PondNamingService } from './pond-naming.service';
 import { PageOptionsDto } from '../common/dto/page-options.dto';
@@ -22,6 +24,7 @@ export class PondsService {
         private dimensionService: PondDimensionService,
         private namingService: PondNamingService,
         private dataSource: DataSource,
+        private farmAccess: FarmAccessService,
     ) { }
 
     /**
@@ -79,6 +82,7 @@ export class PondsService {
                 widthM: createPondDto.widthM,
                 diameterM: createPondDto.diameterM,
                 depthM: createPondDto.depthM,
+                installedAeratorHp: createPondDto.installedAeratorHp,
                 channelCount: createPondDto.channelCount,
                 calculatedAreaM2,
                 overrideAreaM2: createPondDto.overrideAreaM2,
@@ -124,11 +128,15 @@ export class PondsService {
      * Return all ponds belonging to any farm owned by the given user.
      */
     async findAllForUser(userId: string): Promise<Pond[]> {
+        // Ponds across every farm the user can access (owner or worker).
+        const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+        if (farmIds.length === 0) return [];
         return this.pondsRepository
             .createQueryBuilder('pond')
-            .innerJoin('farms', 'farm', 'farm.id = pond.farm_id AND farm.user_id = :userId AND farm.deleted_at IS NULL', { userId })
+            .innerJoin('farms', 'farm', 'farm.id = pond.farm_id AND farm.deleted_at IS NULL')
             .leftJoinAndSelect('pond.activeCycle', 'activeCycle')
-            .where('pond.status != :archived', { archived: 'archived' })
+            .where('pond.farm_id IN (:...farmIds)', { farmIds })
+            .andWhere('pond.status != :archived', { archived: 'archived' })
             .orderBy('pond.name', 'ASC')
             .getMany();
     }
@@ -327,7 +335,7 @@ export class PondsService {
      * Get dimension change history for a pond.
      */
     async getDimensionHistory(pondId: string, userId: string, pageOptionsDto?: PageOptionsDto): Promise<PageDto<PondDimensionHistory>> {
-        await this.findOne(pondId, userId); // Verify ownership
+        await this.verifyAccess(pondId, userId, 'READ'); // Owner or worker may view
         const skip = pageOptionsDto?.skip || 0;
         const take = pageOptionsDto?.take || 10;
         const order = pageOptionsDto?.order || 'DESC';
@@ -365,5 +373,27 @@ export class PondsService {
         if (pond.farm.userId !== userId) {
             throw new ForbiddenException('You do not have permission to access this pond');
         }
+    }
+
+    /**
+     * Member-aware pond fetch: passes for owner OR worker per the requested
+     * capability. Use for worker-permitted operations (field-log create/read).
+     * Returns the pond (with farm relation) or throws.
+     */
+    async findOneAccessible(id: string, userId: string, capability: FarmCapability = 'WRITE_OPERATIONAL'): Promise<Pond> {
+        const pond = await this.pondsRepository.findOne({ where: { id }, relations: ['farm'] });
+        if (!pond) {
+            throw new NotFoundException(`Pond with ID ${id} not found`);
+        }
+        // Owner fast-path, else delegate to the membership layer.
+        if (!pond.farm || pond.farm.userId !== userId) {
+            await this.farmsService.verifyAccess(pond.farmId, userId, capability);
+        }
+        return pond;
+    }
+
+    /** Member-aware lightweight access check (no entity returned). */
+    async verifyAccess(id: string, userId: string, capability: FarmCapability = 'WRITE_OPERATIONAL'): Promise<void> {
+        await this.findOneAccessible(id, userId, capability);
     }
 }

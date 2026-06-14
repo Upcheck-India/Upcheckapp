@@ -154,7 +154,7 @@ export const DailyFeedCalculatorScreen = ({ navigation }: any) => {
                 {result && (
                     <View style={styles.resultBox}>
                         <Text style={styles.resultLabel}>{t('calculators.dailyFeed.requiredDailyFeed')}</Text>
-                        <Text style={styles.resultValue}>{result.dailyFeedKg.toFixed(2)} kg</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{result.dailyFeedKg.toFixed(2)} kg</Text>
                         <Text style={styles.resultSubtext}>{t('calculators.dailyFeed.distributeAcrossFeedings')}</Text>
                     </View>
                 )}

@@ -12,7 +12,7 @@ export class PlanktonService {
         private planktonRepository: Repository<PlanktonData>,
     ) { }
 
-    async create(dto: CreatePlanktonDataDto): Promise<PlanktonData> {
+    async create(dto: CreatePlanktonDataDto, userId?: string): Promise<PlanktonData> {
         const total = (dto.greenAlgaeGaCellMl || 0) +
             (dto.blueGreenAlgaeBgaCellMl || 0) +
             (dto.dinoflagellataCellMl || 0) +
@@ -30,6 +30,8 @@ export class PlanktonService {
         const record = this.planktonRepository.create({
             ...dto,
             totalPlanktonCellMl: total,
+            createdById: userId,
+            updatedById: userId,
         });
 
         return this.planktonRepository.save(record);
@@ -48,7 +50,7 @@ export class PlanktonService {
         return record;
     }
 
-    async update(id: string, dto: UpdatePlanktonDataDto): Promise<PlanktonData> {
+    async update(id: string, dto: UpdatePlanktonDataDto, userId?: string): Promise<PlanktonData> {
         const existing = await this.findOne(id);
 
         const greenAlgae = dto.greenAlgaeGaCellMl ?? existing.greenAlgaeGaCellMl ?? 0;
@@ -72,6 +74,7 @@ export class PlanktonService {
         await this.planktonRepository.update(id, {
             ...dto,
             totalPlanktonCellMl: total,
+            ...(userId ? { updatedById: userId } : {}),
         });
         return this.findOne(id);
     }

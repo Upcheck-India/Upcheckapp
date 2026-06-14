@@ -42,6 +42,7 @@ describe('FeedRecordsService', () => {
           provide: PondsService,
           useValue: {
             findOne: jest.fn(),
+            findOneAccessible: jest.fn(),
           },
         },
         {
@@ -77,7 +78,7 @@ describe('FeedRecordsService', () => {
 
       // Mock PondsService to return a pond with activeCycleId
       const pondServiceMock = module.get<PondsService>(PondsService);
-      jest.spyOn(pondServiceMock, 'findOne').mockResolvedValue({
+      jest.spyOn(pondServiceMock, 'findOneAccessible').mockResolvedValue({
         id: 'pond-1',
         activeCycleId: 'crop-1',
         userId: 'user-1',
@@ -92,7 +93,9 @@ describe('FeedRecordsService', () => {
 
       expect(mockRepository.create).toHaveBeenCalledWith({
         ...createDto,
-        cropId: 'crop-1'
+        cropId: 'crop-1',
+        createdById: 'user-1',
+        updatedById: 'user-1',
       });
       expect(mockRepository.save).toHaveBeenCalled();
       expect(inventoryServiceMock.adjustStock).toHaveBeenCalledWith('inv-item-1', -50, 'user-1'); // Verify deduction (scoped to caller)
@@ -107,7 +110,7 @@ describe('FeedRecordsService', () => {
       };
 
       const pondServiceMock = module.get<PondsService>(PondsService);
-      jest.spyOn(pondServiceMock, 'findOne').mockResolvedValue({ id: 'pond-1', activeCycleId: 'crop-1' } as any);
+      jest.spyOn(pondServiceMock, 'findOneAccessible').mockResolvedValue({ id: 'pond-1', activeCycleId: 'crop-1' } as any);
 
       const inventoryServiceMock = module.get<InventoryService>(InventoryService);
 

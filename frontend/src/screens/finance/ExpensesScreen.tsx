@@ -189,14 +189,14 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
                     <MaterialCommunityIcons name="cash" size={16} color={theme.roles.light.infoText} />
                 </View>
                 <View style={styles.expenseInfo}>
-                    <Text style={styles.expenseCategory}>{item.category}</Text>
+                    <Text style={styles.expenseCategory} numberOfLines={1}>{item.category}</Text>
                     {item.description ? (
                         <Text style={styles.expenseNotes} numberOfLines={1}>{item.description}</Text>
                     ) : null}
                 </View>
                 <View style={styles.expenseRight}>
-                    <Text style={styles.expenseAmount}>{formatMoney(item.amount)}</Text>
-                    <Text style={styles.expenseDate}>{item.date}</Text>
+                    <Text style={styles.expenseAmount} numberOfLines={1}>{formatMoney(item.amount)}</Text>
+                    <Text style={styles.expenseDate} numberOfLines={1}>{item.date}</Text>
                 </View>
             </View>
         </Card>
@@ -533,6 +533,8 @@ const styles = StyleSheet.create({
     },
     expenseRight: {
         alignItems: 'flex-end',
+        flexShrink: 0,
+        marginLeft: theme.spacing[2],
     },
     expenseAmount: {
         ...theme.typeScale.bodyLarge,

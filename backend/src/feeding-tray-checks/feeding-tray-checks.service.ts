@@ -12,8 +12,8 @@ export class FeedingTrayChecksService {
         private checksRepository: Repository<FeedingTrayCheck>,
     ) { }
 
-    create(createDto: CreateFeedingTrayCheckDto) {
-        const record = this.checksRepository.create(createDto);
+    create(createDto: CreateFeedingTrayCheckDto, userId?: string) {
+        const record = this.checksRepository.create({ ...createDto, createdById: userId, updatedById: userId });
         return this.checksRepository.save(record);
     }
 
@@ -33,9 +33,9 @@ export class FeedingTrayChecksService {
         return record;
     }
 
-    async update(id: string, updateDto: UpdateFeedingTrayCheckDto): Promise<FeedingTrayCheck> {
+    async update(id: string, updateDto: UpdateFeedingTrayCheckDto, userId?: string): Promise<FeedingTrayCheck> {
         await this.findOne(id);
-        await this.checksRepository.update(id, updateDto);
+        await this.checksRepository.update(id, { ...updateDto, ...(userId ? { updatedById: userId } : {}) });
         return this.findOne(id);
     }
 

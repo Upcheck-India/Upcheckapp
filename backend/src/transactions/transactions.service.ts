@@ -29,8 +29,8 @@ export class TransactionsService {
             await this.farmsService.verifyOwnership(farmId, userId);
             where.farmId = farmId;
         } else {
-            // Restrict to farms the caller owns.
-            const farms = await this.farmsService.findAll(userId);
+            // Restrict to farms the caller OWNS (never member farms — economics).
+            const farms = await this.farmsService.findOwnedByUser(userId);
             const farmIds = farms.map((f) => f.id);
             if (farmIds.length === 0) return [];
             where.farmId = In(farmIds);

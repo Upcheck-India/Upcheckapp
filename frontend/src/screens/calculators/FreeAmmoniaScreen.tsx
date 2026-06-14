@@ -86,6 +86,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                 tan: tanVal,
                 ph: phVal,
                 temperature: tempVal,
+                salinity: parseFloat(salinity) || 0,
             });
             setResult(data);
         } catch (error: any) {
@@ -185,7 +186,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                         <Text style={[styles.resultLabel, { color: config.textColor }]}>
                             {t('calculators.freeAmmonia.resultLabel')}
                         </Text>
-                        <Text style={styles.resultValue}>{result.unionizedAmmonia.toFixed(4)}</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{result.unionizedAmmonia.toFixed(4)}</Text>
                         <Text style={styles.resultUnit}>ppm / mg/L</Text>
 
                         <Text style={[styles.messageText, { color: config.textColor }]}>

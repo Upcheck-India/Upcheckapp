@@ -23,6 +23,14 @@ describe('feedRateForWeight', () => {
     // midpoint of 1g(8%)–3g(6%) at 2g ≈ 7%
     expect(feedRateForWeight(2)).toBeCloseTo(7, 5)
   })
+  it('uses a species-specific curve (tiger tapers higher at large size, scampi lower at clamp)', () => {
+    // At 30g: vannamei 1.9% vs tiger (monodon) 2.1% — tiger eats a touch more at size.
+    expect(feedRateForWeight(30, 'vannamei')).toBeCloseTo(1.9, 5)
+    expect(feedRateForWeight(30, 'monodon')).toBeCloseTo(2.1, 5)
+    // Scampi clamps at 2.4% beyond 30g vs vannamei 1.9%.
+    expect(feedRateForWeight(100, 'scampi')).toBe(2.4)
+    expect(feedRateForWeight(100, 'vannamei')).toBe(1.9)
+  })
 })
 
 describe('docDaysForWeight', () => {

@@ -32,20 +32,21 @@ const MAX_DOC = 220
  * declining schedule for penaeid grow-out — large shrimp eat a smaller fraction
  * of their body weight than juveniles. Public-norm anchors, interpolated.
  */
-const FEED_RATE_ANCHORS: [number, number][] = [
-  [0, 12],
-  [1, 8],
-  [3, 6],
-  [5, 4.5],
-  [10, 3.4],
-  [15, 2.8],
-  [20, 2.4],
-  [30, 1.9],
-]
+// Per-species feed-rate (%/day) vs mean weight (g), interpolated. Larger shrimp
+// eat a smaller fraction of their body weight. Mirrors the backend FR tables;
+// values are public-norm ballparks, tunable per local feed brand.
+const FEED_RATE_ANCHORS: Record<Species, [number, number][]> = {
+  vannamei: [[0, 12], [1, 8], [3, 6], [5, 4.5], [10, 3.4], [15, 2.8], [20, 2.4], [30, 1.9]],
+  indicus: [[0, 12], [1, 8], [3, 6], [5, 4.5], [10, 3.4], [15, 2.8], [20, 2.4], [30, 1.9]],
+  // Tiger prawn — grows larger; slightly higher tail across its longer cycle.
+  monodon: [[0, 11], [1, 8], [3, 6], [5, 4.8], [10, 3.6], [15, 3.0], [20, 2.6], [30, 2.1], [40, 1.8]],
+  // Freshwater prawn — lower, flatter curve.
+  scampi: [[0, 10], [1, 8], [3, 6], [6, 4.5], [12, 3.5], [20, 2.8], [30, 2.4]],
+}
 
-/** Interpolated feeding rate (%/day) for a given mean weight (g). */
-export function feedRateForWeight(weightG: number): number {
-  const a = FEED_RATE_ANCHORS
+/** Interpolated feeding rate (%/day) for a species at a given mean weight (g). */
+export function feedRateForWeight(weightG: number, species: Species = 'vannamei'): number {
+  const a = FEED_RATE_ANCHORS[species] ?? FEED_RATE_ANCHORS.vannamei
   if (weightG <= a[0][0]) return a[0][1]
   const last = a[a.length - 1]
   if (weightG >= last[0]) return last[1]
@@ -129,7 +130,7 @@ export function projectFeedKg(input: {
     const weightG = estimateAverageWeightG(species, doc)
     const count = projectedSurvival({ stockedCount, dailyMortalityRatePct: dailyMortalityPct, days: doc })
     const biomassKg = biomass({ averageWeightG: weightG, count })
-    feedKg += (biomassKg * feedRateForWeight(weightG)) / 100
+    feedKg += (biomassKg * feedRateForWeight(weightG, species)) / 100
   }
   return feedKg
 }

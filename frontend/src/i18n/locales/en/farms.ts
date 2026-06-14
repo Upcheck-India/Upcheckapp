@@ -24,5 +24,18 @@ const farms = {
   errorFarmRequired: 'Farm name is required',
   errorCreateFarm: 'Failed to create farm',
   saveFarm: 'Save Farm',
+  fieldLocation: 'Farm location',
+  detectLocation: 'Detect my location',
+  locating: 'Getting location…',
+  locationCaptured: 'Location set · {{lat}}, {{lng}}',
+  locationDeniedTitle: 'Location permission needed',
+  locationDeniedMsg: 'Allow location access to set your farm position for weather and tide features.',
+  locationError: 'Could not get your location. Try again.',
+  fieldWaterSource: 'Water source',
+  water_tidal: 'Tidal',
+  water_river: 'River',
+  water_borehole: 'Borehole',
+  water_reservoir: 'Reservoir',
+  water_recycled: 'Recycled',
 };
 export default farms;

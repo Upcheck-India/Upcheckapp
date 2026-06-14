@@ -1,8 +1,10 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { In } from 'typeorm';
 import { FarmsService } from './farms.service';
 import { Farm } from './farm.entity';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 import { NotFoundException } from '@nestjs/common';
 
 describe('FarmsService', () => {
@@ -41,6 +43,13 @@ describe('FarmsService', () => {
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
         FarmsService,
         { provide: getRepositoryToken(Farm), useValue: repository },
+        {
+          provide: FarmAccessService,
+          useValue: {
+            getAccessibleFarmIds: jest.fn().mockResolvedValue(['farm-1']),
+            assertCanAccessFarm: jest.fn().mockResolvedValue(mockFarm),
+          },
+        },
       ],
     }).compile();
 
@@ -77,9 +86,19 @@ describe('FarmsService', () => {
   });
 
   describe('findAll', () => {
-    it('should return all farms for user', async () => {
+    it('should return all accessible farms for user', async () => {
       repository.find.mockResolvedValue([mockFarm]);
       const result = await service.findAll('user-1');
+      expect(result).toEqual([mockFarm]);
+      // Now scoped to the farm ids the user can access (owner or worker).
+      expect(repository.find).toHaveBeenCalledWith({ where: { id: In(['farm-1']) } });
+    });
+  });
+
+  describe('findOwnedByUser', () => {
+    it('should return only owned farms (strict, for economics)', async () => {
+      repository.find.mockResolvedValue([mockFarm]);
+      const result = await service.findOwnedByUser('user-1');
       expect(result).toEqual([mockFarm]);
       expect(repository.find).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
     });

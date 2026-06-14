@@ -14,7 +14,7 @@ export class TreatmentsController {
     @UseGuards(OwnershipGuard)
     @OwnsResource('Crop', 'cropId', 'pond.farm.userId')
     create(@Body() createDto: CreateTreatmentDto, @CurrentUser() user) {
-        return this.treatmentsService.create(createDto);
+        return this.treatmentsService.create(createDto, user.id);
     }
 
     @Get()
@@ -32,8 +32,8 @@ export class TreatmentsController {
     @Patch(':id')
     @UseGuards(OwnershipGuard)
     @OwnsResource('Treatment', 'id', 'crop.pond.farm.userId')
-    update(@Param('id') id: string, @Body() updateDto: UpdateTreatmentDto) {
-        return this.treatmentsService.update(id, updateDto);
+    update(@Param('id') id: string, @Body() updateDto: UpdateTreatmentDto, @CurrentUser() user) {
+        return this.treatmentsService.update(id, updateDto, user.id);
     }
 
     @Delete(':id')

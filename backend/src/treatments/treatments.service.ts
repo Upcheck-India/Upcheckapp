@@ -12,8 +12,8 @@ export class TreatmentsService {
         private treatmentsRepository: Repository<Treatment>,
     ) { }
 
-    create(createDto: CreateTreatmentDto) {
-        const record = this.treatmentsRepository.create(createDto);
+    create(createDto: CreateTreatmentDto, userId?: string) {
+        const record = this.treatmentsRepository.create({ ...createDto, createdById: userId, updatedById: userId });
         return this.treatmentsRepository.save(record);
     }
 
@@ -33,9 +33,9 @@ export class TreatmentsService {
         return record;
     }
 
-    async update(id: string, updateDto: UpdateTreatmentDto): Promise<Treatment> {
+    async update(id: string, updateDto: UpdateTreatmentDto, userId?: string): Promise<Treatment> {
         await this.findOne(id);
-        await this.treatmentsRepository.update(id, updateDto);
+        await this.treatmentsRepository.update(id, { ...updateDto, ...(userId ? { updatedById: userId } : {}) });
         return this.findOne(id);
     }
 

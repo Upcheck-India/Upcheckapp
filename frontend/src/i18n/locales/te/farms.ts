@@ -24,5 +24,18 @@ const farms = {
   errorFarmRequired: 'ఫారం పేరు తప్పనిసరి',
   errorCreateFarm: 'ఫారం సృష్టించడం విఫలమైంది',
   saveFarm: 'ఫారం సేవ్ చేయి',
+  fieldLocation: 'ఫారం స్థానం',
+  detectLocation: 'నా స్థానాన్ని గుర్తించు',
+  locating: 'స్థానం పొందుతోంది…',
+  locationCaptured: 'స్థానం సెట్ · {{lat}}, {{lng}}',
+  locationDeniedTitle: 'స్థాన అనుమతి అవసరం',
+  locationDeniedMsg: 'వాతావరణం & అలల ఫీచర్ల కోసం మీ ఫారం స్థానాన్ని సెట్ చేయడానికి అనుమతించండి.',
+  locationError: 'మీ స్థానాన్ని పొందలేకపోయాం. మళ్లీ ప్రయత్నించండి.',
+  fieldWaterSource: 'నీటి మూలం',
+  water_tidal: 'టైడల్',
+  water_river: 'నది',
+  water_borehole: 'బోర్‌వెల్',
+  water_reservoir: 'జలాశయం',
+  water_recycled: 'రీసైకిల్',
 };
 export default farms;

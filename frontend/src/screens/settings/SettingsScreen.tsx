@@ -77,6 +77,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                                     activeOpacity={0.7}
                                 >
                                     <Text
+                                        numberOfLines={1}
                                         style={[
                                             styles.languageLabel,
                                             isActive && styles.languageLabelActive,
@@ -260,12 +261,12 @@ const styles = StyleSheet.create({
     },
     languageRow: {
         flexDirection: 'row',
-        gap: theme.spacing[3],
+        flexWrap: 'wrap',
+        gap: theme.spacing[2],
         marginTop: theme.spacing[3],
     },
     languageOption: {
-        flex: 1,
-        paddingVertical: theme.spacing[3],
+        paddingVertical: theme.spacing[2],
         paddingHorizontal: theme.spacing[4],
         borderRadius: theme.radius.md,
         borderWidth: 1,

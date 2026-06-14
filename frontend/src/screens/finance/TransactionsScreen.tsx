@@ -180,7 +180,12 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
     };
 
     const renderFilterChips = () => (
-        <View style={styles.chipBar}>
+        <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipBarWrap}
+            contentContainerStyle={styles.chipBar}
+        >
             {FILTER_CHIPS.map((chip) => (
                 <TouchableOpacity
                     key={chip.key}
@@ -192,6 +197,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
                     activeOpacity={0.7}
                 >
                     <Text
+                        numberOfLines={1}
                         style={[
                             styles.chipLabel,
                             filter === chip.key && styles.chipLabelActive,
@@ -201,7 +207,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
                     </Text>
                 </TouchableOpacity>
             ))}
-        </View>
+        </ScrollView>
     );
 
     const renderTransactionItem = ({ item }: { item: Transaction }) => {
@@ -228,15 +234,16 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
                         />
                     </View>
                     <View style={styles.txInfo}>
-                        <Text style={styles.txCategory}>{item.category}</Text>
+                        <Text style={styles.txCategory} numberOfLines={1}>{item.category}</Text>
                         {item.description ? (
                             <Text style={styles.txDescription} numberOfLines={1}>
                                 {item.description}
                             </Text>
                         ) : null}
-                        <Text style={styles.txDate}>{dateStr}</Text>
+                        <Text style={styles.txDate} numberOfLines={1}>{dateStr}</Text>
                     </View>
                     <Text
+                        numberOfLines={1}
                         style={[
                             styles.txAmount,
                             isIncome ? styles.incomeText : styles.expenseText,
@@ -567,10 +574,13 @@ const styles = StyleSheet.create({
         color: theme.roles.light.dangerText,
     },
     // Filter chips
+    chipBarWrap: {
+        marginBottom: theme.spacing[4],
+        flexGrow: 0,
+    },
     chipBar: {
         flexDirection: 'row',
         gap: theme.spacing[2],
-        marginBottom: theme.spacing[4],
     },
     chip: {
         paddingHorizontal: theme.spacing[4],

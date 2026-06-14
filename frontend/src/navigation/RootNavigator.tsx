@@ -16,6 +16,8 @@ import { MainNavigator } from './MainNavigator';
 // Phase 2 Screens
 import { CreateFarmScreen } from '../screens/farms/CreateFarmScreen';
 import { FarmDetailScreen } from '../screens/farms/FarmDetailScreen';
+import { FarmMembersScreen } from '../screens/farms/FarmMembersScreen';
+import { AddWorkerScreen } from '../screens/farms/AddWorkerScreen';
 import { CreatePondScreen } from '../screens/ponds/CreatePondScreen';
 import { PondDashboardScreen } from '../screens/ponds/PondDashboardScreen';
 import { CreateCycleScreen } from '../screens/cycles/CreateCycleScreen';
@@ -55,6 +57,17 @@ import { PlanktonHistoryScreen } from '../screens/logs/History/PlanktonHistorySc
 import { MicrobiologyHistoryScreen } from '../screens/logs/History/MicrobiologyHistoryScreen';
 import { DiseaseHistoryScreen } from '../screens/logs/History/DiseaseHistoryScreen';
 import { MortalityHistoryScreen } from '../screens/logs/History/MortalityHistoryScreen';
+import { MeasurementsScreen } from '../screens/measurements/MeasurementsScreen';
+import { DailyRoutineScreen } from '../screens/engines/DailyRoutineScreen';
+import { WeeklyChemistryScreen } from '../screens/logs/WeeklyChemistryScreen';
+import { EnginesHubScreen } from '../screens/engines/EnginesHubScreen';
+import { FeedAdvisorScreen } from '../screens/engines/FeedAdvisorScreen';
+import { HarvestTimingScreen } from '../screens/engines/HarvestTimingScreen';
+import { DiseaseRiskScreen } from '../screens/engines/DiseaseRiskScreen';
+import { AerationScreen } from '../screens/engines/AerationScreen';
+import { LunarScreen } from '../screens/engines/LunarScreen';
+import { CropPnlScreen } from '../screens/engines/CropPnlScreen';
+import { MorningBriefingScreen } from '../screens/engines/MorningBriefingScreen';
 
 import { ProfileScreen } from '../screens/settings/ProfileScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
@@ -104,6 +117,8 @@ export type RootStackParamList = {
     // Phase 2
     CreateFarm: undefined;
     FarmDetail: { farmId: string; farmName?: string };
+    FarmMembers: { farmId: string; farmName?: string };
+    AddWorker: { farmId: string; farmName?: string };
     CreatePond: { farmId: string };
     PondDashboard: { pondId: string; pondName?: string };
     CreateCycle: { pondId: string };
@@ -142,6 +157,21 @@ export type RootStackParamList = {
     MicrobiologyHistory: { pondId: string; cropId?: string };
     DiseaseHistory: { pondId: string; cropId?: string };
     MortalityHistory: { pondId: string; cropId?: string };
+
+    // Measurement pipeline (PRD §6.2 keystone)
+    Measurements: { pondId: string; pondName?: string; cropId?: string };
+
+    // Decision engines (PRD P2)
+    WeeklyChemistry: { pondId: string; pondName?: string; cropId?: string };
+    DailyRoutine: { pondId: string; pondName?: string; cropId?: string };
+    EnginesHub: { pondId?: string; pondName?: string; cropId?: string };
+    FeedAdvisor: { pondId?: string; pondName?: string; cropId?: string };
+    HarvestTiming: { pondId?: string; pondName?: string; cropId?: string };
+    DiseaseRisk: { pondId?: string; pondName?: string; cropId?: string };
+    Aeration: { pondId?: string; pondName?: string; cropId?: string };
+    Lunar: { pondId?: string; pondName?: string; cropId?: string };
+    CropPnl: { pondId?: string; pondName?: string; cropId?: string };
+    MorningBriefing: undefined;
 
     Profile: undefined;
     Settings: undefined;
@@ -227,6 +257,8 @@ const RootNavigator = () => {
 
                     <Stack.Screen name="CreateFarm" component={CreateFarmScreen} />
                     <Stack.Screen name="FarmDetail" component={FarmDetailScreen} />
+                    <Stack.Screen name="FarmMembers" component={FarmMembersScreen} />
+                    <Stack.Screen name="AddWorker" component={AddWorkerScreen} />
                     <Stack.Screen name="CreatePond" component={CreatePondScreen} />
                     <Stack.Screen name="PondDashboard" component={PondDashboardScreen} />
                     <Stack.Screen name="CreateCycle" component={CreateCycleScreen} />
@@ -265,6 +297,21 @@ const RootNavigator = () => {
                     <Stack.Screen name="MicrobiologyHistory" component={MicrobiologyHistoryScreen} />
                     <Stack.Screen name="DiseaseHistory" component={DiseaseHistoryScreen} />
                     <Stack.Screen name="MortalityHistory" component={MortalityHistoryScreen} />
+                    <Stack.Screen
+                        name="Measurements"
+                        component={MeasurementsScreen}
+                        options={{ headerShown: true, title: 'Measurements', headerTintColor: theme.roles.light.primary }}
+                    />
+                    <Stack.Screen name="DailyRoutine" component={DailyRoutineScreen} options={{ headerShown: true, title: 'Daily Routine', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="WeeklyChemistry" component={WeeklyChemistryScreen} options={{ headerShown: true, title: 'Weekly Chemistry', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="EnginesHub" component={EnginesHubScreen} options={{ headerShown: true, title: 'Decision Engines', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="FeedAdvisor" component={FeedAdvisorScreen} options={{ headerShown: true, title: 'Feed Advisor', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="HarvestTiming" component={HarvestTimingScreen} options={{ headerShown: true, title: 'Harvest Timing', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="DiseaseRisk" component={DiseaseRiskScreen} options={{ headerShown: true, title: 'Disease Early-Warning', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="Aeration" component={AerationScreen} options={{ headerShown: true, title: 'Aeration & Power', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="Lunar" component={LunarScreen} options={{ headerShown: true, title: 'Lunar Molt', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="CropPnl" component={CropPnlScreen} options={{ headerShown: true, title: 'Crop P&L', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="MorningBriefing" component={MorningBriefingScreen} options={{ headerShown: true, title: 'Morning Briefing', headerTintColor: theme.roles.light.primary }} />
 
                     {/* Phase 5 (Settings & Notifications) */}
                     <Stack.Screen name="Profile" component={ProfileScreen} />

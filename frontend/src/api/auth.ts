@@ -75,6 +75,15 @@ export const authApi = {
         avatarUrl?: string;
     }) => apiClient.post<AuthResponse>('/auth/supabase/oauth/truecaller', payload),
 
+    // Truecaller OAuth 2.0 One-Tap exchange (current flow). The backend
+    // completes the PKCE token exchange and userinfo lookup, then mints a
+    // session — identity is never trusted from the client.
+    truecallerExchange: (payload: {
+        authorizationCode: string;
+        codeVerifier: string;
+        state?: string;
+    }) => apiClient.post<AuthResponse>('/auth/supabase/oauth/truecaller/exchange', payload),
+
     // ── Passwordless email OTP login ──
     loginOtpRequest: (email: string) =>
         apiClient.post('/auth/supabase/login-otp/request', { email }),

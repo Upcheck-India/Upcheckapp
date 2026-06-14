@@ -11,38 +11,38 @@ export class CropsController {
 
     @Post()
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Pond', 'pondId', 'farm.userId')
+    @OwnsResource('Pond', 'pondId', 'farm.userId', 'OWNER_ONLY')
     create(@Body() createCropDto: CreateCropDto, @CurrentUser() user) {
         return this.cropsService.create(createCropDto, user.id);
     }
 
     @Get()
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Pond', 'pondId', 'farm.userId')
+    @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
     findAll(@Query('pondId') pondId: string, @CurrentUser() user) {
         if (!pondId) {
             throw new BadRequestException('pondId query parameter is required');
         }
-        return this.cropsService.findAll(pondId, user.id);
+        return this.cropsService.findAllAccessible(pondId, user.id);
     }
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Crop', 'id', 'pond.farm.userId')
+    @OwnsResource('Crop', 'id', 'pond.farm.userId', 'READ')
     findOne(@Param('id') id: string, @CurrentUser() user) {
-        return this.cropsService.findOne(id, user.id);
+        return this.cropsService.findOneAccessible(id, user.id);
     }
 
     @Patch(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Crop', 'id', 'pond.farm.userId')
+    @OwnsResource('Crop', 'id', 'pond.farm.userId', 'OWNER_ONLY')
     update(@Param('id') id: string, @Body() updateCropDto: UpdateCropDto, @CurrentUser() user) {
         return this.cropsService.update(id, updateCropDto, user.id);
     }
 
     @Patch(':id/harvest')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Crop', 'id', 'pond.farm.userId')
+    @OwnsResource('Crop', 'id', 'pond.farm.userId', 'OWNER_ONLY')
     harvest(
         @Param('id') id: string,
         @Body() harvestData: { actualHarvestDate: Date; harvestWeightKg: number },
@@ -53,13 +53,13 @@ export class CropsController {
 
     @Delete(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Crop', 'id', 'pond.farm.userId')
+    @OwnsResource('Crop', 'id', 'pond.farm.userId', 'OWNER_ONLY')
     remove(@Param('id') id: string, @CurrentUser() user) {
         return this.cropsService.remove(id, user.id);
     }
     @Patch(':id/close')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Crop', 'id', 'pond.farm.userId')
+    @OwnsResource('Crop', 'id', 'pond.farm.userId', 'OWNER_ONLY')
     closeCycle(
         @Param('id') id: string,
         @Body() body: { actualHarvestDate: string },

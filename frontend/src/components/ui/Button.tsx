@@ -37,6 +37,7 @@ export const Button: React.FC<ButtonProps> = ({
                 <>
                     {icon && <View style={styles.iconContainer}>{icon}</View>}
                     <Text
+                        numberOfLines={1}
                         style={[
                             styles.label,
                             variant === 'primary' && styles.primaryLabel,
@@ -125,6 +126,8 @@ const styles = StyleSheet.create({
     },
     label: {
         ...theme.typeScale.labelLarge,
+        flexShrink: 1,
+        textAlign: 'center',
     },
     iconContainer: {
         marginRight: theme.spacing[2],

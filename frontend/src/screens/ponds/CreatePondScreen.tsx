@@ -29,6 +29,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
     const [widthM, setWidthM] = useState('');
     const [diameterM, setDiameterM] = useState('');
     const [depthM, setDepthM] = useState('');
+    const [installedAeratorHp, setInstalledAeratorHp] = useState('');
     const [displayName, setDisplayName] = useState('');
 
     const [computedArea, setComputedArea] = useState(0);
@@ -74,6 +75,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 widthM: (geometryType === 'rectangular' || geometryType === 'raceway') && widthM ? parseFloat(widthM) : undefined,
                 diameterM: geometryType === 'circular' && diameterM ? parseFloat(diameterM) : undefined,
                 depthM: parseFloat(depthM),
+                installedAeratorHp: installedAeratorHp ? parseFloat(installedAeratorHp) : undefined,
                 displayName: displayName.trim() || undefined,
             });
             navigation.goBack();
@@ -191,6 +193,15 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                     placeholder={t('ponds.placeholderDepth')}
                     error={errors.depthM}
                     required
+                />
+
+                <Input
+                    label={t('ponds.fieldAeratorHp')}
+                    value={installedAeratorHp}
+                    onChangeText={setInstalledAeratorHp}
+                    keyboardType="decimal-pad"
+                    placeholder={t('ponds.placeholderAeratorHp')}
+                    hint={t('ponds.hintAeratorHp')}
                 />
 
                 <Card style={styles.previewCard} variant="flat">

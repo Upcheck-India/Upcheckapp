@@ -7,7 +7,7 @@
  * Estimates improve as the caller supplies measured inputs (a sampled average
  * weight or count) instead of relying on the modeled defaults.
  */
-export type Species = 'vannamei' | 'monodon' | 'indicus'
+export type Species = 'vannamei' | 'monodon' | 'indicus' | 'scampi'
 
 // --- Core grow-out math (kept inline so this module is self-contained) ---
 
@@ -54,6 +54,13 @@ const MS_PER_DAY = 86_400_000
  * Growth anchors: days-of-culture -> mean body weight (g). Linear interpolation
  * between anchors; clamped at the ends. Figures are public grow-out ballparks,
  * not measured data — they exist only to give a first estimate before sampling.
+ *
+ * NOTE: this curve is tuned to TYPICAL Indian harvest sizes (vannamei ~24 g at
+ * 120 DOC). The backend sim-engine (sim-engine.service) uses a steeper power-law
+ * (~30 g at 120 DOC) suited to long, low-density culture — so a "simulation" can
+ * read a bit larger than this quick estimate. Both are tunable public-norm
+ * defaults; the right long-term fix is to calibrate from frozen crop_outcomes
+ * per farm rather than force one curve. Always prefer real sampling when present.
  */
 const GROWTH_ANCHORS: Record<Species, [number, number][]> = {
   vannamei: [
@@ -80,6 +87,16 @@ const GROWTH_ANCHORS: Record<Species, [number, number][]> = {
     [120, 22],
     [150, 28],
   ],
+  // Macrobrachium rosenbergii (scampi) — freshwater prawn, slower & more
+  // heterogeneous growth over a longer cycle.
+  scampi: [
+    [0, 0],
+    [30, 2],
+    [60, 6],
+    [90, 11],
+    [120, 17],
+    [150, 23],
+  ],
 }
 
 /** Coerce a free-text species string to a supported Species, defaulting safely. */
@@ -87,6 +104,9 @@ export function normalizeSpecies(raw: string | null | undefined): Species {
   const s = (raw ?? '').toLowerCase()
   if (s.includes('monodon') || s.includes('tiger') || s.includes('black')) {
     return 'monodon'
+  }
+  if (s.includes('scampi') || s.includes('macrobrachium') || s.includes('rosenbergii')) {
+    return 'scampi'
   }
   if (s.includes('indicus')) return 'indicus'
   return 'vannamei'

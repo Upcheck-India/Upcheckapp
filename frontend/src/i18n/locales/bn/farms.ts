@@ -24,5 +24,18 @@ const farms = {
   errorFarmRequired: 'খামারের নাম আবশ্যক',
   errorCreateFarm: 'খামার তৈরিতে ব্যর্থ',
   saveFarm: 'খামার সংরক্ষণ করুন',
+  fieldLocation: 'খামারের অবস্থান',
+  detectLocation: 'আমার অবস্থান শনাক্ত করুন',
+  locating: 'অবস্থান পাওয়া হচ্ছে…',
+  locationCaptured: 'অবস্থান সেট · {{lat}}, {{lng}}',
+  locationDeniedTitle: 'অবস্থান অনুমতি প্রয়োজন',
+  locationDeniedMsg: 'আবহাওয়া ও জোয়ার ফিচারের জন্য আপনার খামারের অবস্থান সেট করতে অনুমতি দিন।',
+  locationError: 'আপনার অবস্থান পাওয়া যায়নি। আবার চেষ্টা করুন।',
+  fieldWaterSource: 'জলের উৎস',
+  water_tidal: 'জোয়ার',
+  water_river: 'নদী',
+  water_borehole: 'নলকূপ',
+  water_reservoir: 'জলাধার',
+  water_recycled: 'পুনর্ব্যবহৃত',
 };
 export default farms;

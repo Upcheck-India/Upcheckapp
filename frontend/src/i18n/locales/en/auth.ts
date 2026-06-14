@@ -148,6 +148,7 @@ const auth = {
   invalidFirstNameError: 'Please enter your first name',
   sendVerificationCode: 'Send verification code',
   consentPrefix: "By creating an account, you agree to our",
+  legalPrefix: "By continuing, you agree to our",
   consentAnd: "and",
 };
 export default auth;

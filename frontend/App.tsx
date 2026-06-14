@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
-import { registerForPushNotificationsAsync } from './src/utils/notifications';
+import { registerForPushNotificationsAsync, scheduleDailyWaterQualityReminders, scheduleWeeklyChemistryReminder } from './src/utils/notifications';
 import { useAuthStore } from './src/store/authStore';
 import { pushApi } from './src/api/push';
 import {
@@ -68,7 +68,15 @@ export default function App() {
 
   useEffect(() => {
     registerForPushNotificationsAsync()
-      .then(token => setExpoPushToken(token ?? ''))
+      .then(token => {
+        setExpoPushToken(token ?? '');
+        // Schedule the reminders that drive the continuous-data loop:
+        // 3×/day water-quality + a weekly chemistry check (both idempotent).
+        return Promise.all([
+          scheduleDailyWaterQualityReminders(),
+          scheduleWeeklyChemistryReminder(),
+        ]);
+      })
       .catch((error: any) => setExpoPushToken(`${error}`));
 
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {

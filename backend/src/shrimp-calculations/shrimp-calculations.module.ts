@@ -4,6 +4,7 @@ import { ShrimpCalculationsController } from './shrimp-calculations.controller';
 
 @Module({
   providers: [ShrimpCalculationsService],
-  controllers: [ShrimpCalculationsController]
+  controllers: [ShrimpCalculationsController],
+  exports: [ShrimpCalculationsService],
 })
 export class ShrimpCalculationsModule {}

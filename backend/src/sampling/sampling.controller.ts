@@ -32,8 +32,8 @@ export class SamplingController {
     @Patch(':id')
     @UseGuards(OwnershipGuard)
     @OwnsResource('SamplingData', 'id', 'pond.farm.userId')
-    update(@Param('id') id: string, @Body() updateDto: UpdateSamplingDto) {
-        return this.samplingService.update(id, updateDto);
+    update(@Param('id') id: string, @Body() updateDto: UpdateSamplingDto, @CurrentUser() user) {
+        return this.samplingService.update(id, updateDto, user.id);
     }
 
     @Delete(':id')

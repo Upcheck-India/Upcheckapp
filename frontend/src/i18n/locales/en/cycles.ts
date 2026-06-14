@@ -35,5 +35,17 @@ const cycles = {
   closeCycleTitle: 'Close Cycle',
   closeCycleMessage: 'Are you sure you want to close this cycle? This action cannot be undone.',
   errorCloseCycle: 'Failed to close the cycle',
+  createTargets: 'Cycle targets',
+  createTargetsHint: 'Used by the simulation and the harvest, feed and P&L engines. Defaults are sensible; adjust to your plan.',
+  fieldTotalSeed: 'Total seed (PL)',
+  fieldFeedPrice: 'Feed price (₹/kg)',
+  fieldIntensity: 'Culture intensity',
+  intensityExtensive: 'Extensive',
+  intensitySemi: 'Semi-intensive',
+  intensityIntensive: 'Intensive',
+  intensityHint: 'Sets the pond\'s max sustainable biomass (carrying capacity). The harvest and simulation engines use it.',
+  fieldTargetDays: 'Target days',
+  fieldTargetSize: 'Target size (count)',
+  fieldTargetSr: 'Target survival (%)',
 };
 export default cycles;

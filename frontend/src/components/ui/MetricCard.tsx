@@ -62,8 +62,8 @@ export const MetricCard: React.FC<MetricCardProps> = ({
             <Text style={styles.label}>{label}</Text>
 
             <View style={styles.valueRow}>
-                <Text style={[styles.value, { color: getStatusColor() }]}>{value}</Text>
-                {unit && <Text style={styles.unit}>{unit}</Text>}
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={[styles.value, { color: getStatusColor() }]}>{value}</Text>
+                {unit && <Text style={styles.unit} numberOfLines={1}>{unit}</Text>}
             </View>
 
             <View style={styles.footerRow}>
@@ -109,10 +109,12 @@ const styles = StyleSheet.create({
     },
     value: {
         ...theme.typeScale.numericLarge,
+        flexShrink: 1,
     },
     unit: {
         ...theme.typeScale.bodyMedium,
         color: theme.roles.light.textSecondary,
+        flexShrink: 0,
         marginLeft: theme.spacing[1],
     },
     footerRow: {

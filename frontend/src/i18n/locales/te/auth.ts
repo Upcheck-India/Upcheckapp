@@ -148,6 +148,7 @@ const auth = {
   invalidFirstNameError: 'మీ మొదటి పేరు నమోదు చేయండి',
   sendVerificationCode: 'ధృవీకరణ కోడ్ పంపు',
   consentPrefix: "ఖాతాను సృష్టించడం ద్వారా, మీరు మా",
+  legalPrefix: "కొనసాగించడం ద్వారా, మీరు మా",
   consentAnd: "మరియు",
 };
 export default auth;

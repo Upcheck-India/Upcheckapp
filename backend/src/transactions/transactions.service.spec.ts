@@ -27,13 +27,14 @@ const createMockRepository = () => ({
 describe('TransactionsService', () => {
   let service: TransactionsService;
   let mockRepository: any;
-  let mockFarmsService: { verifyOwnership: jest.Mock; findAll: jest.Mock };
+  let mockFarmsService: { verifyOwnership: jest.Mock; findAll: jest.Mock; findOwnedByUser: jest.Mock };
 
   beforeEach(async () => {
     mockFarmsService = {
       // Resolves => caller owns the farm. Tests override to simulate denial.
       verifyOwnership: jest.fn().mockResolvedValue({ id: 'farm-1', userId: USER_ID }),
       findAll: jest.fn().mockResolvedValue([{ id: 'farm-1' }]),
+      findOwnedByUser: jest.fn().mockResolvedValue([{ id: 'farm-1' }]),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -79,7 +80,8 @@ describe('TransactionsService', () => {
 
       const result = await service.findAll(USER_ID);
 
-      expect(mockFarmsService.findAll).toHaveBeenCalledWith(USER_ID);
+      // Economics must scope to OWNED farms only, never member farms.
+      expect(mockFarmsService.findOwnedByUser).toHaveBeenCalledWith(USER_ID);
       expect(mockRepository.find).toHaveBeenCalled();
       expect(result).toEqual(mockTransactions);
     });

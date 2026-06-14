@@ -9,6 +9,8 @@ import { AppService } from './app.service';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
 import { ProfilesModule } from './profiles/profiles.module';
+import { FarmAccessModule } from './farm-access/farm-access.module';
+import { FarmMembersModule } from './farm-members/farm-members.module';
 import { FarmsModule } from './farms/farms.module';
 import { AuthModule } from './auth/auth.module';
 import { RedisModule } from './redis/redis.module';
@@ -40,6 +42,23 @@ import { ReportsModule } from './reports/reports.module';
 import { TasksModule } from './tasks/tasks.module';
 import { PushModule } from './push/push.module';
 import { HealthModule } from './health/health.module';
+import { MeasurementModule } from './measurement/measurement.module';
+import { IndiaModule } from './india/india.module';
+import { FeedAdvisorModule } from './feed-advisor/feed-advisor.module';
+import { LunarModule } from './lunar/lunar.module';
+import { DiseaseWarningModule } from './disease-warning/disease-warning.module';
+import { HarvestTimingModule } from './harvest-timing/harvest-timing.module';
+import { AerationModule } from './aeration/aeration.module';
+import { PnlModule } from './pnl/pnl.module';
+import { PondPrepModule } from './pond-prep/pond-prep.module';
+import { WeatherModule } from './weather/weather.module';
+import { CreditModule } from './credit/credit.module';
+import { SimEngineModule } from './sim-engine/sim-engine.module';
+import { CropOutcomeModule } from './crop-outcome/crop-outcome.module';
+import { CaptureModule } from './capture/capture.module';
+import { AlertCenterModule } from './alert-center/alert-center.module';
+import { RegionalMapModule } from './regional-map/regional-map.module';
+import { PondContextModule } from './pond-context/pond-context.module';
 
 @Module({
   imports: [
@@ -106,6 +125,8 @@ import { HealthModule } from './health/health.module';
       inject: [ConfigService],
     }),
     HealthModule,
+    FarmAccessModule,
+    FarmMembersModule,
     ProfilesModule,
     FarmsModule,
     AuthModule,
@@ -137,6 +158,23 @@ import { HealthModule } from './health/health.module';
     ReportsModule,
     TasksModule,
     PushModule,
+    MeasurementModule,
+    IndiaModule,
+    FeedAdvisorModule,
+    LunarModule,
+    DiseaseWarningModule,
+    HarvestTimingModule,
+    AerationModule,
+    PnlModule,
+    PondPrepModule,
+    WeatherModule,
+    CreditModule,
+    SimEngineModule,
+    CropOutcomeModule,
+    CaptureModule,
+    AlertCenterModule,
+    RegionalMapModule,
+    PondContextModule,
   ],
   controllers: [AppController],
   providers: [

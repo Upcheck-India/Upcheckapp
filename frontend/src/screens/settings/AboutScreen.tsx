@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
+import { ShrimpLogo } from '../../components/ui/ShrimpLogo';
 import { theme } from '../../theme';
 
 const FEATURE_KEYS = [
@@ -30,7 +31,9 @@ export const AboutScreen = ({ navigation }: any) => {
 
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.logoContainer}>
-                    <Text style={styles.logo}>🦐</Text>
+                    <View style={styles.logo}>
+                        <ShrimpLogo size={80} color={theme.roles.light.primary} eyeColor={theme.roles.light.surface} />
+                    </View>
                     <Text style={styles.appName}>{t('common.appName')}</Text>
                     <Text style={styles.tagline}>{t('settings.appTagline')}</Text>
                 </View>
@@ -98,7 +101,6 @@ const styles = StyleSheet.create({
         paddingVertical: theme.spacing[8],
     },
     logo: {
-        fontSize: 72,
         marginBottom: theme.spacing[3],
     },
     appName: {

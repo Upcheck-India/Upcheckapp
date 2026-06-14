@@ -14,7 +14,7 @@ export class PlanktonController {
     @UseGuards(OwnershipGuard)
     @OwnsResource('Crop', 'cropId', 'pond.farm.userId')
     create(@Body() dto: CreatePlanktonDataDto, @CurrentUser() user) {
-        return this.planktonService.create(dto);
+        return this.planktonService.create(dto, user.id);
     }
 
     @Get('crop/:cropId')
@@ -32,8 +32,8 @@ export class PlanktonController {
     @Patch(':id')
     @UseGuards(OwnershipGuard)
     @OwnsResource('PlanktonData', 'id', 'crop.pond.farm.userId')
-    update(@Param('id') id: string, @Body() dto: UpdatePlanktonDataDto) {
-        return this.planktonService.update(id, dto);
+    update(@Param('id') id: string, @Body() dto: UpdatePlanktonDataDto, @CurrentUser() user) {
+        return this.planktonService.update(id, dto, user.id);
     }
 
     @Delete(':id')

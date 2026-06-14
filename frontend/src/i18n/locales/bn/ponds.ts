@@ -54,5 +54,16 @@ const ponds = {
   actionPlankton: 'প্ল্যাংকটন',
   actionMicrobiology: 'মাইক্রোবায়োলজি',
   actionHarvest: 'ফসল সংগ্রহ',
+  actionDailyRoutine: 'দৈনিক রুটিন',
+  actionWeeklyChem: 'সাপ্তাহিক রসায়ন',
+  actionMeasurements: 'পরিমাপ',
+  actionAdvisor: 'পরামর্শক',
+  status_active: 'সক্রিয়',
+  status_fallow: 'পতিত',
+  status_harvesting: 'সংগ্রহ',
+  status_archived: 'সংরক্ষিত',
+  fieldAeratorHp: 'স্থাপিত এয়ারেটর HP',
+  placeholderAeratorHp: 'যেমন 4',
+  hintAeratorHp: 'এই পুকুরের মোট প্যাডেলহুইল/এয়ারেটর শক্তি। এয়ারেশন অপ্টিমাইজার এটি ব্যবহার করে।',
 };
 export default ponds;

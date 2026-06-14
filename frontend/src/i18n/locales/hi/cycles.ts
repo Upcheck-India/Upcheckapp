@@ -35,5 +35,17 @@ const cycles = {
   closeCycleTitle: 'चक्र बंद करें',
   closeCycleMessage: 'क्या आप वाकई इस चक्र को बंद करना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।',
   errorCloseCycle: 'चक्र बंद करने में विफल',
+  createTargets: 'चक्र लक्ष्य',
+  createTargetsHint: 'सिमुलेशन और हार्वेस्ट, फ़ीड व P&L इंजन इसका उपयोग करते हैं। डिफ़ॉल्ट उपयुक्त हैं; अपनी योजना अनुसार बदलें।',
+  fieldTotalSeed: 'कुल बीज (PL)',
+  fieldFeedPrice: 'फ़ीड मूल्य (₹/kg)',
+  fieldIntensity: 'पालन सघनता',
+  intensityExtensive: 'विस्तृत',
+  intensitySemi: 'अर्ध-सघन',
+  intensityIntensive: 'सघन',
+  intensityHint: 'तालाब की अधिकतम वहन क्षमता तय करता है। हार्वेस्ट व सिमुलेशन इंजन इसका उपयोग करते हैं।',
+  fieldTargetDays: 'लक्ष्य दिन',
+  fieldTargetSize: 'लक्ष्य आकार (काउंट)',
+  fieldTargetSr: 'लक्ष्य उत्तरजीविता (%)',
 };
 export default cycles;

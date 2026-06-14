@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@
 import { DiseaseService } from './disease.service';
 import { CreateDiseaseDto, CreateDiseaseRecordDto } from './dto/create-disease.dto';
 import { UpdateDiseaseLibraryDto } from './dto/update-disease-library.dto';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('disease')
 export class DiseaseController {
@@ -48,8 +49,8 @@ export class DiseaseController {
     // --- Record Endpoints ---
 
     @Post('record')
-    recordOccurrence(@Body() dto: CreateDiseaseRecordDto) {
-        return this.diseaseService.recordOccurrence(dto);
+    recordOccurrence(@Body() dto: CreateDiseaseRecordDto, @CurrentUser() user) {
+        return this.diseaseService.recordOccurrence(dto, user.id);
     }
 
     @Get('record/crop/:cropId')
@@ -58,8 +59,8 @@ export class DiseaseController {
     }
 
     @Patch('record/:id')
-    updateRecord(@Param('id') id: string, @Body() dto: Partial<CreateDiseaseRecordDto>) {
-        return this.diseaseService.updateRecord(id, dto);
+    updateRecord(@Param('id') id: string, @Body() dto: Partial<CreateDiseaseRecordDto>, @CurrentUser() user) {
+        return this.diseaseService.updateRecord(id, dto, user.id);
     }
 
     @Delete('record/:id')

@@ -24,5 +24,18 @@ const farms = {
   errorFarmRequired: 'ଫାର୍ମ ନାମ ଆବଶ୍ୟକ',
   errorCreateFarm: 'ଫାର୍ମ ତୈରି କରିବାରେ ବିଫଳ',
   saveFarm: 'ଫାର୍ମ ସଞ୍ଚୟ',
+  fieldLocation: 'ଫାର୍ମ ଅବସ୍ଥାନ',
+  detectLocation: 'ମୋ ଅବସ୍ଥାନ ଚିହ୍ନଟ କରନ୍ତୁ',
+  locating: 'ଅବସ୍ଥାନ ମିଳୁଛି…',
+  locationCaptured: 'ଅବସ୍ଥାନ ସେଟ୍ · {{lat}}, {{lng}}',
+  locationDeniedTitle: 'ଅବସ୍ଥାନ ଅନୁମତି ଆବଶ୍ୟକ',
+  locationDeniedMsg: 'ପାଗ ଓ ଜୁଆର ବୈଶିଷ୍ଟ୍ୟ ପାଇଁ ଆପଣଙ୍କ ଫାର୍ମ ଅବସ୍ଥାନ ସେଟ୍ କରିବାକୁ ଅନୁମତି ଦିଅନ୍ତୁ।',
+  locationError: 'ଆପଣଙ୍କ ଅବସ୍ଥାନ ମିଳିଲା ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
+  fieldWaterSource: 'ଜଳ ଉତ୍ସ',
+  water_tidal: 'ଜୁଆର',
+  water_river: 'ନଦୀ',
+  water_borehole: 'ବୋରୱେଲ',
+  water_reservoir: 'ଜଳାଶୟ',
+  water_recycled: 'ପୁନଃଚକ୍ରିତ',
 };
 export default farms;

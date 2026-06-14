@@ -7,6 +7,7 @@ import { SupabaseAuthGuard } from './guards/supabase-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/auth.decorators';
 import { TruecallerAuthDto } from './dto/truecaller-auth.dto';
+import { TruecallerOAuthExchangeDto } from './dto/truecaller-oauth-exchange.dto';
 import { Enable2faDto } from './dto/enable-2fa.dto';
 import { Disable2faDto } from './dto/disable-2fa.dto';
 import { Login2faDto } from './dto/login-2fa.dto';
@@ -290,6 +291,46 @@ export class SupabaseAuthController {
         });
 
         // Requirement 11.5: response shape matches POST /auth/supabase/signin.
+        return {
+            message: 'Truecaller authentication successful',
+            user: result.user,
+            session: result.session,
+        };
+    }
+
+    /**
+     * Truecaller OAuth 2.0 One-Tap exchange.
+     *
+     * The mobile SDK (`@dhana-cs/react-native-truecaller`) returns an
+     * authorization code + PKCE `codeVerifier`; this endpoint completes the
+     * server-to-server exchange and mints a Supabase session. This is the
+     * current/working path — the legacy `POST oauth/truecaller` route above
+     * (signed payload / OTP access token) is retained for backwards
+     * compatibility only.
+     *
+     * Identity fields come solely from Truecaller's verified userinfo
+     * response, never from the request body.
+     */
+    @Public()
+    @Post('oauth/truecaller/exchange')
+    @HttpCode(HttpStatus.OK)
+    @UseFilters(TruecallerInvalidRequestFilter)
+    async truecallerOAuthExchange(
+        @Body(truecallerValidationPipe) body: TruecallerOAuthExchangeDto,
+    ) {
+        const verifiedProfile = await this.truecallerService.verifyOAuthCode(
+            body.authorizationCode,
+            body.codeVerifier,
+        );
+
+        const result = await this.supabaseAuthService.signInWithTruecaller({
+            phoneNumber: verifiedProfile.phoneNumber,
+            firstName: verifiedProfile.firstName || 'User',
+            lastName: verifiedProfile.lastName,
+            email: verifiedProfile.email,
+            avatarUrl: verifiedProfile.avatarUrl,
+        });
+
         return {
             message: 'Truecaller authentication successful',
             user: result.user,

@@ -68,7 +68,26 @@ export default {
           color: "#ffffff"
         }
       ],
-      "@react-native-google-signin/google-signin"
+      [
+        "expo-camera",
+        {
+          cameraPermission: "Allow UpCheck to use the camera to scan a worker's QR code."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          locationAlwaysAndWhenInUsePermission: "Allow UpCheck to use your location to set your farm position for weather, tide and regional pricing features."
+        }
+      ],
+      "@react-native-google-signin/google-signin",
+      // Injects <meta-data android:name="com.truecaller.android.sdk.ClientId">
+      // into the Android manifest so the native Truecaller SDK can initialize.
+      // Without this, isUsable()/authenticate() fail (no client id at runtime).
+      [
+        "./node_modules/@dhana-cs/react-native-truecaller/plugins/withTruecaller.js",
+        { clientId: TRUECALLER_ANDROID_CLIENT_ID }
+      ]
     ],
     runtimeVersion: "1.0.0",
     updates: {

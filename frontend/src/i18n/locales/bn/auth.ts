@@ -148,6 +148,7 @@ const auth = {
   invalidFirstNameError: 'আপনার প্রথম নাম লিখুন',
   sendVerificationCode: 'যাচাইকরণ কোড পাঠান',
   consentPrefix: "একটি অ্যাকাউন্ট তৈরি করে, আপনি আমাদের",
+  legalPrefix: "চালিয়ে গিয়ে, আপনি আমাদের",
   consentAnd: "এবং",
 };
 export default auth;

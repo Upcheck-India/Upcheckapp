@@ -14,7 +14,7 @@ export class FeedingTrayChecksController {
     @UseGuards(OwnershipGuard)
     @OwnsResource('Crop', 'cropId', 'pond.farm.userId')
     create(@Body() createDto: CreateFeedingTrayCheckDto, @CurrentUser() user) {
-        return this.feedingTrayChecksService.create(createDto);
+        return this.feedingTrayChecksService.create(createDto, user.id);
     }
 
     @Get()
@@ -32,8 +32,8 @@ export class FeedingTrayChecksController {
     @Patch(':id')
     @UseGuards(OwnershipGuard)
     @OwnsResource('FeedingTrayCheck', 'id', 'crop.pond.farm.userId')
-    update(@Param('id') id: string, @Body() updateDto: UpdateFeedingTrayCheckDto) {
-        return this.feedingTrayChecksService.update(id, updateDto);
+    update(@Param('id') id: string, @Body() updateDto: UpdateFeedingTrayCheckDto, @CurrentUser() user) {
+        return this.feedingTrayChecksService.update(id, updateDto, user.id);
     }
 
     @Delete(':id')

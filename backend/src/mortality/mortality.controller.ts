@@ -13,8 +13,8 @@ export class MortalityController {
     @Post()
     @UseGuards(OwnershipGuard)
     @OwnsResource('Crop', 'cropId', 'pond.farm.userId')
-    create(@Body() dto: CreateMortalityRecordDto) {
-        return this.mortalityService.create(dto);
+    create(@Body() dto: CreateMortalityRecordDto, @CurrentUser() user) {
+        return this.mortalityService.create(dto, user.id);
     }
 
     @Get('crop/:cropId')
@@ -32,8 +32,8 @@ export class MortalityController {
     @Patch(':id')
     @UseGuards(OwnershipGuard)
     @OwnsResource('MortalityRecord', 'id', 'crop.pond.farm.userId')
-    update(@Param('id') id: string, @Body() dto: UpdateMortalityRecordDto) {
-        return this.mortalityService.update(id, dto);
+    update(@Param('id') id: string, @Body() dto: UpdateMortalityRecordDto, @CurrentUser() user) {
+        return this.mortalityService.update(id, dto, user.id);
     }
 
     @Delete(':id')

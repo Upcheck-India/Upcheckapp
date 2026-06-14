@@ -15,8 +15,16 @@ describe('normalizeSpecies', () => {
     expect(normalizeSpecies('Black Tiger')).toBe('monodon')
     expect(normalizeSpecies('P. indicus')).toBe('indicus')
     expect(normalizeSpecies('Litopenaeus vannamei')).toBe('vannamei')
+    expect(normalizeSpecies('Macrobrachium rosenbergii')).toBe('scampi')
+    expect(normalizeSpecies('scampi')).toBe('scampi')
     expect(normalizeSpecies('')).toBe('vannamei')
     expect(normalizeSpecies(undefined)).toBe('vannamei')
+  })
+
+  it('models species with distinct growth curves (tiger fastest, scampi slowest)', () => {
+    const w = (s: any) => estimateAverageWeightG(s, 120)
+    expect(w('monodon')).toBeGreaterThan(w('vannamei'))
+    expect(w('vannamei')).toBeGreaterThan(w('scampi'))
   })
 })
 

@@ -1,4 +1,5 @@
 import { ConfigService } from '@nestjs/config';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { PondsController } from './ponds.controller';
@@ -17,6 +18,7 @@ describe('PondsController', () => {
       create: jest.fn().mockResolvedValue({ pond: mockPond, calculatedAreaM2: 200, warnings: [] }),
       findAll: jest.fn().mockResolvedValue({ ponds: [mockPond], total: 1, page: 1, hasMore: false }),
       findOne: jest.fn().mockResolvedValue(mockPond),
+      findOneAccessible: jest.fn().mockResolvedValue(mockPond),
       update: jest.fn().mockResolvedValue(mockPond),
       archive: jest.fn().mockResolvedValue({ message: 'Pond archived successfully' }),
       remove: jest.fn().mockResolvedValue({ message: 'Pond deleted successfully' }),
@@ -27,6 +29,7 @@ describe('PondsController', () => {
       controllers: [PondsController],
       providers: [
         { provide: DataSource, useValue: {} },
+        { provide: FarmAccessService, useValue: { getRoleOnFarm: jest.fn().mockResolvedValue('owner'), assertCanAccessFarm: jest.fn(), assertCanAccessPond: jest.fn(), getAccessibleFarmIds: jest.fn().mockResolvedValue([]) } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
         { provide: PondsService, useValue: service },
       ],

@@ -21,21 +21,21 @@ export class FarmsController {
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Farm')
+    @OwnsResource('Farm', 'id', 'userId', 'READ')
     findOne(@Param('id') id: string) {
         return this.farmsService.findOne(id);
     }
 
     @Patch(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Farm')
+    @OwnsResource('Farm', 'id', 'userId', 'OWNER_ONLY')
     update(@Param('id') id: string, @Body() updateFarmDto: UpdateFarmDto) {
         return this.farmsService.update(id, updateFarmDto);
     }
 
     @Delete(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Farm')
+    @OwnsResource('Farm', 'id', 'userId', 'OWNER_ONLY')
     remove(@Param('id') id: string) {
         return this.farmsService.remove(id);
     }

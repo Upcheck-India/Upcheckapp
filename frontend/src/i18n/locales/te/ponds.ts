@@ -54,5 +54,16 @@ const ponds = {
   actionPlankton: 'ప్లాంక్టన్',
   actionMicrobiology: 'సూక్ష్మజీవశాస్త్రం',
   actionHarvest: 'పంట',
+  actionDailyRoutine: 'రోజువారీ షెడ్యూల్',
+  actionWeeklyChem: 'వారపు రసాయన',
+  actionMeasurements: 'కొలతలు',
+  actionAdvisor: 'సలహాదారు',
+  status_active: 'యాక్టివ్',
+  status_fallow: 'ఖాళీ',
+  status_harvesting: 'హార్వెస్టింగ్',
+  status_archived: 'ఆర్కైవ్',
+  fieldAeratorHp: 'ఇన్‌స్టాల్ చేసిన ఏరేటర్ HP',
+  placeholderAeratorHp: 'ఉదా. 4',
+  hintAeratorHp: 'ఈ చెరువులోని మొత్తం ప్యాడిల్‌వీల్/ఏరేటర్ శక్తి. ఏరేషన్ ఆప్టిమైజర్ దీన్ని ఉపయోగిస్తుంది.',
 };
 export default ponds;

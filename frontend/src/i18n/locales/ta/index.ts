@@ -14,6 +14,10 @@ import inventory from './inventory';
 import content from './content';
 import settings from './settings';
 
+import engines from './engines';
+
+import members from './members';
+
 export default {
   common,
   history,
@@ -30,4 +34,6 @@ export default {
   inventory,
   content,
   settings,
+  engines,
+  members,
 };

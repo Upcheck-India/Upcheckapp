@@ -171,8 +171,8 @@ export class DiseaseService {
 
     // --- Record Methods ---
 
-    async recordOccurrence(dto: CreateDiseaseRecordDto): Promise<DiseaseRecord> {
-        const record = this.diseaseRecordRepository.create(dto);
+    async recordOccurrence(dto: CreateDiseaseRecordDto, userId?: string): Promise<DiseaseRecord> {
+        const record = this.diseaseRecordRepository.create({ ...dto, createdById: userId, updatedById: userId });
         return this.diseaseRecordRepository.save(record);
     }
 
@@ -184,10 +184,10 @@ export class DiseaseService {
         });
     }
 
-    async updateRecord(id: string, dto: Partial<CreateDiseaseRecordDto>): Promise<DiseaseRecord> {
+    async updateRecord(id: string, dto: Partial<CreateDiseaseRecordDto>, userId?: string): Promise<DiseaseRecord> {
         const record = await this.diseaseRecordRepository.findOneBy({ id });
         if (!record) throw new NotFoundException(`Disease record ${id} not found`);
-        await this.diseaseRecordRepository.update(id, dto);
+        await this.diseaseRecordRepository.update(id, { ...dto, ...(userId ? { updatedById: userId } : {}) });
         return this.diseaseRecordRepository.findOneBy({ id }) as Promise<DiseaseRecord>;
     }
 

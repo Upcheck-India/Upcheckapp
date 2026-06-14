@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import QRCode from 'react-native-qrcode-svg';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { WORKER_QR_PREFIX } from '../../api/farmMembers';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -290,6 +292,25 @@ export const ProfileScreen = ({ navigation }: any) => {
                         </Card>
                     )}
 
+                    {!isEditing && user?.id && (
+                        <Card style={styles.infoCard}>
+                            <View style={styles.qrHeader}>
+                                <MaterialCommunityIcons name="qrcode" size={20} color={theme.roles.light.primary} />
+                                <Text style={styles.qrTitle}>{t('members.workerCode')}</Text>
+                            </View>
+                            <Text style={styles.qrHint}>{t('members.workerCodeHint')}</Text>
+                            <View style={styles.qrBox}>
+                                <QRCode
+                                    value={`${WORKER_QR_PREFIX}${user.id}`}
+                                    size={180}
+                                    color={theme.roles.light.textPrimary}
+                                    backgroundColor={theme.roles.light.surface}
+                                />
+                            </View>
+                            <Text style={styles.qrId} selectable>{user.id}</Text>
+                        </Card>
+                    )}
+
                     {!isEditing && (
                         <Button
                             title={t('settings.editProfile')}
@@ -371,6 +392,11 @@ const styles = StyleSheet.create({
         marginBottom: theme.spacing[6],
         marginTop: -theme.spacing[4],
     },
+    qrHeader: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2], marginBottom: theme.spacing[1] },
+    qrTitle: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },
+    qrHint: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[4] },
+    qrBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: theme.spacing[2] },
+    qrId: { ...theme.typeScale.caption, color: theme.roles.light.textTertiary, textAlign: 'center', marginTop: theme.spacing[3] },
     editCard: {
         padding: theme.spacing[4],
         marginBottom: theme.spacing[6],

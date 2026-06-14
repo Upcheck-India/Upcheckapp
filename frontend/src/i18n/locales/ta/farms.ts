@@ -24,5 +24,18 @@ const farms = {
   errorFarmRequired: 'பண்ணை பெயர் தேவை',
   errorCreateFarm: 'பண்ணை உருவாக்க முடியவில்லை',
   saveFarm: 'பண்ணையை சேமி',
+  fieldLocation: 'பண்ணை இருப்பிடம்',
+  detectLocation: 'எனது இருப்பிடத்தைக் கண்டறி',
+  locating: 'இருப்பிடம் பெறப்படுகிறது…',
+  locationCaptured: 'இருப்பிடம் அமைக்கப்பட்டது · {{lat}}, {{lng}}',
+  locationDeniedTitle: 'இருப்பிட அனுமதி தேவை',
+  locationDeniedMsg: 'வானிலை & அலை அம்சங்களுக்கு உங்கள் பண்ணை இருப்பிடத்தை அமைக்க அனுமதிக்கவும்.',
+  locationError: 'இருப்பிடத்தைப் பெற முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+  fieldWaterSource: 'நீர் ஆதாரம்',
+  water_tidal: 'அலை',
+  water_river: 'ஆறு',
+  water_borehole: 'ஆழ்துளை கிணறு',
+  water_reservoir: 'நீர்த்தேக்கம்',
+  water_recycled: 'மறுசுழற்சி',
 };
 export default farms;

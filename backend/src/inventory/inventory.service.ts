@@ -35,7 +35,8 @@ export class InventoryService {
         if (category) where.category = category;
 
         if (farmId) {
-            await this.farmsService.verifyOwnership(farmId, userId);
+            // Workers may view inventory.
+            await this.farmsService.verifyAccess(farmId, userId, 'READ');
             where.farmId = farmId;
         } else {
             const farms = await this.farmsService.findAll(userId);
@@ -47,21 +48,30 @@ export class InventoryService {
         return this.itemsRepository.find({ where, order: { name: 'ASC' } });
     }
 
-    private async findOwned(id: string, userId: string): Promise<InventoryItem> {
+    /**
+     * Load an item and assert the caller's access at the given capability.
+     * Defaults to OWNER_ONLY (catalog management); reads pass READ and the
+     * feed-driven stock adjustment passes WRITE_OPERATIONAL.
+     */
+    private async findOwned(
+        id: string,
+        userId: string,
+        capability: 'READ' | 'WRITE_OPERATIONAL' | 'OWNER_ONLY' = 'OWNER_ONLY',
+    ): Promise<InventoryItem> {
         const item = await this.itemsRepository.findOneBy({ id });
         if (!item) {
             throw new NotFoundException(`Inventory item with ID ${id} not found`);
         }
-        await this.farmsService.verifyOwnership(item.farmId, userId);
+        await this.farmsService.verifyAccess(item.farmId, userId, capability);
         return item;
     }
 
     findOne(id: string, userId: string) {
-        return this.findOwned(id, userId);
+        return this.findOwned(id, userId, 'READ');
     }
 
     async update(id: string, updateDto: UpdateInventoryItemDto, userId: string) {
-        await this.findOwned(id, userId);
+        await this.findOwned(id, userId, 'OWNER_ONLY');
         if (updateDto.farmId) {
             await this.farmsService.verifyOwnership(updateDto.farmId, userId);
         }
@@ -70,12 +80,12 @@ export class InventoryService {
     }
 
     async remove(id: string, userId: string) {
-        await this.findOwned(id, userId);
+        await this.findOwned(id, userId, 'OWNER_ONLY');
         return this.itemsRepository.delete(id);
     }
 
     async getLowStock(farmId: string, userId: string): Promise<InventoryItem[]> {
-        await this.farmsService.verifyOwnership(farmId, userId);
+        await this.farmsService.verifyAccess(farmId, userId, 'READ');
         return this.itemsRepository
             .createQueryBuilder('item')
             .where('item.farmId = :farmId', { farmId })
@@ -93,7 +103,8 @@ export class InventoryService {
     }
 
     async adjustStock(id: string, quantityChange: number, userId: string) {
-        const item = await this.findOwned(id, userId);
+        // Workers consume feed stock when logging feeding — operational write.
+        const item = await this.findOwned(id, userId, 'WRITE_OPERATIONAL');
 
         const newQuantity = Number(item.quantity) + quantityChange;
         if (newQuantity < 0) {

@@ -15,7 +15,7 @@ export class PondsController {
 
     @Post()
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Farm', 'farmId')
+    @OwnsResource('Farm', 'farmId', 'userId', 'OWNER_ONLY')
     create(@Body() createPondDto: CreatePondDto, @CurrentUser() user) {
         return this.pondsService.create(createPondDto, user.id);
     }
@@ -27,7 +27,7 @@ export class PondsController {
 
     @Get()
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Farm', 'farmId')
+    @OwnsResource('Farm', 'farmId', 'userId', 'READ')
     findAll(
         @Query('farmId') farmId: string,
         @Query('status') status: string,
@@ -50,35 +50,35 @@ export class PondsController {
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Pond', 'id', 'farm.userId')
+    @OwnsResource('Pond', 'id', 'farm.userId', 'READ')
     findOne(@Param('id') id: string, @CurrentUser() user) {
-        return this.pondsService.findOne(id, user.id);
+        return this.pondsService.findOneAccessible(id, user.id, 'READ');
     }
 
     @Patch(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Pond', 'id', 'farm.userId')
+    @OwnsResource('Pond', 'id', 'farm.userId', 'OWNER_ONLY')
     update(@Param('id') id: string, @Body() updatePondDto: UpdatePondDto, @CurrentUser() user) {
         return this.pondsService.update(id, updatePondDto, user.id);
     }
 
     @Patch(':id/archive')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Pond', 'id', 'farm.userId')
+    @OwnsResource('Pond', 'id', 'farm.userId', 'OWNER_ONLY')
     archive(@Param('id') id: string, @CurrentUser() user) {
         return this.pondsService.archive(id, user.id);
     }
 
     @Delete(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Pond', 'id', 'farm.userId')
+    @OwnsResource('Pond', 'id', 'farm.userId', 'OWNER_ONLY')
     remove(@Param('id') id: string, @CurrentUser() user) {
         return this.pondsService.remove(id, user.id);
     }
 
     @Get(':id/dimension-history')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Pond', 'id', 'farm.userId')
+    @OwnsResource('Pond', 'id', 'farm.userId', 'READ')
     getDimensionHistory(
         @Param('id') id: string,
         @CurrentUser() user,

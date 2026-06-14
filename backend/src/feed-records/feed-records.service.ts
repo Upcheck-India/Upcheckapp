@@ -29,8 +29,8 @@ export class FeedRecordsService {
             createDto.quantityKg = 0;
         }
 
-        // Fetch pond to get activeCycleId and verify ownership
-        const pond = await this.pondsService.findOne(createDto.pondId, userId);
+        // Fetch pond to get activeCycleId and verify access (owner or worker)
+        const pond = await this.pondsService.findOneAccessible(createDto.pondId, userId, 'WRITE_OPERATIONAL');
 
         // If inventory item selected, deduct stock (skip for fasting days)
         if (createDto.inventoryItemId && !createDto.isFasting) {
@@ -48,6 +48,8 @@ export class FeedRecordsService {
             waterTemperature: createDto.waterTemperature,
             notes: createDto.isFasting ? (createDto.notes || 'Fasting day') : createDto.notes,
             inventoryItemId: createDto.isFasting ? null : createDto.inventoryItemId,
+            createdById: userId,
+            updatedById: userId,
         });
         return this.recordsRepository.save(record);
     }
@@ -78,9 +80,9 @@ export class FeedRecordsService {
         return record;
     }
 
-    async update(id: string, updateDto: UpdateFeedRecordDto): Promise<FeedRecord> {
+    async update(id: string, updateDto: UpdateFeedRecordDto, userId?: string): Promise<FeedRecord> {
         await this.findOne(id);
-        await this.recordsRepository.update(id, updateDto);
+        await this.recordsRepository.update(id, { ...updateDto, ...(userId ? { updatedById: userId } : {}) });
         return this.findOne(id);
     }
 

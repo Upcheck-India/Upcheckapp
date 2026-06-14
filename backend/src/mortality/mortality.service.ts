@@ -20,13 +20,15 @@ export class MortalityService {
         private mortalityRepository: Repository<MortalityRecord>,
     ) { }
 
-    async create(dto: CreateMortalityRecordDto): Promise<MortalityRecord> {
+    async create(dto: CreateMortalityRecordDto, userId?: string): Promise<MortalityRecord> {
         // If estimatedTotal is not provided, compute it using the mortality multiplier
         const estimatedTotal = dto.estimatedTotal ?? dto.quantity * DEFAULT_MORTALITY_MULTIPLIER;
 
         const record = this.mortalityRepository.create({
             ...dto,
             estimatedTotal,
+            createdById: userId,
+            updatedById: userId,
         });
         return this.mortalityRepository.save(record);
     }
@@ -44,9 +46,9 @@ export class MortalityService {
         return record;
     }
 
-    async update(id: string, dto: UpdateMortalityRecordDto): Promise<MortalityRecord> {
+    async update(id: string, dto: UpdateMortalityRecordDto, userId?: string): Promise<MortalityRecord> {
         await this.findOne(id);
-        await this.mortalityRepository.update(id, dto);
+        await this.mortalityRepository.update(id, { ...dto, ...(userId ? { updatedById: userId } : {}) });
         return this.findOne(id);
     }
 

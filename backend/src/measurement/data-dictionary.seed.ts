@@ -1,0 +1,98 @@
+/**
+ * Canonical data-dictionary v1 (PRD §8.B params + Appendix derived params).
+ *
+ * Single source of truth shared by:
+ *  - {@link DataDictionaryService.onModuleInit} — idempotent bootstrap so dev
+ *    and the SQLite test harness always have the dictionary, and
+ *  - the `CreateMeasurementAndDataDictionary` migration — the production path.
+ *
+ * Adding/changing a param is a code change here + a migration; bump `version`
+ * on a redefinition rather than editing an existing semantic in place.
+ */
+export interface DataDictionarySeedEntry {
+  param: string;
+  label: string;
+  category: string;
+  valueType: 'numeric' | 'categorical' | 'boolean';
+  unit: string;
+  allowedValues?: string[];
+  minValue?: number;
+  maxValue?: number;
+}
+
+export const DATA_DICTIONARY_VERSION = 1;
+
+export const DATA_DICTIONARY_SEED: DataDictionarySeedEntry[] = [
+  // ── Water quality ──────────────────────────────────────────────────────
+  { param: 'ph', label: 'pH', category: 'water_quality', valueType: 'numeric', unit: '', minValue: 0, maxValue: 14 },
+  // Validation ceilings are the JALA-documented hard maxes (jala_teardown.md §4).
+  { param: 'temp', label: 'Temperature', category: 'water_quality', valueType: 'numeric', unit: '°C', minValue: 0, maxValue: 100 },
+  { param: 'do', label: 'Dissolved Oxygen', category: 'water_quality', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 20 },
+  { param: 'do_pct', label: 'DO Saturation', category: 'water_quality', valueType: 'numeric', unit: '%', minValue: 0, maxValue: 200 },
+  { param: 'salinity', label: 'Salinity', category: 'water_quality', valueType: 'numeric', unit: 'ppt', minValue: 0, maxValue: 42 },
+  { param: 'orp', label: 'ORP', category: 'water_quality', valueType: 'numeric', unit: 'mV', minValue: -2000, maxValue: 10000 },
+  { param: 'ec', label: 'Electrical Conductivity', category: 'water_quality', valueType: 'numeric', unit: 'µS/cm', minValue: 0, maxValue: 100000 },
+  { param: 'turbidity', label: 'Turbidity', category: 'water_quality', valueType: 'numeric', unit: 'NTU', minValue: 0, maxValue: 2000 },
+  { param: 'transparency', label: 'Transparency (Secchi)', category: 'water_quality', valueType: 'numeric', unit: 'cm', minValue: 0, maxValue: 1000 },
+  { param: 'water_height', label: 'Water Height', category: 'water_quality', valueType: 'numeric', unit: 'cm', minValue: 0, maxValue: 1000 },
+  { param: 'water_color', label: 'Water Color', category: 'water_quality', valueType: 'categorical', unit: '', allowedValues: ['green', 'brown', 'green_brown', 'clear', 'dark', 'red', 'milky'] },
+  { param: 'weather', label: 'Weather', category: 'water_quality', valueType: 'categorical', unit: '', allowedValues: ['sunny', 'cloudy', 'overcast', 'rainy', 'windy', 'stormy', 'foggy'] },
+
+  // ── Chemistry & nutrients ──────────────────────────────────────────────
+  { param: 'nh3', label: 'Ammonia (NH3)', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 20 },
+  { param: 'nh4', label: 'Ammonium (NH4)', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 50 },
+  { param: 'no2', label: 'Nitrite (NO2)', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 50 },
+  { param: 'no3', label: 'Nitrate (NO3)', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 200 },
+  { param: 'alkalinity', label: 'Alkalinity', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 500 },
+  { param: 'hardness', label: 'Hardness', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 10000 },
+  { param: 'ca', label: 'Calcium', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 2000 },
+  { param: 'mg', label: 'Magnesium', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 5000 },
+  { param: 'k', label: 'Potassium', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 2000 },
+  { param: 'na', label: 'Sodium', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 20000 },
+  { param: 'cl', label: 'Chloride', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 30000 },
+  { param: 'co3', label: 'Carbonate (CO3)', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 500 },
+  { param: 'hco3', label: 'Bicarbonate (HCO3)', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 1000 },
+  { param: 'tom', label: 'Total Organic Matter', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 1000 },
+  { param: 'po4', label: 'Phosphate (PO4)', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 100 },
+  { param: 'h2s', label: 'Hydrogen Sulfide (H2S)', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 50 },
+  { param: 'silicate', label: 'Silicate', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 100 },
+  { param: 'tan', label: 'Total Ammonia Nitrogen', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 50 },
+  { param: 'free_nh3', label: 'Free Ammonia (NH3)', category: 'chemistry', valueType: 'numeric', unit: 'mg/L', minValue: 0, maxValue: 20 },
+
+  // ── Plankton & microbiology ────────────────────────────────────────────
+  { param: 'plankton_total', label: 'Total Plankton', category: 'plankton', valueType: 'numeric', unit: 'cells/mL', minValue: 0, maxValue: 100000000 },
+  { param: 'vibrio_total', label: 'Total Vibrio', category: 'microbiology', valueType: 'numeric', unit: 'CFU/mL', minValue: 0, maxValue: 100000000 },
+  { param: 'vibrio_green', label: 'Green Vibrio', category: 'microbiology', valueType: 'numeric', unit: 'CFU/mL', minValue: 0, maxValue: 100000000 },
+  { param: 'vibrio_yellow', label: 'Yellow Vibrio', category: 'microbiology', valueType: 'numeric', unit: 'CFU/mL', minValue: 0, maxValue: 100000000 },
+
+  // ── Feed ───────────────────────────────────────────────────────────────
+  { param: 'feed_qty', label: 'Feed Quantity', category: 'feed', valueType: 'numeric', unit: 'kg', minValue: 0, maxValue: 100000 },
+  { param: 'feed_protein_pct', label: 'Feed Protein', category: 'feed', valueType: 'numeric', unit: '%', minValue: 0, maxValue: 100 },
+  { param: 'feedings_per_day', label: 'Feedings / Day', category: 'feed', valueType: 'numeric', unit: 'count', minValue: 0, maxValue: 12 },
+
+  // ── Sampling ───────────────────────────────────────────────────────────
+  { param: 'mbw', label: 'Mean Body Weight', category: 'sampling', valueType: 'numeric', unit: 'g', minValue: 0, maxValue: 200 },
+  { param: 'abw', label: 'Average Body Weight', category: 'sampling', valueType: 'numeric', unit: 'g', minValue: 0, maxValue: 200 },
+  { param: 'cv', label: 'Size Variation (CV)', category: 'sampling', valueType: 'numeric', unit: '%', minValue: 0, maxValue: 100 },
+
+  // ── Mortality ──────────────────────────────────────────────────────────
+  { param: 'mortality_count', label: 'Mortality Count', category: 'mortality', valueType: 'numeric', unit: 'count', minValue: 0, maxValue: 100000000 },
+  { param: 'mortality_baseline', label: 'Daily Mortality Baseline', category: 'mortality', valueType: 'numeric', unit: 'count', minValue: 0, maxValue: 100000000 },
+
+  // ── Health / clinical-signs checklist (audit §2 #1 — top disease ML signal) ──
+  { param: 'red_body', label: 'Red body / discoloration', category: 'health', valueType: 'boolean', unit: '' },
+  { param: 'white_spot', label: 'White spots on shell', category: 'health', valueType: 'boolean', unit: '' },
+  { param: 'soft_shell', label: 'Soft / loose shell', category: 'health', valueType: 'boolean', unit: '' },
+  { param: 'white_feces', label: 'White feces in trays', category: 'health', valueType: 'boolean', unit: '' },
+  { param: 'black_gill', label: 'Black gill', category: 'health', valueType: 'boolean', unit: '' },
+  { param: 'cramped_tail', label: 'Cramped / bent tail', category: 'health', valueType: 'boolean', unit: '' },
+  { param: 'fouling', label: 'Fouling / epibionts', category: 'health', valueType: 'boolean', unit: '' },
+  { param: 'gut_fullness', label: 'Gut fullness', category: 'health', valueType: 'categorical', unit: '', allowedValues: ['empty', 'partial', 'full'] },
+  { param: 'behaviour', label: 'Behaviour', category: 'health', valueType: 'categorical', unit: '', allowedValues: ['normal', 'lethargic', 'surfacing', 'erratic'] },
+  { param: 'feeding_response', label: 'Feeding response', category: 'health', valueType: 'categorical', unit: '', allowedValues: ['strong', 'weak', 'none'] },
+
+  // ── Water-exchange events (audit §2) ─────────────────────────────────────
+  { param: 'water_exchange_pct', label: 'Water Exchanged', category: 'water_exchange', valueType: 'numeric', unit: '%', minValue: 0, maxValue: 100 },
+  { param: 'water_exchange_volume', label: 'Exchange Volume', category: 'water_exchange', valueType: 'numeric', unit: 'm³', minValue: 0, maxValue: 1000000 },
+  { param: 'water_exchange_source', label: 'Exchange Source', category: 'water_exchange', valueType: 'categorical', unit: '', allowedValues: ['creek', 'estuary', 'borewell', 'canal', 'reservoir'] },
+];

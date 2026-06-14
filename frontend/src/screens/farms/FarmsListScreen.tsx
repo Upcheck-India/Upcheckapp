@@ -205,7 +205,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
     return (
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>My Farms</Text>
+                <Text style={styles.headerTitle} numberOfLines={1}>{t('farms.title')}</Text>
                 <TouchableOpacity onPress={() => navigation.navigate('CreateFarm')}>
                     <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
                 </TouchableOpacity>

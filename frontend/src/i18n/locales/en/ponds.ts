@@ -54,5 +54,16 @@ const ponds = {
   actionPlankton: 'Plankton',
   actionMicrobiology: 'Microbiology',
   actionHarvest: 'Harvest',
+  actionDailyRoutine: 'Daily Routine',
+  actionWeeklyChem: 'Weekly Chem',
+  actionMeasurements: 'Measurements',
+  actionAdvisor: 'Advisor',
+  status_active: 'Active',
+  status_fallow: 'Fallow',
+  status_harvesting: 'Harvesting',
+  status_archived: 'Archived',
+  fieldAeratorHp: 'Installed aerator HP',
+  placeholderAeratorHp: 'e.g. 4',
+  hintAeratorHp: 'Total paddlewheel/aerator power on this pond. Used by the Aeration optimizer.',
 };
 export default ponds;

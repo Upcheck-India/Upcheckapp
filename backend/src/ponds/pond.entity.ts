@@ -61,6 +61,11 @@ export class Pond {
     @Column({ name: 'depth_m', type: 'numeric', nullable: true })
     depthM: number;
 
+    // Total installed aerator power (HP) on this pond — the Aeration & Power
+    // optimizer's core input, captured once at setup instead of re-asked each use.
+    @Column({ name: 'installed_aerator_hp', type: 'numeric', nullable: true })
+    installedAeratorHp: number;
+
     @Column({ name: 'channel_count', type: 'int', nullable: true })
     channelCount: number;
 

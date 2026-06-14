@@ -12,8 +12,8 @@ export class MicrobiologyService {
         private microbiologyRepository: Repository<MicrobiologyData>,
     ) { }
 
-    async create(dto: CreateMicrobiologyDataDto): Promise<MicrobiologyData> {
-        const record = this.microbiologyRepository.create(dto);
+    async create(dto: CreateMicrobiologyDataDto, userId?: string): Promise<MicrobiologyData> {
+        const record = this.microbiologyRepository.create({ ...dto, createdById: userId, updatedById: userId });
         return this.microbiologyRepository.save(record);
     }
 
@@ -30,9 +30,9 @@ export class MicrobiologyService {
         return record;
     }
 
-    async update(id: string, dto: UpdateMicrobiologyDataDto): Promise<MicrobiologyData> {
+    async update(id: string, dto: UpdateMicrobiologyDataDto, userId?: string): Promise<MicrobiologyData> {
         await this.findOne(id);
-        await this.microbiologyRepository.update(id, dto);
+        await this.microbiologyRepository.update(id, { ...dto, ...(userId ? { updatedById: userId } : {}) });
         return this.findOne(id);
     }
 

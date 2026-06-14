@@ -54,5 +54,16 @@ const ponds = {
   actionPlankton: 'प्लैंकटन',
   actionMicrobiology: 'सूक्ष्मजीव विज्ञान',
   actionHarvest: 'कटाई',
+  actionDailyRoutine: 'दैनिक रूटीन',
+  actionWeeklyChem: 'साप्ताहिक रसायन',
+  actionMeasurements: 'माप',
+  actionAdvisor: 'सलाहकार',
+  status_active: 'सक्रिय',
+  status_fallow: 'खाली',
+  status_harvesting: 'कटाई',
+  status_archived: 'संग्रहीत',
+  fieldAeratorHp: 'स्थापित एयरेटर HP',
+  placeholderAeratorHp: 'जैसे 4',
+  hintAeratorHp: 'इस तालाब की कुल पैडलव्हील/एयरेटर शक्ति। एयरेशन ऑप्टिमाइज़र इसका उपयोग करता है।',
 };
 export default ponds;

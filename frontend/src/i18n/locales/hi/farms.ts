@@ -24,5 +24,18 @@ const farms = {
   errorFarmRequired: 'फार्म का नाम आवश्यक है',
   errorCreateFarm: 'फार्म बनाने में विफल',
   saveFarm: 'फार्म सहेजें',
+  fieldLocation: 'फ़ार्म स्थान',
+  detectLocation: 'मेरा स्थान पता करें',
+  locating: 'स्थान प्राप्त हो रहा है…',
+  locationCaptured: 'स्थान सेट · {{lat}}, {{lng}}',
+  locationDeniedTitle: 'स्थान अनुमति आवश्यक',
+  locationDeniedMsg: 'मौसम व ज्वार सुविधाओं के लिए अपने फ़ार्म का स्थान सेट करने हेतु अनुमति दें।',
+  locationError: 'स्थान प्राप्त नहीं हो सका। पुनः प्रयास करें।',
+  fieldWaterSource: 'जल स्रोत',
+  water_tidal: 'ज्वारीय',
+  water_river: 'नदी',
+  water_borehole: 'बोरवेल',
+  water_reservoir: 'जलाशय',
+  water_recycled: 'पुनर्चक्रित',
 };
 export default farms;

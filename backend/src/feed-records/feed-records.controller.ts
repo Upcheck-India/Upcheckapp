@@ -44,8 +44,8 @@ export class FeedRecordsController {
     @Patch(':id')
     @UseGuards(OwnershipGuard)
     @OwnsResource('FeedRecord', 'id', 'pond.farm.userId')
-    update(@Param('id') id: string, @Body() updateDto: UpdateFeedRecordDto) {
-        return this.feedRecordsService.update(id, updateDto);
+    update(@Param('id') id: string, @Body() updateDto: UpdateFeedRecordDto, @CurrentUser() user) {
+        return this.feedRecordsService.update(id, updateDto, user.id);
     }
 
     @Delete(':id')

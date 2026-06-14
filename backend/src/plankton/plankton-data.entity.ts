@@ -67,4 +67,11 @@ export class PlanktonData {
 
     @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
     updatedAt: Date;
+
+    // Audit: who created / last updated this record (member or owner).
+    @Column({ name: 'created_by_id', type: 'uuid', nullable: true })
+    createdById: string | null;
+
+    @Column({ name: 'updated_by_id', type: 'uuid', nullable: true })
+    updatedById: string | null;
 }

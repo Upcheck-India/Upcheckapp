@@ -54,5 +54,16 @@ const ponds = {
   actionPlankton: 'ପ୍ଲାଙ୍କଟନ',
   actionMicrobiology: 'ମାଇକ୍ରୋବାୟୋଲଜି',
   actionHarvest: 'ଅମଳ',
+  actionDailyRoutine: 'ଦୈନିକ ରୁଟିନ୍',
+  actionWeeklyChem: 'ସାପ୍ତାହିକ ରସାୟନ',
+  actionMeasurements: 'ମାପ',
+  actionAdvisor: 'ପରାମର୍ଶଦାତା',
+  status_active: 'ସକ୍ରିୟ',
+  status_fallow: 'ପଡ଼ିଆ',
+  status_harvesting: 'ଅମଳ',
+  status_archived: 'ସଂରକ୍ଷିତ',
+  fieldAeratorHp: 'ସ୍ଥାପିତ ଏରେଟର HP',
+  placeholderAeratorHp: 'ଯଥା 4',
+  hintAeratorHp: 'ଏହି ପୋଖରୀର ମୋଟ ପ୍ୟାଡଲହ୍ୱିଲ/ଏରେଟର ଶକ୍ତି। ଏରେସନ୍ ଅପ୍ଟିମାଇଜର ଏହାକୁ ବ୍ୟବହାର କରେ।',
 };
 export default ponds;

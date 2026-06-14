@@ -74,6 +74,8 @@ export interface FreeAmmoniaRequest {
     tan: number;
     ph: number;
     temperature: number;
+    /** Salinity (ppt) — applies the seawater pKa correction. Default 0 = freshwater. */
+    salinity?: number;
 }
 
 export interface FreeAmmoniaResponse {
