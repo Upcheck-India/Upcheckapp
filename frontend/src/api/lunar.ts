@@ -8,6 +8,7 @@ export interface MoonPhase {
   name: string;
   moltLikelihood: number;
   daysToSpringTide: number;
+  signedDaysToSpringTide: number;
   inMoltWindow: boolean;
 }
 
@@ -20,6 +21,7 @@ export interface MoltVulnerabilityInput {
   diseaseHigh?: boolean;
   densityRatio?: number;
   tray?: 'empty' | 'few_left' | 'a_lot_left' | null;
+  salinity?: number;
 }
 
 export interface MoltRisk {
@@ -30,12 +32,33 @@ export interface MoltRisk {
   phaseRel: 'pre' | 'peak' | 'post' | 'none';
 }
 
+export type StepCategory =
+  | 'mineral' | 'aeration' | 'feed' | 'handling'
+  | 'biosecurity' | 'water' | 'monitoring' | 'general';
+
+export type StepPriority = 'critical' | 'important' | 'routine';
+
+export interface PlaybookStep {
+  category: StepCategory;
+  priority: StepPriority;
+  text: string;
+  trigger?: string;
+}
+
+export interface LunarPlaybook {
+  phaseRel: 'pre' | 'peak' | 'post' | 'inter';
+  phaseLabel: string;
+  headline: string;
+  note: string;
+  steps: PlaybookStep[];
+}
+
 export const lunarApi = {
   /** Moon phase + molt likelihood for a date (ISO; default today). */
   phase: (date?: string) =>
     apiClient.get<MoonPhase>('/lunar/phase', { params: date ? { date } : {} }),
 
-  /** Molt Risk Score for a pond given its latest data. */
+  /** Molt Risk Score + phase action playbook for a pond given its latest data. */
   risk: (body: { date?: string; abwG: number; vulnerability?: MoltVulnerabilityInput }) =>
-    apiClient.post<{ phase: MoonPhase; risk: MoltRisk }>('/lunar/risk', body),
+    apiClient.post<{ phase: MoonPhase; risk: MoltRisk; playbook: LunarPlaybook }>('/lunar/risk', body),
 };

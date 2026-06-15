@@ -8,6 +8,7 @@ export interface MoonPhase {
   name: string;
   moltLikelihood: number; // 0..1, =1 at new & full, =0 at quarters
   daysToSpringTide: number; // unsigned days to nearest new/full
+  signedDaysToSpringTide: number; // <0 = approaching (pre), >0 = just passed (post)
   inMoltWindow: boolean; // within ±windowDays of a spring tide
 }
 
@@ -22,6 +23,41 @@ export interface MoltVulnerabilityInput {
   /** density / carrying-capacity density (0..1+). */
   densityRatio?: number;
   tray?: 'empty' | 'few_left' | 'a_lot_left' | null;
+  /** Latest salinity (ppt). Low salinity (< 5) sharply raises soft-shell risk. */
+  salinity?: number;
+}
+
+export type StepCategory =
+  | 'mineral'
+  | 'aeration'
+  | 'feed'
+  | 'handling'
+  | 'biosecurity'
+  | 'water'
+  | 'monitoring'
+  | 'general';
+
+export type StepPriority = 'critical' | 'important' | 'routine';
+
+export interface PlaybookStep {
+  category: StepCategory;
+  priority: StepPriority;
+  /** Farmer-facing English text (sibling-engine convention). */
+  text: string;
+  /** Which datum triggered a data-driven step (transparency); absent for baseline. */
+  trigger?: string;
+}
+
+export interface LunarPlaybook {
+  /** Position relative to the nearest spring tide. */
+  phaseRel: 'pre' | 'peak' | 'post' | 'inter';
+  /** Short phase label, e.g. "Molt peak — protect the pond". */
+  phaseLabel: string;
+  /** One-line summary with timing + risk band. */
+  headline: string;
+  /** Honesty rule (spec §1): molt timing is a refined prediction, not a certainty. */
+  note: string;
+  steps: PlaybookStep[];
 }
 
 export interface MoltRisk {
@@ -61,6 +97,11 @@ export class LunarService {
     // Distance (in phase) to the nearest spring tide at phase 0, 0.5 or 1.
     const distPhase = Math.min(phase, Math.abs(phase - 0.5), 1 - phase);
     const daysToSpringTide = distPhase * SYNODIC;
+    // Signed days to the nearest spring tide: negative = approaching it (pre-molt),
+    // positive = just passed it (post-molt). Springs sit at phase 0, 0.5 and 1.
+    const nearestSpring = [0, 0.5, 1].reduce((best, s) =>
+      Math.abs(phase - s) < Math.abs(phase - best) ? s : best, 0);
+    const signedDaysToSpringTide = (phase - nearestSpring) * SYNODIC;
     return {
       jd,
       phase,
@@ -69,6 +110,7 @@ export class LunarService {
       name: this.phaseName(phase),
       moltLikelihood,
       daysToSpringTide,
+      signedDaysToSpringTide,
       inMoltWindow: daysToSpringTide <= windowDays,
     };
   }
@@ -166,6 +208,102 @@ export class LunarService {
       score: round2(score),
       band,
       phaseRel,
+    };
+  }
+
+  /**
+   * Phase × pond-data action playbook (spec §5). Maps the pond's position in the
+   * semi-lunar cycle to concrete management steps — baseline steps for the phase
+   * plus data-driven escalations from the pond's latest readings. This is the
+   * "which management during which phase" layer on top of the raw phase data.
+   */
+  buildPlaybook(phase: MoonPhase, risk: MoltRisk, v: MoltVulnerabilityInput): LunarPlaybook {
+    const sd = phase.signedDaysToSpringTide;
+    const days = Math.abs(sd);
+    const target = phase.illumination > 0.5 ? 'full moon' : 'new moon';
+
+    // 4-way phase classification (computeMoltRisk only distinguishes pre/peak).
+    const phaseRel: LunarPlaybook['phaseRel'] =
+      days <= 1 ? 'peak' : sd < 0 && days <= 3 ? 'pre' : sd > 0 && days <= 3 ? 'post' : 'inter';
+
+    const steps: PlaybookStep[] = [];
+    const add = (category: StepCategory, priority: StepPriority, text: string, trigger?: string) =>
+      steps.push({ category, priority, text, trigger });
+
+    // Shared data flags.
+    const lowDO = v.do !== undefined && v.do < 4;
+    const hotWater = v.temp !== undefined && v.temp > 33;
+    const highNh3 = v.freeNh3 !== undefined && v.freeNh3 > 0.1;
+    const mineralLow = (v.mineralDeficitFrac ?? 0) > 0;
+    const crowded = (v.densityRatio ?? 0) > 0.8;
+    const lowSalinity = v.salinity !== undefined && v.salinity < 5;
+    const heavyResidue = v.tray === 'a_lot_left';
+
+    let phaseLabel: string;
+    let headline: string;
+
+    if (phaseRel === 'pre') {
+      phaseLabel = 'Pre-molt — build reserves';
+      headline = `Molt surge expected in ~${days.toFixed(0)} day(s) around the ${target}. Build mineral and oxygen reserves now.`;
+      add('mineral', 'important', 'Top up calcium, magnesium & potassium to molt targets now, before demand spikes.');
+      add('water', 'important', 'Raise alkalinity toward ≥ 120 ppm (agricultural lime / dolomite) for shell hardening.');
+      add('biosecurity', 'routine', 'Add probiotic / immunostimulant and avoid introducing stressors before the window.');
+      if (mineralLow)
+        add('mineral', lowSalinity ? 'critical' : 'important',
+          'Mineral deficit detected — dose Ca/Mg/K via the mineral calculator before the molt window opens.', 'mineralDeficit');
+      if (lowSalinity)
+        add('mineral', 'important', 'Low salinity: soft-shell risk is high at molt — prioritise potassium & magnesium top-up.', 'salinity');
+      if (lowDO || crowded)
+        add('aeration', 'important', 'Service aerators now and target night DO ≥ 4 mg/L — molting sharply raises oxygen demand.', lowDO ? 'lowDO' : 'density');
+      if (highNh3)
+        add('water', 'important', 'Bring ammonia down before the molt — trim feed / exchange water; toxic NH₃ stresses molting shrimp.', 'freeNh3');
+    } else if (phaseRel === 'peak') {
+      phaseLabel = 'Molt peak — protect the pond';
+      headline = `Molt window is open (${target}). Shrimp are soft and vulnerable — protect, don't disturb.`;
+      add('feed', 'important', 'Reduce feed 15–30% — shrimp go off-feed while molting and uneaten feed fouls water.');
+      add('aeration', 'critical', 'Maximise aeration, especially 02:00–06:00 (pre-dawn DO minimum).');
+      add('handling', 'critical', 'No handling — suspend sampling, netting, partial harvest and chemical treatments; soft shrimp die from stress and cannibalism.');
+      add('mineral', 'important', 'Hold calcium, magnesium, potassium and alkalinity levels to support shell hardening.');
+      if (lowDO)
+        add('aeration', 'critical',
+          `DO is ${v.do} mg/L — run ALL aerators continuously and keep emergency oxygen / peroxide on standby.`, 'lowDO');
+      if (heavyResidue)
+        add('feed', 'important', 'Heavy tray residue confirms the molt — cut feed 30% until appetite returns.', 'tray');
+      if (v.diseaseHigh)
+        add('biosecurity', 'critical', 'Biosecurity lockdown: no water exchange, no new inputs, disinfect all gear — molt stress widens the disease window.', 'disease');
+      if (mineralLow)
+        add('mineral', 'critical', 'Soft-shell risk HIGH — immediate K/Mg/Ca top-up (especially in low-salinity ponds).', 'mineralDeficit');
+      if (hotWater)
+        add('water', 'important', 'Heat + molt — deepen the water and add extra night aeration to ease stress.', 'temp');
+    } else if (phaseRel === 'post') {
+      phaseLabel = 'Post-molt — recover & grow';
+      headline = `Past the ${target} molt by ~${days.toFixed(0)} day(s). Shells are hardening — feed the growth window.`;
+      add('feed', 'important', 'Restore feed and add +5–10% — the fastest growth happens right after molt; ride the compensatory window.');
+      add('monitoring', 'routine', 'Watch for soft-shell / Loose-Shell Syndrome and cannibalism over the next 2–3 days.');
+      add('monitoring', 'routine', 'Safe window to sample for a weight check once shells have hardened (~3 days after the tide).');
+      add('mineral', 'routine', 'Confirm Ca/Mg/K held through hardening; top up if levels dropped.');
+      if (mineralLow)
+        add('mineral', 'important', 'Minerals still low post-molt — top up to support new-shell hardening and prevent soft-shell.', 'mineralDeficit');
+      if (v.tray === 'empty')
+        add('feed', 'important', 'Trays emptying fast — shrimp are feeding hard; raise the ration to capture growth.', 'tray');
+    } else {
+      phaseLabel = 'Between molts — routine operations';
+      const toNext = (phase.daysToSpringTide).toFixed(0);
+      headline = `No molt surge near — next window in ~${toNext} day(s). Good time for routine work.`;
+      add('general', 'routine', 'Routine feeding and management — no molt surge in the immediate window.');
+      add('monitoring', 'routine', 'Best window for sampling, grading, partial harvest and pond operations.');
+      if (mineralLow)
+        add('mineral', 'routine', 'Start building mineral reserves now, ahead of the next molt window.', 'mineralDeficit');
+      if (lowDO)
+        add('aeration', 'important', 'Low DO — service aeration regardless of phase.', 'lowDO');
+    }
+
+    return {
+      phaseRel,
+      phaseLabel,
+      headline: `${headline}${risk.band === 'Critical' ? ' Risk is CRITICAL — act today.' : ''}`,
+      note: 'Molt timing is a prediction the app refines from your pond’s own observations — treat disease links as elevated-risk flags, not certainties.',
+      steps,
     };
   }
 }

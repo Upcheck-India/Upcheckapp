@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import type { AccountType } from '../../api/auth';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -13,6 +15,7 @@ import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 
 export const RegisterScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
+    const [accountType, setAccountType] = useState<AccountType | null>(null);
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
@@ -26,6 +29,7 @@ export const RegisterScreen = ({ navigation }: any) => {
 
     const validate = (): boolean => {
         const e: Record<string, string> = {};
+        if (!accountType) e.accountType = t('auth.accountTypeRequired');
         if (!firstName.trim()) e.firstName = t('auth.firstNameRequired');
         if (!email.trim()) e.email = t('auth.emailRequired');
         else if (!/\S+@\S+\.\S+/.test(email)) e.email = t('auth.emailInvalid');
@@ -40,7 +44,7 @@ export const RegisterScreen = ({ navigation }: any) => {
         if (!validate()) return;
         clearError();
         try {
-            await signup(email.trim(), password, firstName.trim(), lastName.trim());
+            await signup(email.trim(), password, firstName.trim(), lastName.trim(), accountType!);
             setSuccess(true);
         } catch {
             // Error is set in the store
@@ -81,6 +85,40 @@ export const RegisterScreen = ({ navigation }: any) => {
                     <Text style={styles.errorText}>{error}</Text>
                 </View>
             )}
+
+            {/* Account type — gates the post-registration flow. Owners set up a
+                farm first; workers land straight on the dashboard. */}
+            <Text style={styles.accountTypeLabel}>{t('auth.accountTypeLabel')}</Text>
+            <View style={styles.accountTypeRow}>
+                {([
+                    { key: 'owner' as const, icon: 'home-account', title: t('auth.accountOwnerTitle'), desc: t('auth.accountOwnerDesc') },
+                    { key: 'worker' as const, icon: 'account-hard-hat', title: t('auth.accountWorkerTitle'), desc: t('auth.accountWorkerDesc') },
+                ]).map((opt) => {
+                    const active = accountType === opt.key;
+                    return (
+                        <TouchableOpacity
+                            key={opt.key}
+                            style={[styles.accountCard, active && styles.accountCardActive]}
+                            onPress={() => setAccountType(opt.key)}
+                            activeOpacity={0.8}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: active }}
+                            accessibilityLabel={opt.title}
+                        >
+                            <MaterialCommunityIcons
+                                name={opt.icon as any}
+                                size={26}
+                                color={active ? theme.roles.light.primary : theme.roles.light.textSecondary}
+                            />
+                            <Text style={[styles.accountCardTitle, active && { color: theme.roles.light.primary }]}>
+                                {opt.title}
+                            </Text>
+                            <Text style={styles.accountCardDesc}>{opt.desc}</Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+            {errors.accountType && <Text style={styles.accountTypeError}>{errors.accountType}</Text>}
 
             <Input
                 label={t('auth.firstNameLabel')}
@@ -194,6 +232,45 @@ const styles = StyleSheet.create({
         ...theme.typeScale.bodyMedium,
         color: theme.roles.light.textSecondary,
         marginTop: theme.spacing[2],
+    },
+    accountTypeLabel: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[2],
+    },
+    accountTypeRow: {
+        flexDirection: 'row',
+        gap: theme.spacing[3],
+        marginBottom: theme.spacing[2],
+    },
+    accountCard: {
+        flex: 1,
+        alignItems: 'center',
+        paddingVertical: theme.spacing[4],
+        paddingHorizontal: theme.spacing[3],
+        borderRadius: theme.radius.md,
+        borderWidth: 1.5,
+        borderColor: theme.roles.light.borderDefault,
+        gap: theme.spacing[1],
+    },
+    accountCardActive: {
+        borderColor: theme.roles.light.primary,
+        backgroundColor: theme.roles.light.surfaceOverlay,
+    },
+    accountCardTitle: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.textPrimary,
+        marginTop: theme.spacing[1],
+    },
+    accountCardDesc: {
+        ...theme.typeScale.caption,
+        color: theme.roles.light.textSecondary,
+        textAlign: 'center',
+    },
+    accountTypeError: {
+        ...theme.typeScale.caption,
+        color: theme.roles.light.dangerText,
+        marginBottom: theme.spacing[2],
     },
     consent: {
         ...theme.typeScale.caption,

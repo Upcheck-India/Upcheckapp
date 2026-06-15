@@ -50,6 +50,13 @@ export class CreatePondDto {
     @Max(200)
     installedAeratorHp?: number;
 
+    // Number of aerator units installed in the pond.
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    @Max(100)
+    aeratorCount?: number;
+
     // Optional: for raceway ponds
     @IsOptional()
     @IsInt()

@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { farmsApi } from '../../api/farms';
+import { useAuthStore } from '../../store/authStore';
 
 const WATER_SOURCES: { key: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
     { key: 'tidal', icon: 'waves' },
@@ -19,14 +20,17 @@ const WATER_SOURCES: { key: string; icon: keyof typeof MaterialCommunityIcons.gl
 
 export const CreateFarmScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
+    const pendingFarmSetup = useAuthStore((s) => s.pendingFarmSetup);
+    const completeFarmSetup = useAuthStore((s) => s.completeFarmSetup);
     const [name, setName] = useState('');
+    const [numPonds, setNumPonds] = useState('');
     const [address, setAddress] = useState('');
     const [totalArea, setTotalArea] = useState('');
     const [waterSource, setWaterSource] = useState<string | null>(null);
     const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
     const [locating, setLocating] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [errors, setErrors] = useState<{ name?: string }>({});
+    const [errors, setErrors] = useState<{ name?: string; numPonds?: string }>({});
 
     const detectLocation = async () => {
         setLocating(true);
@@ -46,23 +50,52 @@ export const CreateFarmScreen = ({ navigation }: any) => {
     };
 
     const handleSave = async () => {
-        if (!name.trim()) {
-            setErrors({ name: t('farms.errorFarmRequired') });
+        const nextErrors: { name?: string; numPonds?: string } = {};
+        if (!name.trim()) nextErrors.name = t('farms.errorFarmRequired');
+        const ponds = parseInt(numPonds, 10);
+        // Pond count is mandatory during first-run owner setup; optional otherwise.
+        if (pendingFarmSetup && (!numPonds || isNaN(ponds) || ponds < 1)) {
+            nextErrors.numPonds = t('farms.errorPondCountRequired');
+        } else if (numPonds && (isNaN(ponds) || ponds < 1)) {
+            nextErrors.numPonds = t('farms.errorPondCountRequired');
+        }
+        if (Object.keys(nextErrors).length > 0) {
+            setErrors(nextErrors);
             return;
         }
         setErrors({});
         setIsLoading(true);
 
         try {
-            await farmsApi.create({
+            const res = await farmsApi.create({
                 name: name.trim(),
                 address: address.trim() || undefined,
                 areaHectares: totalArea ? parseFloat(totalArea) : undefined,
                 waterSourceType: waterSource ?? undefined,
+                plannedPondCount: numPonds ? ponds : undefined,
                 latitude: coords?.lat,
                 longitude: coords?.lng,
             });
-            navigation.goBack();
+            if (pendingFarmSetup) {
+                // First-run owner: clear the gate, then walk them through pond setup
+                // for each declared pond. MainApp sits underneath so backing out or
+                // "finish later" lands them in the app.
+                completeFarmSetup();
+                const newFarmId = res.data?.id;
+                if (newFarmId && numPonds && ponds >= 1) {
+                    navigation.reset({
+                        index: 1,
+                        routes: [
+                            { name: 'MainApp' },
+                            { name: 'PondSetup', params: { farmId: newFarmId, totalPonds: ponds } },
+                        ],
+                    });
+                } else {
+                    navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
+                }
+            } else {
+                navigation.goBack();
+            }
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('farms.errorCreateFarm'));
         } finally {
@@ -73,6 +106,13 @@ export const CreateFarmScreen = ({ navigation }: any) => {
     return (
         <ScreenWrapper>
             <View style={styles.formContainer}>
+                {pendingFarmSetup && (
+                    <View style={styles.setupHeader}>
+                        <Text style={styles.setupTitle}>{t('farms.setupTitle')}</Text>
+                        <Text style={styles.setupSubtitle}>{t('farms.setupSubtitle')}</Text>
+                    </View>
+                )}
+
                 <Input
                     label={t('farms.fieldFarmName')}
                     value={name}
@@ -80,6 +120,16 @@ export const CreateFarmScreen = ({ navigation }: any) => {
                     placeholder={t('farms.placeholderFarmName')}
                     error={errors.name}
                     required
+                />
+
+                <Input
+                    label={t('farms.fieldPondCount')}
+                    value={numPonds}
+                    onChangeText={setNumPonds}
+                    placeholder={t('farms.placeholderPondCount')}
+                    keyboardType="number-pad"
+                    error={errors.numPonds}
+                    required={pendingFarmSetup}
                 />
 
                 <Input
@@ -153,6 +203,18 @@ export const CreateFarmScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
     formContainer: {
         paddingTop: theme.spacing[4],
+    },
+    setupHeader: {
+        marginBottom: theme.spacing[4],
+    },
+    setupTitle: {
+        ...theme.typeScale.h2,
+        color: theme.roles.light.textPrimary,
+    },
+    setupSubtitle: {
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        marginTop: theme.spacing[1],
     },
     fieldLabel: {
         ...theme.typeScale.labelMedium,

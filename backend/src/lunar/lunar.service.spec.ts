@@ -11,6 +11,8 @@ const jdToDate = (jd: number) => new Date((jd - JD_UNIX_EPOCH) * MS_PER_DAY);
 const NEW_MOON = jdToDate(REF_NEW_MOON_JD);
 const FULL_MOON = jdToDate(REF_NEW_MOON_JD + SYNODIC / 2);
 const FIRST_QUARTER = jdToDate(REF_NEW_MOON_JD + SYNODIC / 4);
+const TWO_DAYS_BEFORE_FULL = jdToDate(REF_NEW_MOON_JD + SYNODIC / 2 - 2);
+const TWO_DAYS_AFTER_FULL = jdToDate(REF_NEW_MOON_JD + SYNODIC / 2 + 2);
 
 describe('LunarService — moon phase (spec §2)', () => {
   const svc = new LunarService();
@@ -85,5 +87,57 @@ describe('LunarService — lock factor, mineral dose, risk (spec §3/§5/§8)', 
     expect(stressed.score).toBeGreaterThan(60);
     expect(stressed.band).toBe('Critical');
     expect(stressed.phaseRel).toBe('peak');
+  });
+});
+
+describe('LunarService — signed days + action playbook (spec §5)', () => {
+  const svc = new LunarService();
+  const playbookFor = (date: Date, abw = 25, v = {}) => {
+    const p = svc.moonPhase(date);
+    const r = svc.computeMoltRisk(p, abw, v);
+    return svc.buildPlaybook(p, r, v);
+  };
+
+  it('signedDaysToSpringTide: ~0 at new, +2 just after full, −2 just before full', () => {
+    expect(svc.moonPhase(NEW_MOON).signedDaysToSpringTide).toBeCloseTo(0, 3);
+    expect(svc.moonPhase(TWO_DAYS_AFTER_FULL).signedDaysToSpringTide).toBeCloseTo(2, 1);
+    expect(svc.moonPhase(TWO_DAYS_BEFORE_FULL).signedDaysToSpringTide).toBeCloseTo(-2, 1);
+  });
+
+  it('phase classification: peak at spring tide, pre before, post after, inter at quarter', () => {
+    expect(playbookFor(NEW_MOON).phaseRel).toBe('peak');
+    expect(playbookFor(TWO_DAYS_BEFORE_FULL).phaseRel).toBe('pre');
+    expect(playbookFor(TWO_DAYS_AFTER_FULL).phaseRel).toBe('post');
+    expect(playbookFor(FIRST_QUARTER).phaseRel).toBe('inter');
+  });
+
+  it('every phase yields at least one management step', () => {
+    for (const d of [NEW_MOON, TWO_DAYS_BEFORE_FULL, TWO_DAYS_AFTER_FULL, FIRST_QUARTER]) {
+      expect(playbookFor(d).steps.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('peak always includes the no-handling and aeration baseline steps', () => {
+    const pb = playbookFor(NEW_MOON);
+    expect(pb.steps.some((s) => s.category === 'handling')).toBe(true);
+    expect(pb.steps.some((s) => s.category === 'aeration')).toBe(true);
+  });
+
+  it('low DO at peak escalates a critical aeration step tagged lowDO', () => {
+    const pb = playbookFor(NEW_MOON, 25, { do: 2.5 });
+    const crit = pb.steps.find((s) => s.trigger === 'lowDO');
+    expect(crit).toBeDefined();
+    expect(crit?.priority).toBe('critical');
+    expect(crit?.category).toBe('aeration');
+  });
+
+  it('mineral deficit drives a mineral top-up step in pre-molt', () => {
+    const pb = playbookFor(TWO_DAYS_BEFORE_FULL, 25, { mineralDeficitFrac: 0.5 });
+    expect(pb.steps.some((s) => s.category === 'mineral' && s.trigger === 'mineralDeficit')).toBe(true);
+  });
+
+  it('post-molt leads with restoring feed for compensatory growth', () => {
+    const pb = playbookFor(TWO_DAYS_AFTER_FULL);
+    expect(pb.steps.some((s) => s.category === 'feed')).toBe(true);
   });
 });

@@ -101,7 +101,7 @@ Seedable reference tables under `backend/src/reference/`:
 - One-shot seed runner via `npm run seed:reference`.
 
 ### 1.11 Cross-cutting client features
-- **Offline-first sync** scaffolding via WatermelonDB (`@nozbe/watermelondb`) on the client.
+- **Offline-first sync** via a Zustand `persist` store over AsyncStorage that queues CREATE/UPDATE/DELETE operations and drains them on reconnect (`src/store/syncStore.ts`).
 - **Push notifications** with `expo-notifications`, registered on app launch.
 - **Internationalisation** with `i18next` + `react-i18next`.
 - **Theming** with semantic color roles, gradients, radii, shadows, spacing, and typography tokens.
@@ -149,11 +149,11 @@ UPCHECKAPP/
 
 | Layer | Choices |
 | --- | --- |
-| Mobile / web client | Expo SDK 54, React Native 0.81, React 19, React Navigation 7, Zustand 5, React Native Paper, i18next, WatermelonDB |
+| Mobile / web client | Expo SDK 54, React Native 0.81, React 19, React Navigation 7, Zustand 5, React Native Paper, i18next |
 | Native bridges | Java native module for Truecaller SDK 2.7.0 (`com.upcheck.app.TruecallerAuthModule`); also `@dhana-cs/react-native-truecaller` Expo plugin used to wire the Android manifest |
 | Backend | NestJS 11, Express, TypeORM 0.3, class-validator, `@nestjs/throttler`, `@nestjs/schedule` |
 | Auth | Supabase Auth (Postgres-backed), JWT (`jsonwebtoken`), Google OAuth (`google-auth-library`), Truecaller One-Tap + OTP, TOTP (`otplib`), bcrypt + argon2 for password hashing, `zxcvbn` for password strength |
-| Persistence | Supabase Postgres, Redis (`ioredis` via `@nestjs-modules/ioredis`), WatermelonDB on the client |
+| Persistence | Supabase Postgres, Redis (`ioredis` via `@nestjs-modules/ioredis`), AsyncStorage-backed Zustand persist store on the client |
 | Email | Brevo (`@getbrevo/brevo`) over SMTP relay (`nodemailer`) |
 | HTTP | `axios` (both server and client) |
 | Testing | Jest + ts-jest (backend), jest-expo + `@testing-library/react-native` (frontend), `fast-check` property-based tests on both surfaces, `nock` for HTTP fakes, `sqlite3` for in-memory tests |
@@ -452,7 +452,7 @@ Documented in `README-AUTH.md` and `TruecallerAuth.md`:
 `frontend/src/utils/notifications.ts` exposes `registerForPushNotificationsAsync` which is invoked from `App.tsx` to obtain an Expo push token and wire `addNotificationReceivedListener` / `addNotificationResponseReceivedListener`.
 
 ### 10.8 Offline-first sync
-The client lists `@nozbe/watermelondb` and `expo-sqlite` as dependencies and ships a `syncStore`; full schema and reactive queries are implementation-in-progress (the WatermelonDB doctor check is explicitly excluded in `package.json`).
+The client ships a `syncStore` (Zustand `persist` over AsyncStorage) that queues mutating operations while offline and drains them in order when the device reconnects. There is no reactive local database — WatermelonDB was removed; `expo-sqlite` remains a transitive dependency but is not used for sync.
 
 ---
 

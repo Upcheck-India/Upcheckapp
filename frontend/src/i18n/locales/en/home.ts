@@ -103,6 +103,22 @@ const home = {
   onboarding_cta: 'Create your first farm',
   onboarding_skip: 'Skip for now',
   reportsViewTransactions: 'View Transactions',
+
+  // ── Farm-at-a-glance dashboard cards ──────────────────────────────────────
+  farmGlance: 'Farm at a glance',
+  waterQuality: 'Water Quality',
+  doUnit: 'mg/L DO',
+  noReadings: 'No readings yet',
+  lastFeed: 'Last Feed',
+  kg: 'kg',
+  inStock: '{{kg}} kg in stock',
+  low: 'low',
+  expenses: 'Expenses',
+  net: 'Net {{amount}}',
+  tapToManage: 'Tap to manage',
+  cropPnl: 'Crop P&L',
+  marginRoi: 'Margin {{margin}}% · ROI {{roi}}%',
+  noActiveCrop: 'No active crop',
 };
 
 export default home;

@@ -45,7 +45,7 @@ UPCHECKAPP/
 | Native bridges | Java native module for Truecaller SDK 2.7.0 (`com.upcheck.app.TruecallerAuthModule`) |
 | Backend | NestJS 11, Express, TypeORM 0.3, class-validator, Throttler, Schedule |
 | Auth | Supabase Auth (Postgres-backed), JWT, Google OAuth, Truecaller One-Tap + OTP |
-| Persistence | Supabase Postgres, Redis (rate limits + caches), WatermelonDB on the client for offline-first sync |
+| Persistence | Supabase Postgres, Redis (rate limits + caches), AsyncStorage-backed Zustand persist store on the client for offline-first sync |
 | Email | Brevo (SMTP relay) |
 | Testing | Jest + ts-jest (backend), jest-expo + @testing-library/react-native (frontend), fast-check property-based tests on both surfaces, nock for HTTP fakes |
 | Deploy | Render.com web service + cron job (backend), EAS / Play Internal Testing (Android) |

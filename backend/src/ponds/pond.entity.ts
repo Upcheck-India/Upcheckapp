@@ -66,6 +66,11 @@ export class Pond {
     @Column({ name: 'installed_aerator_hp', type: 'numeric', nullable: true })
     installedAeratorHp: number;
 
+    // Number of aerator units installed — complements installed_aerator_hp so the
+    // Aeration optimizer knows both unit count and total capacity.
+    @Column({ name: 'aerator_count', type: 'int', nullable: true })
+    aeratorCount: number;
+
     @Column({ name: 'channel_count', type: 'int', nullable: true })
     channelCount: number;
 

@@ -83,6 +83,7 @@ export class PondsService {
                 diameterM: createPondDto.diameterM,
                 depthM: createPondDto.depthM,
                 installedAeratorHp: createPondDto.installedAeratorHp,
+                aeratorCount: createPondDto.aeratorCount,
                 channelCount: createPondDto.channelCount,
                 calculatedAreaM2,
                 overrideAreaM2: createPondDto.overrideAreaM2,

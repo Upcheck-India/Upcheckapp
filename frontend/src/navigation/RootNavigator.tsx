@@ -92,11 +92,13 @@ import { TransactionsScreen } from '../screens/finance/TransactionsScreen';
 import { ReferenceScreen } from '../screens/reference/ReferenceScreen';
 import { HarvestPlansScreen } from '../screens/harvest/HarvestPlansScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
+import { PondSetupScreen } from '../screens/onboarding/PondSetupScreen';
 import { OtpLoginScreen } from '../screens/auth/OtpLoginScreen';
 import { TwoFactorChallengeScreen } from '../screens/auth/TwoFactorChallengeScreen';
 import { TwoFactorScreen } from '../screens/settings/TwoFactorScreen';
 import { GrowthAndHarvestScreen } from '../screens/calculators/GrowthAndHarvestScreen';
 import { FeedProductsScreen } from '../screens/feedProducts/FeedProductsScreen';
+import { FeedStatsScreen } from '../screens/feed/FeedStatsScreen';
 import { PrivacyPolicyScreen } from '../screens/legal/PrivacyPolicyScreen';
 import { TermsScreen } from '../screens/legal/TermsScreen';
 
@@ -206,16 +208,18 @@ export type RootStackParamList = {
 
     // First-run onboarding
     Welcome: undefined;
+    PondSetup: { farmId: string; totalPonds: number };
 
     // Additional calculators + feed products
     GrowthAndHarvest: undefined;
     FeedProducts: undefined;
+    FeedStats: { pondId: string; pondName?: string; cropId?: string; farmId?: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
-    const { isLoading, isAuthenticated, initialize } = useAuthStore();
+    const { isLoading, isAuthenticated, pendingFarmSetup, initialize } = useAuthStore();
 
     useEffect(() => {
         initialize();
@@ -231,6 +235,9 @@ const RootNavigator = () => {
 
     return (
         <Stack.Navigator
+            // Owners who just registered land on Create-Farm first (mandatory
+            // first-run setup); everyone else starts on the main app / login.
+            initialRouteName={isAuthenticated && pendingFarmSetup ? 'CreateFarm' : undefined}
             screenOptions={{
                 headerShown: false,
                 animation: 'slide_from_right',
@@ -264,6 +271,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ presentation: 'modal' }} />
 
                     <Stack.Screen name="CreateFarm" component={CreateFarmScreen} />
+                    <Stack.Screen name="PondSetup" component={PondSetupScreen} />
                     <Stack.Screen name="FarmDetail" component={FarmDetailScreen} />
                     <Stack.Screen name="FarmMembers" component={FarmMembersScreen} />
                     <Stack.Screen name="AddWorker" component={AddWorkerScreen} />
@@ -356,6 +364,11 @@ const RootNavigator = () => {
                     {/* Additional calculators + feed products */}
                     <Stack.Screen name="GrowthAndHarvest" component={GrowthAndHarvestScreen} />
                     <Stack.Screen name="FeedProducts" component={FeedProductsScreen} />
+                    <Stack.Screen
+                        name="FeedStats"
+                        component={FeedStatsScreen}
+                        options={{ headerShown: true, title: 'Feed Statistics', headerTintColor: theme.roles.light.primary }}
+                    />
 
                     {/* Legal */}
                     <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />

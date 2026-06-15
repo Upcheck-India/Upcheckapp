@@ -17,12 +17,43 @@ import { MoonDiagram } from '../../components/charts/MoonDiagram';
 import { PrefilledBanner } from '../../components/ui/PrefilledBanner';
 import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
 import { theme } from '../../theme';
-import { lunarApi, type MoonPhase, type MoltRisk } from '../../api/lunar';
+import { lunarApi, type MoonPhase, type MoltRisk, type LunarPlaybook, type PlaybookStep, type StepCategory, type StepPriority, type MoltVulnerabilityInput } from '../../api/lunar';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { localizePhaseName } from '../../features/lunarPhaseI18n';
 
 const bandSeverity = (b: string): Severity =>
   b === 'Critical' ? 'critical' : b === 'Watch' ? 'watch' : 'low';
+
+const CATEGORY_ICON: Record<StepCategory, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  mineral: 'flask-outline',
+  aeration: 'fan',
+  feed: 'food-variant',
+  handling: 'hand-back-right-outline',
+  biosecurity: 'shield-outline',
+  water: 'water-outline',
+  monitoring: 'clipboard-check-outline',
+  general: 'information-outline',
+};
+
+const PRIORITY_RANK: Record<StepPriority, number> = { critical: 0, important: 1, routine: 2 };
+
+// Map the pond's latest snapshot into the molt-vulnerability factors so the
+// playbook steps are driven by real data, not just the moon phase.
+const buildVulnerability = (c: PondContext): MoltVulnerabilityInput => {
+  const v: MoltVulnerabilityInput = {};
+  const wq = c.waterQuality;
+  if (wq?.dissolvedOxygen != null) v.do = wq.dissolvedOxygen;
+  if (wq?.temperature != null) v.temp = wq.temperature;
+  if (wq?.salinity != null) v.salinity = wq.salinity;
+  if (c.freeAmmoniaMgL != null) v.freeNh3 = c.freeAmmoniaMgL;
+  // Alkalinity as a shell-reserve proxy: deficit below the 120 ppm molt target.
+  if (wq?.alkalinity != null) v.mineralDeficitFrac = Math.max(0, (120 - wq.alkalinity) / 120);
+  if (c.biomassKg != null && c.areaM2 && c.crop?.carryingCapacityKgM2) {
+    v.densityRatio = c.biomassKg / c.areaM2 / c.crop.carryingCapacityKgM2;
+  }
+  if (c.latestTrayResidue) v.tray = c.latestTrayResidue;
+  return v;
+};
 
 export const LunarScreen = ({ route }: any) => {
   const { t } = useTranslation();
@@ -30,6 +61,7 @@ export const LunarScreen = ({ route }: any) => {
   const [phase, setPhase] = useState<MoonPhase | null>(null);
   const [abw, setAbw] = useState('20');
   const [risk, setRisk] = useState<MoltRisk | null>(null);
+  const [playbook, setPlaybook] = useState<LunarPlaybook | null>(null);
   const [loading, setLoading] = useState(false);
   const [ctx, setCtx] = useState<PondContext | null>(null);
 
@@ -49,15 +81,24 @@ export const LunarScreen = ({ route }: any) => {
   const assess = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await lunarApi.risk({ abwG: Number(abw) });
+      const vulnerability = ctx ? buildVulnerability(ctx) : undefined;
+      const { data } = await lunarApi.risk({ abwG: Number(abw) || 20, vulnerability });
       setPhase(data.phase);
       setRisk(data.risk);
+      setPlaybook(data.playbook);
     } catch (e: any) {
       Alert.alert(t('engines.common.couldNotCompute'), e?.response?.data?.message ?? t('engines.common.tryAgain'));
     } finally {
       setLoading(false);
     }
-  }, [abw, t]);
+  }, [abw, ctx, t]);
+
+  // Surface the phase playbook automatically: once on open, and again when the
+  // pond snapshot loads (so the steps reflect the pond's latest data).
+  useEffect(() => {
+    assess();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx]);
 
   return (
     <ScreenWrapper>
@@ -104,30 +145,57 @@ export const LunarScreen = ({ route }: any) => {
                 {t('engines.lunar.moltPressure', { pressure: Math.round(risk.moltPressure * 100), vuln: Math.round(risk.vulnerability * 100) })}
               </Text>
               {ctx && <ConfidenceChip confidence={ctx.confidence} />}
-              <View style={styles.steps}>
-                {risk.phaseRel === 'peak' ? (
-                  <Step text={t('engines.lunar.stepPeak')} />
-                ) : risk.phaseRel === 'pre' ? (
-                  <Step text={t('engines.lunar.stepPre')} />
-                ) : (
-                  <Step text={t('engines.lunar.stepPost')} />
-                )}
-                <Step text={t('engines.lunar.stepNoHandling')} />
-              </View>
             </View>
           )}
         </Card>
+
+        {playbook && (
+          <Card style={styles.card}>
+            <View style={styles.playbookHead}>
+              <Text style={styles.phaseLabel}>{playbook.phaseLabel}</Text>
+              <Text style={styles.headline}>{playbook.headline}</Text>
+            </View>
+
+            <Text style={styles.sectionLabel}>{t('engines.lunar.management')}</Text>
+            {[...playbook.steps]
+              .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority])
+              .map((step, i) => (
+                <PlaybookRow key={i} step={step} priorityLabel={t(`engines.lunar.priority_${step.priority}`)} />
+              ))}
+
+            <View style={styles.noteBox}>
+              <MaterialCommunityIcons name="information-outline" size={14} color={theme.roles.light.textTertiary} />
+              <Text style={styles.noteText}>{playbook.note}</Text>
+            </View>
+          </Card>
+        )}
       </ScrollView>
     </ScreenWrapper>
   );
 };
 
-const Step = ({ text }: { text: string }) => (
-  <View style={styles.step}>
-    <MaterialCommunityIcons name="arrow-right-thin" size={16} color={theme.roles.light.primary} />
-    <Text style={styles.stepText}>{text}</Text>
-  </View>
-);
+const PRIORITY_STYLE: Record<StepPriority, { bg: string; fg: string }> = {
+  critical: { bg: theme.roles.light.dangerBg, fg: theme.roles.light.dangerText },
+  important: { bg: theme.roles.light.warningBg, fg: theme.roles.light.warningText },
+  routine: { bg: theme.roles.light.surfaceVariant, fg: theme.roles.light.textSecondary },
+};
+
+const PlaybookRow = ({ step, priorityLabel }: { step: PlaybookStep; priorityLabel: string }) => {
+  const ps = PRIORITY_STYLE[step.priority];
+  return (
+    <View style={styles.pbRow}>
+      <View style={[styles.pbIcon, { backgroundColor: ps.bg }]}>
+        <MaterialCommunityIcons name={CATEGORY_ICON[step.category]} size={18} color={ps.fg} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.pbText}>{step.text}</Text>
+        {step.priority !== 'routine' && (
+          <Text style={[styles.pbPriority, { color: ps.fg }]}>{priorityLabel}</Text>
+        )}
+      </View>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3], marginBottom: theme.spacing[4] },
@@ -144,9 +212,31 @@ const styles = StyleSheet.create({
   riskTop: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3] },
   riskScore: { ...theme.typeScale.numericLarge, color: theme.roles.light.textPrimary },
   riskMeta: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
-  steps: { gap: theme.spacing[1], marginTop: theme.spacing[2] },
-  step: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing[1] },
-  stepText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textPrimary, flex: 1 },
+  playbookHead: { marginBottom: theme.spacing[4] },
+  phaseLabel: { ...theme.typeScale.h2, color: theme.roles.light.textPrimary },
+  headline: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary, marginTop: theme.spacing[1] },
+  pbRow: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing[3], marginBottom: theme.spacing[3] },
+  pbIcon: {
+    width: 34, height: 34, borderRadius: theme.radius.md,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  pbText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary },
+  pbPriority: {
+    ...theme.typeScale.caption,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  noteBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing[2],
+    marginTop: theme.spacing[2],
+    paddingTop: theme.spacing[3],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.roles.light.borderDefault,
+  },
+  noteText: { ...theme.typeScale.caption, color: theme.roles.light.textTertiary, flex: 1 },
 });
 
 export default LunarScreen;

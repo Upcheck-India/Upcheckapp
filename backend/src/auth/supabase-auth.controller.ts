@@ -83,17 +83,22 @@ export class SupabaseAuthController {
 
     @Public()
     @Post('signup')
-    async signup(@Body() body: { email: string; password: string; firstName?: string; lastName?: string; username?: string }) {
-        const { email, password, firstName, lastName, username } = body;
+    async signup(@Body() body: { email: string; password: string; firstName?: string; lastName?: string; username?: string; accountType?: 'owner' | 'worker' }) {
+        const { email, password, firstName, lastName, username, accountType } = body;
 
         if (!email || !password) {
             throw new BadRequestException('Email and password are required');
         }
 
+        // Default to 'owner' if the client omits it — owners are the gated flow
+        // (first-run farm setup); workers go straight to the dashboard.
+        const account_type: 'owner' | 'worker' = accountType === 'worker' ? 'worker' : 'owner';
+
         const result = await this.supabaseAuthService.signUp(email, password, {
             firstName,
             lastName,
             username,
+            account_type,
         });
 
         return {

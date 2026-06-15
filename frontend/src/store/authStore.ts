@@ -13,6 +13,8 @@ export type AuthStatus =
     | 'authenticated'      // fully logged in
     | 'refreshing';        // access token being refreshed
 
+export type AccountType = 'owner' | 'worker';
+
 export interface AuthUser {
     id: string;
     email: string;
@@ -20,6 +22,9 @@ export interface AuthUser {
     avatarUrl: string | null;
     provider: 'email' | 'google' | 'truecaller';
     emailVerified: boolean;
+    // Chosen at sign-up. Owners are gated into first-run farm setup; workers go
+    // straight to the dashboard. Read from Supabase user metadata.
+    accountType: AccountType | null;
 }
 
 interface AuthState {
@@ -39,6 +44,11 @@ interface AuthState {
     // ── Pending verification ──
     pendingVerificationEmail: string | null;
 
+    // ── First-run owner farm setup ──
+    // True after an owner signs up, until they create their first farm. Gates
+    // the owner into the Create-Farm screen exactly once after registration.
+    pendingFarmSetup: boolean;
+
     // ── Error ──
     error: string | null;
 
@@ -47,6 +57,7 @@ interface AuthState {
     setStatus: (status: AuthStatus) => void;
     setPendingVerification: (email: string) => void;
     clearPendingVerification: () => void;
+    completeFarmSetup: () => void;
     setError: (error: string | null) => void;
     clearError: () => void;
     clearSession: () => void;
@@ -56,7 +67,7 @@ interface AuthState {
     initialize: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
     googleLogin: (idToken: string) => Promise<void>;
-    signup: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
+    signup: (email: string, password: string, firstName?: string, lastName?: string, accountType?: AccountType) => Promise<void>;
     logout: () => Promise<void>;
     deleteAccount: () => Promise<void>;
     forgotPassword: (email: string) => Promise<void>;
@@ -75,6 +86,12 @@ const mapSupabaseUser = (user: User): AuthUser => ({
         null,
     provider: (user.app_metadata?.provider as 'email' | 'google' | 'truecaller') || 'email',
     emailVerified: !!user.email_confirmed_at,
+    accountType:
+        user.user_metadata?.account_type === 'worker'
+            ? 'worker'
+            : user.user_metadata?.account_type === 'owner'
+                ? 'owner'
+                : null,
 });
 
 export const useAuthStore = create<AuthState>()(
@@ -88,6 +105,7 @@ export const useAuthStore = create<AuthState>()(
             accessToken: null,
             isAuthenticated: false,
             pendingVerificationEmail: null,
+            pendingFarmSetup: false,
             error: null,
 
             setSession: (session) =>
@@ -113,6 +131,10 @@ export const useAuthStore = create<AuthState>()(
             clearPendingVerification: () =>
                 set({ pendingVerificationEmail: null }),
 
+            // Owner finished first-run farm creation — drop the gate so the next
+            // render lands them on the main app.
+            completeFarmSetup: () => set({ pendingFarmSetup: false }),
+
             setError: (error) => set({ error, isLoading: false }),
             clearError: () => set({ error: null }),
 
@@ -124,6 +146,7 @@ export const useAuthStore = create<AuthState>()(
                     isAuthenticated: false,
                     status: 'unauthenticated',
                     pendingVerificationEmail: null,
+                    pendingFarmSetup: false,
                     error: null,
                     isLoading: false,
                 }),
@@ -195,10 +218,14 @@ export const useAuthStore = create<AuthState>()(
                 }
             },
 
-            signup: async (email, password, firstName, lastName) => {
+            signup: async (email, password, firstName, lastName, accountType) => {
                 set({ isLoading: true, error: null });
                 try {
-                    const { data } = await authApi.signup({ email, password, firstName, lastName });
+                    const { data } = await authApi.signup({ email, password, firstName, lastName, accountType });
+                    // Owners must complete first-run farm setup before reaching the
+                    // app; workers go straight to the dashboard. The flag is read by
+                    // RootNavigator once the user becomes authenticated.
+                    set({ pendingFarmSetup: accountType === 'owner' });
                     if (data.session) {
                         get().setSession(data.session);
                     } else {
@@ -268,6 +295,7 @@ export const useAuthStore = create<AuthState>()(
                 userId: state.user?.id,
                 userEmail: state.user?.email,
                 pendingVerificationEmail: state.pendingVerificationEmail,
+                pendingFarmSetup: state.pendingFarmSetup,
             }),
         }
     )

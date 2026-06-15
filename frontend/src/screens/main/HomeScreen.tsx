@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { MoonPhaseCard } from '../../components/ui/MoonPhaseCard';
+import { FarmGlanceCards } from '../../components/dashboard/FarmGlanceCards';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
@@ -173,6 +174,14 @@ export const HomeScreen = ({ navigation }: any) => {
             <View style={styles.moonSection}>
                 <MoonPhaseCard />
             </View>
+
+            {/* Farm-at-a-glance: last water quality, last feed, expenses, P&L. */}
+            {selectedFarm?.id && (
+                <>
+                    <Text style={styles.sectionTitle}>{t('home.farmGlance')}</Text>
+                    <FarmGlanceCards farmId={selectedFarm.id} farmName={selectedFarm.name} navigation={navigation} />
+                </>
+            )}
 
             <Text style={styles.sectionTitle}>{t('home.quickActions')}</Text>
             <View style={styles.grid}>

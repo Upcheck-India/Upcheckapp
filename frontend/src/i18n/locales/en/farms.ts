@@ -16,8 +16,13 @@ const farms = {
   errorPondsTitle: "Couldn't Load Ponds",
 
   // CreateFarmScreen
+  setupTitle: 'Set up your farm',
+  setupSubtitle: 'Tell us a bit about your farm to get started.',
   fieldFarmName: 'Farm Name',
   placeholderFarmName: 'e.g. North Site',
+  fieldPondCount: 'Number of ponds',
+  placeholderPondCount: 'e.g. 4',
+  errorPondCountRequired: 'Enter a valid number of ponds',
   fieldAddress: 'Address',
   placeholderAddress: 'Address or Region',
   fieldArea: 'Area (hectares, optional)',

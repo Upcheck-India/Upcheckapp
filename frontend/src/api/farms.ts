@@ -7,6 +7,7 @@ export interface Farm {
     areaHectares?: number;
     address?: string;
     waterSourceType?: string;
+    plannedPondCount?: number;
     latitude?: number;
     longitude?: number;
     qrCodeUrl?: string;
@@ -25,6 +26,7 @@ export interface CreateFarmDto {
     areaHectares?: number;
     address?: string;
     waterSourceType?: string;
+    plannedPondCount?: number;
     latitude?: number;
     longitude?: number;
     privacySetting?: string;

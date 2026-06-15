@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsLatitude, IsLongitude, IsIn, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsInt, Min, Max, IsLatitude, IsLongitude, IsIn, IsArray } from 'class-validator';
 
 export class CreateFarmDto {
     @IsString()
@@ -27,6 +27,13 @@ export class CreateFarmDto {
     @IsOptional()
     @IsIn(['tidal', 'river', 'borehole', 'reservoir', 'recycled'])
     waterSourceType?: string;
+
+    // Number of ponds the owner declares at first-run setup (planning target).
+    @IsOptional()
+    @IsInt()
+    @Min(1)
+    @Max(1000)
+    plannedPondCount?: number;
 
     @IsOptional()
     @IsString()

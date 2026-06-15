@@ -44,6 +44,11 @@ export class Farm {
     @Column({ name: 'water_source_type', type: 'varchar', length: 20, nullable: true })
     waterSourceType: string;
 
+    // Declared by the owner during first-run farm setup; the guided pond-creation
+    // step uses it to know how many ponds to scaffold. Nullable for legacy farms.
+    @Column({ name: 'planned_pond_count', type: 'integer', nullable: true })
+    plannedPondCount: number;
+
     @Column({ name: 'qr_code_url', type: 'text', nullable: true })
     qrCodeUrl: string;
 

@@ -81,6 +81,7 @@ export class FarmsService {
             longitude: createFarmDto.longitude,
             latitude: createFarmDto.latitude,
             waterSourceType: createFarmDto.waterSourceType as any,
+            plannedPondCount: createFarmDto.plannedPondCount,
             qrCodeUrl: createFarmDto.qrCodeUrl,
             privacySetting: createFarmDto.privacySetting as any,
             boundary: createFarmDto.boundary,

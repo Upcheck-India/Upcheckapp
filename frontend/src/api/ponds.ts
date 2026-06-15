@@ -15,6 +15,7 @@ export interface Pond {
     diameterM?: number;
     depthM?: number;
     installedAeratorHp?: number;
+    aeratorCount?: number;
     channelCount?: number;
     calculatedAreaM2?: number;
     overrideAreaM2?: number;
@@ -40,10 +41,19 @@ export interface CreatePondDto {
     diameterM?: number;
     depthM: number;
     installedAeratorHp?: number;
+    aeratorCount?: number;
     channelCount?: number;
     overrideAreaM2?: number;
     displayName?: string;
     batchCount?: number;
+}
+
+// POST /ponds wraps the created pond with derived geometry figures.
+export interface CreatePondResult {
+    pond: Pond;
+    calculatedAreaM2?: number;
+    volumeM3?: number;
+    warnings?: { field: string; message: string }[];
 }
 
 export interface UpdatePondDto extends Partial<Omit<CreatePondDto, 'farmId'>> { }

@@ -31,7 +31,7 @@ export class SupabaseAuthService {
 
     // ==================== Email/Password Auth ====================
 
-    async signUp(email: string, password: string, metadata?: { firstName?: string; lastName?: string; username?: string }) {
+    async signUp(email: string, password: string, metadata?: { firstName?: string; lastName?: string; username?: string; account_type?: 'owner' | 'worker' }) {
         const { data, error } = await this.supabase.auth.signUp({
             email,
             password,

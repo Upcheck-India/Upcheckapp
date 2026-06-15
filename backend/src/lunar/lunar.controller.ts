@@ -32,7 +32,9 @@ export class LunarController {
     const d = body.date ? new Date(body.date) : new Date();
     if (Number.isNaN(d.getTime())) throw new BadRequestException('invalid date');
     const phase = this.service.moonPhase(d);
-    const risk = this.service.computeMoltRisk(phase, body.abwG, body.vulnerability ?? {});
-    return { phase, risk };
+    const vulnerability = body.vulnerability ?? {};
+    const risk = this.service.computeMoltRisk(phase, body.abwG, vulnerability);
+    const playbook = this.service.buildPlaybook(phase, risk, vulnerability);
+    return { phase, risk, playbook };
   }
 }

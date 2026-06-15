@@ -150,5 +150,13 @@ const auth = {
   consentPrefix: "By creating an account, you agree to our",
   legalPrefix: "By continuing, you agree to our",
   consentAnd: "and",
+
+  // ── Account type (Owner / Worker) ─────────────────────────────────────────
+  accountTypeLabel: 'I am a…',
+  accountTypeRequired: 'Please choose an account type',
+  accountOwnerTitle: 'Farm Owner',
+  accountOwnerDesc: 'Set up and manage your own farm',
+  accountWorkerTitle: 'Worker',
+  accountWorkerDesc: 'Join a farm and log daily work',
 };
 export default auth;
