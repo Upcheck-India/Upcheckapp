@@ -26,6 +26,13 @@ export class WaterQualityService {
     ) { }
 
     async create(createDto: CreateWaterQualityRecordDto, userId: string) {
+        // Idempotent replay: if this client-minted id already landed, return it
+        // (an offline queue drain can re-send the same record safely).
+        if (createDto.id) {
+            const existing = await this.recordsRepository.findOne({ where: { id: createDto.id } });
+            if (existing) return existing;
+        }
+
         // Verify the user can write to this pond's farm (owner or worker).
         const pond = await this.pondsService.findOneAccessible(createDto.pondId, userId, 'WRITE_OPERATIONAL');
 

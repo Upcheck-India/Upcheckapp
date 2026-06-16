@@ -24,7 +24,7 @@ export class SamplingController {
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('SamplingData', 'id', 'pond.farm.userId')
+    @OwnsResource('SamplingData', 'id', 'pond.farm.userId', 'READ')
     findOne(@Param('id') id: string) {
         return this.samplingService.findOne(id);
     }

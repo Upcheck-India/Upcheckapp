@@ -24,7 +24,7 @@ export class MicrobiologyController {
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('MicrobiologyData', 'id', 'crop.pond.farm.userId')
+    @OwnsResource('MicrobiologyData', 'id', 'crop.pond.farm.userId', 'READ')
     findOne(@Param('id') id: string) {
         return this.microbiologyService.findOne(id);
     }

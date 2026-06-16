@@ -21,6 +21,12 @@ export class MortalityService {
     ) { }
 
     async create(dto: CreateMortalityRecordDto, userId?: string): Promise<MortalityRecord> {
+        // Idempotent replay guard for offline queue drains.
+        if (dto.id) {
+            const existing = await this.mortalityRepository.findOne({ where: { id: dto.id } });
+            if (existing) return existing;
+        }
+
         // If estimatedTotal is not provided, compute it using the mortality multiplier
         const estimatedTotal = dto.estimatedTotal ?? dto.quantity * DEFAULT_MORTALITY_MULTIPLIER;
 

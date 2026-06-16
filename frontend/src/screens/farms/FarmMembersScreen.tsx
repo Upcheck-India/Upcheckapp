@@ -15,8 +15,9 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { theme } from '../../theme';
-import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
-import { useMembershipStore } from '../../store/membershipStore';
+import { farmMembersApi, type FarmMember, type AssignableRole } from '../../api/farmMembers';
+import { usePermissions } from '../../hooks/usePermissions';
+import { canManageMember } from '../../permissions/capabilities';
 
 const fullName = (m: FarmMember) => {
     const u = m.user;
@@ -31,7 +32,7 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
     const [members, setMembers] = useState<FarmMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const isWorker = useMembershipStore((s) => s.isWorker(farmId));
+    const perms = usePermissions(farmId);
 
     const load = useCallback(async () => {
         try {
@@ -69,6 +70,46 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
         );
     };
 
+    const changeRole = (m: FarmMember) => {
+        const options: AssignableRole[] = ['manager', 'worker', 'viewer'];
+        Alert.alert(t('members.changeRoleTitle', 'Change role'), fullName(m), [
+            ...options.map((r) => ({
+                text: t(`members.role_${r}`, r),
+                onPress: async () => {
+                    try {
+                        await farmMembersApi.changeRole(farmId, m.userId, r);
+                        load();
+                    } catch (e: any) {
+                        Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.roleChangeError', 'Could not change role'));
+                    }
+                },
+            })),
+            { text: t('common.cancel'), style: 'cancel' as const },
+        ]);
+    };
+
+    const transfer = (m: FarmMember) => {
+        Alert.alert(
+            t('members.transferTitle', 'Transfer ownership'),
+            t('members.transferConfirm', { name: fullName(m), defaultValue: `Make ${fullName(m)} the owner? You will become a manager.` }),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('members.transferCta', 'Transfer'),
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await farmMembersApi.transferOwnership(farmId, m.userId);
+                            load();
+                        } catch (e: any) {
+                            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.transferError', 'Could not transfer ownership'));
+                        }
+                    },
+                },
+            ],
+        );
+    };
+
     const renderItem = ({ item }: { item: FarmMember }) => (
         <Card style={styles.row}>
             <View style={[styles.avatar, item.role === 'owner' && styles.avatarOwner]}>
@@ -82,11 +123,23 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                 <Text style={styles.name} numberOfLines={1}>{fullName(item)}</Text>
                 <Text style={styles.role} numberOfLines={1}>{t(`members.role_${item.role}`)}</Text>
             </View>
-            {!isWorker && item.role !== 'owner' && (
-                <TouchableOpacity onPress={() => remove(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <MaterialCommunityIcons name="account-remove-outline" size={22} color={theme.roles.light.dangerText} />
-                </TouchableOpacity>
-            )}
+            <View style={styles.rowActions}>
+                {perms.canChangeRoles && item.role !== 'owner' && (
+                    <TouchableOpacity onPress={() => changeRole(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('members.changeRoleTitle', 'Change role')}>
+                        <MaterialCommunityIcons name="account-cog-outline" size={22} color={theme.roles.light.primary} />
+                    </TouchableOpacity>
+                )}
+                {perms.canTransferOwnership && item.role !== 'owner' && (
+                    <TouchableOpacity onPress={() => transfer(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('members.transferTitle', 'Transfer ownership')}>
+                        <MaterialCommunityIcons name="crown-outline" size={22} color={theme.roles.light.warningText} />
+                    </TouchableOpacity>
+                )}
+                {canManageMember(perms.role, item.role) && (
+                    <TouchableOpacity onPress={() => remove(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('members.remove')}>
+                        <MaterialCommunityIcons name="account-remove-outline" size={22} color={theme.roles.light.dangerText} />
+                    </TouchableOpacity>
+                )}
+            </View>
         </Card>
     );
 
@@ -113,7 +166,7 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                 }
             />
 
-            {!isWorker && (
+            {perms.canInviteMember && (
                 <Button
                     title={t('members.addWorker')}
                     onPress={() => navigation.navigate('AddWorker', { farmId, farmName })}
@@ -131,6 +184,7 @@ const styles = StyleSheet.create({
     subtitle: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
     list: { paddingBottom: theme.spacing[6], gap: theme.spacing[3] },
     row: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3], padding: theme.spacing[4] },
+    rowActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
     avatar: {
         width: 40, height: 40, borderRadius: theme.radius.full,
         backgroundColor: theme.roles.light.surfaceVariant, alignItems: 'center', justifyContent: 'center',

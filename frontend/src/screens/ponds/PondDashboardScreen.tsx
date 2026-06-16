@@ -28,6 +28,7 @@ import { feedApi } from '../../api/feedRecords';
 import { harvestsApi } from '../../api/harvests';
 import { waterQualityApi } from '../../api/waterQuality';
 import { useMembershipStore } from '../../store/membershipStore';
+import { usePermissions } from '../../hooks/usePermissions';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -162,7 +163,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     // Economics (expenses, harvest planning) are owner-only; workers see only the
     // operational logging surface. Backend enforces the real gate regardless.
     const loadMemberships = useMembershipStore((s) => s.load);
-    const isWorker = useMembershipStore((s) => s.isWorker(pond?.farmId));
+    const perms = usePermissions(pond?.farmId);
     useEffect(() => { loadMemberships(); }, [loadMemberships]);
 
     const [mbw, setMbw] = useState<string>('--');
@@ -443,7 +444,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                             </View>
                         )}
 
-                        {activeCycle && !isWorker && (
+                        {activeCycle && perms.canViewFinancials && (
                             <View style={styles.econSection}>
                                 <Text style={styles.econTitle}>{t('ponds.economicsTitle')}</Text>
                                 <TouchableOpacity

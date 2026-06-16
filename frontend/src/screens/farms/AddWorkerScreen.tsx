@@ -14,8 +14,11 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { ChipGroup } from '../../components/ui/ChipGroup';
 import { theme } from '../../theme';
-import { farmMembersApi, WORKER_QR_PREFIX, type PublicUser } from '../../api/farmMembers';
+import { farmMembersApi, WORKER_QR_PREFIX, type PublicUser, type AssignableRole } from '../../api/farmMembers';
+import { usePermissions } from '../../hooks/usePermissions';
+import { canAssignRole } from '../../permissions/capabilities';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -39,6 +42,13 @@ export const AddWorkerScreen = ({ route, navigation }: any) => {
     const [identifier, setIdentifier] = useState('');
     const [found, setFound] = useState<PublicUser | null>(null);
     const [busy, setBusy] = useState(false);
+    const [role, setRole] = useState<AssignableRole>('worker');
+
+    // Roles the caller may assign here: owner → manager/worker/viewer, manager → worker.
+    const perms = usePermissions(farmId);
+    const roleOptions = (['manager', 'worker', 'viewer'] as AssignableRole[]).filter((r) =>
+        canAssignRole(perms.role, r),
+    );
 
     const resolveUser = useCallback(async (params: { userId?: string; phone?: string; email?: string }) => {
         setBusy(true);
@@ -69,7 +79,7 @@ export const AddWorkerScreen = ({ route, navigation }: any) => {
         if (!found) return;
         setBusy(true);
         try {
-            await farmMembersApi.addMember(farmId, found.id);
+            await farmMembersApi.addMember(farmId, found.id, role);
             Alert.alert(t('members.addedTitle'), t('members.addedSub', { name: displayName(found) }));
             navigation.goBack();
         } catch (e: any) {
@@ -77,7 +87,7 @@ export const AddWorkerScreen = ({ route, navigation }: any) => {
         } finally {
             setBusy(false);
         }
-    }, [found, farmId, navigation, t]);
+    }, [found, farmId, navigation, role, t]);
 
     const reset = () => { setFound(null); setScanned(false); setIdentifier(''); };
 
@@ -123,6 +133,16 @@ export const AddWorkerScreen = ({ route, navigation }: any) => {
                         </View>
                         <Text style={styles.foundName}>{displayName(found)}</Text>
                         {found.username ? <Text style={styles.foundMeta}>@{found.username}</Text> : null}
+                        {roleOptions.length > 1 ? (
+                            <View style={styles.rolePicker}>
+                                <ChipGroup
+                                    label={t('members.roleLabel', 'Role')}
+                                    value={role}
+                                    onChange={(v) => v && setRole(v as AssignableRole)}
+                                    options={roleOptions.map((r) => ({ value: r, label: t(`members.role_${r}`, r) }))}
+                                />
+                            </View>
+                        ) : null}
                         <Button title={t('members.confirmAdd')} onPress={confirmAdd} loading={busy} style={styles.confirmBtn} />
                         <Button title={t('common.cancel')} variant="text" onPress={reset} />
                     </Card>
@@ -205,6 +225,7 @@ const styles = StyleSheet.create({
     },
     foundName: { ...theme.typeScale.h2, color: theme.roles.light.textPrimary },
     foundMeta: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
+    rolePicker: { alignSelf: 'stretch', marginTop: theme.spacing[3] },
     confirmBtn: { marginTop: theme.spacing[4], alignSelf: 'stretch' },
 });
 

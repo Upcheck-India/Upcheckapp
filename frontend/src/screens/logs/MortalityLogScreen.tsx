@@ -7,7 +7,8 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
-import { mortalityApi } from '../../api/mortalities';
+import { Stepper } from '../../components/ui/Stepper';
+import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
 
 export const MortalityLogScreen = ({ route, navigation }: any) => {
@@ -16,14 +17,14 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
     const { pondId, pondName, cropId } = route.params;
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [quantity, setQuantity] = useState('');
+    const [quantity, setQuantity] = useState(0);
     const [estimatedWeightKg, setEstimatedWeightKg] = useState('');
     const [note, setNote] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSave = async () => {
-        if (!quantity || isNaN(parseInt(quantity))) {
+        if (quantity < 0) {
             Alert.alert(t('common.error'), t('logs.mortality_validationQuantity'));
             return;
         }
@@ -31,14 +32,23 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
         setIsLoading(true);
 
         try {
-            await mortalityApi.create({
-                cropId,
-                recordDate: date,
-                quantity: parseInt(quantity, 10),
-                estimatedWeightKg: estimatedWeightKg ? parseFloat(estimatedWeightKg) : undefined,
-                note: note.trim() || undefined,
+            const res = await saveRecord({
+                entity: 'mortality',
+                endpoint: '/mortality',
+                payload: {
+                    cropId,
+                    recordDate: date,
+                    quantity,
+                    estimatedWeightKg: estimatedWeightKg ? parseFloat(estimatedWeightKg) : undefined,
+                    note: note.trim() || undefined,
+                },
             });
-            showToast({ message: t('common.savedSuccess'), type: 'success' });
+            showToast({
+                message: res.queued
+                    ? t('common.savedOffline', 'Saved — will sync when online')
+                    : t('common.savedSuccess'),
+                type: 'success',
+            });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.mortality_errorSave'));
@@ -62,13 +72,11 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
 
                 <Card style={styles.card}>
                     <Input label={t('common.date')} value={date} onChangeText={setDate} placeholder={t('logs.datePlaceholder')} required />
-                    <Input
+                    <Stepper
                         label={t('logs.mortality_labelQuantity')}
                         value={quantity}
-                        onChangeText={setQuantity}
-                        keyboardType="number-pad"
-                        placeholder="0"
-                        required
+                        onChange={setQuantity}
+                        min={0}
                     />
                 </Card>
 

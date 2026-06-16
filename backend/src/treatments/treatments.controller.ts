@@ -12,7 +12,7 @@ export class TreatmentsController {
 
     @Post()
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Crop', 'cropId', 'pond.farm.userId')
+    @OwnsResource('Crop', 'cropId', 'pond.farm.userId', 'WRITE_MANAGEMENT')
     create(@Body() createDto: CreateTreatmentDto, @CurrentUser() user) {
         return this.treatmentsService.create(createDto, user.id);
     }
@@ -24,21 +24,21 @@ export class TreatmentsController {
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Treatment', 'id', 'crop.pond.farm.userId')
+    @OwnsResource('Treatment', 'id', 'crop.pond.farm.userId', 'READ')
     findOne(@Param('id') id: string) {
         return this.treatmentsService.findOne(id);
     }
 
     @Patch(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Treatment', 'id', 'crop.pond.farm.userId')
+    @OwnsResource('Treatment', 'id', 'crop.pond.farm.userId', 'WRITE_MANAGEMENT')
     update(@Param('id') id: string, @Body() updateDto: UpdateTreatmentDto, @CurrentUser() user) {
         return this.treatmentsService.update(id, updateDto, user.id);
     }
 
     @Delete(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Treatment', 'id', 'crop.pond.farm.userId')
+    @OwnsResource('Treatment', 'id', 'crop.pond.farm.userId', 'WRITE_MANAGEMENT')
     remove(@Param('id') id: string) {
         return this.treatmentsService.remove(id);
     }

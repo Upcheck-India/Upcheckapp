@@ -1,6 +1,11 @@
 import { IsArray, IsDateString, IsInt, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
 export class CreateMortalityRecordDto {
+    // Client-minted idempotency key — lets offline replays be safe (insert-or-return).
+    @IsUUID()
+    @IsOptional()
+    id?: string;
+
     @IsUUID()
     cropId: string;
 

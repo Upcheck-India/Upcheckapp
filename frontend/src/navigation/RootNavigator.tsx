@@ -3,6 +3,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { theme } from '../theme';
 import { useAuthStore } from '../store/authStore';
+import { useMembershipStore } from '../store/membershipStore';
 
 // Auth Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -220,10 +221,19 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
     const { isLoading, isAuthenticated, pendingFarmSetup, initialize } = useAuthStore();
+    const loadMemberships = useMembershipStore((s) => s.load);
+    const resetMemberships = useMembershipStore((s) => s.reset);
 
     useEffect(() => {
         initialize();
     }, []);
+
+    // Load the user's farm memberships once authenticated so usePermissions()
+    // resolves correctly on every screen; clear them on logout.
+    useEffect(() => {
+        if (isAuthenticated) loadMemberships();
+        else resetMemberships();
+    }, [isAuthenticated, loadMemberships, resetMemberships]);
 
     if (isLoading) {
         return (

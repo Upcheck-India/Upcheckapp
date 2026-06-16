@@ -5,13 +5,20 @@ if (typeof globalThis.crypto === 'undefined') {
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
 import { TypeORMExceptionFilter } from './common/filters/typeorm-exception.filter';
+import { assertSchemaReady } from './common/schema-guard';
 
 import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Fail fast (with a loud log) if the DB schema is missing — prevents the
+  // app from limping into per-request "relation does not exist" errors after
+  // a fresh-DB deploy where migrations did not run.
+  await assertSchemaReady(app.get(DataSource));
 
   app.use(cookieParser());
 
@@ -37,4 +44,7 @@ async function bootstrap() {
   console.log(`Backend listening on 0.0.0.0:${port}`);
   console.log(`CORS origin: ${corsOrigin}`);
 }
-bootstrap();
+bootstrap().catch((err) => {
+  console.error('Bootstrap failed:', err);
+  process.exit(1);
+});

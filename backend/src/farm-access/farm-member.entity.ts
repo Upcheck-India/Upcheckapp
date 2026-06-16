@@ -10,9 +10,16 @@ import {
 import { User } from '../auth/user.entity';
 import { Farm } from '../farms/farm.entity';
 
-// Per-farm membership role. Owners have full access; workers get broad
-// operational access (field logs + read inventory) but no economics.
-export type FarmRole = 'owner' | 'worker';
+// Per-farm membership role (blueprint §7). Authority order: owner > manager >
+// worker > viewer.
+//   owner   — full control: farm/pond lifecycle, ownership transfer, roles, economics.
+//   manager — operations + team: create ponds/cycles/tasks, record, verify,
+//             view financials, invite/remove workers. Not farm/role lifecycle.
+//   worker  — field operations: record logs, complete own tasks, read. No economics.
+//   viewer  — read-only (banks/insurers/consultants). No writes, no economics
+//             unless the owner grants cost visibility per-farm.
+// Stored as varchar(20) — no DB enum — so this list extends without a migration.
+export type FarmRole = 'owner' | 'manager' | 'worker' | 'viewer';
 
 @Entity('farm_members')
 @Index(['farmId', 'userId'], { unique: true })

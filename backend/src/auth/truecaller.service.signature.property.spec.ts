@@ -81,6 +81,23 @@ function mutateAt(s: string, index: number): string {
 }
 
 /**
+ * Mutate a base64-encoded value at the *byte* level (decode → flip a byte →
+ * re-encode), guaranteeing the decoded bytes differ. Plain base64 *string*
+ * mutation is unsafe for signatures: base64's final group carries redundant
+ * padding bits, so a one-character change can decode to identical bytes and
+ * the signature still verifies. We use this for the signature branch where
+ * `crypto.verify` reads the decoded bytes, not the string.
+ */
+function mutateBase64Bytes(b64: string, index: number): string {
+  const buf = Buffer.from(b64, 'base64');
+  if (buf.length === 0) return Buffer.from([1]).toString('base64');
+  const i = ((index % buf.length) + buf.length) % buf.length;
+  const out = Buffer.from(buf);
+  out[i] = out[i] ^ 0xff; // XOR guarantees a different byte value
+  return out.toString('base64');
+}
+
+/**
  * Indian mobile number arbitrary matching `^\+91[6-9]\d{9}$`. Built from
  * primitives so we don't depend on `fc.stringMatching`'s implementation
  * details.
@@ -205,7 +222,7 @@ describe('property: signature verification', () => {
               params.alg,
               sigMutPayload,
             );
-            const mutatedSignature = mutateAt(
+            const mutatedSignature = mutateBase64Bytes(
               sigMutSignature,
               params.sigMutateIndex,
             );

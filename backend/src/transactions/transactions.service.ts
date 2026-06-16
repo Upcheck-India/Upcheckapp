@@ -4,19 +4,19 @@ import { Repository, In } from 'typeorm';
 import { Transaction } from './transaction.entity';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
-import { FarmsService } from '../farms/farms.service';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 @Injectable()
 export class TransactionsService {
     constructor(
         @InjectRepository(Transaction)
         private transactionsRepository: Repository<Transaction>,
-        private readonly farmsService: FarmsService,
+        private readonly farmAccess: FarmAccessService,
     ) { }
 
     async create(createDto: CreateTransactionDto, userId: string) {
-        // Reject transactions against a farm the caller does not own.
-        await this.farmsService.verifyOwnership(createDto.farmId, userId);
+        // Financials are owner/manager only (VIEW_FINANCIALS); workers/viewers denied.
+        await this.farmAccess.assertCanAccessFarm(userId, createDto.farmId, 'VIEW_FINANCIALS');
         const transaction = this.transactionsRepository.create(createDto);
         return this.transactionsRepository.save(transaction);
     }
@@ -26,12 +26,11 @@ export class TransactionsService {
         if (type) where.type = type;
 
         if (farmId) {
-            await this.farmsService.verifyOwnership(farmId, userId);
+            await this.farmAccess.assertCanAccessFarm(userId, farmId, 'VIEW_FINANCIALS');
             where.farmId = farmId;
         } else {
-            // Restrict to farms the caller OWNS (never member farms — economics).
-            const farms = await this.farmsService.findOwnedByUser(userId);
-            const farmIds = farms.map((f) => f.id);
+            // Restrict to farms where the caller may view financials (owner/manager).
+            const farmIds = await this.farmAccess.getFarmIdsWithCapability(userId, 'VIEW_FINANCIALS');
             if (farmIds.length === 0) return [];
             where.farmId = In(farmIds);
         }
@@ -47,8 +46,8 @@ export class TransactionsService {
         if (!transaction) {
             throw new NotFoundException(`Transaction with ID ${id} not found`);
         }
-        // Throws ForbiddenException if the farm is not owned by the caller.
-        await this.farmsService.verifyOwnership(transaction.farmId, userId);
+        // Throws Forbidden/NotFound unless the caller may view this farm's financials.
+        await this.farmAccess.assertCanAccessFarm(userId, transaction.farmId, 'VIEW_FINANCIALS');
         return transaction;
     }
 
@@ -58,9 +57,9 @@ export class TransactionsService {
 
     async update(id: string, updateDto: UpdateTransactionDto, userId: string) {
         await this.findOwned(id, userId);
-        // Never allow re-pointing a transaction at a farm the caller does not own.
+        // Never allow re-pointing a transaction at a farm the caller can't manage financially.
         if (updateDto.farmId) {
-            await this.farmsService.verifyOwnership(updateDto.farmId, userId);
+            await this.farmAccess.assertCanAccessFarm(userId, updateDto.farmId, 'VIEW_FINANCIALS');
         }
         await this.transactionsRepository.update(id, updateDto);
         return this.transactionsRepository.findOneBy({ id });
@@ -72,7 +71,7 @@ export class TransactionsService {
     }
 
     async getSummaryByFarm(farmId: string, userId: string) {
-        await this.farmsService.verifyOwnership(farmId, userId);
+        await this.farmAccess.assertCanAccessFarm(userId, farmId, 'VIEW_FINANCIALS');
         const income = await this.transactionsRepository
             .createQueryBuilder('t')
             .select('SUM(t.amount)', 'total')

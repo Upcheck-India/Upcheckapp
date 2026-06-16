@@ -15,7 +15,7 @@ export class PondsController {
 
     @Post()
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Farm', 'farmId', 'userId', 'OWNER_ONLY')
+    @OwnsResource('Farm', 'farmId', 'userId', 'WRITE_MANAGEMENT')
     create(@Body() createPondDto: CreatePondDto, @CurrentUser() user) {
         return this.pondsService.create(createPondDto, user.id);
     }
@@ -57,14 +57,14 @@ export class PondsController {
 
     @Patch(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Pond', 'id', 'farm.userId', 'OWNER_ONLY')
+    @OwnsResource('Pond', 'id', 'farm.userId', 'WRITE_MANAGEMENT')
     update(@Param('id') id: string, @Body() updatePondDto: UpdatePondDto, @CurrentUser() user) {
         return this.pondsService.update(id, updatePondDto, user.id);
     }
 
     @Patch(':id/archive')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Pond', 'id', 'farm.userId', 'OWNER_ONLY')
+    @OwnsResource('Pond', 'id', 'farm.userId', 'WRITE_MANAGEMENT')
     archive(@Param('id') id: string, @CurrentUser() user) {
         return this.pondsService.archive(id, user.id);
     }

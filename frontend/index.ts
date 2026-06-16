@@ -17,14 +17,28 @@ const _subtle = {
     },
 };
 
-try {
-    Object.defineProperty(globalThis, 'crypto', {
-        value: { getRandomValues, subtle: _subtle },
-        writable: true,
-        configurable: true,
-    });
-} catch (_e) {
-    (globalThis as any).crypto = { getRandomValues, subtle: _subtle };
+// Only polyfill when the platform doesn't already provide WebCrypto's subtle
+// (i.e. native / Expo Go). On web, window.crypto is a real, read-only getter —
+// overriding it throws an uncaught TypeError at startup, so leave it alone.
+const _existingCrypto = (globalThis as any).crypto;
+if (!_existingCrypto || !_existingCrypto.subtle) {
+    const _polyfill = {
+        getRandomValues: _existingCrypto?.getRandomValues?.bind(_existingCrypto) ?? getRandomValues,
+        subtle: _subtle,
+    };
+    try {
+        Object.defineProperty(globalThis, 'crypto', {
+            value: _polyfill,
+            writable: true,
+            configurable: true,
+        });
+    } catch (_e) {
+        try {
+            (globalThis as any).crypto = _polyfill;
+        } catch (_e2) {
+            /* read-only platform crypto we can't override; leave as-is */
+        }
+    }
 }
 
 import App from './App';

@@ -29,14 +29,14 @@ export class FeedRecordsController {
 
     @Get('pond/:pondId/total')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Pond', 'pondId', 'farm.userId')
+    @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
     getTotalFeed(@Param('pondId') pondId: string) {
         return this.feedRecordsService.getTotalFeedByPond(pondId);
     }
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('FeedRecord', 'id', 'pond.farm.userId')
+    @OwnsResource('FeedRecord', 'id', 'pond.farm.userId', 'READ')
     findOne(@Param('id') id: string) {
         return this.feedRecordsService.findOne(id);
     }

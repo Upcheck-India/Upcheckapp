@@ -7,6 +7,7 @@ import { ExpensesService } from '../finances/expenses.service';
 import { RedisService } from '../redis/redis.service';
 import { SamplingService } from '../sampling/sampling.service';
 import { CropsService } from '../crops/crops.service';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 @Injectable()
 export class ReportsService {
@@ -19,6 +20,7 @@ export class ReportsService {
         private readonly redisService: RedisService,
         private readonly samplingService: SamplingService,
         private readonly cropsService: CropsService,
+        private readonly farmAccess: FarmAccessService,
     ) { }
 
     async getDashboardSummary(userId: string, farmId?: string) {
@@ -115,6 +117,8 @@ export class ReportsService {
     }
 
     async getFinancialReport(farmId: string, userId: string) {
+        // Financial report is owner/manager only (VIEW_FINANCIALS).
+        await this.farmAccess.assertCanAccessFarm(userId, farmId, 'VIEW_FINANCIALS');
         // Find all ponds in the farm
         const pondsPage = await this.pondsService.findAll(farmId, userId);
 
@@ -127,7 +131,7 @@ export class ReportsService {
         for (const pond of pondsPage.data) {
             const crops = await this.cropsService.findByPond(pond.id, userId);
             for (const crop of crops) {
-                const financials = await this.expensesService.getCycleFinancials(crop.id);
+                const financials = await this.expensesService.getCycleFinancials(crop.id, userId);
                 totalRevenue += financials.totalRevenue;
                 totalExpenses += financials.totalExpenses;
                 for (const [category, amount] of Object.entries(financials.expensesByCategory)) {

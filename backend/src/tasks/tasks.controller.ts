@@ -12,14 +12,14 @@ export class TasksController {
 
     @Post()
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Farm', 'farmId', 'userId')
+    @OwnsResource('Farm', 'farmId', 'userId', 'WRITE_MANAGEMENT')
     create(@Body() createDto: CreateTaskDto, @CurrentUser() user) {
         return this.tasksService.create(createDto, user?.id);
     }
 
     @Get()
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Farm', 'farmId', 'userId')
+    @OwnsResource('Farm', 'farmId', 'userId', 'READ')
     findAll(
         @Query('farmId') farmId: string,
         @Query('status') status?: string,
@@ -30,7 +30,7 @@ export class TasksController {
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Task', 'id', 'farm.userId')
+    @OwnsResource('Task', 'id', 'farm.userId', 'READ')
     findOne(@Param('id') id: string) {
         return this.tasksService.findOne(id);
     }
@@ -44,7 +44,7 @@ export class TasksController {
 
     @Delete(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Task', 'id', 'farm.userId')
+    @OwnsResource('Task', 'id', 'farm.userId', 'OWNER_ONLY')
     remove(@Param('id') id: string) {
         return this.tasksService.remove(id);
     }

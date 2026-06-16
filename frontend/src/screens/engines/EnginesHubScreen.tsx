@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { theme } from '../../theme';
-import { useMembershipStore } from '../../store/membershipStore';
+import { usePermissions } from '../../hooks/usePermissions';
 
 const ENGINES: {
   route: string;
@@ -30,8 +30,8 @@ export const EnginesHubScreen = ({ route, navigation }: any) => {
   const { t } = useTranslation();
   const params = route.params ?? {};
   // Workers don't see economic engines (Crop P&L). Backend also enforces this.
-  const isWorker = useMembershipStore((s) => s.isWorker(params.farmId));
-  const engines = ENGINES.filter((e) => !(isWorker && e.route === 'CropPnl'));
+  const perms = usePermissions(params.farmId);
+  const engines = ENGINES.filter((e) => e.route !== 'CropPnl' || perms.canViewFinancials);
   return (
     <ScreenWrapper>
       <ScrollView showsVerticalScrollIndicator={false}>

@@ -24,7 +24,7 @@ export class FeedingTrayChecksController {
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('FeedingTrayCheck', 'id', 'crop.pond.farm.userId')
+    @OwnsResource('FeedingTrayCheck', 'id', 'crop.pond.farm.userId', 'READ')
     findOne(@Param('id') id: string) {
         return this.feedingTrayChecksService.findOne(id);
     }

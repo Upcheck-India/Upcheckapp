@@ -7,7 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
-import { samplingApi } from '../../api/sampling';
+import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
 
 export const SamplingLogScreen = ({ route, navigation }: any) => {
@@ -33,16 +33,25 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
         setIsLoading(true);
 
         try {
-            await samplingApi.create({
-                pondId,
-                samplingDate: date,
-                mbwG: parseFloat(mbwG),
-                totalSamples: totalSamples ? parseInt(totalSamples, 10) : undefined,
-                biomassEstimationKg: biomassEstimation ? parseFloat(biomassEstimation) : undefined,
-                srEstimationPercent: srEstimation ? parseFloat(srEstimation) : undefined,
-                notes: notes.trim() || undefined,
+            const res = await saveRecord({
+                entity: 'sampling',
+                endpoint: '/sampling',
+                payload: {
+                    pondId,
+                    samplingDate: date,
+                    mbwG: parseFloat(mbwG),
+                    totalSamples: totalSamples ? parseInt(totalSamples, 10) : undefined,
+                    biomassEstimationKg: biomassEstimation ? parseFloat(biomassEstimation) : undefined,
+                    srEstimationPercent: srEstimation ? parseFloat(srEstimation) : undefined,
+                    notes: notes.trim() || undefined,
+                },
             });
-            showToast({ message: t('common.savedSuccess'), type: 'success' });
+            showToast({
+                message: res.queued
+                    ? t('common.savedOffline', 'Saved — will sync when online')
+                    : t('common.savedSuccess'),
+                type: 'success',
+            });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.sampling_errorSave'));

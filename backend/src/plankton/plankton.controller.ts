@@ -24,7 +24,7 @@ export class PlanktonController {
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('PlanktonData', 'id', 'crop.pond.farm.userId')
+    @OwnsResource('PlanktonData', 'id', 'crop.pond.farm.userId', 'READ')
     findOne(@Param('id') id: string) {
         return this.planktonService.findOne(id);
     }

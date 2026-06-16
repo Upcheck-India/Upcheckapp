@@ -6,6 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
+import { usePermissions } from '../hooks/usePermissions';
 
 // Import screens
 import { HomeScreen } from '../screens/main/HomeScreen';
@@ -22,6 +23,13 @@ const NoopScreen = () => null;
 /** Elevated center action button — one-tap entry to the daily logging flow. */
 const QuickLogButton = () => {
     const navigation = useNavigation<any>();
+    const perms = usePermissions();
+    // Viewers are read-only — hide the logging entry. When no farm context is
+    // resolved yet (role null), keep it visible; the Quick Log screen and the
+    // backend both guard writes anyway.
+    if (perms.role && !perms.canRecordData) {
+        return <View style={styles.centerSlot} pointerEvents="none" />;
+    }
     return (
         <View style={styles.centerSlot} pointerEvents="box-none">
             <TouchableOpacity

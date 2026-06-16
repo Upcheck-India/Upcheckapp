@@ -6,7 +6,12 @@ services:
     plan: free
     rootDir: backend
     buildCommand: npm ci && npm run build
-    startCommand: npm run start:prod
+    # Apply any pending migrations before serving, then start. migration:run is
+    # idempotent (skips already-applied migrations), so this is a fast no-op on
+    # a warm DB and guarantees a freshly-linked database is provisioned on first
+    # boot. Single instance (free plan) => no multi-instance migration race.
+    # The app itself keeps migrationsRun:false so only this step runs them.
+    startCommand: npm run migration:run && npm run start:prod
     # Health check path - checks if app is ready to serve requests
     # Render uses this to determine service health
     # During cold starts (after inactivity), Render gives ~30s for startup

@@ -21,7 +21,7 @@ export class WaterQualityController {
 
     @Get()
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Pond', 'pondId', 'farm.userId')
+    @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
     findAll(
         @Query('pondId') pondId: string,
         @CurrentUser() user,
@@ -35,14 +35,14 @@ export class WaterQualityController {
 
     @Get('pond/:pondId/latest')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Pond', 'pondId', 'farm.userId')
+    @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
     getLatest(@Param('pondId') pondId: string, @CurrentUser() user) {
         return this.waterQualityService.getLatestByPond(pondId, user.id);
     }
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('WaterQualityRecord', 'id', 'pond.farm.userId')
+    @OwnsResource('WaterQualityRecord', 'id', 'pond.farm.userId', 'READ')
     findOne(@Param('id') id: string, @CurrentUser() user) {
         return this.waterQualityService.findOne(id, user.id);
     }

@@ -24,7 +24,7 @@ export class MortalityController {
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('MortalityRecord', 'id', 'crop.pond.farm.userId')
+    @OwnsResource('MortalityRecord', 'id', 'crop.pond.farm.userId', 'READ')
     findOne(@Param('id') id: string) {
         return this.mortalityService.findOne(id);
     }

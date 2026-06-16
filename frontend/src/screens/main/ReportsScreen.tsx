@@ -13,6 +13,7 @@ import { BarChart } from '../../components/charts/BarChart';
 import { reportsApi, DashboardSummary } from '../../api/reports';
 import { farmsApi, Farm } from '../../api/farms';
 import { useMembershipStore } from '../../store/membershipStore';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface FinancialReport {
     revenue: number;
@@ -36,7 +37,7 @@ export const ReportsScreen = ({ navigation }: any) => {
     // Economics (transactions) are owner-only; default to owner when membership
     // isn't loaded yet — the backend enforces the real gate regardless.
     const loadMemberships = useMembershipStore((s) => s.load);
-    const isWorker = useMembershipStore((s) => s.isWorker(selectedFarmId ?? undefined));
+    const perms = usePermissions(selectedFarmId ?? undefined);
     useEffect(() => { loadMemberships(); }, [loadMemberships]);
 
     // Animation refs
@@ -304,7 +305,7 @@ export const ReportsScreen = ({ navigation }: any) => {
                                 </View>
                             </Card>
 
-                            {!isWorker && selectedFarmId && (
+                            {perms.canViewFinancials && selectedFarmId && (
                                 <TouchableOpacity
                                     style={styles.drillRow}
                                     onPress={() => navigation.navigate('Transactions', { farmId: selectedFarmId, farmName: selectedFarm?.name })}

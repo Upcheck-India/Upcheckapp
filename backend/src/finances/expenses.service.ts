@@ -2,18 +2,30 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Expense } from './expense.entity';
+import { Crop } from '../crops/crop.entity';
 import { CreateExpenseDto } from './dto/create-expense.dto';
-import { PondsService } from '../ponds/ponds.service';
 import { HarvestsService } from '../harvests/harvests.service';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 @Injectable()
 export class ExpensesService {
     constructor(
         @InjectRepository(Expense)
         private expensesRepository: Repository<Expense>,
-        private pondsService: PondsService,
+        @InjectRepository(Crop)
+        private cropsRepository: Repository<Crop>,
         private harvestsService: HarvestsService, // For P&L reports
+        private readonly farmAccess: FarmAccessService,
     ) { }
+
+    /** Resolve a crop to its pond and assert the caller may view financials. */
+    private async assertCropFinancials(cropId: string, userId: string) {
+        const crop = await this.cropsRepository.findOne({ where: { id: cropId } });
+        if (!crop) {
+            throw new NotFoundException(`Crop with ID ${cropId} not found`);
+        }
+        await this.farmAccess.assertCanAccessPond(userId, crop.pondId, 'VIEW_FINANCIALS');
+    }
 
     async create(createDto: CreateExpenseDto, userId: string) {
         // Validate expense amount is positive
@@ -21,8 +33,8 @@ export class ExpensesService {
             throw new BadRequestException('Expense amount must be positive');
         }
 
-        // Verify ownership and get active cycle if not provided
-        const pond = await this.pondsService.findOne(createDto.pondId, userId);
+        // Cost entry is owner/manager only (VIEW_FINANCIALS); returns the pond.
+        const pond = await this.farmAccess.assertCanAccessPond(userId, createDto.pondId, 'VIEW_FINANCIALS');
 
         const expense = this.expensesRepository.create({
             pondId: createDto.pondId,
@@ -37,16 +49,17 @@ export class ExpensesService {
         return this.expensesRepository.save(expense);
     }
 
-    async findByCycle(cropId: string) {
+    async findByCycle(cropId: string, userId: string) {
+        await this.assertCropFinancials(cropId, userId);
         return this.expensesRepository.find({
             where: { cropId },
             order: { date: 'DESC' },
         });
     }
 
-    async getCycleFinancials(cropId: string) {
-        // 1. Get Expenses
-        const expenses = await this.findByCycle(cropId);
+    async getCycleFinancials(cropId: string, userId: string) {
+        // 1. Get Expenses (also performs the VIEW_FINANCIALS authorization check)
+        const expenses = await this.findByCycle(cropId, userId);
         const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
         // Group expenses by category

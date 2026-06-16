@@ -2,6 +2,7 @@ import {
     Controller,
     Get,
     Post,
+    Patch,
     Delete,
     Body,
     Param,
@@ -11,6 +12,8 @@ import {
 import { FarmMembersService } from './farm-members.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AddMemberDto } from './dto/add-member.dto';
+import { ChangeRoleDto } from './dto/change-role.dto';
+import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { LookupUserDto } from './dto/lookup-user.dto';
 
 @Controller()
@@ -45,5 +48,26 @@ export class FarmMembersController {
     @Delete('farms/:farmId/members/:userId')
     remove(@Param('farmId') farmId: string, @Param('userId') userId: string, @CurrentUser() user) {
         return this.membersService.removeMember(farmId, user.id, userId);
+    }
+
+    /** Change a member's role (owner only). */
+    @Patch('farms/:farmId/members/:userId')
+    changeRole(
+        @Param('farmId') farmId: string,
+        @Param('userId') userId: string,
+        @Body() dto: ChangeRoleDto,
+        @CurrentUser() user,
+    ) {
+        return this.membersService.changeMemberRole(farmId, user.id, userId, dto.role);
+    }
+
+    /** Transfer farm ownership to an existing member (owner only). */
+    @Post('farms/:farmId/transfer-ownership')
+    transferOwnership(
+        @Param('farmId') farmId: string,
+        @Body() dto: TransferOwnershipDto,
+        @CurrentUser() user,
+    ) {
+        return this.membersService.transferOwnership(farmId, user.id, dto.newOwnerUserId);
     }
 }

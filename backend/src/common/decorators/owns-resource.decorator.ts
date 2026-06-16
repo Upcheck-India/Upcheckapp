@@ -13,10 +13,13 @@ export interface OwnsResourceOptions {
 /**
  * Authorize a farm-scoped route. `ownerPath` resolves (via relations) to the
  * farm owner's user id (e.g. 'farm.userId' or 'pond.farm.userId'). The optional
- * `capability` controls who beyond the owner may pass:
- *   - WRITE_OPERATIONAL (default): owner or worker — used for field-log writes
- *   - READ: owner or worker — used for member-visible GETs
- *   - OWNER_ONLY: owner exclusively — economics + farm/pond lifecycle
+ * `capability` controls who beyond the owner may pass (see farm-capability.ts):
+ *   - READ: owner, manager, worker, viewer — member-visible GETs
+ *   - WRITE_OPERATIONAL (default): owner, manager, worker — field-log writes
+ *   - WRITE_MANAGEMENT: owner, manager — ponds/cycles/tasks/treatments + verify
+ *   - VIEW_FINANCIALS: owner, manager — costs, P&L, financial reports
+ *   - MANAGE_WORKERS: owner, manager — invite/remove workers
+ *   - OWNER_ONLY: owner exclusively — delete farm/pond, transfer, role changes
  */
 export const OwnsResource = (
     entityType: string,

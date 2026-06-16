@@ -7,7 +7,8 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
-import { feedApi } from '../../api/feedRecords';
+import { saveRecord } from '../../sync/recordSync';
+import { ChipGroup } from '../../components/ui/ChipGroup';
 import { useUIStore } from '../../store/uiStore';
 
 export const FeedLogScreen = ({ route, navigation }: any) => {
@@ -25,7 +26,7 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
     const [tray4, setTray4] = useState('');
 
     const [totalFeed, setTotalFeed] = useState('');
-    const [feedType, setFeedType] = useState('Pellet Starter');
+    const [feedType, setFeedType] = useState('Starter');
     const [notes, setNotes] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
@@ -47,14 +48,23 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
         }
 
         try {
-            await feedApi.create({
-                pondId,
-                feedType: feedType.trim() || 'Pellet',
-                quantityKg: fasting ? 0 : parseFloat(totalFeed),
-                feedingTime: date,
-                notes: combinedNotes || undefined,
+            const res = await saveRecord({
+                entity: 'feed',
+                endpoint: '/feed-records',
+                payload: {
+                    pondId,
+                    feedType: feedType.trim() || 'Pellet',
+                    quantityKg: fasting ? 0 : parseFloat(totalFeed),
+                    feedingTime: date,
+                    notes: combinedNotes || undefined,
+                },
             });
-            showToast({ message: t('common.savedSuccess'), type: 'success' });
+            showToast({
+                message: res.queued
+                    ? t('common.savedOffline', 'Saved — will sync when online')
+                    : t('common.savedSuccess'),
+                type: 'success',
+            });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.feed_errorSave'));
@@ -107,11 +117,15 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                                 placeholder="0.0"
                                 required
                             />
-                            <Input
+                            <ChipGroup
                                 label={t('logs.feed_labelFeedType')}
                                 value={feedType}
-                                onChangeText={setFeedType}
-                                placeholder={t('logs.feed_placeholderFeedType')}
+                                onChange={(v) => setFeedType(v ?? '')}
+                                options={[
+                                    { value: 'Starter', label: t('logs.feed_typeStarter', 'Starter') },
+                                    { value: 'Grower', label: t('logs.feed_typeGrower', 'Grower') },
+                                    { value: 'Finisher', label: t('logs.feed_typeFinisher', 'Finisher') },
+                                ]}
                             />
                         </Card>
 

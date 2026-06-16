@@ -12,12 +12,12 @@ export class ExpensesController {
     }
 
     @Get('cycle/:cropId')
-    findByCycle(@Param('cropId') cropId: string) {
-        return this.expensesService.findByCycle(cropId);
+    findByCycle(@Param('cropId') cropId: string, @CurrentUser() user) {
+        return this.expensesService.findByCycle(cropId, user.id);
     }
 
     @Get('cycle/:cropId/financials')
-    getCycleFinancials(@Param('cropId') cropId: string) {
-        return this.expensesService.getCycleFinancials(cropId);
+    getCycleFinancials(@Param('cropId') cropId: string, @CurrentUser() user) {
+        return this.expensesService.getCycleFinancials(cropId, user.id);
     }
 }

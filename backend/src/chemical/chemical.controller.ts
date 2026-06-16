@@ -24,7 +24,7 @@ export class ChemicalController {
 
     @Get(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('ChemicalData', 'id', 'crop.pond.farm.userId')
+    @OwnsResource('ChemicalData', 'id', 'crop.pond.farm.userId', 'READ')
     findOne(@Param('id') id: string) {
         return this.chemicalService.findOne(id);
     }

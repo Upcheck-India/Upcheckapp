@@ -1,6 +1,11 @@
 import { IsUUID, IsString, IsOptional, IsNumber, IsDateString, IsArray } from 'class-validator';
 
 export class CreateSamplingDto {
+    // Client-minted idempotency key — lets offline replays be safe (insert-or-return).
+    @IsUUID()
+    @IsOptional()
+    id?: string;
+
     @IsUUID()
     pondId: string;
 

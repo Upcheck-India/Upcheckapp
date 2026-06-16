@@ -16,9 +16,16 @@ export class SamplingService {
     ) { }
 
     async create(createDto: CreateSamplingDto, userId: string) {
+        // Idempotent replay guard for offline queue drains.
+        if (createDto.id) {
+            const existing = await this.samplingRepository.findOne({ where: { id: createDto.id } });
+            if (existing) return existing;
+        }
+
         const pond = await this.pondsService.findOneAccessible(createDto.pondId, userId, 'WRITE_OPERATIONAL');
 
         const record = this.samplingRepository.create({
+            id: createDto.id,
             pondId: createDto.pondId,
             cropId: pond.activeCycleId,
             samplingDate: createDto.samplingDate,

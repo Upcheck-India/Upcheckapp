@@ -95,6 +95,21 @@ export class FarmAccessService {
     }
 
     /**
+     * Farm ids where the user's role satisfies `capability` — e.g. the farms
+     * whose financials a manager/owner may read. Used to scope list endpoints
+     * (transactions, reports) without leaking other roles' farms.
+     */
+    async getFarmIdsWithCapability(userId: string, capability: FarmCapability): Promise<string[]> {
+        const accessibleIds = await this.getAccessibleFarmIds(userId);
+        const allowed: string[] = [];
+        for (const farmId of accessibleIds) {
+            const role = await this.getRoleOnFarm(userId, farmId);
+            if (roleSatisfies(role, capability)) allowed.push(farmId);
+        }
+        return allowed;
+    }
+
+    /**
      * Throw unless `userId` may perform `capability` on `farmId`. Mirrors the
      * existing `farmsService.verifyOwnership` behaviour: a soft-deleted or
      * missing farm yields NotFoundException. Returns the (live) farm on success.

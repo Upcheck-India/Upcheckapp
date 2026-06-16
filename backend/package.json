@@ -22,6 +22,7 @@
     "typeorm": "typeorm-ts-node-commonjs",
     "migration:generate": "npm run typeorm migration:generate -- -d ./typeorm.config.ts src/migrations/InitialSchema",
     "migration:run": "npm run typeorm migration:run -- -d ./typeorm.config.ts",
+    "verify:fresh-db": "bash scripts/verify-fresh-db.sh",
     "seed:reference": "ts-node -r tsconfig-paths/register src/reference/seeds/run-seed.ts"
   },
   "dependencies": {

@@ -8,7 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { ParameterInput } from '../../components/forms/ParameterInput';
 import { theme } from '../../theme';
-import { waterQualityApi } from '../../api/waterQuality';
+import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
 
 export const WaterQualityLogScreen = ({ route, navigation }: any) => {
@@ -34,21 +34,30 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
         setIsLoading(true);
 
         try {
-            await waterQualityApi.create({
-                pondId,
-                ph: ph ? parseFloat(ph) : undefined,
-                dissolvedOxygen: dissolvedOxygen ? parseFloat(dissolvedOxygen) : undefined,
-                temperature: temperature ? parseFloat(temperature) : undefined,
-                salinity: salinity ? parseFloat(salinity) : undefined,
-                ammonia: ammonia ? parseFloat(ammonia) : undefined,
-                nitrite: nitrite ? parseFloat(nitrite) : undefined,
-                nitrate: nitrate ? parseFloat(nitrate) : undefined,
-                alkalinity: alkalinity ? parseFloat(alkalinity) : undefined,
-                hardness: hardness ? parseFloat(hardness) : undefined,
-                transparency: transparency ? parseFloat(transparency) : undefined,
-                notes: notes.trim() || undefined,
+            const res = await saveRecord({
+                entity: 'water_quality',
+                endpoint: '/water-quality',
+                payload: {
+                    pondId,
+                    ph: ph ? parseFloat(ph) : undefined,
+                    dissolvedOxygen: dissolvedOxygen ? parseFloat(dissolvedOxygen) : undefined,
+                    temperature: temperature ? parseFloat(temperature) : undefined,
+                    salinity: salinity ? parseFloat(salinity) : undefined,
+                    ammonia: ammonia ? parseFloat(ammonia) : undefined,
+                    nitrite: nitrite ? parseFloat(nitrite) : undefined,
+                    nitrate: nitrate ? parseFloat(nitrate) : undefined,
+                    alkalinity: alkalinity ? parseFloat(alkalinity) : undefined,
+                    hardness: hardness ? parseFloat(hardness) : undefined,
+                    transparency: transparency ? parseFloat(transparency) : undefined,
+                    notes: notes.trim() || undefined,
+                },
             });
-            showToast({ message: t('common.savedSuccess'), type: 'success' });
+            showToast({
+                message: res.queued
+                    ? t('common.savedOffline', 'Saved — will sync when online')
+                    : t('common.savedSuccess'),
+                type: 'success',
+            });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.waterQuality_errorSave'));

@@ -21,6 +21,13 @@ export class FeedRecordsService {
     ) { }
 
     async create(createDto: CreateFeedRecordDto, userId: string) {
+        // Idempotent replay guard — must run BEFORE the inventory deduction so a
+        // queued-then-retried feed record never double-deducts stock.
+        if (createDto.id) {
+            const existing = await this.recordsRepository.findOne({ where: { id: createDto.id } });
+            if (existing) return existing;
+        }
+
         // Fasting day enforcement: if isFasting, quantityKg must be 0
         if (createDto.isFasting) {
             if (createDto.quantityKg > 0) {
@@ -38,6 +45,7 @@ export class FeedRecordsService {
         }
 
         const record = this.recordsRepository.create({
+            id: createDto.id,
             pondId: createDto.pondId,
             cropId: pond.activeCycleId,
             feedType: createDto.feedType,

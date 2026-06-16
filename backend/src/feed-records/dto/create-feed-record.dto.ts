@@ -1,6 +1,11 @@
 import { IsString, IsOptional, IsNumber, IsUUID, IsBoolean } from 'class-validator';
 
 export class CreateFeedRecordDto {
+    // Client-minted idempotency key — lets offline replays be safe (insert-or-return).
+    @IsUUID()
+    @IsOptional()
+    id?: string;
+
     @IsUUID()
     pondId: string;
 

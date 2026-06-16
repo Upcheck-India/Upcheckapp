@@ -3,25 +3,33 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import NetInfo from '@react-native-community/netinfo';
+import { useTranslation } from 'react-i18next';
 import { useSyncStore } from '../../store/syncStore';
+import { drainRecordQueue } from '../../sync/recordSync';
 import { theme } from '../../theme';
 
 export const OfflineIndicator = () => {
+    const { t } = useTranslation();
     const isConnected = useSyncStore((s) => s.isConnected);
     const setConnected = useSyncStore((s) => s.setConnected);
+    const pending = useSyncStore((s) => s.queue.length + s.failedOperations.length);
     const slideAnim = useRef(new Animated.Value(0)).current;
     const insets = useSafeAreaInsets();
 
-    // Subscribe to NetInfo on mount; keep syncStore in sync.
+    // Subscribe to NetInfo on mount; keep syncStore in sync and flush pending
+    // writes whenever we (re)gain connectivity.
     useEffect(() => {
-        // Fetch the current state immediately so we don't wait for a change event.
-        NetInfo.fetch().then((state) => {
-            setConnected(state.isConnected ?? true);
-        });
+        const onConnectivity = (connected: boolean) => {
+            setConnected(connected);
+            if (connected) drainRecordQueue().catch(() => undefined);
+        };
 
-        const unsubscribe = NetInfo.addEventListener((state) => {
-            setConnected(state.isConnected ?? true);
-        });
+        // Fetch the current state immediately so we don't wait for a change event.
+        NetInfo.fetch().then((state) => onConnectivity(state.isConnected ?? true));
+
+        const unsubscribe = NetInfo.addEventListener((state) =>
+            onConnectivity(state.isConnected ?? true),
+        );
 
         return unsubscribe;
     }, [setConnected]);
@@ -61,7 +69,10 @@ export const OfflineIndicator = () => {
                 size={16}
                 color={theme.roles.light.surface}
             />
-            <Text style={styles.text}>Offline — Changes will sync later</Text>
+            <Text style={styles.text}>
+                {t('common.offlineBanner', 'Offline — changes will sync')}
+                {pending > 0 ? ` (${pending})` : ''}
+            </Text>
         </Animated.View>
     );
 };

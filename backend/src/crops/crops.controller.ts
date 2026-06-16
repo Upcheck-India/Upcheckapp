@@ -11,7 +11,7 @@ export class CropsController {
 
     @Post()
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Pond', 'pondId', 'farm.userId', 'OWNER_ONLY')
+    @OwnsResource('Pond', 'pondId', 'farm.userId', 'WRITE_MANAGEMENT')
     create(@Body() createCropDto: CreateCropDto, @CurrentUser() user) {
         return this.cropsService.create(createCropDto, user.id);
     }
@@ -35,14 +35,14 @@ export class CropsController {
 
     @Patch(':id')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Crop', 'id', 'pond.farm.userId', 'OWNER_ONLY')
+    @OwnsResource('Crop', 'id', 'pond.farm.userId', 'WRITE_MANAGEMENT')
     update(@Param('id') id: string, @Body() updateCropDto: UpdateCropDto, @CurrentUser() user) {
         return this.cropsService.update(id, updateCropDto, user.id);
     }
 
     @Patch(':id/harvest')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Crop', 'id', 'pond.farm.userId', 'OWNER_ONLY')
+    @OwnsResource('Crop', 'id', 'pond.farm.userId', 'WRITE_MANAGEMENT')
     harvest(
         @Param('id') id: string,
         @Body() harvestData: { actualHarvestDate: Date; harvestWeightKg: number },
@@ -59,7 +59,7 @@ export class CropsController {
     }
     @Patch(':id/close')
     @UseGuards(OwnershipGuard)
-    @OwnsResource('Crop', 'id', 'pond.farm.userId', 'OWNER_ONLY')
+    @OwnsResource('Crop', 'id', 'pond.farm.userId', 'WRITE_MANAGEMENT')
     closeCycle(
         @Param('id') id: string,
         @Body() body: { actualHarvestDate: string },

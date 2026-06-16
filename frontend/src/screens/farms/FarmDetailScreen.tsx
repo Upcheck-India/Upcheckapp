@@ -13,12 +13,13 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { theme } from '../../theme';
 import { pondsApi, Pond } from '../../api/ponds';
 import { useMembershipStore } from '../../store/membershipStore';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export const FarmDetailScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { farmId, farmName } = route.params;
     const loadMemberships = useMembershipStore((s) => s.load);
-    const isWorker = useMembershipStore((s) => s.isWorker(farmId));
+    const perms = usePermissions(farmId);
     const [ponds, setPonds] = useState<Pond[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -181,12 +182,12 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                     <TouchableOpacity onPress={() => navigation.navigate('FarmMembers', { farmId, farmName })} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                         <MaterialCommunityIcons name="account-multiple-plus-outline" size={24} color={theme.roles.light.primary} />
                     </TouchableOpacity>
-                    {!isWorker && (
+                    {perms.canViewFinancials && (
                         <TouchableOpacity onPress={() => navigation.navigate('Transactions', { farmId, farmName })} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                             <MaterialCommunityIcons name="cash-multiple" size={24} color={theme.roles.light.primary} />
                         </TouchableOpacity>
                     )}
-                    {!isWorker && (
+                    {perms.canCreatePond && (
                         <TouchableOpacity onPress={() => navigation.navigate('CreatePond', { farmId })}>
                             <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
                         </TouchableOpacity>
@@ -229,7 +230,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                     }
                 />
             )}
-            {!isWorker && <FAB icon="plus" onPress={() => navigation.navigate('CreatePond', { farmId })} />}
+            {perms.canCreatePond && <FAB icon="plus" onPress={() => navigation.navigate('CreatePond', { farmId })} />}
         </ScreenWrapper>
     );
 };
