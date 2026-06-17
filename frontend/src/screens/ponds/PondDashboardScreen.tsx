@@ -483,6 +483,18 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                             </TouchableOpacity>
                         )}
 
+                        {isFeatureEnabled('feedingTrayChecks') && activeCycle && (
+                            <TouchableOpacity
+                                style={styles.dimHistoryRow}
+                                onPress={() => navigation.navigate('FeedingTrayChecks', { cropId: activeCycle.id, pondName })}
+                                activeOpacity={0.7}
+                            >
+                                <MaterialCommunityIcons name="basket-outline" size={20} color="#6B7280" />
+                                <Text style={styles.dimHistoryText}>{t('logs.feedingTray_title', 'Feeding tray check')}</Text>
+                                <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+                            </TouchableOpacity>
+                        )}
+
                         <View style={{ height: 32 }} />
                     </ScrollView>
                 </Animated.View>

@@ -1,6 +1,12 @@
 import './src/i18n'; // initialise i18next before any screen renders
 import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+
+// Deep links — the password-reset email opens upcheckapp://reset-password.
+const linking = {
+  prefixes: ['upcheckapp://'],
+  config: { screens: { ResetPassword: 'reset-password' } },
+};
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import RootNavigator from './src/navigation/RootNavigator';
@@ -101,7 +107,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <NavigationContainer>
+        <NavigationContainer linking={linking}>
           <RootNavigator />
         </NavigationContainer>
         {/* App-wide transient confirmations (e.g. "Saved" after a log). */}

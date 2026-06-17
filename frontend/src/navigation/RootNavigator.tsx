@@ -9,6 +9,7 @@ import { useMembershipStore } from '../store/membershipStore';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
+import { ResetPasswordScreen } from '../screens/auth/ResetPasswordScreen';
 import { TruecallerLoginScreen } from '../screens/auth/TruecallerLoginScreen';
 
 // Main Navigation
@@ -30,6 +31,7 @@ import { CycleAnalysisScreen } from '../screens/reports/CycleAnalysisScreen';
 // Phase 3 Screens (Logs)
 import { WaterQualityLogScreen } from '../screens/logs/WaterQualityLogScreen';
 import { FeedLogScreen } from '../screens/logs/FeedLogScreen';
+import { FeedingTrayChecksScreen } from '../screens/logs/FeedingTrayChecksScreen';
 import { SamplingLogScreen } from '../screens/logs/SamplingLogScreen';
 import { TreatmentLogScreen } from '../screens/logs/TreatmentLogScreen';
 import { HarvestLogScreen } from '../screens/logs/HarvestLogScreen';
@@ -111,6 +113,7 @@ export type RootStackParamList = {
     Login: undefined;
     Register: undefined;
     ForgotPassword: undefined;
+    ResetPassword: undefined;
     TruecallerLogin: undefined;
     OtpLogin: undefined;
     TwoFactorChallenge: { tempToken: string };
@@ -138,6 +141,7 @@ export type RootStackParamList = {
     // Phase 3
     WaterQualityLog: { pondId: string; pondName?: string; cropId?: string };
     FeedLog: { pondId: string; pondName?: string; cropId?: string };
+    FeedingTrayChecks: { cropId: string; pondName?: string };
     SamplingLog: { pondId: string; pondName?: string; cropId?: string };
     TreatmentLog: { pondId: string; pondName?: string; cropId?: string };
     MortalityLog: { pondId: string; pondName?: string; cropId?: string };
@@ -269,6 +273,7 @@ const RootNavigator = () => {
                         component={ForgotPasswordScreen}
                         options={{ headerShown: true, title: 'Forgot Password', headerTintColor: theme.roles.light.primary }}
                     />
+                    <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
                     <Stack.Screen
                         name="TruecallerLogin"
                         component={TruecallerLoginScreen}
@@ -300,6 +305,7 @@ const RootNavigator = () => {
 
                     <Stack.Screen name="WaterQualityLog" component={WaterQualityLogScreen} />
                     <Stack.Screen name="FeedLog" component={FeedLogScreen} />
+                    <Stack.Screen name="FeedingTrayChecks" component={FeedingTrayChecksScreen} />
                     <Stack.Screen name="SamplingLog" component={SamplingLogScreen} />
                     <Stack.Screen name="TreatmentLog" component={TreatmentLogScreen} />
                 <Stack.Screen name="HarvestLog" component={HarvestLogScreen} />

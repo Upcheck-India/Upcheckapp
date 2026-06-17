@@ -157,12 +157,21 @@ export const HomeScreen = ({ navigation }: any) => {
                     <View style={styles.ctaIcon}>
                         <MaterialCommunityIcons name="barn" size={28} color={theme.roles.light.primary} />
                     </View>
-                    <Text style={styles.ctaText}>{t('home.noFarmData')}</Text>
-                    <Button
-                        title={t('home.quickLogCreateFarm')}
-                        onPress={() => goRoot('CreateFarm')}
-                        style={styles.ctaBtn}
-                    />
+                    {user?.accountType === 'worker' ? (
+                        // A worker with no farm membership yet — guide them, don't push farm creation.
+                        <Text style={styles.ctaText}>
+                            {t('home.workerNoFarm', 'Ask your farm owner to add you to a farm to get started.')}
+                        </Text>
+                    ) : (
+                        <>
+                            <Text style={styles.ctaText}>{t('home.noFarmData')}</Text>
+                            <Button
+                                title={t('home.quickLogCreateFarm')}
+                                onPress={() => goRoot('CreateFarm')}
+                                style={styles.ctaBtn}
+                            />
+                        </>
+                    )}
                 </Card>
             )}
 

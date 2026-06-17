@@ -11,7 +11,22 @@ export interface CreateFeedingTrayCheck {
   feedRecordId?: string;
 }
 
+export interface FeedingTrayCheck {
+  id: string;
+  cropId: string;
+  checkDate: string;
+  checkTime: string;
+  trayNumber: number;
+  remainingFeedStatus: TrayResidue;
+  createdAt?: string;
+}
+
 export const feedingTrayApi = {
   create: (body: CreateFeedingTrayCheck) =>
-    apiClient.post('/feeding-tray-checks', body),
+    apiClient.post<FeedingTrayCheck>('/feeding-tray-checks', body),
+
+  getByCrop: (cropId: string) =>
+    apiClient.get<FeedingTrayCheck[]>('/feeding-tray-checks', { params: { cropId } }),
+
+  remove: (id: string) => apiClient.delete(`/feeding-tray-checks/${id}`),
 };

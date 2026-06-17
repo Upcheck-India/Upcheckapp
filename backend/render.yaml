@@ -74,7 +74,9 @@ services:
       - key: CORS_ORIGIN
         value: "*"
       - key: FRONTEND_URL
-        value: "upcheck://"
+        # Must match the Expo app scheme (app.config.ts) so the password-reset
+        # deep link (FRONTEND_URL/reset-password) opens the app.
+        value: "upcheckapp://"
       # Brevo/SMTP for emails
       - key: SMTP_HOST
         value: smtp-relay.brevo.com

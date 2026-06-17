@@ -27,7 +27,7 @@ export const FEATURES: Record<FeatureKey, boolean> = {
     boundaryMap: false, // farm boundary draw/edit on a map
     pondDimensionHistory: true, // Stage 4g — shipped
     cycleAnalysisReport: true, // Stage 4g — shipped
-    feedingTrayChecks: false,
+    feedingTrayChecks: true, // Stage 4g — shipped
     diseaseDiagnosis: true, // rule-based symptom matcher (Stage 4e — shipped)
     costManagement: true, // per-cycle cost + break-even suite (Stage 4f — shipped)
 
