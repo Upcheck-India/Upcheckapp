@@ -94,6 +94,25 @@ MIRRORED=$(docker exec "$CONTAINER" psql -U postgres -d postgres -tAc \
 echo "    mirrored public.users rows: $MIRRORED (expected 1)"
 [ "$MIRRORED" = "1" ] || { echo "FAIL: auth trigger did not create the public.users row"; exit 1; }
 
+echo "==> [7/7] proving RLS denies a non-owner role (SEC-1 at the DB)"
+# disease_library has seeded rows the owner can see; a non-owner role with a
+# SELECT grant must see ZERO because RLS is enabled with no permissive policy —
+# i.e. the Supabase anon/authenticated roles cannot read any table directly.
+psql_db >/dev/null <<'SQL'
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='rls_probe') THEN CREATE ROLE rls_probe NOLOGIN; END IF;
+END $$;
+GRANT USAGE ON SCHEMA public TO rls_probe;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO rls_probe;
+SQL
+OWNER_ROWS=$(docker exec "$CONTAINER" psql -U postgres -d postgres -tAc \
+  "SELECT count(*) FROM disease_library;" | tr -d '[:space:]')
+PROBE_ROWS=$(docker exec "$CONTAINER" psql -U postgres -d postgres -tAc \
+  "SET ROLE rls_probe; SELECT count(*) FROM disease_library;" | grep -E '^[0-9]+$' | tail -1)
+echo "    disease_library rows — owner: $OWNER_ROWS, non-owner(rls_probe): $PROBE_ROWS"
+[ "${OWNER_ROWS:-0}" -ge 1 ] || { echo "FAIL: owner should see seeded rows"; exit 1; }
+[ "$PROBE_ROWS" = "0" ] || { echo "FAIL: RLS did not deny the non-owner role (SEC-1 hole)"; exit 1; }
+
 echo ""
 echo "PASS: full migration chain + auth trigger apply cleanly to an empty database,"
 echo "      and the auth.users -> public.users sync works. Fresh-Supabase cutover is safe."

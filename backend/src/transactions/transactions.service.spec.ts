@@ -112,6 +112,15 @@ describe('TransactionsService', () => {
       expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(USER_ID, 'farm-1', 'VIEW_FINANCIALS');
       expect(result).toEqual(mockTransaction);
     });
+
+    it('blocks IDOR: a caller without farm financial access is rejected', async () => {
+      // Attacker references another farm's transaction id directly.
+      mockRepository.findOneBy.mockResolvedValue({ id: 'victim-tx', amount: 999, farmId: 'other-farm' });
+      mockFarmAccess.assertCanAccessFarm.mockRejectedValue(new Error('Forbidden'));
+
+      await expect(service.findOne('victim-tx', 'attacker-user')).rejects.toBeDefined();
+      expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith('attacker-user', 'other-farm', 'VIEW_FINANCIALS');
+    });
   });
 
   describe('update', () => {

@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { MoonPhaseCard } from '../../components/ui/MoonPhaseCard';
 import { FarmGlanceCards } from '../../components/dashboard/FarmGlanceCards';
 import { Button } from '../../components/ui/Button';
@@ -126,8 +127,15 @@ export const HomeScreen = ({ navigation }: any) => {
 
             <Text style={styles.sectionTitle}>{t('home.dashboardSummary')}</Text>
             {isLoading ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={theme.roles.light.primary} />
+                // Skeleton placeholders matching the stat grid — perceived speed
+                // beats a spinner on low-end devices (design system §6/§7).
+                <View style={styles.statsGrid}>
+                    {[0, 1, 2, 3].map((i) => (
+                        <Card key={i} style={styles.statCard}>
+                            <Skeleton width={44} height={28} />
+                            <Skeleton width="70%" height={12} style={{ marginTop: 8 }} />
+                        </Card>
+                    ))}
                 </View>
             ) : summary ? (
                 <View style={styles.statsGrid}>

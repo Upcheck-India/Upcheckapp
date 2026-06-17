@@ -2,6 +2,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import i18n from '../i18n';
 
 // Configure how notifications appear when the app is in the foreground
 Notifications.setNotificationHandler({
@@ -88,8 +89,8 @@ export async function scheduleDailyWaterQualityReminders(): Promise<void> {
         for (const slot of WQ_REMINDER_TIMES) {
             await Notifications.scheduleNotificationAsync({
                 content: {
-                    title: `${slot.label} water check`,
-                    body: 'Log DO, pH, salinity and temperature so your feed and risk advice stay accurate.',
+                    title: i18n.t('notifications.wqTitle', { slot: slot.label, defaultValue: '{{slot}} water check' }),
+                    body: i18n.t('notifications.wqBody', 'Log DO, pH, salinity and temperature so your feed and risk advice stay accurate.'),
                     data: { tag: WQ_REMINDER_TAG, slot: slot.label },
                 },
                 trigger: {
@@ -133,8 +134,8 @@ export async function scheduleWeeklyChemistryReminder(): Promise<void> {
         await cancelWeeklyChemistryReminder();
         await Notifications.scheduleNotificationAsync({
             content: {
-                title: 'Weekly chemistry check',
-                body: 'Test ammonia, nitrite, nitrate, alkalinity and hardness — it keeps your feed and disease advice sharp.',
+                title: i18n.t('notifications.chemTitle', 'Weekly chemistry check'),
+                body: i18n.t('notifications.chemBody', 'Test ammonia, nitrite, nitrate, alkalinity and hardness — it keeps your feed and disease advice sharp.'),
                 data: { tag: CHEM_REMINDER_TAG },
             },
             trigger: {
