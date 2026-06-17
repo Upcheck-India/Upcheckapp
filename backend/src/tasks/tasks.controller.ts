@@ -48,4 +48,20 @@ export class TasksController {
     remove(@Param('id') id: string) {
         return this.tasksService.remove(id);
     }
+
+    /** Worker marks their assigned task done (assignee-only enforced in service). */
+    @Post(':id/complete')
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('Task', 'id', 'farm.userId', 'WRITE_OPERATIONAL')
+    complete(@Param('id') id: string, @CurrentUser() user) {
+        return this.tasksService.complete(id, user.id);
+    }
+
+    /** Manager/owner verifies a completed task. */
+    @Post(':id/verify')
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('Task', 'id', 'farm.userId', 'WRITE_MANAGEMENT')
+    verify(@Param('id') id: string, @CurrentUser() user) {
+        return this.tasksService.verify(id, user.id);
+    }
 }

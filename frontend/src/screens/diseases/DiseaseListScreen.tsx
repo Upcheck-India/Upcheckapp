@@ -15,6 +15,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { theme } from '../../theme';
 import { diseaseApi, DiseaseLibrary } from '../../api/diseases';
+import { isFeatureEnabled } from '../../config/features';
 
 type Severity = 'low' | 'medium' | 'high';
 
@@ -179,23 +180,32 @@ export const DiseaseListScreen = ({ navigation }: any) => {
     );
 
     const renderSearchBar = () => (
-        <View style={styles.searchContainer}>
-            <View style={styles.searchInputWrapper}>
-                <MaterialCommunityIcons
-                    name="magnify"
-                    size={20}
-                    color={theme.roles.light.textSecondary}
-                />
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder={t('content.diseases.searchPlaceholder')}
-                    placeholderTextColor={theme.roles.light.textTertiary}
-                    value={searchQuery}
-                    onChangeText={handleSearch}
-                    returnKeyType="search"
-                    clearButtonMode="while-editing"
-                />
+        <View>
+            <View style={styles.searchContainer}>
+                <View style={styles.searchInputWrapper}>
+                    <MaterialCommunityIcons
+                        name="magnify"
+                        size={20}
+                        color={theme.roles.light.textSecondary}
+                    />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder={t('content.diseases.searchPlaceholder')}
+                        placeholderTextColor={theme.roles.light.textTertiary}
+                        value={searchQuery}
+                        onChangeText={handleSearch}
+                        returnKeyType="search"
+                        clearButtonMode="while-editing"
+                    />
+                </View>
             </View>
+            {isFeatureEnabled('diseaseDiagnosis') && (
+                <TouchableOpacity style={styles.diagnoseCta} onPress={() => navigation.navigate('Diagnose')} activeOpacity={0.85}>
+                    <MaterialCommunityIcons name="stethoscope" size={20} color={theme.roles.light.primary} />
+                    <Text style={styles.diagnoseText}>{t('diagnose.cta', 'Diagnose from symptoms')}</Text>
+                    <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textSecondary} />
+                </TouchableOpacity>
+            )}
         </View>
     );
 
@@ -276,6 +286,24 @@ const styles = StyleSheet.create({
         paddingHorizontal: theme.spacing[4],
         paddingVertical: theme.spacing[3],
         backgroundColor: theme.roles.light.surface,
+    },
+    diagnoseCta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        marginHorizontal: theme.spacing[4],
+        marginBottom: theme.spacing[3],
+        padding: theme.spacing[4],
+        borderRadius: theme.radius.md,
+        borderWidth: 1,
+        borderColor: theme.roles.light.primary,
+        backgroundColor: theme.roles.light.surface,
+    },
+    diagnoseText: {
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textPrimary,
+        fontWeight: '600',
+        flex: 1,
     },
     searchInputWrapper: {
         flexDirection: 'row',

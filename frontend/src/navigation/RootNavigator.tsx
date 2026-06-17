@@ -24,6 +24,8 @@ import { CreatePondScreen } from '../screens/ponds/CreatePondScreen';
 import { PondDashboardScreen } from '../screens/ponds/PondDashboardScreen';
 import { CreateCycleScreen } from '../screens/cycles/CreateCycleScreen';
 import { CycleDetailScreen } from '../screens/cycles/CycleDetailScreen';
+import { PondDimensionHistoryScreen } from '../screens/ponds/PondDimensionHistoryScreen';
+import { CycleAnalysisScreen } from '../screens/reports/CycleAnalysisScreen';
 
 // Phase 3 Screens (Logs)
 import { WaterQualityLogScreen } from '../screens/logs/WaterQualityLogScreen';
@@ -82,6 +84,7 @@ import { InventoryDetailScreen } from '../screens/inventory/InventoryDetailScree
 // Disease Encyclopedia
 import { DiseaseListScreen } from '../screens/diseases/DiseaseListScreen';
 import { DiseaseDetailScreen } from '../screens/diseases/DiseaseDetailScreen';
+import { DiagnoseScreen } from '../screens/diseases/DiagnoseScreen';
 
 // Tasks
 import { TaskListScreen } from '../screens/tasks/TaskListScreen';
@@ -127,6 +130,8 @@ export type RootStackParamList = {
     AddWorker: { farmId: string; farmName?: string };
     CreatePond: { farmId: string };
     PondDashboard: { pondId: string; pondName?: string };
+    PondDimensionHistory: { pondId: string; pondName?: string };
+    CycleAnalysis: { cycleId: string; cycleName?: string };
     CreateCycle: { pondId: string };
     CycleDetail: { cycleId: string };
 
@@ -190,6 +195,7 @@ export type RootStackParamList = {
     // Disease Encyclopedia
     DiseaseList: undefined;
     DiseaseDetail: { diseaseId: string };
+    Diagnose: { pondId?: string; pondName?: string; cropId?: string } | undefined;
 
     // Tasks
     TaskList: { farmId: string; farmName?: string };
@@ -289,6 +295,8 @@ const RootNavigator = () => {
                     <Stack.Screen name="PondDashboard" component={PondDashboardScreen} />
                     <Stack.Screen name="CreateCycle" component={CreateCycleScreen} />
                     <Stack.Screen name="CycleDetail" component={CycleDetailScreen} />
+                    <Stack.Screen name="PondDimensionHistory" component={PondDimensionHistoryScreen} />
+                    <Stack.Screen name="CycleAnalysis" component={CycleAnalysisScreen} />
 
                     <Stack.Screen name="WaterQualityLog" component={WaterQualityLogScreen} />
                     <Stack.Screen name="FeedLog" component={FeedLogScreen} />
@@ -351,6 +359,7 @@ const RootNavigator = () => {
                     {/* Disease Encyclopedia */}
                     <Stack.Screen name="DiseaseList" component={DiseaseListScreen} />
                     <Stack.Screen name="DiseaseDetail" component={DiseaseDetailScreen} />
+                    <Stack.Screen name="Diagnose" component={DiagnoseScreen} />
 
                     {/* Tasks */}
                     <Stack.Screen name="TaskList" component={TaskListScreen} />

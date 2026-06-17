@@ -17,6 +17,8 @@ export interface FinancialReport {
 export interface CycleAnalysis {
     cycleId: string;
     fcr: number;
+    totalFeedKg: number;
+    totalHarvestKg: number;
     survivalRate: number;
     growthChart: Array<{ date: string; mbw: number }>;
 }

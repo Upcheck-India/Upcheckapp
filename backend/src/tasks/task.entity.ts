@@ -30,7 +30,11 @@ export class Task {
     @Column({ type: 'text', nullable: true })
     description: string | null;
 
-    // 'open' | 'in_progress' | 'done'
+    // FEED | WATER_TEST | SAMPLING | AERATOR_CHECK | MORTALITY_CHECK | HARVEST_PREP | OTHER
+    @Column({ type: 'text', default: 'OTHER' })
+    type: string;
+
+    // 'open' | 'in_progress' | 'done' | 'verified' | 'cancelled'
     @Index()
     @Column({ type: 'text', default: 'open' })
     status: string;
@@ -42,6 +46,22 @@ export class Task {
     @Column({ name: 'due_date', type: 'date', nullable: true })
     dueDate: string | null;
 
+    // Daily window the task should run in (e.g. feeding 06:00–07:00). TIME type.
+    @Column({ name: 'time_window_start', type: 'time', nullable: true })
+    timeWindowStart: string | null;
+
+    @Column({ name: 'time_window_end', type: 'time', nullable: true })
+    timeWindowEnd: string | null;
+
+    // RFC-5545-style rule for a recurring series (e.g. FREQ=DAILY;COUNT=90).
+    @Column({ name: 'recurrence_rule', type: 'text', nullable: true })
+    recurrenceRule: string | null;
+
+    // Generated instances point back at the series origin.
+    @Index()
+    @Column({ name: 'parent_task_id', type: 'uuid', nullable: true })
+    parentTaskId: string | null;
+
     // User id (Supabase auth id) the task is assigned to, if any.
     @Index()
     @Column({ name: 'assigned_to_id', type: 'uuid', nullable: true })
@@ -52,6 +72,13 @@ export class Task {
 
     @Column({ name: 'completed_at', type: 'timestamp with time zone', nullable: true })
     completedAt: Date | null;
+
+    // Manager verification of a completed task (blueprint §17.4).
+    @Column({ name: 'verified_at', type: 'timestamp with time zone', nullable: true })
+    verifiedAt: Date | null;
+
+    @Column({ name: 'verified_by_id', type: 'uuid', nullable: true })
+    verifiedById: string | null;
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
     createdAt: Date;

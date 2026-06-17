@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { isFeatureEnabled } from '../../config/features';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -156,6 +157,14 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                         onPress={() => navigation.navigate('HarvestPlans', { pondId: cycle.pondId, cropId: cycle.id })}
                         style={styles.actionBtn}
                     />
+                    {isFeatureEnabled('cycleAnalysisReport') && (
+                        <Button
+                            title={t('cycles.btnAnalysis', 'Cycle analysis')}
+                            variant="outlined"
+                            onPress={() => navigation.navigate('CycleAnalysis', { cycleId: cycle.id, cycleName: (cycle as any).name })}
+                            style={styles.actionBtn}
+                        />
+                    )}
                 </View>
             </ScrollView>
         </ScreenWrapper>

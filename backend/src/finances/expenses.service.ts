@@ -68,16 +68,23 @@ export class ExpensesService {
             return acc;
         }, {} as Record<string, number>);
 
-        // 2. Get Revenue (Harvests)
+        // 2. Get Revenue + harvested biomass (Harvests)
         const harvests = await this.harvestsService.findAll(cropId);
         const totalRevenue = harvests.reduce((sum, h) => sum + (Number(h.salePriceTotal) || 0), 0);
+        const totalHarvestKg = harvests.reduce((sum, h) => sum + (Number(h.weightKg) || 0), 0);
+
+        // Break-even: the sale price per kg at which revenue would cover all costs
+        // incurred so far (= cost per kg). Null until there is harvested weight.
+        const breakEvenPricePerKg = totalHarvestKg > 0 ? totalExpenses / totalHarvestKg : null;
 
         return {
             totalRevenue,
             totalExpenses,
             netProfit: totalRevenue - totalExpenses,
             marginPercent: totalRevenue > 0 ? ((totalRevenue - totalExpenses) / totalRevenue) * 100 : 0,
-            expensesByCategory
+            totalHarvestKg,
+            breakEvenPricePerKg,
+            expensesByCategory,
         };
     }
 }

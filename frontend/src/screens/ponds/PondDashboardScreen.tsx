@@ -29,6 +29,7 @@ import { harvestsApi } from '../../api/harvests';
 import { waterQualityApi } from '../../api/waterQuality';
 import { useMembershipStore } from '../../store/membershipStore';
 import { usePermissions } from '../../hooks/usePermissions';
+import { isFeatureEnabled } from '../../config/features';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -470,6 +471,18 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                             </View>
                         )}
 
+                        {isFeatureEnabled('pondDimensionHistory') && pond && (
+                            <TouchableOpacity
+                                style={styles.dimHistoryRow}
+                                onPress={() => navigation.navigate('PondDimensionHistory', { pondId: pond.id, pondName })}
+                                activeOpacity={0.7}
+                            >
+                                <MaterialCommunityIcons name="history" size={20} color="#6B7280" />
+                                <Text style={styles.dimHistoryText}>{t('ponds.dimHistory', 'Dimension history')}</Text>
+                                <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+                            </TouchableOpacity>
+                        )}
+
                         <View style={{ height: 32 }} />
                     </ScrollView>
                 </Animated.View>
@@ -511,5 +524,7 @@ const styles = StyleSheet.create({
     econRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F3F4F6' },
     econRowLast: { borderBottomWidth: 0 },
     econRowText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
+    dimHistoryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#FFFFFF', borderRadius: 14, marginBottom: 12 },
+    dimHistoryText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
     mb2: { marginBottom: theme.spacing[2] },
 });

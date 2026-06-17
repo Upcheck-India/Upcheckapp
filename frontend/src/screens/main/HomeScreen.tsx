@@ -10,6 +10,8 @@ import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
+import { usePermissions } from '../../hooks/usePermissions';
+import { ROLE_LABEL } from '../../permissions/capabilities';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { reportsApi, DashboardSummary } from '../../api/reports';
 import { farmsApi } from '../../api/farms';
@@ -20,6 +22,7 @@ export const HomeScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
     const { user } = useAuthStore();
     const { selectedFarm, setSelectedFarm } = useActiveFarmStore();
+    const perms = usePermissions(selectedFarm?.id);
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [ponds, setPonds] = useState<Pond[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -81,7 +84,10 @@ export const HomeScreen = ({ navigation }: any) => {
     const quickActions = [
         { icon: 'barn' as const, label: t('home.actionFarms'), screen: 'Farms', isTab: true, color: theme.roles.light.primary },
         { icon: 'calculator-variant-outline' as const, label: t('home.actionCalculators'), screen: 'CalculatorHub', isTab: false, color: theme.roles.light.infoBorder },
-        { icon: 'chart-timeline-variant' as const, label: t('home.actionSimulate'), screen: 'SimulationList', isTab: false, color: theme.roles.light.successText },
+        // Simulations are an owner/manager planning tool — hide for worker/viewer.
+        ...(perms.canManageOperations
+            ? [{ icon: 'chart-timeline-variant' as const, label: t('home.actionSimulate'), screen: 'SimulationList', isTab: false, color: theme.roles.light.successText }]
+            : []),
         { icon: 'cog-outline' as const, label: t('home.actionSettings'), screen: 'Settings', isTab: false, color: theme.roles.light.warningText },
     ];
 
@@ -93,11 +99,30 @@ export const HomeScreen = ({ navigation }: any) => {
                     <Text style={styles.userName}>
                         {user?.name || user?.email?.split('@')[0] || t('home.farmerFallback')}
                     </Text>
+                    {perms.role ? (
+                        <Text style={styles.roleLabel}>{ROLE_LABEL[perms.role]}</Text>
+                    ) : null}
                 </View>
                 <TouchableOpacity onPress={() => navigation.getParent()?.navigate('Settings') ?? navigation.navigate('Settings')} style={styles.avatar}>
                     <MaterialCommunityIcons name="account-circle" size={40} color={theme.roles.light.primary} />
                 </TouchableOpacity>
             </View>
+
+            {/* Worker home is task-first: a single large "Log now" entry to the
+                daily loop. Owners/managers get the portfolio below instead. */}
+            {perms.isWorker && (
+                <Card style={styles.logNowCard}>
+                    <View style={styles.logNowIcon}>
+                        <MaterialCommunityIcons name="clipboard-check-outline" size={28} color={theme.roles.light.primary} />
+                    </View>
+                    <Text style={styles.logNowText}>{t('home.workerLogPrompt', "Record today's readings for your ponds")}</Text>
+                    <Button
+                        title={t('home.logNow', 'Log now')}
+                        onPress={() => goRoot('QuickLog')}
+                        style={styles.ctaBtn}
+                    />
+                </Card>
+            )}
 
             <Text style={styles.sectionTitle}>{t('home.dashboardSummary')}</Text>
             {isLoading ? (
@@ -175,8 +200,9 @@ export const HomeScreen = ({ navigation }: any) => {
                 <MoonPhaseCard />
             </View>
 
-            {/* Farm-at-a-glance: last water quality, last feed, expenses, P&L. */}
-            {selectedFarm?.id && (
+            {/* Farm-at-a-glance includes expenses + P&L, so it's owner/manager only
+                (VIEW_FINANCIALS); workers/viewers don't see farm economics. */}
+            {selectedFarm?.id && perms.canViewFinancials && (
                 <>
                     <Text style={styles.sectionTitle}>{t('home.farmGlance')}</Text>
                     <FarmGlanceCards farmId={selectedFarm.id} farmName={selectedFarm.name} navigation={navigation} />
@@ -218,6 +244,27 @@ const styles = StyleSheet.create({
     userName: {
         ...theme.typeScale.h2,
         color: theme.roles.light.textPrimary,
+    },
+    roleLabel: {
+        ...theme.typeScale.labelSmall,
+        color: theme.roles.light.primary,
+        marginTop: 2,
+    },
+    logNowCard: {
+        alignItems: 'center',
+        padding: theme.spacing[5],
+        marginBottom: theme.spacing[6],
+        gap: theme.spacing[2],
+    },
+    logNowIcon: {
+        width: 56, height: 56, borderRadius: 28,
+        backgroundColor: theme.roles.light.primary + '15',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    logNowText: {
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        textAlign: 'center',
     },
     avatar: {
         width: 44,

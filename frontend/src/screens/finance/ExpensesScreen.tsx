@@ -178,6 +178,19 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
                         ))}
                     </View>
                 )}
+
+                {financials.breakEvenPricePerKg != null && (
+                    <View style={styles.breakEvenBox}>
+                        <Text style={styles.breakdownTitle}>{t('finance.breakEven', 'Break-even price')}</Text>
+                        <Text style={styles.breakEvenValue}>{formatMoney(financials.breakEvenPricePerKg)}/kg</Text>
+                        <Text style={styles.breakEvenHint}>
+                            {t('finance.breakEvenHint', {
+                                kg: Number(financials.totalHarvestKg ?? 0).toFixed(0),
+                                defaultValue: `Sell above this to profit (on ${Number(financials.totalHarvestKg ?? 0).toFixed(0)} kg harvested)`,
+                            })}
+                        </Text>
+                    </View>
+                )}
             </Card>
         );
     };
@@ -474,6 +487,21 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: theme.roles.light.borderDefault,
         paddingTop: theme.spacing[4],
+    },
+    breakEvenBox: {
+        marginTop: theme.spacing[4],
+        borderTopWidth: 1,
+        borderTopColor: theme.roles.light.borderDefault,
+        paddingTop: theme.spacing[4],
+    },
+    breakEvenValue: {
+        ...theme.typeScale.numericMedium,
+        color: theme.roles.light.primary,
+    },
+    breakEvenHint: {
+        ...theme.typeScale.caption,
+        color: theme.roles.light.textSecondary,
+        marginTop: theme.spacing[1],
     },
     breakdownTitle: {
         ...theme.typeScale.labelMedium,

@@ -25,11 +25,11 @@ export type FeatureKey =
 export const FEATURES: Record<FeatureKey, boolean> = {
     // --- In-app, in active development. Flip on as each is finished + verified. ---
     boundaryMap: false, // farm boundary draw/edit on a map
-    pondDimensionHistory: false,
-    cycleAnalysisReport: false,
+    pondDimensionHistory: true, // Stage 4g — shipped
+    cycleAnalysisReport: true, // Stage 4g — shipped
     feedingTrayChecks: false,
-    diseaseDiagnosis: false, // rule-based symptom matcher
-    costManagement: false, // per-cycle cost + break-even suite
+    diseaseDiagnosis: true, // rule-based symptom matcher (Stage 4e — shipped)
+    costManagement: true, // per-cycle cost + break-even suite (Stage 4f — shipped)
 
     // --- Deferred: blocked on external dependencies, not code (keep OFF at launch). ---
     marketplaceCheckout: false, // needs vendor partnerships + payment gateway

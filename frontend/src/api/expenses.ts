@@ -37,6 +37,10 @@ export interface CycleFinancials {
     totalExpenses: number;
     netProfit: number;
     marginPercent: number;
+    /** Total harvested biomass (kg) across the cycle's harvests. */
+    totalHarvestKg?: number;
+    /** Sale price per kg at which the cycle breaks even; null until harvested. */
+    breakEvenPricePerKg?: number | null;
     // Backend returns a category->amount map, not an array.
     expensesByCategory: Record<string, number>;
 }
