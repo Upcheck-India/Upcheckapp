@@ -67,7 +67,7 @@ interface AuthState {
     // ── API Actions ──
     initialize: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
-    googleLogin: (idToken: string) => Promise<void>;
+    googleLogin: (idToken: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
     signup: (email: string, password: string, firstName?: string, lastName?: string, accountType?: AccountType) => Promise<void>;
     logout: () => Promise<void>;
     deleteAccount: () => Promise<void>;
@@ -208,14 +208,22 @@ export const useAuthStore = create<AuthState>()(
                 set({ isLoading: true, error: null });
                 try {
                     const { data } = await authApi.googleOAuth(idToken);
+                    if (data.requires2FA && data.tempToken) {
+                        // 2FA enabled: session withheld until a TOTP code is
+                        // verified. Surfaced so the caller can show the challenge.
+                        set({ isLoading: false });
+                        return { requires2FA: true, tempToken: data.tempToken };
+                    }
                     if (data.session) {
                         get().setSession(data.session);
                     } else {
                         set({ isLoading: false });
                     }
+                    return { requires2FA: false };
                 } catch (err: any) {
                     const message = err.response?.data?.message || err.message || 'Google sign in failed';
                     get().setError(message);
+                    return { requires2FA: false };
                 }
             },
 

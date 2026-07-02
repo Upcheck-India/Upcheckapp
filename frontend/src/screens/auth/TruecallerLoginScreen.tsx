@@ -97,6 +97,10 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                 state: result.state,
             });
 
+            if (data.requires2FA && data.tempToken) {
+                navigation.navigate('TwoFactorChallenge', { tempToken: data.tempToken });
+                return;
+            }
             if (data.session) {
                 // RootNavigator swaps stacks on isAuthenticated; no explicit nav.
                 setSession(data.session);

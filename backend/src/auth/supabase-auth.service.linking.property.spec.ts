@@ -329,14 +329,15 @@ describe('SupabaseAuthService.signInWithTruecaller property: idempotence + branc
             expectedBranch = 1;
             expectedFirstId = 'seed-phone';
           } else if (seedKind === 'sameEmail') {
-            // Branch 2: phone differs but email matches.
+            // SECURITY: phone differs but (unverified) email matches. The
+            // account-takeover fix means this must NOT link to the existing
+            // email user — it creates a fresh phone-keyed account (branch 3).
             mock.seedExistingUser({
               id: 'seed-email',
               email: profile.email,
               phone: deriveDifferentPhone(profile.phoneNumber),
             });
-            expectedBranch = 2;
-            expectedFirstId = 'seed-email';
+            expectedBranch = 3;
           } else if (seedKind === 'differentBoth') {
             // Branch 3: pre-existing user is unrelated to `profile`.
             mock.seedExistingUser({
@@ -358,7 +359,7 @@ describe('SupabaseAuthService.signInWithTruecaller property: idempotence + branc
           const created1 = mock.createUserCalls - callsBefore;
 
           // Branch correctness on the first call.
-          if (expectedBranch === 1 || expectedBranch === 2) {
+          if (expectedBranch === 1) {
             expect(created1).toBe(0);
             expect(result1.user.id).toBe(expectedFirstId);
           } else {

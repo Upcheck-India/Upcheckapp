@@ -194,7 +194,12 @@ export const RegisterScreen = ({ navigation }: any) => {
                 </Text>.
             </Text>
 
-            <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
+            <GoogleLoginButton onPress={async () => {
+                const r = await signInWithGoogle();
+                if (r?.requires2FA && r.tempToken) {
+                    navigation.navigate('TwoFactorChallenge', { tempToken: r.tempToken });
+                }
+            }} loading={isLoading} />
 
             {/* Truecaller SDK bridge is Android-only — hide the entry point elsewhere */}
             {Platform.OS === 'android' && (

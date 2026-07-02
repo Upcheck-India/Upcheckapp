@@ -12,11 +12,14 @@ import { Enable2faDto } from './dto/enable-2fa.dto';
 import { Disable2faDto } from './dto/disable-2fa.dto';
 import { Login2faDto } from './dto/login-2fa.dto';
 import { LoginOtpRequestDto, LoginOtpVerifyDto } from './dto/login-otp.dto';
+import { SignupDto } from './dto/signup.dto';
+import { ChangePasswordDto } from './dto/auth.dto';
 import { RedisService } from '../redis/redis.service';
 import type { User } from '@supabase/supabase-js';
 
 const TWO_FA_TEMP_PREFIX = 'auth:2fa:temp:';
 const TWO_FA_TEMP_TTL_SECONDS = 300;
+const TWO_FA_MAX_ATTEMPTS = 5;
 
 /**
  * Method-level validation pipe for {@link SupabaseAuthController.truecallerOAuth}.
@@ -83,12 +86,8 @@ export class SupabaseAuthController {
 
     @Public()
     @Post('signup')
-    async signup(@Body() body: { email: string; password: string; firstName?: string; lastName?: string; username?: string; accountType?: 'owner' | 'worker' }) {
+    async signup(@Body() body: SignupDto) {
         const { email, password, firstName, lastName, username, accountType } = body;
-
-        if (!email || !password) {
-            throw new BadRequestException('Email and password are required');
-        }
 
         // Default to 'owner' if the client omits it — owners are the gated flow
         // (first-run farm setup); workers go straight to the dashboard.
@@ -118,10 +117,21 @@ export class SupabaseAuthController {
         }
 
         const result = await this.supabaseAuthService.signIn(email, password);
+        return this.issueSessionOrChallenge(result, 'Login successful');
+    }
 
-        // If the account has TOTP 2FA enabled, do not hand back the session yet.
-        // Stash it under a short-lived temp token and require a code via
-        // POST /auth/supabase/2fa/login.
+    /**
+     * Shared post-authentication gate applied to EVERY login path (password,
+     * email-OTP, Google, Truecaller). If the account has TOTP 2FA enabled no
+     * session is returned — it is stashed under a short-lived temp token and a
+     * code is required via POST /auth/supabase/2fa/login. Previously this gate
+     * lived only in `signin`, so 2FA was silently bypassable via the OTP,
+     * Google, and Truecaller login paths.
+     */
+    private async issueSessionOrChallenge(
+        result: { user: User | null; session: any },
+        successMessage: string,
+    ) {
         if (result.user && (await this.twoFactorService.isEnabled(result.user.id))) {
             const tempToken = randomUUID();
             await this.redisService.set(
@@ -132,12 +142,7 @@ export class SupabaseAuthController {
             );
             return { requires2FA: true, tempToken };
         }
-
-        return {
-            message: 'Login successful',
-            user: result.user,
-            session: result.session,
-        };
+        return { message: successMessage, user: result.user, session: result.session };
     }
 
     // ==================== Passwordless email OTP login ====================
@@ -154,7 +159,7 @@ export class SupabaseAuthController {
     @HttpCode(HttpStatus.OK)
     async verifyLoginOtp(@Body() body: LoginOtpVerifyDto) {
         const result = await this.supabaseAuthService.verifyEmailOtp(body.email, body.otp);
-        return { message: 'Login successful', user: result.user, session: result.session };
+        return this.issueSessionOrChallenge(result, 'Login successful');
     }
 
     // ==================== Two-factor authentication (TOTP) ====================
@@ -163,16 +168,29 @@ export class SupabaseAuthController {
     @Post('2fa/login')
     @HttpCode(HttpStatus.OK)
     async twoFactorLogin(@Body() body: Login2faDto) {
-        const raw = await this.redisService.get(`${TWO_FA_TEMP_PREFIX}${body.tempToken}`);
+        const key = `${TWO_FA_TEMP_PREFIX}${body.tempToken}`;
+        const raw = await this.redisService.get(key);
         if (!raw) {
             throw new UnauthorizedException('2FA challenge expired or invalid. Please sign in again.');
         }
         const { userId, session } = JSON.parse(raw);
         const ok = await this.twoFactorService.verifyCode(userId, body.token);
         if (!ok) {
+            // Cap attempts so a captured tempToken can't be brute-forced for the
+            // full TTL. Counted in a sibling key so the challenge's own expiry
+            // is never extended by a retry.
+            const attemptsKey = `${key}:attempts`;
+            const attempts = parseInt((await this.redisService.get(attemptsKey)) ?? '0', 10) + 1;
+            if (attempts >= TWO_FA_MAX_ATTEMPTS) {
+                await this.redisService.del(key);
+                await this.redisService.del(attemptsKey);
+                throw new UnauthorizedException('Too many incorrect codes. Please sign in again.');
+            }
+            await this.redisService.set(attemptsKey, String(attempts), 'EX', TWO_FA_TEMP_TTL_SECONDS);
             throw new UnauthorizedException('Invalid verification code');
         }
-        await this.redisService.del(`${TWO_FA_TEMP_PREFIX}${body.tempToken}`);
+        await this.redisService.del(key);
+        await this.redisService.del(`${key}:attempts`);
         return { message: 'Login successful', session };
     }
 
@@ -212,12 +230,7 @@ export class SupabaseAuthController {
         }
 
         const result = await this.supabaseAuthService.signInWithIdToken('google', idToken);
-
-        return {
-            message: 'Google authentication successful',
-            user: result.user,
-            session: result.session,
-        };
+        return this.issueSessionOrChallenge(result, 'Google authentication successful');
     }
 
     @Public()
@@ -295,12 +308,9 @@ export class SupabaseAuthController {
             avatarUrl: verifiedProfile.avatarUrl,
         });
 
-        // Requirement 11.5: response shape matches POST /auth/supabase/signin.
-        return {
-            message: 'Truecaller authentication successful',
-            user: result.user,
-            session: result.session,
-        };
+        // Requirement 11.5: response shape matches POST /auth/supabase/signin
+        // (including the 2FA challenge branch).
+        return this.issueSessionOrChallenge(result, 'Truecaller authentication successful');
     }
 
     /**
@@ -336,11 +346,7 @@ export class SupabaseAuthController {
             avatarUrl: verifiedProfile.avatarUrl,
         });
 
-        return {
-            message: 'Truecaller authentication successful',
-            user: result.user,
-            session: result.session,
-        };
+        return this.issueSessionOrChallenge(result, 'Truecaller authentication successful');
     }
 
     // ==================== Session Management ====================
@@ -417,16 +423,14 @@ export class SupabaseAuthController {
     @UseGuards(SupabaseAuthGuard)
     async updatePassword(
         @Req() request: any,
-        @Body() body: { newPassword: string }
+        @Body() body: ChangePasswordDto
     ) {
         const token = request.headers.authorization?.substring(7);
-        const { newPassword } = body;
-
-        if (!newPassword) {
-            throw new BadRequestException('New password is required');
-        }
-
-        return await this.supabaseAuthService.updatePassword(token, newPassword);
+        return await this.supabaseAuthService.updatePassword(
+            token,
+            body.currentPassword,
+            body.newPassword,
+        );
     }
 
     // ==================== Email Verification ====================

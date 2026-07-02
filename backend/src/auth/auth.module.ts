@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { EmailService } from '../email.service';
 import { SupabaseAuthService } from './supabase-auth.service';
 import { SupabaseAuthController } from './supabase-auth.controller';
@@ -20,10 +18,9 @@ import { User } from './user.entity';
     SupabaseAuthGuard,
     TruecallerService,
     TwoFactorService,
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
+    // NOTE: JwtAuthGuard is registered ONCE globally in app.module.ts. It was
+    // previously ALSO registered here — because APP_GUARD is a multi-provider
+    // token, both ran on every request, doubling the Supabase getUser() call.
   ],
   exports: [SupabaseAuthService],
 })

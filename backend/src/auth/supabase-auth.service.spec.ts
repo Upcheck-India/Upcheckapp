@@ -204,29 +204,30 @@ describe('SupabaseAuthService.signInWithTruecaller', () => {
     );
   });
 
-  it('Branch 2 (email-match): links phone to existing email user and returns its id (Req 11.3)', async () => {
+  it('SECURITY: an email match is IGNORED — never links to an existing account (account-takeover fix)', async () => {
+    // A Truecaller profile whose (unverified, self-asserted) email happens to
+    // match an existing user MUST NOT be handed that user's session. With no
+    // phone match, the code creates a fresh phone-keyed account instead.
     const mock = buildMockSupabase({
       phoneLookup: { data: null, error: { code: 'PGRST116' } },
       emailLookup: {
-        data: { id: 'existing-email-id', email: 'aarav@example.com' },
+        data: { id: 'victim-email-id', email: 'aarav@example.com' },
         error: null,
       },
-      updateUserResult: {
-        data: { user: { id: 'existing-email-id', email: 'aarav@example.com' } },
+      createUserResult: {
+        data: { user: { id: 'fresh-user-id', email: 'aarav@example.com' } },
         error: null,
       },
+      insertResult: { data: null, error: null },
     });
     const svc = buildService(mock);
 
     const result = await svc.signInWithTruecaller(sampleProfile);
 
-    expect(result.user.id).toBe('existing-email-id');
-    expect(mock.auth.admin.createUser).not.toHaveBeenCalled();
-    expect(mock.auth.admin.deleteUser).not.toHaveBeenCalled();
-    expect(mock.auth.admin.updateUserById).toHaveBeenCalledWith(
-      'existing-email-id',
-      expect.any(Object),
-    );
+    // Must NOT be the existing (victim) account; a new user is created.
+    expect(result.user.id).toBe('fresh-user-id');
+    expect(result.user.id).not.toBe('victim-email-id');
+    expect(mock.auth.admin.createUser).toHaveBeenCalledTimes(1);
   });
 
   it('Branch 3 (create-new): returns the freshly created user id (Req 11.4)', async () => {

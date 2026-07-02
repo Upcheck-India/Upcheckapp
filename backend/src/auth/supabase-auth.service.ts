@@ -208,9 +208,24 @@ export class SupabaseAuthService {
         return { message: 'Password reset email sent' };
     }
 
-    async updatePassword(accessToken: string, newPassword: string) {
+    async updatePassword(accessToken: string, currentPassword: string, newPassword: string) {
         // First verify the token
         const user = await this.verifyAccessToken(accessToken);
+
+        if (!user.email) {
+            throw new BadRequestException('This account has no password to change.');
+        }
+
+        // Re-authenticate with the CURRENT password before allowing a change.
+        // A stolen/leaked access token must not be enough to silently reset the
+        // password and lock the owner out.
+        const { error: pwError } = await this.supabase.auth.signInWithPassword({
+            email: user.email,
+            password: currentPassword,
+        });
+        if (pwError) {
+            throw new UnauthorizedException('Current password is incorrect');
+        }
 
         // Update password
         const { error } = await this.supabase.auth.admin.updateUserById(user.id, {
@@ -265,37 +280,27 @@ export class SupabaseAuthService {
             return this.createSessionForUser(existingUser.id, profile);
         }
 
-        // 2b. New user - check if email exists
-        if (profile.email) {
-            const { data: emailUser } = await this.supabase
-                .from('users')
-                .select('*')
-                .eq('email', profile.email)
-                .single();
+        // SECURITY (account-takeover fix): we intentionally do NOT link a
+        // Truecaller login to an existing account by email. Truecaller profile
+        // emails are self-asserted and NOT ownership-verified, so matching on
+        // them would let an attacker set their profile email to a victim's
+        // address and be handed the victim's session. Truecaller identity is
+        // the *verified phone number* only (branch 1 above). A user who wants
+        // their phone linked to an existing email account must do so through an
+        // authenticated, email-verified flow — never implicitly here.
 
-            if (emailUser) {
-                // Link phone to existing email user
-                await this.supabase
-                    .from('users')
-                    .update({
-                        phone: profile.phoneNumber,
-                        phone_verified: true,
-                        auth_provider: 'truecaller',
-                    })
-                    .eq('id', emailUser.id);
-
-                return this.createSessionForUser(emailUser.id, profile);
-            }
-        }
-
-        // 3. Create new user (Branch 3 — Requirement 11.4)
-        const tempEmail = profile.email || `${profile.phoneNumber.replace(/[^0-9]/g, '')}@truecaller.temp`;
+        // 3. Create new user, keyed on the verified phone (Requirement 11.4).
+        // Always use a phone-derived internal email — never the profile's
+        // unverified email — so an attacker can't pre-squat a victim's address
+        // in auth.users (which enforces email uniqueness regardless of
+        // confirmation) and lock them out of a future signup.
+        const tempEmail = `${profile.phoneNumber.replace(/[^0-9]/g, '')}@truecaller.temp`;
 
         const { data: newUser, error: createError } = await this.supabase.auth.admin.createUser({
             email: tempEmail,
             phone: profile.phoneNumber,
             password: crypto.randomUUID(),
-            email_confirm: !!profile.email,
+            email_confirm: false,
             phone_confirm: true,
             user_metadata: {
                 first_name: profile.firstName,
@@ -328,14 +333,17 @@ export class SupabaseAuthService {
             // Create user record in our DB
             const { error: dbError } = await this.supabase.from('users').insert({
                 id: newAuthUserId,
-                email: profile.email || null,
+                // Store the phone-derived internal email, not the unverified
+                // profile email (public.users.email is NOT NULL). The real
+                // email stays unset until the user verifies one.
+                email: tempEmail,
                 phone: profile.phoneNumber,
                 first_name: profile.firstName,
                 last_name: profile.lastName,
                 avatar_url: profile.avatarUrl,
                 auth_provider: 'truecaller',
                 phone_verified: true,
-                email_verified: !!profile.email,
+                email_verified: false,
             });
 
             if (dbError) {

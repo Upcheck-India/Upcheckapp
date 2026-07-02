@@ -47,7 +47,9 @@ export const OtpLoginScreen = ({ navigation }: any) => {
         setLoading(true);
         try {
             const { data } = await authApi.loginOtpVerify(email.trim(), otp.trim());
-            if (data.session) {
+            if (data.requires2FA && data.tempToken) {
+                navigation.navigate('TwoFactorChallenge', { tempToken: data.tempToken });
+            } else if (data.session) {
                 setSession(data.session);
             } else {
                 Alert.alert(t('common.error'), t('auth.noSessionReturned'));

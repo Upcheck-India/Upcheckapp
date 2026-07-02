@@ -37,7 +37,9 @@ export function useGoogleAuth() {
             if (isSuccessResponse(response)) {
                 const idToken = response.data.idToken;
                 if (idToken) {
-                    googleLogin(idToken);
+                    // Propagate the 2FA challenge (if any) so the screen can
+                    // navigate to it — the store only sets a session on success.
+                    return await googleLogin(idToken);
                 } else {
                     useAuthStore.getState().setError('No ID token received from Google.');
                 }

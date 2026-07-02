@@ -126,7 +126,12 @@ export const LoginScreen = ({ navigation }: any) => {
                 <View style={styles.socialSection}>
                     <Text style={styles.socialLabel}>{t('auth.orContinueWith')}</Text>
                     <View style={styles.socialButtons}>
-                        <GoogleLoginButton onPress={signInWithGoogle} loading={isLoading} />
+                        <GoogleLoginButton onPress={async () => {
+                            const r = await signInWithGoogle();
+                            if (r?.requires2FA && r.tempToken) {
+                                navigation.navigate('TwoFactorChallenge', { tempToken: r.tempToken });
+                            }
+                        }} loading={isLoading} />
                         {/* Truecaller SDK bridge is Android-only — hide the entry point elsewhere */}
                         {Platform.OS === 'android' && (
                             <TruecallerLoginButton
