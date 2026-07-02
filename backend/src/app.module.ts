@@ -50,14 +50,8 @@ import { DiseaseWarningModule } from './disease-warning/disease-warning.module';
 import { HarvestTimingModule } from './harvest-timing/harvest-timing.module';
 import { AerationModule } from './aeration/aeration.module';
 import { PnlModule } from './pnl/pnl.module';
-import { PondPrepModule } from './pond-prep/pond-prep.module';
-import { WeatherModule } from './weather/weather.module';
 import { CreditModule } from './credit/credit.module';
-import { SimEngineModule } from './sim-engine/sim-engine.module';
-import { CropOutcomeModule } from './crop-outcome/crop-outcome.module';
-import { CaptureModule } from './capture/capture.module';
 import { AlertCenterModule } from './alert-center/alert-center.module';
-import { RegionalMapModule } from './regional-map/regional-map.module';
 import { PondContextModule } from './pond-context/pond-context.module';
 
 @Module({
@@ -166,14 +160,8 @@ import { PondContextModule } from './pond-context/pond-context.module';
     HarvestTimingModule,
     AerationModule,
     PnlModule,
-    PondPrepModule,
-    WeatherModule,
     CreditModule,
-    SimEngineModule,
-    CropOutcomeModule,
-    CaptureModule,
     AlertCenterModule,
-    RegionalMapModule,
     PondContextModule,
   ],
   controllers: [AppController],
