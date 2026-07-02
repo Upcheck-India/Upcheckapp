@@ -47,7 +47,7 @@ export default {
     extra: {
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL || "https://mcslntwchfucavjrrhnu.supabase.co",
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_Gc9IN6iWX-a-K7UpEqz9PQ_n1KcQncF",
-      apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || "https://upcheckapp-c612.onrender.com/api",
+      apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.upcheck.in/api",
       googleClientIdWeb: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB || "39325535525-aviskbmsicrapi6akc28qa8ed7mqhuki.apps.googleusercontent.com",
       googleClientIdIos: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_IOS || "557249592391-smcje08fcv71hh1vjhmshhvnklpmd7lo.apps.googleusercontent.com",
       googleClientIdAndroid: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID || "557249592391-omumak2q0qnor86nj47m93ln4fsn8uv3.apps.googleusercontent.com",
