@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not, IsNull } from 'typeorm';
+import { Repository, Not, IsNull, In } from 'typeorm';
 import { Pond } from '../ponds/pond.entity';
 import { PondContextService, PondContext } from '../pond-context/pond-context.service';
 import { LunarService } from '../lunar/lunar.service';
 import { AlertCenterService, BriefingItem } from './alert-center.service';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 export interface AlertDraft {
   pondId: string | null;
@@ -29,6 +30,7 @@ export class EngineAlertService {
     private readonly pondContext: PondContextService,
     private readonly lunar: LunarService,
     private readonly alertCenter: AlertCenterService,
+    private readonly farmAccess: FarmAccessService,
   ) {}
 
   /**
@@ -99,11 +101,12 @@ export class EngineAlertService {
 
   /** Live per-pond briefing across all of a user's active ponds. */
   async liveBriefing(userId: string): Promise<BriefingItem[]> {
-    const ponds = await this.pondRepo.find({
-      where: { activeCycleId: Not(IsNull()) },
-      relations: ['farm'],
+    const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+    if (farmIds.length === 0) return this.alertCenter.buildBriefing([]);
+
+    const mine = await this.pondRepo.find({
+      where: { activeCycleId: Not(IsNull()), farmId: In(farmIds) },
     });
-    const mine = ponds.filter((p) => (p as any).farm?.userId === userId);
 
     const drafts: AlertDraft[] = [];
     for (const p of mine) {

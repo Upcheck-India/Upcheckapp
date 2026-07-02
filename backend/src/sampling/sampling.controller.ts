@@ -18,8 +18,8 @@ export class SamplingController {
     }
 
     @Get()
-    findAll(@Query('cropId') cropId?: string) {
-        return this.samplingService.findAll(cropId);
+    findAll(@Query('cropId') cropId: string, @CurrentUser() user) {
+        return this.samplingService.findAll(user.id, cropId);
     }
 
     @Get(':id')

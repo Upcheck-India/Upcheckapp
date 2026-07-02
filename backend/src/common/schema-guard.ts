@@ -3,14 +3,16 @@ import { DataSource } from 'typeorm';
 /**
  * Startup schema guard (migration-safety net).
  *
- * On boot, assert that the database actually has the core tables. If the
- * migration chain was never applied (e.g. a freshly-linked Supabase project
- * whose migrations did not run), this fails fast with a loud, unambiguous log
- * instead of letting the app limp into per-request "relation does not exist"
- * errors that are hard to diagnose.
+ * On boot, assert that the database actually has the core tables, AND that
+ * row-level security is enabled on them. A deploy where the tables exist but
+ * the RLS/SEC-1 migration never ran would otherwise boot "healthy" with RLS
+ * silently OFF — letting the shipped anon key read/write every farm via
+ * PostgREST. Fails fast with a loud, unambiguous log instead of letting the
+ * app limp into a silent cross-tenant data leak.
  *
- * Migrations themselves run via the deploy `startCommand` (`npm run
- * migration:run`); this guard only verifies the result.
+ * Migrations are applied manually against DATABASE_URL (`npm run
+ * migration:run`) — the deploy `startCommand` no longer runs them
+ * automatically; this guard only verifies the result.
  */
 const SENTINEL_TABLES = ['users', 'farms', 'farm_members', 'ponds', 'crops'];
 

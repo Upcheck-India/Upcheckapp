@@ -115,6 +115,12 @@ export const MeasurementsScreen = ({ route }: any) => {
             showToast({ message: t('common.savedSuccess'), type: 'success' });
             await loadSeries();
         } catch (err: any) {
+            if (!err?.response) {
+                // Network/timeout failure — not a validation problem, and the
+                // reading was never saved. Say so, don't call it "invalid".
+                Alert.alert(t('common.noInternet'), t('common.networkError'));
+                return;
+            }
             const message =
                 err?.response?.data?.message ||
                 t('engines.measurements.invalidReadingSub');

@@ -18,8 +18,8 @@ export class FeedingTrayChecksController {
     }
 
     @Get()
-    findAll(@Query('cropId') cropId?: string) {
-        return this.feedingTrayChecksService.findAll(cropId);
+    findAll(@Query('cropId') cropId: string, @CurrentUser() user) {
+        return this.feedingTrayChecksService.findAll(user.id, cropId);
     }
 
     @Get(':id')

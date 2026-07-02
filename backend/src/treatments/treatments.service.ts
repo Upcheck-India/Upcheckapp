@@ -4,12 +4,14 @@ import { Repository } from 'typeorm';
 import { Treatment } from './treatment.entity';
 import { CreateTreatmentDto } from './dto/create-treatment.dto';
 import { UpdateTreatmentDto } from './dto/update-treatment.dto';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 @Injectable()
 export class TreatmentsService {
     constructor(
         @InjectRepository(Treatment)
         private treatmentsRepository: Repository<Treatment>,
+        private readonly farmAccess: FarmAccessService,
     ) { }
 
     create(createDto: CreateTreatmentDto, userId?: string) {
@@ -17,14 +19,20 @@ export class TreatmentsService {
         return this.treatmentsRepository.save(record);
     }
 
-    findAll(cropId?: string) {
-        if (cropId) {
-            return this.treatmentsRepository.find({
-                where: { cropId },
-                order: { treatmentDate: 'DESC' },
-            });
-        }
-        return this.treatmentsRepository.find({ order: { treatmentDate: 'DESC' } });
+    async findAll(userId: string, cropId?: string) {
+        // Scope to farms the caller can access — cropId alone is an optional
+        // filter, never the ownership boundary.
+        const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+        if (farmIds.length === 0) return [];
+
+        const qb = this.treatmentsRepository
+            .createQueryBuilder('treatment')
+            .innerJoin('treatment.crop', 'crop')
+            .innerJoin('crop.pond', 'pond')
+            .where('pond.farmId IN (:...farmIds)', { farmIds })
+            .orderBy('treatment.treatmentDate', 'DESC');
+        if (cropId) qb.andWhere('treatment.cropId = :cropId', { cropId });
+        return qb.getMany();
     }
 
     async findOne(id: string): Promise<Treatment> {

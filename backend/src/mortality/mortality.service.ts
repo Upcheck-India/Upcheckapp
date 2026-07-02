@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MortalityRecord } from './mortality-record.entity';
@@ -21,10 +21,18 @@ export class MortalityService {
     ) { }
 
     async create(dto: CreateMortalityRecordDto, userId?: string): Promise<MortalityRecord> {
-        // Idempotent replay guard for offline queue drains.
+        // Idempotent replay guard for offline queue drains. OwnershipGuard has already
+        // verified the caller may write to dto.cropId — only short-circuit within that
+        // same authorized crop, otherwise a client-supplied id colliding with another
+        // farm's record would leak it here before any access check.
         if (dto.id) {
             const existing = await this.mortalityRepository.findOne({ where: { id: dto.id } });
-            if (existing) return existing;
+            if (existing) {
+                if (existing.cropId !== dto.cropId) {
+                    throw new ForbiddenException('Mortality record id already exists for a different crop');
+                }
+                return existing;
+            }
         }
 
         // If estimatedTotal is not provided, compute it using the mortality multiplier

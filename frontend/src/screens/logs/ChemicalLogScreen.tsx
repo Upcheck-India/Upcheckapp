@@ -9,13 +9,14 @@ import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
 import { useUIStore } from '../../store/uiStore';
+import { todayLocalISODate } from '../../utils/localDate';
 
 export const ChemicalLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName, cropId } = route.params;
 
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(todayLocalISODate());
     const [time, setTime] = useState(new Date().toTimeString().split(' ')[0].substring(0, 5));
     const [ammoniaNh3, setAmmoniaNh3] = useState('');
     const [nitriteNo2, setNitriteNo2] = useState('');

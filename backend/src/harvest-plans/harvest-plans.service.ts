@@ -6,6 +6,7 @@ import { CreateHarvestPlanDto } from './dto/create-harvest-plan.dto';
 import { UpdateHarvestPlanDto } from './dto/update-harvest-plan.dto';
 import { Transaction } from '../transactions/transaction.entity';
 import { Crop } from '../crops/crop.entity';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 @Injectable()
 export class HarvestPlansService {
@@ -16,6 +17,7 @@ export class HarvestPlansService {
         private transactionsRepository: Repository<Transaction>,
         @InjectRepository(Crop)
         private cropsRepository: Repository<Crop>,
+        private farmAccess: FarmAccessService,
     ) { }
 
     create(createDto: CreateHarvestPlanDto) {
@@ -23,11 +25,17 @@ export class HarvestPlansService {
         return this.plansRepository.save(plan);
     }
 
-    findAll(pondId?: string) {
-        if (pondId) {
-            return this.plansRepository.find({ where: { pondId }, order: { createdAt: 'DESC' } });
-        }
-        return this.plansRepository.find({ order: { createdAt: 'DESC' } });
+    /** Scoped to farms the caller can access — never returns plans from other farms. */
+    async findAll(userId: string, pondId?: string) {
+        const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+        if (farmIds.length === 0) return [];
+
+        const qb = this.plansRepository.createQueryBuilder('hp')
+            .innerJoin('hp.pond', 'pond')
+            .where('pond.farmId IN (:...farmIds)', { farmIds })
+            .orderBy('hp.createdAt', 'DESC');
+        if (pondId) qb.andWhere('hp.pondId = :pondId', { pondId });
+        return qb.getMany();
     }
 
     findOne(id: string) {
@@ -47,10 +55,10 @@ export class HarvestPlansService {
         actualHarvestDate: Date;
         actualWeightKg: number;
         actualPricePerKg: number;
-        farmId: string;
-        cropId?: string;
     }) {
-        const plan = await this.findOne(id);
+        // Load with the pond relation so the farm for the money-writing Transaction
+        // below is resolved server-side — never trust a client-supplied farmId here.
+        const plan = await this.plansRepository.findOne({ where: { id }, relations: ['pond'] });
         if (!plan) {
             throw new NotFoundException('Harvest plan not found');
         }
@@ -67,7 +75,7 @@ export class HarvestPlansService {
 
         await this.transactionsRepository.save(
             this.transactionsRepository.create({
-                farmId: payload.farmId,
+                farmId: plan.pond.farmId,
                 transactionDate: payload.actualHarvestDate,
                 type: 'income',
                 category: 'harvest_sale',
@@ -76,8 +84,11 @@ export class HarvestPlansService {
             }),
         );
 
-        if (payload.cropId) {
-            await this.cropsRepository.update(payload.cropId, {
+        // Use the crop already linked to this (ownership-checked) plan — not a
+        // client-supplied cropId — so completing a plan can't overwrite an
+        // arbitrary crop in another farm.
+        if (plan.cropId) {
+            await this.cropsRepository.update(plan.cropId, {
                 actualHarvestDate: payload.actualHarvestDate,
                 harvestWeightKg: payload.actualWeightKg,
                 status: 'harvested',
@@ -102,7 +113,15 @@ export class HarvestPlansService {
             .andWhere('t.type = :type', { type: 'expense' })
             .getRawOne();
 
-        const plan = await this.plansRepository.findOne({ where: { pondId }, order: { createdAt: 'DESC' } });
+        // Only return a plan that actually belongs to the requested (guard-checked)
+        // farm — pondId alone isn't authorized, so it must be cross-checked against farmId.
+        const plan = await this.plansRepository
+            .createQueryBuilder('hp')
+            .innerJoin('hp.pond', 'pond')
+            .where('hp.pondId = :pondId', { pondId })
+            .andWhere('pond.farmId = :farmId', { farmId })
+            .orderBy('hp.createdAt', 'DESC')
+            .getOne();
 
         return {
             pondId,

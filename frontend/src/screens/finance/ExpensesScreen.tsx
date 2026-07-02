@@ -18,6 +18,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { theme } from '../../theme';
+import { todayLocalISODate } from '../../utils/localDate';
 import {
     expensesApi,
     Expense,
@@ -29,7 +30,7 @@ const CATEGORY_OPTIONS = Object.values(ExpenseCategory);
 
 const formatMoney = (value: number) => `₹${Number(value).toFixed(2)}`;
 
-const todayISO = () => new Date().toISOString().split('T')[0];
+const todayISO = () => todayLocalISODate();
 
 export const ExpensesScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();

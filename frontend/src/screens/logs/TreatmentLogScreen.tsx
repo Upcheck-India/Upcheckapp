@@ -11,13 +11,14 @@ import { theme } from '../../theme';
 import { treatmentsApi } from '../../api/treatments';
 import { findBannedSubstances } from '../../features/bannedSubstances';
 import { useUIStore } from '../../store/uiStore';
+import { todayLocalISODate } from '../../utils/localDate';
 
 export const TreatmentLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName, cropId } = route.params;
 
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(todayLocalISODate());
     const [description, setDescription] = useState('');
     const [basedOn, setBasedOn] = useState('product_usage');
     const [productName, setProductName] = useState('');

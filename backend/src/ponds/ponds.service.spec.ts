@@ -17,6 +17,7 @@ describe('PondsService', () => {
   let pondsRepository: any;
   let historyRepository: any;
   let farmsService: any;
+  let farmAccess: any;
   let dimensionService: any;
   let namingService: any;
   let dataSource: any;
@@ -115,6 +116,11 @@ describe('PondsService', () => {
       transaction: jest.fn().mockImplementation(async cb => cb(mockTransactionManager)),
     };
 
+    farmAccess = {
+      getAccessibleFarmIds: jest.fn().mockResolvedValue([mockFarm.id]),
+      assertCanAccessFarm: jest.fn().mockResolvedValue(mockFarm),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
@@ -125,13 +131,7 @@ describe('PondsService', () => {
         { provide: PondDimensionService, useValue: dimensionService },
         { provide: PondNamingService, useValue: namingService },
         { provide: DataSource, useValue: dataSource },
-        {
-          provide: FarmAccessService,
-          useValue: {
-            getAccessibleFarmIds: jest.fn().mockResolvedValue([mockFarm.id]),
-            assertCanAccessFarm: jest.fn().mockResolvedValue(mockFarm),
-          },
-        },
+        { provide: FarmAccessService, useValue: farmAccess },
       ],
     }).compile();
 
@@ -158,7 +158,7 @@ describe('PondsService', () => {
     it('should create a single pond with calculated area', async () => {
       const result = await service.create(dto, 'user-1');
 
-      expect(farmsService.verifyOwnership).toHaveBeenCalledWith('farm-1', 'user-1');
+      expect(farmAccess.assertCanAccessFarm).toHaveBeenCalledWith('user-1', 'farm-1', 'WRITE_MANAGEMENT');
       expect(namingService.validatePrefix).toHaveBeenCalledWith('A');
       expect(dimensionService.validateDimensions).toHaveBeenCalled();
       expect(dimensionService.calculateArea).toHaveBeenCalled();
@@ -187,8 +187,8 @@ describe('PondsService', () => {
       expect(dataSource.transaction).toHaveBeenCalled();
     });
 
-    it('should throw when farm ownership fails', async () => {
-      farmsService.verifyOwnership.mockRejectedValue(new ForbiddenException());
+    it('should throw when farm access fails', async () => {
+      farmAccess.assertCanAccessFarm.mockRejectedValue(new ForbiddenException());
       await expect(service.create(dto, 'user-2')).rejects.toThrow(ForbiddenException);
     });
   });

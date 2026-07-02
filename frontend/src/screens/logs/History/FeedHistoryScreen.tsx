@@ -48,7 +48,9 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
         fetchRecords(true);
     }, [fetchRecords]);
 
-    const totalFeed = records.reduce((sum, r) => sum + (r.quantityKg || 0), 0);
+    // ponytail: quantityKg arrives as a JSON string from Postgres numeric columns —
+    // coerce before summing or reduce does string concatenation, not addition.
+    const totalFeed = records.reduce((sum, r) => sum + (Number(r.quantityKg) || 0), 0);
 
     const renderItem = ({ item }: { item: FeedRecord }) => (
         <Card style={styles.card}>

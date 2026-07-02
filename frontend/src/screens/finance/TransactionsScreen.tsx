@@ -18,6 +18,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { theme } from '../../theme';
+import { toLocalISODate } from '../../utils/localDate';
 import {
     transactionsApi,
     Transaction,
@@ -27,7 +28,7 @@ import {
 
 type FilterKey = 'all' | 'income' | 'expense';
 
-const toISODate = (d: Date): string => d.toISOString().split('T')[0];
+const toISODate = (d: Date): string => toLocalISODate(d);
 
 const formatRupees = (value: number): string => `₹${Number(value).toFixed(2)}`;
 

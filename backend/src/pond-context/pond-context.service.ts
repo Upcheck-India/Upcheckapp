@@ -206,33 +206,47 @@ export class PondContextService {
     const installedAeratorHp = pond.installedAeratorHp != null ? Number(pond.installedAeratorHp) : null;
     const cropId = pond.activeCycleId ?? null;
 
-    const crop = cropId ? await this.cropsService.findOne(cropId, userId) : null;
-
-    // Latest non-null value per WQ parameter across recent records.
-    const wqRecords = await this.wqRepo.find({
-      where: { pondId },
-      order: { recordedAt: 'DESC' },
-      take: 60,
-    });
+    // Everything below only depends on pondId/cropId (known once the pond is
+    // fetched), not on each other — fan out instead of awaiting one-by-one.
+    // Mortality and feed use a SQL SUM instead of loading every row into JS.
+    const [crop, wqRecords, sampling, mortalityAgg, feedAgg, tray] = await Promise.all([
+      cropId ? this.cropsService.findOne(cropId, userId) : Promise.resolve(null),
+      // Latest non-null value per WQ parameter across recent records.
+      this.wqRepo.find({
+        where: { pondId },
+        order: { recordedAt: 'DESC' },
+        take: 60,
+      }),
+      // Latest sampling for this pond (prefer the active crop).
+      this.samplingRepo.findOne({
+        where: cropId ? { pondId, cropId } : { pondId },
+        order: { samplingDate: 'DESC' },
+      }),
+      cropId
+        ? this.mortalityRepo
+            .createQueryBuilder('m')
+            .select('SUM(m.estimatedTotal)', 'total')
+            .where('m.cropId = :cropId', { cropId })
+            .getRawOne()
+        : Promise.resolve(null),
+      cropId
+        ? this.feedRepo
+            .createQueryBuilder('feed')
+            .select('SUM(feed.quantityKg)', 'totalFeed')
+            .addSelect('MAX(feed.recordedAt)', 'lastFeedAt')
+            .where('feed.cropId = :cropId', { cropId })
+            .getRawOne()
+        : Promise.resolve(null),
+      cropId
+        ? this.trayRepo.findOne({ where: { cropId }, order: { checkDate: 'DESC' } })
+        : Promise.resolve(null),
+    ]);
     const wq = this.resolveWaterQuality(wqRecords);
-
-    // Latest sampling for this pond (prefer the active crop).
-    const sampling = await this.samplingRepo.findOne({
-      where: cropId ? { pondId, cropId } : { pondId },
-      order: { samplingDate: 'DESC' },
-    });
     const abwG = sampling?.mbwG != null ? Number(sampling.mbwG) : null;
     const samplingAt = sampling?.samplingDate ? new Date(sampling.samplingDate).toISOString() : null;
 
     // Cumulative estimated mortality for the active crop.
-    let cumulativeMortality = 0;
-    if (cropId) {
-      const deaths = await this.mortalityRepo.find({ where: { cropId } });
-      cumulativeMortality = deaths.reduce(
-        (a, d) => a + (Number((d as any).estimatedTotal) || 0),
-        0,
-      );
-    }
+    const cumulativeMortality = Number(mortalityAgg?.total) || 0;
     const livePopulation = this.estimateLivePopulation(
       crop?.stockingCount,
       cumulativeMortality,
@@ -256,20 +270,9 @@ export class PondContextService {
     let lastFeedAt: string | null = null;
     let lastTrayAt: string | null = null;
     if (cropId) {
-      const feeds = await this.feedRepo.find({ where: { cropId } });
-      cumulativeFeedKg = round2(
-        feeds.reduce((a, f) => a + (Number(f.quantityKg) || 0), 0),
-      );
-      const lastFeed = feeds.reduce<Date | null>((latest, f) => {
-        const d = f.recordedAt ? new Date(f.recordedAt) : null;
-        return d && (!latest || d > latest) ? d : latest;
-      }, null);
-      lastFeedAt = lastFeed ? lastFeed.toISOString() : null;
+      cumulativeFeedKg = round2(Number(feedAgg?.totalFeed) || 0);
+      lastFeedAt = feedAgg?.lastFeedAt ? new Date(feedAgg.lastFeedAt).toISOString() : null;
 
-      const tray = await this.trayRepo.findOne({
-        where: { cropId },
-        order: { checkDate: 'DESC' },
-      });
       const status = tray?.remainingFeedStatus;
       if (status === 'empty' || status === 'few_left' || status === 'a_lot_left') {
         latestTrayResidue = status;

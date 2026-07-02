@@ -6,6 +6,7 @@ import { CreateSamplingDto } from './dto/create-sampling.dto';
 import { UpdateSamplingDto } from './dto/update-sampling.dto';
 
 import { PondsService } from '../ponds/ponds.service';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 @Injectable()
 export class SamplingService {
@@ -13,13 +14,19 @@ export class SamplingService {
         @InjectRepository(SamplingData)
         private samplingRepository: Repository<SamplingData>,
         private pondsService: PondsService,
+        private readonly farmAccess: FarmAccessService,
     ) { }
 
     async create(createDto: CreateSamplingDto, userId: string) {
-        // Idempotent replay guard for offline queue drains.
+        // Idempotent replay guard for offline queue drains. Must verify the
+        // caller can access the found record's farm BEFORE returning it — a
+        // replayed op with a guessed id must not leak another farm's record.
         if (createDto.id) {
             const existing = await this.samplingRepository.findOne({ where: { id: createDto.id } });
-            if (existing) return existing;
+            if (existing) {
+                await this.farmAccess.assertCanAccessPond(userId, existing.pondId, 'WRITE_OPERATIONAL');
+                return existing;
+            }
         }
 
         const pond = await this.pondsService.findOneAccessible(createDto.pondId, userId, 'WRITE_OPERATIONAL');
@@ -42,14 +49,19 @@ export class SamplingService {
         return this.samplingRepository.save(record);
     }
 
-    findAll(cropId?: string) {
-        if (cropId) {
-            return this.samplingRepository.find({
-                where: { cropId },
-                order: { samplingDate: 'DESC' },
-            });
-        }
-        return this.samplingRepository.find({ order: { samplingDate: 'DESC' } });
+    async findAll(userId: string, cropId?: string) {
+        // Scope to farms the caller can access — cropId alone is an optional
+        // filter, never the ownership boundary.
+        const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+        if (farmIds.length === 0) return [];
+
+        const qb = this.samplingRepository
+            .createQueryBuilder('sampling')
+            .innerJoin('sampling.pond', 'pond')
+            .where('pond.farmId IN (:...farmIds)', { farmIds })
+            .orderBy('sampling.samplingDate', 'DESC');
+        if (cropId) qb.andWhere('sampling.cropId = :cropId', { cropId });
+        return qb.getMany();
     }
 
     async findOne(id: string): Promise<SamplingData> {

@@ -10,6 +10,7 @@ import { PondsService } from '../ponds/ponds.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { PageOptionsDto } from '../common/dto/page-options.dto';
 import { PageMetaDto, PageDto } from '../common/dto/page.dto';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 @Injectable()
 export class FeedRecordsService {
@@ -18,14 +19,20 @@ export class FeedRecordsService {
         private recordsRepository: Repository<FeedRecord>,
         private pondsService: PondsService,
         private inventoryService: InventoryService,
+        private readonly farmAccess: FarmAccessService,
     ) { }
 
     async create(createDto: CreateFeedRecordDto, userId: string) {
         // Idempotent replay guard — must run BEFORE the inventory deduction so a
-        // queued-then-retried feed record never double-deducts stock.
+        // queued-then-retried feed record never double-deducts stock. Must also
+        // verify the caller can access the found record's farm BEFORE returning
+        // it — a replayed op with a guessed id must not leak another farm's record.
         if (createDto.id) {
             const existing = await this.recordsRepository.findOne({ where: { id: createDto.id } });
-            if (existing) return existing;
+            if (existing) {
+                await this.farmAccess.assertCanAccessPond(userId, existing.pondId, 'WRITE_OPERATIONAL');
+                return existing;
+            }
         }
 
         // Fasting day enforcement: if isFasting, quantityKg must be 0
@@ -62,21 +69,30 @@ export class FeedRecordsService {
         return this.recordsRepository.save(record);
     }
 
-    async findAll(pondId?: string, cropId?: string, pageOptionsDto?: PageOptionsDto): Promise<PageDto<FeedRecord>> {
+    async findAll(userId: string, pondId?: string, cropId?: string, pageOptionsDto?: PageOptionsDto): Promise<PageDto<FeedRecord>> {
         const skip = pageOptionsDto?.skip || 0;
         const take = pageOptionsDto?.take || 10;
         const order = pageOptionsDto?.order || 'DESC';
 
-        const where: any = {};
-        if (pondId) where.pondId = pondId;
-        if (cropId) where.cropId = cropId;
+        // Scope to farms the caller can access — pondId/cropId are optional
+        // filters, never the ownership boundary.
+        const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+        if (farmIds.length === 0) {
+            const pageMetaDto = new PageMetaDto({ itemCount: 0, pageOptionsDto: pageOptionsDto || { page: 1, take } });
+            return new PageDto([], pageMetaDto);
+        }
 
-        const [items, itemCount] = await this.recordsRepository.findAndCount({
-            where,
-            order: { recordedAt: order },
-            take,
-            skip,
-        });
+        const qb = this.recordsRepository
+            .createQueryBuilder('feed')
+            .innerJoin('feed.pond', 'pond')
+            .where('pond.farmId IN (:...farmIds)', { farmIds })
+            .orderBy('feed.recordedAt', order)
+            .take(take)
+            .skip(skip);
+        if (pondId) qb.andWhere('feed.pondId = :pondId', { pondId });
+        if (cropId) qb.andWhere('feed.cropId = :cropId', { cropId });
+
+        const [items, itemCount] = await qb.getManyAndCount();
 
         const pageMetaDto = new PageMetaDto({ itemCount, pageOptionsDto: pageOptionsDto || { page: 1, take } });
         return new PageDto(items, pageMetaDto);

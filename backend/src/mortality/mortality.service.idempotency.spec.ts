@@ -24,8 +24,8 @@ describe('MortalityService — idempotent create (offline replay safety)', () =>
         service = module.get(MortalityService);
     });
 
-    it('returns the existing record and does NOT insert when the client id already exists', async () => {
-        const existing = { id: CLIENT_ID, quantity: 10 };
+    it('returns the existing record and does NOT insert when the client id already exists for the same crop', async () => {
+        const existing = { id: CLIENT_ID, cropId: 'crop-1', quantity: 10 };
         repo.findOne.mockResolvedValue(existing);
 
         const result = await service.create(
@@ -36,6 +36,23 @@ describe('MortalityService — idempotent create (offline replay safety)', () =>
         expect(repo.findOne).toHaveBeenCalledWith({ where: { id: CLIENT_ID } });
         expect(repo.save).not.toHaveBeenCalled();
         expect(result).toBe(existing);
+    });
+
+    it('rejects (does not return the record) when the client id collides with a record on a different crop', async () => {
+        // Cross-tenant IDOR guard: the OwnershipGuard only verified access to
+        // dto.cropId — an id collision with a record on another crop must not
+        // leak that record back to the caller.
+        const existing = { id: CLIENT_ID, cropId: 'crop-owned-by-another-farm', quantity: 10 };
+        repo.findOne.mockResolvedValue(existing);
+
+        await expect(
+            service.create(
+                { cropId: 'crop-1', recordDate: '2026-06-17', quantity: 10, id: CLIENT_ID } as any,
+                'user-1',
+            ),
+        ).rejects.toThrow('Mortality record id already exists for a different crop');
+
+        expect(repo.save).not.toHaveBeenCalled();
     });
 
     it('inserts when the client id is new', async () => {

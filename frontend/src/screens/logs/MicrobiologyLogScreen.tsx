@@ -9,13 +9,14 @@ import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
 import { useUIStore } from '../../store/uiStore';
+import { todayLocalISODate } from '../../utils/localDate';
 
 export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName, cropId } = route.params;
 
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(todayLocalISODate());
     const [totalBacillus, setTotalBacillus] = useState('');
     const [totalVibrio, setTotalVibrio] = useState('');
     const [greenVibrio, setGreenVibrio] = useState('');

@@ -5,6 +5,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { authApi } from '../api/auth';
 import { profilesApi } from '../api/profiles';
 import { TruecallerAuth } from '../native/TruecallerAuth';
+import { useSyncStore } from './syncStore';
 
 export type AuthStatus =
     | 'initializing'       // app just launched, checking stored session

@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { SupabaseAuthService } from './supabase-auth.service';
@@ -39,6 +39,7 @@ interface MockSupabase {
       deleteUser: jest.Mock;
       generateLink: jest.Mock;
     };
+    verifyOtp: jest.Mock;
   };
 }
 
@@ -123,11 +124,20 @@ function buildMockSupabase(opts: {
           .fn()
           .mockResolvedValue(
             opts.generateLinkResult ?? {
-              data: { properties: {} },
+              data: { properties: { hashed_token: 'stub-hashed-token' } },
               error: null,
             },
           ),
       },
+      // mintSession redeems the admin link into a real session via the
+      // public verifyOtp API; return a stub session so the success path
+      // completes.
+      verifyOtp: jest
+        .fn()
+        .mockResolvedValue({
+          data: { session: { access_token: 'stub-access-token' } },
+          error: null,
+        }),
     },
   };
 }
@@ -259,7 +269,7 @@ describe('SupabaseAuthService.signInWithTruecaller', () => {
     const svc = buildService(mock);
 
     await expect(svc.signInWithTruecaller(sampleProfile)).rejects.toBeInstanceOf(
-      BadRequestException,
+      ServiceUnavailableException,
     );
 
     expect(mock.auth.admin.createUser).toHaveBeenCalledTimes(1);
@@ -309,7 +319,7 @@ describe('SupabaseAuthService.signInWithTruecaller', () => {
     const svc = buildService(mock);
 
     await expect(svc.signInWithTruecaller(sampleProfile)).rejects.toBeInstanceOf(
-      BadRequestException,
+      ServiceUnavailableException,
     );
     // No auth user exists yet, so deleteUser must not be invoked.
     expect(mock.auth.admin.deleteUser).not.toHaveBeenCalled();

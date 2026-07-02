@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import * as crypto from 'crypto';
@@ -307,7 +307,12 @@ export class SupabaseAuthService {
         });
 
         if (createError) {
-            throw new BadRequestException(createError.message);
+            // Supabase infra failure (outage, rate limit, etc.), not a client
+            // validation error — a 5xx here keeps it visible to monitoring
+            // instead of being remapped to a misleading 401 by
+            // TruecallerInvalidRequestFilter (which only catches
+            // BadRequestException).
+            throw new ServiceUnavailableException(createError.message);
         }
 
         // The auth user now exists. From this point on, ANY failure must
@@ -334,13 +339,10 @@ export class SupabaseAuthService {
             });
 
             if (dbError) {
-                throw new BadRequestException(dbError.message);
+                // Same reasoning as createError above — surface DB outages as
+                // 5xx, not a masked 401.
+                throw new ServiceUnavailableException(dbError.message);
             }
-
-            return {
-                user: newUser.user,
-                session: null as any, // admin.createUser doesn't return a session; client gets one via login
-            };
         } catch (insertErr) {
             // Best-effort rollback. We deliberately swallow rollback
             // failures: the original insert error is more useful to the
@@ -354,6 +356,43 @@ export class SupabaseAuthService {
             }
             throw insertErr;
         }
+
+        // The auth user + users row both exist now — mint a real session the
+        // same way the existing-user branches do.
+        const session = await this.mintSession(tempEmail);
+        return { user: newUser.user, session };
+    }
+
+    /**
+     * Redeem an admin-generated magic link into a real session server-side.
+     * `admin.generateLink` never returns a live session (its `action_link` is
+     * always populated), so the only way to mint one out-of-band is to verify
+     * the link's `hashed_token` through the public `verifyOtp` API — the
+     * documented Supabase pattern for admin-issued sign-in.
+     */
+    private async mintSession(email: string) {
+        const { data: linkData, error: linkError } =
+            await this.supabase.auth.admin.generateLink({
+                type: 'magiclink',
+                email,
+            });
+
+        if (linkError) {
+            throw new ServiceUnavailableException(linkError.message);
+        }
+
+        const { data: verifyData, error: verifyError } = await this.supabase.auth.verifyOtp({
+            token_hash: linkData.properties.hashed_token,
+            type: 'magiclink',
+        });
+
+        if (verifyError || !verifyData.session) {
+            throw new ServiceUnavailableException(
+                verifyError?.message ?? 'Failed to create session',
+            );
+        }
+
+        return verifyData.session;
     }
 
     private async createSessionForUser(
@@ -371,29 +410,18 @@ export class SupabaseAuthService {
         });
 
         if (error) {
-            throw new BadRequestException(error.message);
+            // Supabase infra failure, not client validation — surface as 5xx
+            // (see createError/dbError above).
+            throw new ServiceUnavailableException(error.message);
         }
 
-        // Generate a new session by creating a magic link
         const userEmail = data.user.email ?? '';
         if (!userEmail) {
             throw new BadRequestException('User email is required to create session');
         }
 
-        const { data: linkData, error: linkError } =
-            await this.supabase.auth.admin.generateLink({
-                type: 'magiclink',
-                email: userEmail,
-            });
-
-        if (linkError) {
-            throw new BadRequestException(linkError.message);
-        }
-
-        return {
-            user: data.user,
-            session: linkData.properties?.action_link ? null : linkData,
-        };
+        const session = await this.mintSession(userEmail);
+        return { user: data.user, session };
     }
 
     // ==================== Helpers ====================

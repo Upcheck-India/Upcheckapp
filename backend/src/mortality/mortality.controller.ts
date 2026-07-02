@@ -18,6 +18,8 @@ export class MortalityController {
     }
 
     @Get('crop/:cropId')
+    @UseGuards(OwnershipGuard)
+    @OwnsResource('Crop', 'cropId', 'pond.farm.userId', 'READ')
     findByCrop(@Param('cropId') cropId: string) {
         return this.mortalityService.findByCrop(cropId);
     }

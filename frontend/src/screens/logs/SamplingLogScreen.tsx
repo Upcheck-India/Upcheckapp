@@ -9,13 +9,14 @@ import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
+import { todayLocalISODate } from '../../utils/localDate';
 
 export const SamplingLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName } = route.params;
 
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(todayLocalISODate());
     const [mbwG, setMbwG] = useState('');
     const [totalSamples, setTotalSamples] = useState('');
     const [biomassEstimation, setBiomassEstimation] = useState('');

@@ -27,7 +27,7 @@ const dailySeries = (records: FeedRecord[], n = 10) => {
     if (!r.recordedAt) continue;
     const d = new Date(r.recordedAt);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    byDay.set(key, (byDay.get(key) ?? 0) + (r.quantityKg || 0));
+    byDay.set(key, (byDay.get(key) ?? 0) + (Number(r.quantityKg) || 0));
   }
   const sorted = [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).slice(-n);
   return {
@@ -52,22 +52,28 @@ export const FeedStatsScreen = ({ route }: any) => {
     (async () => {
       setLoading(true);
       try {
+        // feedApi.getAll/getByCrop return a paginated PageDto ({ data, meta }), not
+        // a bare array — unwrap it the same way FeedHistoryScreen does. Postgres
+        // numeric columns (quantityKg, inventory quantity) also come back as
+        // strings, so every arithmetic use below needs a Number() coercion.
+        const toRecords = (data: any): FeedRecord[] => (Array.isArray(data) ? data : data?.data || []);
+
         const [recRes, ctxRes, totalRes, invRes] = await Promise.all([
-          feedApi.getAll(pondId).then((r) => r.data).catch(() => [] as FeedRecord[]),
+          feedApi.getAll(pondId).then((r) => toRecords(r.data)).catch(() => [] as FeedRecord[]),
           pondContextApi.get(pondId).then((r) => r.data).catch(() => null),
           (cropId
-            ? feedApi.getByCrop(cropId).then((r) => r.data.reduce((s, x) => s + (x.quantityKg || 0), 0))
-            : feedApi.getTotalByPond(pondId).then((r) => r.data)
+            ? feedApi.getByCrop(cropId).then((r) => toRecords(r.data).reduce((s, x) => s + (Number(x.quantityKg) || 0), 0))
+            : feedApi.getTotalByPond(pondId).then((r) => Number(r.data))
           ).catch(() => null),
           farmId ? inventoryApi.getAll(farmId).then((r) => r.data).catch(() => []) : Promise.resolve([]),
         ]);
         if (cancelled) return;
         setRecords([...recRes].sort((a, b) => Date.parse(b.recordedAt || '') - Date.parse(a.recordedAt || '')));
         setCtx(ctxRes);
-        setTotalKg(typeof totalRes === 'number' ? totalRes : null);
+        setTotalKg(typeof totalRes === 'number' && !Number.isNaN(totalRes) ? totalRes : null);
         const feedItems = invRes.filter((i) => i.category?.toLowerCase().includes('feed'));
-        setFeedStockKg(feedItems.reduce((s, i) => s + (i.quantity || 0), 0));
-        setFeedLowStock(feedItems.some((i) => i.reorderLevel != null && i.quantity <= i.reorderLevel));
+        setFeedStockKg(feedItems.reduce((s, i) => s + (Number(i.quantity) || 0), 0));
+        setFeedLowStock(feedItems.some((i) => i.reorderLevel != null && Number(i.quantity) <= Number(i.reorderLevel)));
       } finally {
         if (!cancelled) setLoading(false);
       }

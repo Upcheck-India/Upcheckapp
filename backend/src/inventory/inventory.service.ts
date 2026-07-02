@@ -106,15 +106,31 @@ export class InventoryService {
         // Workers consume feed stock when logging feeding — operational write.
         const item = await this.findOwned(id, userId, 'WRITE_OPERATIONAL');
 
-        const newQuantity = Number(item.quantity) + quantityChange;
-        if (newQuantity < 0) {
+        // Atomic SQL-level delta (not read-modify-write in JS) so concurrent
+        // feed logs can't clobber each other's stock updates. The guard clause
+        // only blocks obviously-doomed decrements early with a friendlier
+        // message; the WHERE clause below is the real concurrency-safe check.
+        if (Number(item.quantity) + quantityChange < 0) {
             throw new BadRequestException(
                 `Insufficient stock. Available: ${item.quantity}, Required: ${Math.abs(quantityChange)}`,
             );
         }
 
-        item.quantity = newQuantity;
-        const savedItem = await this.itemsRepository.save(item);
+        const result = await this.itemsRepository
+            .createQueryBuilder()
+            .update(InventoryItem)
+            .set({ quantity: () => `quantity + (${quantityChange})` })
+            .where('id = :id AND quantity + (:quantityChange) >= 0', { id, quantityChange })
+            .execute();
+
+        if (result.affected === 0) {
+            throw new BadRequestException(
+                `Insufficient stock. Available: ${item.quantity}, Required: ${Math.abs(quantityChange)}`,
+            );
+        }
+        // Re-fetch through the repository (not raw driver output) so the
+        // result is a properly camelCase-mapped entity.
+        const savedItem = (await this.itemsRepository.findOneBy({ id })) as InventoryItem;
 
         // Auto-raise a low-stock alert for the farm owner when crossing the threshold.
         if (savedItem.reorderLevel != null && savedItem.quantity <= savedItem.reorderLevel) {

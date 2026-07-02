@@ -12,6 +12,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { theme } from '../../theme';
 import { feedingTrayApi, type FeedingTrayCheck, type TrayResidue } from '../../api/feedingTray';
 import { useUIStore } from '../../store/uiStore';
+import { toLocalISODate } from '../../utils/localDate';
 
 const c = theme.roles.light;
 const RESIDUE_LABEL: Record<TrayResidue, string> = {
@@ -41,7 +42,7 @@ export const FeedingTrayChecksScreen = ({ route, navigation }: any) => {
             const now = new Date();
             await feedingTrayApi.create({
                 cropId,
-                checkDate: now.toISOString().slice(0, 10),
+                checkDate: toLocalISODate(now),
                 checkTime: now.toTimeString().slice(0, 5),
                 trayNumber,
                 remainingFeedStatus: residue,

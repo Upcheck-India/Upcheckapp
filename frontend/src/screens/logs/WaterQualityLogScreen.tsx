@@ -39,6 +39,7 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                 endpoint: '/water-quality',
                 payload: {
                     pondId,
+                    recordedAt: new Date().toISOString(),
                     ph: ph ? parseFloat(ph) : undefined,
                     dissolvedOxygen: dissolvedOxygen ? parseFloat(dissolvedOxygen) : undefined,
                     temperature: temperature ? parseFloat(temperature) : undefined,

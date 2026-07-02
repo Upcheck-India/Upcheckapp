@@ -211,9 +211,12 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                 const { data: cycleData } = await cropsApi.getById(pondData.activeCycleId);
                 setActiveCycle(cycleData);
 
-                const [samplingRes, feedRes, harvestRes] = await Promise.all([
+                const [samplingRes, feedTotalRes, harvestRes] = await Promise.all([
                     samplingApi.getAll(pondData.activeCycleId),
-                    feedApi.getAll(pondId),
+                    // ponytail: sums feed across every cycle ever run on this pond, not
+                    // just the active one — it's the only total (unpaginated) endpoint
+                    // the feed API exposes. Add a cycle-scoped total if that skews FCR.
+                    feedApi.getTotalByPond(pondId),
                     harvestsApi.getAll(),
                 ]);
 
@@ -221,10 +224,15 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                 const sortedSamplings = [...samplings].sort((a, b) => new Date(b.samplingDate).getTime() - new Date(a.samplingDate).getTime());
                 let currentBiomass = 0;
 
+                // Computed locally (not read back from state) so the values below and
+                // the cache write always agree with what was just fetched.
+                let newMbw = '--';
+                let newSurvival = '--';
+
                 if (sortedSamplings.length > 0) {
                     const latest = sortedSamplings[0];
-                    setMbw(latest.mbwG ? latest.mbwG.toString() : '--');
-                    setSurvival(latest.srEstimationPercent ? latest.srEstimationPercent.toString() : '--');
+                    newMbw = latest.mbwG ? latest.mbwG.toString() : '--';
+                    newSurvival = latest.srEstimationPercent ? latest.srEstimationPercent.toString() : '--';
                     currentBiomass += Number(latest.biomassEstimationKg || 0);
                 }
 
@@ -232,31 +240,31 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                 const cycleHarvests = harvests.filter((h: any) => h.cropId === pondData.activeCycleId);
                 const harvestedBiomass = cycleHarvests.reduce((sum: number, h: any) => sum + Number(h.weightKg || 0), 0);
                 const totalBiomass = currentBiomass + harvestedBiomass;
-                setBiomass(totalBiomass > 0 ? (totalBiomass / 1000).toFixed(2) : '--');
+                const newBiomass = totalBiomass > 0 ? (totalBiomass / 1000).toFixed(2) : '--';
 
-                const feeds = feedRes.data || [];
-                const feedRecords = Array.isArray(feeds) ? feeds : (feeds as any).data || [];
-                const cycleFeeds = feedRecords.filter((f: any) => f.cropId === pondData.activeCycleId);
-                const totalFeedKg = cycleFeeds.reduce((sum: number, f: any) => sum + Number(f.quantityKg || 0), 0);
-                setFcr(totalBiomass > 0 && totalFeedKg > 0 ? (totalFeedKg / totalBiomass).toFixed(2) : '--');
+                const totalFeedKg = Number(feedTotalRes.data) || 0;
+                const newFcr = totalBiomass > 0 && totalFeedKg > 0 ? (totalFeedKg / totalBiomass).toFixed(2) : '--';
 
+                let newWqAlert = false;
                 try {
                     const wqLatestRes = await waterQualityApi.getLatest(pondId);
-                    if (wqLatestRes.data?.recordedAt) {
-                        const hoursDiff = (Date.now() - new Date(wqLatestRes.data.recordedAt).getTime()) / 3_600_000;
-                        setWqAlert(hoursDiff > 24);
-                    } else {
-                        setWqAlert(true);
-                    }
+                    newWqAlert = !wqLatestRes.data?.recordedAt
+                        || (Date.now() - new Date(wqLatestRes.data.recordedAt).getTime()) / 3_600_000 > 24;
                 } catch {
-                    setWqAlert(true);
+                    newWqAlert = true;
                 }
 
-                // Cache the data
+                setMbw(newMbw);
+                setSurvival(newSurvival);
+                setBiomass(newBiomass);
+                setFcr(newFcr);
+                setWqAlert(newWqAlert);
+
+                // Cache the freshly computed values, not the (still-stale) closure state.
                 cacheRef.current = {
                     pond: pondData,
                     cycle: cycleData,
-                    metrics: { mbw, survival, biomass, fcr, wqAlert },
+                    metrics: { mbw: newMbw, survival: newSurvival, biomass: newBiomass, fcr: newFcr, wqAlert: newWqAlert },
                     timestamp: Date.now(),
                 };
             } else {
@@ -278,7 +286,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, [pondId, fadeIn, mbw, survival, biomass, fcr, wqAlert]);
+    }, [pondId, fadeIn]);
 
     useFocusEffect(
         useCallback(() => {

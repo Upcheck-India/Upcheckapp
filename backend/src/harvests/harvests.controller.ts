@@ -18,8 +18,8 @@ export class HarvestsController {
     }
 
     @Get()
-    findAll(@Query('cropId') cropId: string) {
-        return this.harvestsService.findAll(cropId);
+    findAll(@Query('cropId') cropId: string, @CurrentUser() user) {
+        return this.harvestsService.findAll(user.id, cropId);
     }
 
     @Get(':id')

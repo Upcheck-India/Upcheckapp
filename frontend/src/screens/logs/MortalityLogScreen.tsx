@@ -10,13 +10,14 @@ import { theme } from '../../theme';
 import { Stepper } from '../../components/ui/Stepper';
 import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
+import { todayLocalISODate } from '../../utils/localDate';
 
 export const MortalityLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName, cropId } = route.params;
 
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(todayLocalISODate());
     const [quantity, setQuantity] = useState(0);
     const [estimatedWeightKg, setEstimatedWeightKg] = useState('');
     const [note, setNote] = useState('');

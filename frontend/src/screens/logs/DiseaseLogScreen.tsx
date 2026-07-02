@@ -11,13 +11,14 @@ import { theme } from '../../theme';
 import { diseaseApi, DiseaseLibrary } from '../../api/diseases';
 import { findBannedSubstances } from '../../features/bannedSubstances';
 import { useUIStore } from '../../store/uiStore';
+import { todayLocalISODate } from '../../utils/localDate';
 
 export const DiseaseLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName, cropId } = route.params;
 
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(todayLocalISODate());
     // Disease is chosen from the seeded library — never a hand-typed UUID, so
     // the saved record always references a real disease_library row (FK-safe).
     const [diseases, setDiseases] = useState<DiseaseLibrary[]>([]);

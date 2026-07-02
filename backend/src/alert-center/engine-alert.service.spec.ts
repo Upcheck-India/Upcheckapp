@@ -7,6 +7,7 @@ function makeService() {
     null as any, // pondContext
     new LunarService(),
     null as any, // alertCenter
+    null as any, // farmAccess (unused by evaluate)
   );
 }
 

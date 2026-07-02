@@ -20,6 +20,7 @@ import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
 import { theme } from '../../theme';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { feedingTrayApi, type TrayResidue } from '../../api/feedingTray';
+import { toLocalISODate } from '../../utils/localDate';
 
 const isToday = (iso: string | null | undefined) =>
   !!iso && new Date(iso).toDateString() === new Date().toDateString();
@@ -70,7 +71,7 @@ export const DailyRoutineScreen = ({ route, navigation }: any) => {
       const now = new Date();
       await feedingTrayApi.create({
         cropId,
-        checkDate: now.toISOString().split('T')[0],
+        checkDate: toLocalISODate(now),
         checkTime: now.toTimeString().slice(0, 5),
         trayNumber: 1,
         remainingFeedStatus: tray,

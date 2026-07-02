@@ -17,7 +17,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { NumberField } from '../../components/ui/NumberField';
 import { theme } from '../../theme';
-import { waterQualityApi } from '../../api/waterQuality';
+import { saveRecord } from '../../sync/recordSync';
 
 const num = (s: string) => (s.trim() ? Number(s) : undefined);
 
@@ -41,14 +41,19 @@ export const WeeklyChemistryScreen = ({ route, navigation }: any) => {
     }
     setSaving(true);
     try {
-      await waterQualityApi.create({
-        pondId,
-        ammonia: num(ammonia),
-        nitrite: num(nitrite),
-        nitrate: num(nitrate),
-        alkalinity: num(alkalinity),
-        hardness: num(hardness),
-        transparency: num(transparency),
+      await saveRecord({
+        entity: 'water_quality',
+        endpoint: '/water-quality',
+        payload: {
+          pondId,
+          recordedAt: new Date().toISOString(),
+          ammonia: num(ammonia),
+          nitrite: num(nitrite),
+          nitrate: num(nitrate),
+          alkalinity: num(alkalinity),
+          hardness: num(hardness),
+          transparency: num(transparency),
+        },
       });
       navigation.goBack();
     } catch (e: any) {

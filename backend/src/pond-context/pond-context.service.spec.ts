@@ -11,8 +11,27 @@ function makeService(over: {
   tray?: any;
 } = {}) {
   const samplingRepo = { findOne: jest.fn().mockResolvedValue(over.sampling ?? null) };
-  const mortalityRepo = { find: jest.fn().mockResolvedValue(over.deaths ?? []) };
-  const feedRepo = { find: jest.fn().mockResolvedValue(over.feeds ?? []) };
+  // getContext now sums via SQL (SUM/MAX) instead of loading rows — mock the
+  // aggregate query builders to return the same total the row arrays imply.
+  const mortalityTotal = (over.deaths ?? []).reduce((a: number, d: any) => a + (Number(d.estimatedTotal) || 0), 0);
+  const mortalityRepo = {
+    createQueryBuilder: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue({ total: mortalityTotal }),
+    })),
+  };
+  const feedTotal = (over.feeds ?? []).reduce((a: number, f: any) => a + (Number(f.quantityKg) || 0), 0);
+  const feedLastAt = (over.feeds ?? []).reduce((latest: string | null, f: any) =>
+    f.recordedAt && (!latest || f.recordedAt > latest) ? f.recordedAt : latest, null);
+  const feedRepo = {
+    createQueryBuilder: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue({ totalFeed: feedTotal, lastFeedAt: feedLastAt }),
+    })),
+  };
   const trayRepo = { findOne: jest.fn().mockResolvedValue(over.tray ?? null) };
   const wqRepo = { find: jest.fn().mockResolvedValue(over.wqRecords ?? []) };
   const pondsService = { findOne: jest.fn().mockResolvedValue(over.pond ?? { id: 'p1', calculatedAreaM2: 4000, activeCycleId: 'c1' }) };

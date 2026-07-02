@@ -227,12 +227,19 @@ class StatefulSupabaseMock {
         return { data: null, error: null };
       },
       generateLink: async (_args: { type: string; email: string }) => ({
-        // The service only checks `linkData.properties?.action_link`.
-        // Returning an empty `properties` object is enough.
-        data: { properties: {} },
+        // mintSession reads `linkData.properties.hashed_token` and redeems
+        // it via verifyOtp, so the token must be present.
+        data: { properties: { hashed_token: 'stub-hashed-token' } },
         error: null,
       }),
     },
+    // mintSession redeems the admin-issued link into a real session through
+    // the public verifyOtp API. A stub session is enough for these tests —
+    // the asserted user.id comes from the create/update path, not the session.
+    verifyOtp: async (_args: { token_hash: string; type: string }) => ({
+      data: { session: { access_token: 'stub-access-token' } },
+      error: null,
+    }),
   };
 }
 

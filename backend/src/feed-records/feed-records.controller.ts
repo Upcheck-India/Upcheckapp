@@ -20,11 +20,12 @@ export class FeedRecordsController {
 
     @Get()
     findAll(
+        @CurrentUser() user,
         @Query('pondId') pondId?: string,
         @Query('cropId') cropId?: string,
         @Query() pageOptionsDto?: PageOptionsDto
     ) {
-        return this.feedRecordsService.findAll(pondId, cropId, pageOptionsDto);
+        return this.feedRecordsService.findAll(user.id, pondId, cropId, pageOptionsDto);
     }
 
     @Get('pond/:pondId/total')

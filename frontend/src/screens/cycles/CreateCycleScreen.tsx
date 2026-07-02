@@ -7,6 +7,7 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { cropsApi } from '../../api/crops';
+import { todayLocalISODate } from '../../utils/localDate';
 
 /** Parse a non-empty numeric string, else undefined (so the column default applies). */
 const num = (s: string) => (s.trim() ? Number(s) : undefined);
@@ -28,7 +29,7 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { pondId } = route.params;
     const [name, setName] = useState('');
-    const [stockingDate, setStockingDate] = useState(new Date().toISOString().split('T')[0]);
+    const [stockingDate, setStockingDate] = useState(todayLocalISODate());
     const [stockingCount, setStockingCount] = useState('');
     const [speciesType, setSpeciesType] = useState('Vannamei');
     const [seedType, setSeedType] = useState('');

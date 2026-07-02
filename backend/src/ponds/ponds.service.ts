@@ -31,7 +31,9 @@ export class PondsService {
      * Create a single pond or batch of ponds.
      */
     async create(createPondDto: CreatePondDto, userId: string) {
-        const farm = await this.farmsService.verifyOwnership(createPondDto.farmId, userId);
+        // Route guard is WRITE_MANAGEMENT (owner+manager) — match it here, not
+        // the legacy owner-only check, or managers pass the guard then 403 here.
+        const farm = await this.farmAccess.assertCanAccessFarm(userId, createPondDto.farmId, 'WRITE_MANAGEMENT');
         const batchCount = createPondDto.batchCount ?? 1;
 
         // Validate prefix

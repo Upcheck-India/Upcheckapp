@@ -10,13 +10,14 @@ import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
 import { ChipGroup } from '../../components/ui/ChipGroup';
 import { useUIStore } from '../../store/uiStore';
+import { todayLocalISODate } from '../../utils/localDate';
 
 export const FeedLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName } = route.params;
 
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [date, setDate] = useState(todayLocalISODate());
     const [fasting, setFasting] = useState(false);
 
     // Tray percentages (for tracking leftovers)

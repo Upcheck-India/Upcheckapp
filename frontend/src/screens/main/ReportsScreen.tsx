@@ -55,7 +55,7 @@ export const ReportsScreen = ({ navigation }: any) => {
         }).start();
     }, [fadeAnim]);
 
-    const fetchData = useCallback(async (forceRefresh = false) => {
+    const fetchData = useCallback(async (forceRefresh = false, farmIdOverride?: string) => {
         setError(null);
         setIsOffline(false);
 
@@ -63,7 +63,7 @@ export const ReportsScreen = ({ navigation }: any) => {
             const { data: farmsData } = await farmsApi.getAll();
             setFarms(farmsData);
 
-            const farmId = selectedFarmId || (farmsData.length > 0 ? farmsData[0].id : null);
+            const farmId = farmIdOverride || selectedFarmId || (farmsData.length > 0 ? farmsData[0].id : null);
             if (farmId && !selectedFarmId) {
                 setSelectedFarmId(farmId);
             }
@@ -125,8 +125,9 @@ export const ReportsScreen = ({ navigation }: any) => {
         setShowFarmPicker(false);
         setIsLoading(true);
         fadeAnim.setValue(0);
-        // Fetch new data for selected farm
-        setTimeout(() => fetchData(true), 100);
+        // Fetch new data for the newly-selected farm — pass it explicitly so we
+        // don't read the stale `selectedFarmId` still captured in this closure.
+        fetchData(true, farmId);
     }, [fetchData, fadeAnim]);
 
     const selectedFarm = farms.find(f => f.id === selectedFarmId);

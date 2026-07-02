@@ -28,8 +28,10 @@ export class TypeORMExceptionFilter implements ExceptionFilter {
             message = 'A required field is missing (Not Null Violation).';
         }
 
+        // Log the raw pg detail server-side only — it can contain schema/column/
+        // constraint internals that must not leak to API clients.
         this.logger.error(
-            `Database Error [${code}]: ${exception.message} on route ${request.method} ${request.url}`
+            `Database Error [${code}]: ${exception.message} on route ${request.method} ${request.url} — detail: ${(exception as any).detail}`
         );
 
         response.status(status).json({
@@ -37,7 +39,6 @@ export class TypeORMExceptionFilter implements ExceptionFilter {
             timestamp: new Date().toISOString(),
             path: request.url,
             message: message,
-            detail: (exception as any).detail,
         });
     }
 }

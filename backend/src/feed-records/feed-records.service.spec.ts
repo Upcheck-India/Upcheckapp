@@ -7,6 +7,7 @@ import { FeedRecordsService } from './feed-records.service';
 import { FeedRecord } from './feed-record.entity';
 import { PondsService } from '../ponds/ponds.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 // Mock repository factory
 const createMockRepository = () => ({
@@ -19,8 +20,14 @@ const createMockRepository = () => ({
   delete: jest.fn().mockResolvedValue({ affected: 1 }),
   createQueryBuilder: jest.fn(() => ({
     select: jest.fn().mockReturnThis(),
+    innerJoin: jest.fn().mockReturnThis(),
     where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
     getRawOne: jest.fn().mockResolvedValue({ totalFeed: 100 }),
+    getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
   })),
 });
 
@@ -49,6 +56,13 @@ describe('FeedRecordsService', () => {
           provide: InventoryService,
           useValue: {
             adjustStock: jest.fn(),
+          },
+        },
+        {
+          provide: FarmAccessService,
+          useValue: {
+            getAccessibleFarmIds: jest.fn().mockResolvedValue(['farm-1']),
+            assertCanAccessPond: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
@@ -121,21 +135,35 @@ describe('FeedRecordsService', () => {
   });
 
   describe('findAll', () => {
-    it('should return all feed records', async () => {
+    it('should return all feed records accessible to the caller', async () => {
       const mockRecords = [{ id: '1', quantityKg: 50 }];
-      mockRepository.findAndCount.mockResolvedValue([mockRecords, 1]);
+      const qb = mockRepository.createQueryBuilder();
+      qb.getManyAndCount.mockResolvedValue([mockRecords, 1]);
+      mockRepository.createQueryBuilder.mockReturnValue(qb);
 
-      const result = await service.findAll();
+      const result = await service.findAll('user-1');
 
-      expect(mockRepository.findAndCount).toHaveBeenCalled();
+      expect(qb.getManyAndCount).toHaveBeenCalled();
       expect(result.data).toEqual(mockRecords);
     });
 
     it('should filter by pondId', async () => {
       const pondId = 'pond-1';
-      await service.findAll(pondId);
+      const qb = mockRepository.createQueryBuilder();
+      mockRepository.createQueryBuilder.mockReturnValue(qb);
 
-      expect(mockRepository.findAndCount).toHaveBeenCalled();
+      await service.findAll('user-1', pondId);
+
+      expect(qb.andWhere).toHaveBeenCalledWith('feed.pondId = :pondId', { pondId });
+    });
+
+    it('should return no records when the caller has no accessible farms', async () => {
+      const farmAccessMock = module.get<FarmAccessService>(FarmAccessService);
+      jest.spyOn(farmAccessMock, 'getAccessibleFarmIds').mockResolvedValueOnce([]);
+
+      const result = await service.findAll('user-1');
+
+      expect(result.data).toEqual([]);
     });
   });
 

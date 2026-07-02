@@ -18,8 +18,8 @@ export class TreatmentsController {
     }
 
     @Get()
-    findAll(@Query('cropId') cropId?: string) {
-        return this.treatmentsService.findAll(cropId);
+    findAll(@Query('cropId') cropId: string, @CurrentUser() user) {
+        return this.treatmentsService.findAll(user.id, cropId);
     }
 
     @Get(':id')

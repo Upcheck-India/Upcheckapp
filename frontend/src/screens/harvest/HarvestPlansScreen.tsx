@@ -19,6 +19,7 @@ import { Input } from '../../components/ui/Input';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { theme } from '../../theme';
 import { harvestPlansApi, HarvestPlan } from '../../api/harvestPlans';
+import { todayLocalISODate } from '../../utils/localDate';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -211,7 +212,7 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
     // Add-plan form state
     const [showForm, setShowForm] = useState(false);
     const [formPlannedDate, setFormPlannedDate] = useState(
-        new Date().toISOString().split('T')[0],
+        todayLocalISODate(),
     );
     const [formTargetWeight, setFormTargetWeight] = useState('');
     const [formPricePerKg, setFormPricePerKg] = useState('');
@@ -328,7 +329,7 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
                 notes: formNotes.trim() || undefined,
             });
             // Reset form
-            setFormPlannedDate(new Date().toISOString().split('T')[0]);
+            setFormPlannedDate(todayLocalISODate());
             setFormTargetWeight('');
             setFormPricePerKg('');
             setFormNotes('');

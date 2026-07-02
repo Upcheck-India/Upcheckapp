@@ -8,6 +8,12 @@ import { RedisService } from '../redis/redis.service';
 import { SamplingService } from '../sampling/sampling.service';
 import { CropsService } from '../crops/crops.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { PageOptionsDto } from '../common/dto/page-options.dto';
+
+// Farms are hard-capped at 500 ponds (PondNamingService.MAX_PONDS_PER_FARM).
+// A page size well above that is effectively "no limit" for pondsService.findAll,
+// which otherwise defaults to take=50 and silently truncates large farms.
+const ALL_PONDS_PAGE = { skip: 0, take: 10000 } as PageOptionsDto;
 
 @Injectable()
 export class ReportsService {
@@ -119,8 +125,9 @@ export class ReportsService {
     async getFinancialReport(farmId: string, userId: string) {
         // Financial report is owner/manager only (VIEW_FINANCIALS).
         await this.farmAccess.assertCanAccessFarm(userId, farmId, 'VIEW_FINANCIALS');
-        // Find all ponds in the farm
-        const pondsPage = await this.pondsService.findAll(farmId, userId);
+        // Find all ponds in the farm — an explicit large page, not the default
+        // take=50, or a large farm's report silently drops ponds past #50.
+        const pondsPage = await this.pondsService.findAll(farmId, userId, undefined, ALL_PONDS_PAGE);
 
         let totalRevenue = 0;
         let totalExpenses = 0;
@@ -128,10 +135,20 @@ export class ReportsService {
 
         // Aggregate across ALL cycles of every pond — not just the active one —
         // so completed/past cycles still contribute to the farm's finances.
-        for (const pond of pondsPage.data) {
-            const crops = await this.cropsService.findByPond(pond.id, userId);
-            for (const crop of crops) {
-                const financials = await this.expensesService.getCycleFinancials(crop.id, userId);
+        // Per-pond and per-crop fan-out is parallelized (was a sequential N+1);
+        // Promise.all preserves array order, so the summation order below —
+        // and therefore the arithmetic result — is unchanged.
+        const perPondCropFinancials = await Promise.all(
+            pondsPage.data.map(async (pond) => {
+                const crops = await this.cropsService.findByPond(pond.id, userId);
+                return Promise.all(
+                    crops.map(crop => this.expensesService.getCycleFinancials(crop.id, userId)),
+                );
+            }),
+        );
+
+        for (const cropFinancials of perPondCropFinancials) {
+            for (const financials of cropFinancials) {
                 totalRevenue += financials.totalRevenue;
                 totalExpenses += financials.totalExpenses;
                 for (const [category, amount] of Object.entries(financials.expensesByCategory)) {

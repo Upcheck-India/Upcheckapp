@@ -5,6 +5,7 @@ import { Harvest } from './harvest.entity';
 import { CreateHarvestDto } from './dto/create-harvest.dto';
 import { UpdateHarvestDto } from './dto/update-harvest.dto';
 import { CropsService } from '../crops/crops.service';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 @Injectable()
 export class HarvestsService {
@@ -12,6 +13,7 @@ export class HarvestsService {
         @InjectRepository(Harvest)
         private harvestsRepository: Repository<Harvest>,
         private cropsService: CropsService,
+        private readonly farmAccess: FarmAccessService,
     ) { }
 
     async create(createDto: CreateHarvestDto, userId: string) {
@@ -25,11 +27,21 @@ export class HarvestsService {
         return savedHarvest;
     }
 
-    async findAll(cropId: string) {
-        return this.harvestsRepository.find({
-            where: { cropId },
-            order: { harvestDate: 'DESC' },
-        });
+    async findAll(userId: string, cropId?: string) {
+        // Scope to farms the caller can access — cropId alone is an optional
+        // filter, never the ownership boundary (was leaking every farm's harvests,
+        // including sale prices, when omitted).
+        const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+        if (farmIds.length === 0) return [];
+
+        const qb = this.harvestsRepository
+            .createQueryBuilder('harvest')
+            .innerJoin('harvest.crop', 'crop')
+            .innerJoin('crop.pond', 'pond')
+            .where('pond.farmId IN (:...farmIds)', { farmIds })
+            .orderBy('harvest.harvestDate', 'DESC');
+        if (cropId) qb.andWhere('harvest.cropId = :cropId', { cropId });
+        return qb.getMany();
     }
 
     async findOne(id: string): Promise<Harvest> {

@@ -15,6 +15,11 @@ import cookieParser from 'cookie-parser';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Behind Render's reverse proxy, trust the X-Forwarded-For chain so
+  // ThrottlerGuard (and req.ip generally) keys by real client IP instead of
+  // the proxy's IP for every request — otherwise all users share one bucket.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // Fail fast (with a loud log) if the DB schema is missing — prevents the
   // app from limping into per-request "relation does not exist" errors after
   // a fresh-DB deploy where migrations did not run.
