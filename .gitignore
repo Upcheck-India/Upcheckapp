@@ -55,3 +55,6 @@ backend/coverage/
 # @string/partnerKey resolve correctly. Provide it via your secret store before
 # building.
 frontend/android/app/src/main/res/values/partner-keys.xml
+
+# local-only live auth smoke test (references gitignored .env)
+backend/scripts/auth-smoke.sh
