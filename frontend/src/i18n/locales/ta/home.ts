@@ -103,6 +103,22 @@ const home = {
   onboarding_cta: 'உங்கள் முதல் பண்ணையை உருவாக்குங்கள்',
   onboarding_skip: 'இப்போதைக்கு தவிர்க்கவும்',
   reportsViewTransactions: 'பரிவர்த்தனைகளைக் காண்க',
+
+  // Farm-at-a-glance cards (HomeScreen)
+  farmGlance: 'பண்ணை ஒரு பார்வையில்',
+  waterQuality: 'நீர் தரம்',
+  doUnit: 'mg/L DO',
+  noReadings: 'இன்னும் அளவீடுகள் இல்லை',
+  lastFeed: 'கடைசி தீவனம்',
+  kg: 'kg',
+  inStock: 'இருப்பில் {{kg}} kg',
+  low: 'குறைவு',
+  expenses: 'செலவுகள்',
+  net: 'நிகர {{amount}}',
+  tapToManage: 'நிர்வகிக்க தட்டவும்',
+  cropPnl: 'பயிர் லாப-நஷ்டம்',
+  marginRoi: 'மார்ஜின் {{margin}}% · ROI {{roi}}%',
+  noActiveCrop: 'செயலில் பயிர் இல்லை',
 };
 
 export default home;

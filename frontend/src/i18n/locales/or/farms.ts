@@ -37,5 +37,12 @@ const farms = {
   water_borehole: 'ବୋରୱେଲ',
   water_reservoir: 'ଜଳାଶୟ',
   water_recycled: 'ପୁନଃଚକ୍ରିତ',
+
+  // Farm setup
+  setupTitle: 'ଆପଣଙ୍କ ଫାର୍ମ ସେଟଅପ କରନ୍ତୁ',
+  setupSubtitle: 'ଆରମ୍ଭ କରିବାକୁ ଆପଣଙ୍କ ଫାର୍ମ ବିଷୟରେ ଟିକେ କୁହନ୍ତୁ।',
+  fieldPondCount: 'ପୋଖରୀ ସଂଖ୍ୟା',
+  placeholderPondCount: 'e.g. 4',
+  errorPondCountRequired: 'ଏକ ବୈଧ ପୋଖରୀ ସଂଖ୍ୟା ଦିଅନ୍ତୁ',
 };
 export default farms;

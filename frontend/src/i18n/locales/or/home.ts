@@ -103,6 +103,22 @@ const home = {
   onboarding_cta: 'ଆପଣଙ୍କ ପ୍ରଥମ ଚାଷ ସୃଷ୍ଟି କରନ୍ତୁ',
   onboarding_skip: 'ବର୍ତ୍ତମାନ ଛାଡ଼ନ୍ତୁ',
   reportsViewTransactions: 'କାରବାର ଦେଖନ୍ତୁ',
+
+  // Farm-at-a-glance card
+  farmGlance: 'ଏକ ନଜରରେ ଫାର୍ମ',
+  waterQuality: 'ଜଳ ଗୁଣବତ୍ତା',
+  doUnit: 'mg/L DO',
+  noReadings: 'ଏ ପର୍ଯ୍ୟନ୍ତ କୌଣସି ରିଡିଂ ନାହିଁ',
+  lastFeed: 'ଶେଷ ଖାଦ୍ୟ',
+  kg: 'kg',
+  inStock: 'ଷ୍ଟକରେ {{kg}} kg',
+  low: 'ସ୍ବଳ୍ପ',
+  expenses: 'ଖର୍ଚ',
+  net: 'ନିଟ {{amount}}',
+  tapToManage: 'ପ୍ରବନ୍ଧନ ପାଇଁ ଟ୍ୟାପ କରନ୍ତୁ',
+  cropPnl: 'ଫସଲ ଲାଭ-କ୍ଷତି',
+  marginRoi: 'ମାର୍ଜିନ {{margin}}% · ROI {{roi}}%',
+  noActiveCrop: 'ସଚ୍ଛଳ ଫସଲ ନାହିଁ',
 };
 
 export default home;

@@ -5,6 +5,8 @@ import home from './home';
 import navigation from './navigation';
 import farms from './farms';
 import ponds from './ponds';
+import pondSetup from './pondSetup';
+import feedStats from './feedStats';
 import cycles from './cycles';
 import logs from './logs';
 import calculators from './calculators';
@@ -26,6 +28,8 @@ export default {
   navigation,
   farms,
   ponds,
+  pondSetup,
+  feedStats,
   cycles,
   logs,
   calculators,

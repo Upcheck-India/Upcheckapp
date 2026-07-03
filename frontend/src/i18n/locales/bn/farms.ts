@@ -37,5 +37,12 @@ const farms = {
   water_borehole: 'নলকূপ',
   water_reservoir: 'জলাধার',
   water_recycled: 'পুনর্ব্যবহৃত',
+
+  // FarmSetupScreen
+  setupTitle: 'আপনার খামার সেট করুন',
+  setupSubtitle: 'শুরু করতে আপনার খামার সম্পর্কে কিছু বলুন।',
+  fieldPondCount: 'পুকুরের সংখ্যা',
+  placeholderPondCount: 'যেমন: 4',
+  errorPondCountRequired: 'একটি সঠিক পুকুরের সংখ্যা লিখুন',
 };
 export default farms;

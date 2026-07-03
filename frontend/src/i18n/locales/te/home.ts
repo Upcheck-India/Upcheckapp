@@ -103,6 +103,22 @@ const home = {
   onboarding_cta: 'మీ మొదటి చెరువును సృష్టించండి',
   onboarding_skip: 'ప్రస్తుతానికి దాటవేయండి',
   reportsViewTransactions: 'లావాదేవీలను చూడండి',
+
+  // Farm-at-a-glance cards
+  farmGlance: 'ఫారం ఒక్క చూపులో',
+  waterQuality: 'నీటి నాణ్యత',
+  doUnit: 'mg/L DO',
+  noReadings: 'ఇంకా రీడింగ్‌లు లేవు',
+  lastFeed: 'చివరి దాణా',
+  kg: 'kg',
+  inStock: 'స్టాక్‌లో {{kg}} kg',
+  low: 'తక్కువ',
+  expenses: 'ఖర్చులు',
+  net: 'నికర {{amount}}',
+  tapToManage: 'నిర్వహించడానికి ట్యాప్ చేయండి',
+  cropPnl: 'పంట లాభ-నష్టం',
+  marginRoi: 'మార్జిన్ {{margin}}% · ROI {{roi}}%',
+  noActiveCrop: 'క్రియాశీల పంట లేదు',
 };
 
 export default home;

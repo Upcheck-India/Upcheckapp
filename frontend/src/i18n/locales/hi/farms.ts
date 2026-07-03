@@ -37,5 +37,12 @@ const farms = {
   water_borehole: 'बोरवेल',
   water_reservoir: 'जलाशय',
   water_recycled: 'पुनर्चक्रित',
+
+  // FarmSetupScreen
+  setupTitle: 'अपना फार्म सेट करें',
+  setupSubtitle: 'शुरू करने के लिए हमें अपने फार्म के बारे में थोड़ा बताएं।',
+  fieldPondCount: 'तालाबों की संख्या',
+  placeholderPondCount: 'e.g. 4',
+  errorPondCountRequired: 'तालाबों की वैध संख्या दर्ज करें',
 };
 export default farms;

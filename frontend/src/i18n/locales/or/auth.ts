@@ -150,5 +150,13 @@ const auth = {
   consentPrefix: "ଖାତା ସୃଷ୍ଟି କରି, ଆପଣ ଆମର",
   legalPrefix: "ଜାରି ରଖି, ଆପଣ ଆମର",
   consentAnd: "ଏବଂ",
+
+  // ── Account type selection ────────────────────────────────────────────────
+  accountTypeLabel: 'ମୁଁ ଜଣେ…',
+  accountTypeRequired: 'ଦୟାକରି ଏକ ଆକାଉଣ୍ଟ ପ୍ରକାର ବାଛନ୍ତୁ',
+  accountOwnerTitle: 'ଫାର୍ମ ମାଲିକ',
+  accountOwnerDesc: 'ଆପଣଙ୍କ ନିଜ ଫାର୍ମ ସେଟଅପ ଓ ପ୍ରବନ୍ଧନ କରନ୍ତୁ',
+  accountWorkerTitle: 'କର୍ମଚାରୀ',
+  accountWorkerDesc: 'ଏକ ଫାର୍ମରେ ଯୋଗ ଦିଅନ୍ତୁ ଓ ଦୈନିକ କାମ ଲଗ କରନ୍ତୁ',
 };
 export default auth;

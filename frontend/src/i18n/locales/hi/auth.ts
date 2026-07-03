@@ -150,5 +150,13 @@ const auth = {
   consentPrefix: "खाता बनाकर, आप हमारी",
   legalPrefix: "जारी रखकर, आप हमारी",
   consentAnd: "और",
+
+  // ── Account type (role selection) ─────────────────────────────────────────
+  accountTypeLabel: 'मैं हूँ…',
+  accountTypeRequired: 'कृपया एक खाता प्रकार चुनें',
+  accountOwnerTitle: 'फार्म मालिक',
+  accountOwnerDesc: 'अपना फार्म सेट करें और प्रबंधित करें',
+  accountWorkerTitle: 'कर्मचारी',
+  accountWorkerDesc: 'किसी फार्म से जुड़ें और दैनिक काम दर्ज करें',
 };
 export default auth;

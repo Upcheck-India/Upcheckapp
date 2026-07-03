@@ -37,5 +37,12 @@ const farms = {
   water_borehole: 'బోర్‌వెల్',
   water_reservoir: 'జలాశయం',
   water_recycled: 'రీసైకిల్',
+
+  // FarmSetupScreen
+  setupTitle: 'మీ ఫారాన్ని సెటప్ చేయండి',
+  setupSubtitle: 'ప్రారంభించడానికి మీ ఫారం గురించి కొంచెం చెప్పండి.',
+  fieldPondCount: 'చెరువుల సంఖ్య',
+  placeholderPondCount: 'ఉదా. 4',
+  errorPondCountRequired: 'చెరువుల చెల్లుబాటు అయ్యే సంఖ్యను నమోదు చేయండి',
 };
 export default farms;

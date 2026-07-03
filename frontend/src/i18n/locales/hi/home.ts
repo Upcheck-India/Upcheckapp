@@ -103,6 +103,22 @@ const home = {
   onboarding_cta: 'अपना पहला फार्म बनाएं',
   onboarding_skip: 'अभी छोड़ें',
   reportsViewTransactions: 'लेन-देन देखें',
+
+  // Farm-at-a-glance cards (HomeScreen)
+  farmGlance: 'एक नज़र में फार्म',
+  waterQuality: 'जल गुणवत्ता',
+  doUnit: 'mg/L DO',
+  noReadings: 'अभी कोई रीडिंग नहीं',
+  lastFeed: 'पिछला आहार',
+  kg: 'kg',
+  inStock: 'स्टॉक में {{kg}} kg',
+  low: 'कम',
+  expenses: 'खर्च',
+  net: 'शुद्ध {{amount}}',
+  tapToManage: 'प्रबंधित करने के लिए टैप करें',
+  cropPnl: 'फसल लाभ-हानि',
+  marginRoi: 'मार्जिन {{margin}}% · ROI {{roi}}%',
+  noActiveCrop: 'कोई सक्रिय फसल नहीं',
 };
 
 export default home;

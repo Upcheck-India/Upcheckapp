@@ -103,6 +103,22 @@ const home = {
   onboarding_cta: 'আপনার প্রথম খামার তৈরি করুন',
   onboarding_skip: 'এখন এড়িয়ে যান',
   reportsViewTransactions: 'লেনদেন দেখুন',
+
+  // Farm-at-a-glance cards (HomeScreen)
+  farmGlance: 'এক নজরে খামার',
+  waterQuality: 'জলের গুণমান',
+  doUnit: 'mg/L DO',
+  noReadings: 'এখনও কোনো রিডিং নেই',
+  lastFeed: 'সর্বশেষ খাবার',
+  kg: 'kg',
+  inStock: 'স্টকে {{kg}} kg',
+  low: 'কম',
+  expenses: 'ব্যয়',
+  net: 'নিট {{amount}}',
+  tapToManage: 'পরিচালনা করতে ট্যাপ করুন',
+  cropPnl: 'ফসল লাভ-ক্ষতি',
+  marginRoi: 'মার্জিন {{margin}}% · ROI {{roi}}%',
+  noActiveCrop: 'কোনো সক্রিয় ফসল নেই',
 };
 
 export default home;

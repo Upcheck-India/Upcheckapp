@@ -150,5 +150,13 @@ const auth = {
   consentPrefix: "একটি অ্যাকাউন্ট তৈরি করে, আপনি আমাদের",
   legalPrefix: "চালিয়ে গিয়ে, আপনি আমাদের",
   consentAnd: "এবং",
+
+  // ── Account type (RegisterScreen) ─────────────────────────────────────────
+  accountTypeLabel: 'আমি একজন…',
+  accountTypeRequired: 'অনুগ্রহ করে একটি অ্যাকাউন্টের ধরন বেছে নিন',
+  accountOwnerTitle: 'খামার মালিক',
+  accountOwnerDesc: 'নিজের খামার তৈরি ও পরিচালনা করুন',
+  accountWorkerTitle: 'কর্মী',
+  accountWorkerDesc: 'একটি খামারে যোগ দিন ও দৈনিক কাজ লিপিবদ্ধ করুন',
 };
 export default auth;

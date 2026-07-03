@@ -150,5 +150,13 @@ const auth = {
   consentPrefix: "ఖాతాను సృష్టించడం ద్వారా, మీరు మా",
   legalPrefix: "కొనసాగించడం ద్వారా, మీరు మా",
   consentAnd: "మరియు",
+
+  // ── Account type selection ────────────────────────────────────────────────
+  accountTypeLabel: 'నేను ఒక…',
+  accountTypeRequired: 'దయచేసి ఖాతా రకాన్ని ఎంచుకోండి',
+  accountOwnerTitle: 'ఫారం యజమాని',
+  accountOwnerDesc: 'మీ స్వంత ఫారాన్ని సెటప్ చేసి నిర్వహించండి',
+  accountWorkerTitle: 'కార్మికుడు',
+  accountWorkerDesc: 'ఫారంలో చేరి రోజువారీ పనిని నమోదు చేయండి',
 };
 export default auth;

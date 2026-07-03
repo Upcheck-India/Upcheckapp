@@ -37,5 +37,12 @@ const farms = {
   water_borehole: 'ஆழ்துளை கிணறு',
   water_reservoir: 'நீர்த்தேக்கம்',
   water_recycled: 'மறுசுழற்சி',
+
+  // FarmSetupScreen
+  setupTitle: 'உங்கள் பண்ணையை அமைக்கவும்',
+  setupSubtitle: 'தொடங்க உங்கள் பண்ணையைப் பற்றி சிறிது சொல்லுங்கள்.',
+  fieldPondCount: 'குளங்களின் எண்ணிக்கை',
+  placeholderPondCount: 'எ.கா. 4',
+  errorPondCountRequired: 'சரியான குளங்களின் எண்ணிக்கையை உள்ளிடுக',
 };
 export default farms;
