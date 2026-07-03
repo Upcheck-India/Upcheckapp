@@ -7,6 +7,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    # NODE_OPTIONS can no longer be written via $GITHUB_ENV (GitHub blocks it),
+    # so set the heap bump as a job-level env var instead.
+    env:
+      NODE_OPTIONS: --max_old_space_size=4096
+
     defaults:
       run:
         working-directory: frontend
@@ -15,10 +20,6 @@ jobs:
       # 📥 Checkout
       - name: Checkout
         uses: actions/checkout@v5
-
-      # 🧠 Increase Node memory
-      - name: Increase Node memory
-        run: echo "NODE_OPTIONS=--max_old_space_size=4096" >> $GITHUB_ENV
 
       # ⚡ Setup Node
       - name: Setup Node
@@ -41,7 +42,7 @@ jobs:
 
       # 🤖 Android SDK
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       # ⚡ Cache Gradle
       - name: Cache Gradle
@@ -76,7 +77,7 @@ jobs:
 
       # 📦 Upload
       - name: Upload APK
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: preview-apk
           path: frontend/android/app/build/outputs/apk/release/*.apk
