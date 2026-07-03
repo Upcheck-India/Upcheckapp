@@ -14,8 +14,14 @@ import { Login2faDto } from './dto/login-2fa.dto';
 import { LoginOtpRequestDto, LoginOtpVerifyDto } from './dto/login-otp.dto';
 import { SignupDto } from './dto/signup.dto';
 import { ChangePasswordDto } from './dto/auth.dto';
+import { Throttle } from '@nestjs/throttler';
 import { RedisService } from '../redis/redis.service';
 import type { User } from '@supabase/supabase-js';
+
+// L2: tighter per-endpoint rate limits for credential-guessing surfaces
+// (the global guard is a coarse 60/min/IP for everything).
+const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
+const SENSITIVE_THROTTLE = { default: { limit: 5, ttl: 60_000 } };
 
 const TWO_FA_TEMP_PREFIX = 'auth:2fa:temp:';
 const TWO_FA_TEMP_TTL_SECONDS = 300;
@@ -85,6 +91,7 @@ export class SupabaseAuthController {
     // ==================== Email/Password Auth ====================
 
     @Public()
+    @Throttle(SENSITIVE_THROTTLE)
     @Post('signup')
     async signup(@Body() body: SignupDto) {
         const { email, password, firstName, lastName, username, accountType } = body;
@@ -102,12 +109,13 @@ export class SupabaseAuthController {
 
         return {
             message: 'Registration successful. Please check your email for verification.',
-            user: result.user,
+            user: this.sanitizeUser(result.user),
             session: result.session,
         };
     }
 
     @Public()
+    @Throttle(AUTH_THROTTLE)
     @Post('signin')
     async signin(@Body() body: { email: string; password: string }) {
         const { email, password } = body;
@@ -142,12 +150,24 @@ export class SupabaseAuthController {
             );
             return { requires2FA: true, tempToken };
         }
-        return { message: successMessage, user: result.user, session: result.session };
+        return { message: successMessage, user: this.sanitizeUser(result.user), session: result.session };
+    }
+
+    /**
+     * L3: strip `identities` from the Supabase user before returning it to the
+     * client — it can carry linked-provider identity data the app never uses
+     * (the frontend reads only id/email/phone/user_metadata/app_metadata).
+     */
+    private sanitizeUser(user: User | null) {
+        if (!user) return user;
+        const { identities, ...safe } = user as any;
+        return safe;
     }
 
     // ==================== Passwordless email OTP login ====================
 
     @Public()
+    @Throttle(SENSITIVE_THROTTLE)
     @Post('login-otp/request')
     @HttpCode(HttpStatus.OK)
     async requestLoginOtp(@Body() body: LoginOtpRequestDto) {
@@ -165,6 +185,7 @@ export class SupabaseAuthController {
     // ==================== Two-factor authentication (TOTP) ====================
 
     @Public()
+    @Throttle(AUTH_THROTTLE)
     @Post('2fa/login')
     @HttpCode(HttpStatus.OK)
     async twoFactorLogin(@Body() body: Login2faDto) {
@@ -408,6 +429,7 @@ export class SupabaseAuthController {
     // ==================== Password Management ====================
 
     @Public()
+    @Throttle(SENSITIVE_THROTTLE)
     @Post('forgot-password')
     async forgotPassword(@Body() body: { email: string }) {
         const { email } = body;

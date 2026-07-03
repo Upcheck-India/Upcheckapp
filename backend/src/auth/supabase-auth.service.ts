@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException, BadRequestException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import * as crypto from 'crypto';
@@ -6,9 +6,16 @@ import * as crypto from 'crypto';
 @Injectable()
 export class SupabaseAuthService {
     private supabase: SupabaseClient;
+    private readonly logger = new Logger(SupabaseAuthService.name);
 
     constructor(private configService: ConfigService) {
         const supabaseUrl = this.configService.get('SUPABASE_URL');
+        // L5: the anon key is required for config parity with the frontend and
+        // to fail fast on an incomplete deployment. The server intentionally
+        // uses a single service-role client for both admin and public auth
+        // calls (signInWithPassword/verifyOtp) — those are auth operations, not
+        // RLS-bearing data queries, so the elevated key is not a data-exposure
+        // risk here.
         const supabaseAnonKey = this.configService.get('SUPABASE_ANON_KEY');
         const supabaseKey = this.configService.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -82,9 +89,13 @@ export class SupabaseAuthService {
             options: { shouldCreateUser: false },
         });
         if (error) {
-            throw new BadRequestException(error.message);
+            // L1 (anti-enumeration): do NOT surface the error. A distinct
+            // failure for unregistered emails would let an attacker discover
+            // which accounts exist. Log server-side; return the same generic
+            // response whether or not the email is registered.
+            this.logger.warn(`sendEmailOtp for a login-otp request failed: ${error.message}`);
         }
-        return { message: 'A login code has been sent to your email.' };
+        return { message: 'If an account exists for that email, a login code has been sent.' };
     }
 
     /** Verify an emailed OTP and return a full session. */
