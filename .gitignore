@@ -58,3 +58,6 @@ frontend/android/app/src/main/res/values/partner-keys.xml
 
 # local-only live auth smoke test (references gitignored .env)
 backend/scripts/auth-smoke.sh
+
+# large binary design doc — keep out of git (use lfs if ever needed)
+Upcheck_Architecture_UX_Document.docx
