@@ -34,6 +34,8 @@ npx jest                             # tests
 ```
 **Schema change?** From `backend/`: `npm run verify:fresh-db` (see [database guide](./docs/guides/database-migrations.md)) — this must pass before the migration is considered safe.
 
+**Touched docs?** From the repo root: `node scripts/check-doc-links.mjs` — verifies every relative cross-link resolves. CI runs this on every PR (the **Docs** workflow), and also posts a non-blocking reminder if you change app code without touching docs.
+
 **Non-trivial behavior change?** Actually exercise it (boot the API / drive the screen), don't rely on tests alone.
 
 ## 3. Testing expectations

@@ -1,0 +1,39 @@
+name: Docs
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  docs:
+    name: Docs checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Hard gate: every relative markdown cross-link must resolve.
+      - name: Check doc links
+        run: node scripts/check-doc-links.mjs
+
+      # Soft nudge (never fails CI): if a PR changes app code but no docs,
+      # remind the author to update the relevant guide. See CONTRIBUTING §6.
+      - name: Docs-drift reminder
+        if: github.event_name == 'pull_request'
+        run: |
+          base="${{ github.base_ref }}"
+          git fetch --no-tags --prune origin "+refs/heads/$base:refs/remotes/origin/$base"
+          changed="$(git diff --name-only "origin/$base...HEAD")"
+          code="$(printf '%s\n' "$changed" | grep -E '^(backend|frontend)/src/' || true)"
+          docs="$(printf '%s\n' "$changed" | grep -E '^docs/|^README\.md$|^CONTRIBUTING\.md$' || true)"
+          if [ -n "$code" ] && [ -z "$docs" ]; then
+            echo "::warning title=Docs may need updating::This PR changes app code (backend/src or frontend/src) but no docs. If behavior changed, update the relevant guide in the same PR (CONTRIBUTING §6)."
+          else
+            echo "Docs-drift check: OK"
+          fi
