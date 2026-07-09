@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,14 @@ import { ParameterInput } from '../../components/forms/ParameterInput';
 import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
+import { waterQualityApi } from '../../api/waterQuality';
+
+// Fields that drift slowly (pond chemistry/geometry-driven, not day-to-day),
+// so pre-filling them from the last logged reading saves a farmer re-typing
+// the same number every visit — they only need to correct it when it
+// actually changed. pH/DO/temperature are deliberately NOT pre-filled: they
+// are the reason the farmer opened this screen and must be a fresh reading.
+const SLOW_CHANGING_PREFILL_FIELDS = ['salinity', 'alkalinity', 'hardness', 'transparency'] as const;
 
 export const WaterQualityLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -29,6 +37,48 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
 
     const [notes, setNotes] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    // Quick-mode: only pH/DO/temperature show by default (the readings a
+    // farmer logs every visit); the rest are one tap away, not a wall of
+    // fields between "open screen" and "save" (USER_PERSPECTIVE_PRODUCT_ANALYSIS §Part 2 row #2).
+    const [showMore, setShowMore] = useState(false);
+    const [prefilledFields, setPrefilledFields] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        let cancelled = false;
+        waterQualityApi
+            .getLatest(pondId)
+            .then(({ data }) => {
+                if (cancelled || !data) return;
+                const filled = new Set<string>();
+                const setters: Record<string, (v: string) => void> = {
+                    salinity: setSalinity,
+                    alkalinity: setAlkalinity,
+                    hardness: setHardness,
+                    transparency: setTransparency,
+                };
+                SLOW_CHANGING_PREFILL_FIELDS.forEach((key) => {
+                    const value = (data as any)[key];
+                    if (value != null) {
+                        setters[key](String(value));
+                        filled.add(key);
+                    }
+                });
+                if (filled.size > 0) {
+                    setPrefilledFields(filled);
+                    // Deliberately left collapsed: the carried-over values are
+                    // already in state and will be saved as-is if the farmer
+                    // never opens "more readings" — that's the point of
+                    // pre-filling. Expanding is only needed to check or edit them.
+                }
+            })
+            .catch(() => {
+                // No prior reading (new pond) or offline — quietly start blank,
+                // this is not an error the farmer needs to see.
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [pondId]);
 
     const handleSave = async () => {
         setIsLoading(true);
@@ -80,43 +130,76 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
             <ScrollView contentContainerStyle={styles.content}>
                 <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
+                {/* Quick mode: the 3 readings a farmer logs every visit, front and
+                    centre with no scrolling past unrelated fields first. */}
                 <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>{t('logs.waterQuality_sectionPhysical')}</Text>
-                    <View style={styles.row}>
-                        <ParameterInput label={t('logs.waterQuality_labelTemperature')} unit="°C" value={temperature} onChangeText={setTemperature} parameterKey="temperature" />
-                        <View style={styles.spacer} />
-                        <ParameterInput label={t('logs.waterQuality_labelTransparency')} unit="cm" value={transparency} onChangeText={setTransparency} parameterKey="transparency" />
-                    </View>
-                    <View style={styles.row}>
-                        <ParameterInput label={t('logs.waterQuality_labelSalinity')} unit="ppt" value={salinity} onChangeText={setSalinity} parameterKey="salinity" />
-                        <View style={styles.spacer} />
-                        <View style={styles.halfCol} />
-                    </View>
-                </Card>
-
-                <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>{t('logs.waterQuality_sectionChemical')}</Text>
+                    <Text style={styles.sectionTitle}>{t('logs.waterQuality_sectionDaily', "Today's Reading")}</Text>
                     <View style={styles.row}>
                         <ParameterInput label={t('logs.waterQuality_labelPh')} value={ph} onChangeText={setPh} parameterKey="ph" />
                         <View style={styles.spacer} />
                         <ParameterInput label={t('logs.waterQuality_labelDo')} unit="mg/L" value={dissolvedOxygen} onChangeText={setDissolvedOxygen} parameterKey="do" />
                     </View>
                     <View style={styles.row}>
-                        <ParameterInput label={t('logs.waterQuality_labelAmmonia')} unit="mg/L" value={ammonia} onChangeText={setAmmonia} parameterKey="ammonia" />
-                        <View style={styles.spacer} />
-                        <ParameterInput label={t('logs.waterQuality_labelNitrite')} unit="mg/L" value={nitrite} onChangeText={setNitrite} parameterKey="nitrite" />
-                    </View>
-                    <View style={styles.row}>
-                        <ParameterInput label={t('logs.waterQuality_labelAlkalinity')} unit="mg/L" value={alkalinity} onChangeText={setAlkalinity} parameterKey="alkalinity" />
-                        <View style={styles.spacer} />
-                        <ParameterInput label={t('logs.waterQuality_labelNitrate')} unit="mg/L" value={nitrate} onChangeText={setNitrate} parameterKey="nitrate" />
-                    </View>
-                    <View style={styles.row}>
-                        <ParameterInput label={t('logs.waterQuality_labelHardness')} unit="mg/L" value={hardness} onChangeText={setHardness} parameterKey="hardness" />
+                        <ParameterInput label={t('logs.waterQuality_labelTemperature')} unit="°C" value={temperature} onChangeText={setTemperature} parameterKey="temperature" />
                         <View style={styles.spacer} />
                         <View style={styles.halfCol} />
                     </View>
                 </Card>
+
+                <TouchableOpacity
+                    style={styles.moreToggle}
+                    onPress={() => setShowMore((v) => !v)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showMore }}
+                >
+                    <Text style={styles.moreToggleText}>
+                        {showMore
+                            ? t('logs.waterQuality_showFewer', 'Show fewer readings')
+                            : t('logs.waterQuality_showMore', 'Add more readings')}
+                    </Text>
+                    <MaterialCommunityIcons name={showMore ? 'chevron-up' : 'chevron-down'} size={18} color={theme.roles.light.primary} />
+                </TouchableOpacity>
+
+                {showMore && (
+                    <>
+                        {prefilledFields.size > 0 && (
+                            <Text style={styles.prefillHint}>
+                                {t(
+                                    'logs.waterQuality_prefillHint',
+                                    'Salinity, alkalinity, hardness & transparency are carried over from your last reading — edit any that changed.',
+                                )}
+                            </Text>
+                        )}
+                        <Card style={styles.card}>
+                            <Text style={styles.sectionTitle}>{t('logs.waterQuality_sectionPhysical')}</Text>
+                            <View style={styles.row}>
+                                <ParameterInput label={t('logs.waterQuality_labelTransparency')} unit="cm" value={transparency} onChangeText={setTransparency} parameterKey="transparency" />
+                                <View style={styles.spacer} />
+                                <ParameterInput label={t('logs.waterQuality_labelSalinity')} unit="ppt" value={salinity} onChangeText={setSalinity} parameterKey="salinity" />
+                            </View>
+                        </Card>
+
+                        <Card style={styles.card}>
+                            <Text style={styles.sectionTitle}>{t('logs.waterQuality_sectionChemical')}</Text>
+                            <View style={styles.row}>
+                                <ParameterInput label={t('logs.waterQuality_labelAmmonia')} unit="mg/L" value={ammonia} onChangeText={setAmmonia} parameterKey="ammonia" />
+                                <View style={styles.spacer} />
+                                <ParameterInput label={t('logs.waterQuality_labelNitrite')} unit="mg/L" value={nitrite} onChangeText={setNitrite} parameterKey="nitrite" />
+                            </View>
+                            <View style={styles.row}>
+                                <ParameterInput label={t('logs.waterQuality_labelAlkalinity')} unit="mg/L" value={alkalinity} onChangeText={setAlkalinity} parameterKey="alkalinity" />
+                                <View style={styles.spacer} />
+                                <ParameterInput label={t('logs.waterQuality_labelNitrate')} unit="mg/L" value={nitrate} onChangeText={setNitrate} parameterKey="nitrate" />
+                            </View>
+                            <View style={styles.row}>
+                                <ParameterInput label={t('logs.waterQuality_labelHardness')} unit="mg/L" value={hardness} onChangeText={setHardness} parameterKey="hardness" />
+                                <View style={styles.spacer} />
+                                <View style={styles.halfCol} />
+                            </View>
+                        </Card>
+                    </>
+                )}
 
                 <Card style={styles.card}>
                     <Input
@@ -183,6 +266,25 @@ const styles = StyleSheet.create({
     },
     spacer: {
         width: theme.spacing[4],
+    },
+    moreToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: theme.spacing[1],
+        paddingVertical: theme.spacing[3],
+        marginBottom: theme.spacing[4],
+    },
+    moreToggleText: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.primary,
+        fontWeight: '600',
+    },
+    prefillHint: {
+        ...theme.typeScale.caption,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[3],
+        fontStyle: 'italic',
     },
     textArea: {
         minHeight: 80,

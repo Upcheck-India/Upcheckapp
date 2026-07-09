@@ -11,7 +11,12 @@
       "WebFetch(domain:developer.truecaller.com)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(grep -rln \"userId\" src/store/__tests__ src/sync/__tests__)",
+      "Bash(find . -path ./node_modules -prune -o -iname \"*sync*test*\" -print)",
+      "Bash(npx jest *)",
+      "Bash(npx tsc *)",
+      "Bash(xargs cat)"
     ]
   }
 }

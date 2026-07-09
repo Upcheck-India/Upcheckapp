@@ -1,0 +1,205 @@
+# Upcheck — Latest Task List (Implementation-Ready)
+
+> **Last updated:** 2026-07-09
+> **Built from:** `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` (farmer-persona findings, Part 2 ranked table), cross-checked against `docs/APP_STATUS.md`, `REMEDIATION_STATUS.md`, `LAUNCH_REMEDIATION.md`, `docs/I18N_TELUGU_TODO.md`, `docs/PLAY_STORE_LAUNCH.md`, `docs/OPERATIONS.md`, and a direct check of OTA config (§0 below).
+>
+> **⚠️ Maintenance instruction:** This list is a snapshot for active implementation, not an archive. Whenever a task is started, blocked, or finished, update its **Status** cell and add a one-line note in §6 History. When `docs/APP_STATUS.md` or `REMEDIATION_STATUS.md` change, re-sync this file's open items against them the same day — don't let two trackers disagree about what's actually open. If you're an AI agent picking up a task: **do not start coding from this row alone** — every task below names the source doc(s) with the full context (root cause, file paths, acceptance criteria); open and read those first, this file is a router, not a spec.
+
+---
+
+## 0. OTA (EAS Update) configuration check — done, result: ✅ properly configured
+
+Verified directly against the frontend config (not just docs):
+
+| Check | Result |
+|---|---|
+| `expo-updates` package installed | ✅ `frontend/package.json` — `expo-updates: ~29.0.16` |
+| `runtimeVersion` set | ✅ `frontend/app.config.ts` — `"1.0.0"` |
+| `updates.url` set to this EAS project | ✅ `https://u.expo.dev/f3274022-ae8a-4be6-9085-23f935542a4c` (matches `eas.json` project + `docs/OPERATIONS.md`) |
+| Native Android manifest has the update meta-data (bare workflow — `android/` is committed, so this must be present, not just implied by config) | ✅ `frontend/android/app/src/main/AndroidManifest.xml`: `expo.modules.updates.ENABLED=true`, `EXPO_UPDATE_URL` matches, `EXPO_UPDATES_CHECK_ON_LAUNCH=ALWAYS`, `EXPO_UPDATES_LAUNCH_WAIT_MS=0` |
+| Runtime version string resource matches `app.config.ts` | ✅ `frontend/android/app/src/main/res/values/strings.xml` → `expo_runtime_version = 1.0.0` |
+| EAS channels defined per profile | ✅ `frontend/eas.json` — `development`/`preview`/`production` channels present |
+
+**Conclusion: OTA is live and correctly wired for Android.** No action needed here. Two things worth remembering, not fixing:
+- `docs/PLAY_STORE_LAUNCH.md` warns: if anyone runs `expo prebuild` again, the Truecaller plugin re-injects stripped permissions — re-check the manifest (including these updates meta-data lines) after any prebuild regeneration.
+- OTA only ships JS-only changes. Any native change (new native dep, SDK bump) requires bumping `runtimeVersion` and cutting a new store build — OTA cannot cross that boundary (`docs/OPERATIONS.md` §3).
+
+---
+
+## 1. How to use this list
+
+- **Status values:** `Not started` / `In progress` / `Blocked` / `Done`.
+- **Refer-to column:** always read these before touching code — they carry the actual root cause, file paths, and acceptance criteria. This file intentionally does not repeat that detail, to avoid the two docs drifting out of sync.
+- **Ordering:** tasks are pre-sorted by the priority ranking from `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` Part 2 (impact × recurrence-likelihood), with OTA/infra checks and Play Store blockers folded in where they compete for the same "next work" slot.
+- **Do this before starting any task below:** confirm the task isn't already stale — check `docs/APP_STATUS.md` §5 (confidence caveats) and §6 (recent history) for whether independent verification already happened since this file was last updated.
+
+---
+
+## 2. 🔴 Do first — trust-critical, blocks everything else
+
+| # | Task | Why it's #1 priority | Refer to (read first) | Status |
+|---|---|---|---|---|
+| 1 | **Independently verify offline-sync data-loss / shared-device fixes** (`SYNC-1`, `SYNC-4`). Write/extend an integration test that force-fails a token refresh mid-drain with a non-empty queue; assert zero data loss and correct per-user attribution when two users share one device. | Highest-consequence finding in the whole product — if this regresses, farmers silently lose logged data and don't know it. Currently only self-reported as fixed, never independently re-verified. | `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` §Part 1.5 and Part 2 row #1; `docs/APP_STATUS.md` §5; root cause + acceptance criteria in `LAUNCH_REMEDIATION.md` (`SYNC-1`, `SYNC-4`); existing test `frontend/src/**/offlineLifecycle.test.ts` | **✅ Done — 2026-07-09** (see §7 for findings + verification log) |
+| 2 | **Independently verify UTC-vs-IST day-boundary bucketing** (`DATE-1`). Add/confirm a fixed-clock test around the 00:00–05:30 IST window for reports and harvest plans. | Misattributes exactly the readings that matter most (pre-dawn DO crashes) — invisible to the farmer, corrodes report trust silently. | `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` Part 1.4, Part 2 row #7; `LAUNCH_REMEDIATION.md` `DATE-1`; also cross-check Session 6's DOC 1-based convention change noted in `docs/APP_STATUS.md` §7 didn't regress this | **✅ Done — 2026-07-09** (see §7) |
+| 3 | **Independently verify password/signup validation client↔server parity** (`PWDVAL-1`). Add a parity test: any password the client accepts, the server accepts, and vice versa, across all 6 locale error strings. | First-90-seconds failure in a language the farmer may not read; directly costs signups. Cheap insurance, high visibility if wrong. | `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` Part 1.2, Part 2 row #6; `LAUNCH_REMEDIATION.md` `PWDVAL-1` | **✅ Done — 2026-07-09** (see §7) |
+| 4 | **Regression-test the two historically "dead button" flows**: Inventory Add-Item (real create, not a stub `Alert.alert`) and Harvest mark-complete (state transition + appears correctly in Reports). Do this on every release going forward, not just once. | These were previously completely non-functional — the fastest way to make a farmer conclude "this app is fake." | `docs/APP_STATUS.md` §4 ("What's broken"); `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` Part 1.8, Part 2 row #9; `REMEDIATION_STATUS.md` rows #28/#29/#86 | **✅ Done — 2026-07-09** (see §10) |
+
+---
+
+## 3. 🟠 Do next — real product/UX wins, no dependency on #2's verification work
+
+| # | Task | Why it matters | Refer to | Status |
+|---|---|---|---|---|
+| 5 | **Add "quick mode" to daily logging forms** — 2–3 headline fields visible by default (e.g. pH/DO/temp for water quality), rest behind an "add more" expander; smart pre-fill of slow-changing fields (alkalinity, hardness) from last entry. | Root-cause fix for logging fatigue — the #2 systemic issue behind trustworthy decision-engine output (see #8 below). Directly determines whether farmers keep using the app past week 2. | `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` Part 1.3, Part 2 row #2 and the "cross-cutting theme" section; field lists per log type in `docs/APP_FLOW.md` §5 | **🟡 Partially done — 2026-07-09** (Water Quality log only; see §11 for scope + remaining log types) |
+| 6 | **Surface a data-completeness indicator on decision-engine outputs** (Feed Advisor, Disease Risk, Harvest Timing, Lunar), e.g. "based on N of last 7 days logged." | A confident-looking recommendation built on gappy data is more dangerous than no recommendation — farmers act on confident UI. Compounds directly with task #5. | `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` Part 1.6, Part 2 row #8; engine list in `docs/APP_FLOW.md` §7 | Not started |
+| 7 | **Let onboarding land on a real dashboard after pond #1**, instead of gating on all N ponds being fully configured before Home is reachable. Queue "finish setting up your other ponds" as a dismissible nudge. | Farmers drop off mid-setup on pond 2+ before ever seeing app value, especially on slow/shared phones. | `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` Part 1.2, Part 2 row #4; onboarding flow in `docs/APP_FLOW.md` §2 | Not started |
+| 8 | **Complete banned-substance server-evaluated write-time flag** on treatment/chemical/disease records (needs a schema migration). Currently explicitly deferred, not fixed. | Compliance feature with real blast radius (export shipment rejection) if a stale client cache gives false confidence. Highest-consequence *currently-open* item in the whole backlog. | `docs/APP_STATUS.md` §5 and §6 table; `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` Part 1.7, Part 2 row #5; `LAUNCH_REMEDIATION.md` `BANNED-1` (root cause + fix scope) | Not started |
+
+---
+
+## 4. 🟡 Do soon — trust/polish items, lower blast radius
+
+| # | Task | Why it matters | Refer to | Status |
+|---|---|---|---|---|
+| 9 | **Complete authentic (human, not machine) translations** for `diagnose.*`, `finance.breakEven*`, `reports.cycleAnalysis*`, `ponds.dimHistory*`, `logs.feedingTray_*`, `auth.reset*`, `home.worker*`, `members.*`, `content.tasks.*` — Telugu first, per the existing phasing plan. | Two of these fallback surfaces (**diagnose**, **finance**) are the highest-stakes screens in the app; partial translation reads as broken, worse than English-only. | `docs/I18N_TELUGU_TODO.md` (full key list + phasing note); `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` Part 1.9, Part 2 row #3 | Not started |
+| 10 | **Real device accessibility QA pass** at 150%/200% OS font scale on the 5 daily-loop screens (Home, QuickLog picker, Water Quality log, Feed log, Alerts) + TalkBack navigability check. | Named persona constraint ("older farmer's phone") already identified but never closed — code-side labels landed, device QA didn't. | `docs/APP_STATUS.md` §6 table (`A11Y-1`); `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` Part 2 row #10; `LAUNCH_REMEDIATION.md` `A11Y-1` | Not started |
+| 11 | **Settle "crop" vs "cycle" terminology** to one term across frontend strings (recommend "crop" — matches farmer vocabulary) and enforce via lint/convention doc. Also confirm brand name spelling is consistently "Upcheck" everywhere. | Small, but a literate-but-non-technical farmer notices this kind of inconsistency and reads it as "not a serious product." | `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` Part 2 row #11; `REMEDIATION_STATUS.md` rows on terminology/brand-naming (search "crop vs" / "brand naming") | Not started |
+| 12 | **Decide and act on dark mode**: either finish wiring the existing dark color-role palette across all 118 screens, or remove the dead code. | Currently neither shipped nor deleted — dead code sitting in a farmer-facing app invites confusion for future contributors and is wasted bundle weight either way. | `docs/APP_STATUS.md` §3 ("What's bad") | Not started |
+
+---
+
+## 5. Play Store / infra — parallel track, not blocking the product work above
+
+| # | Task | Refer to | Status |
+|---|---|---|---|
+| 13 | Provision Android upload keystore via `eas credentials` (external/ops, cannot live in-repo) | `docs/PLAY_STORE_LAUNCH.md` §3; `docs/APP_STATUS.md` §6 | Open — external |
+| 14 | Replace fragile Truecaller patched-fork dependency with a real package/TurboModule | `docs/APP_STATUS.md` §3, §6; `REMEDIATION_STATUS.md` row #194 | Open — external |
+| 15 | Wire frontend crash reporting: install `@sentry/react-native`, set `EXPO_PUBLIC_SENTRY_DSN` (backend Sentry already wired) | `docs/APP_STATUS.md` §6 table; `REMEDIATION_STATUS.md` Session 4 note | Not started |
+| 16 | Complete remaining Play Store checklist items: Data Safety form, signed AAB upload, store listing copy/assets, internal-testing pass | `docs/PLAY_STORE_LAUNCH.md` §§2,5,6,7 (full checklist) | In progress |
+| 17 | Plan Render backend plan upgrade (currently free tier — cold starts) and Redis promotion to a real shared instance before any horizontal scaling of backend replicas (2FA/nonce state is per-instance today) | `docs/APP_STATUS.md` §3 | Not started |
+| 18 | Backend lint cleanup (non-blocking today, tracked debt) | `docs/APP_STATUS.md` §3; `REMEDIATION_STATUS.md` completion header | Not started |
+
+---
+
+## 7. Task 1 — completion notes (SYNC-1 / SYNC-4 independent verification)
+
+**Completed:** 2026-07-09 · **Status:** ✅ Done · **Verdict: the self-reported fix holds up under independent re-verification — no regression found.**
+
+**What was checked (code read, not just docs):**
+- `frontend/src/sync/recordSync.ts` — `saveRecord()` stamps the queued op with the *real* logged-in user's id (`useAuthStore.getState().user?.id`) at enqueue time; `replayQueuedOp()` classifies 401/403 as `'retry'` (never `'failed'`/dropped).
+- `frontend/src/store/syncStore.ts` — `drainQueue(handler, currentUserId)` filters `opsToProcess` to `!currentUserId || !op.userId || op.userId === currentUserId` *before* calling the handler — a mismatched-owner op is never even attempted, let alone dropped or mis-attributed. Retry-cap (`MAX_SYNC_RETRIES`) and connectivity-drop handling (`if (!get().isConnected) break`) confirmed to not burn retry budget on pure connectivity flaps.
+- `frontend/src/store/authStore.ts` — confirmed `logout()`/`clearSession()` do **not** call `useSyncStore.clearQueue()`. This is the team's documented **Option B** choice from `LAUNCH_REMEDIATION.md` (per-op ownership filtering over queue-wipe-on-logout) — verified it is actually implemented this way in code, not just claimed.
+
+**Gap found and closed:** the existing test `frontend/src/sync/__tests__/offlineLifecycle.test.ts` covered the single-user "token expired while offline" case, and `recordSync.test.ts` covered user-filtering only at the *raw store* level (calling `syncStore.drainQueue()` directly with hand-built ops). Neither test exercised the **full real-world combination** the audit's own acceptance criteria called for: a genuine shared-device user-switch (via the real `useAuthStore`) *combined with* a mid-drain token-expiry, going through the actual production call path (`saveRecord()` → `drainRecordQueue()` → `syncStore.drainQueue()`).
+
+**Action taken:** extended `frontend/src/sync/__tests__/offlineLifecycle.test.ts` with a new test — `'shared-device + expired-token combo...'` — that:
+1. Logs in as `worker-A` (real `useAuthStore.setState`), goes offline, saves a water-quality reading → queued and stamped `userId: 'worker-A'`.
+2. Switches the logged-in user to `worker-B` (phone handed over) *before* reconnecting.
+3. Reconnects and drains as `worker-B` — asserts **no network request is even attempted** for A's op, the op is neither lost nor mutated, and A's retry budget is untouched.
+4. Hands the phone back to `worker-A`, simulates the classic token-expired-while-offline 401 on first drain — asserts the record is preserved (not dropped), matching the original single-user test's guarantee.
+5. Token refreshes, final drain delivers A's original reading exactly once, correctly attributed, with no duplicate POST.
+
+**Result:** both the pre-existing 1-test suite and the new 2nd test pass (`npx jest src/sync/__tests__/offlineLifecycle.test.ts` → 2/2 passed; full `src/sync src/store` sweep → 4 suites / 22 tests passed, no regressions).
+
+**Conclusion for `docs/APP_STATUS.md` §5:** `SYNC-1` and `SYNC-4` can be moved from "self-reported, needs independent verification" to **"independently verified, combined-scenario test coverage added"**. Recommend updating `docs/APP_STATUS.md` §5 accordingly in the next status-doc pass.
+
+---
+
+## 8. Task 2 — completion notes (DATE-1 independent verification: UTC-vs-IST day bucketing)
+
+**Completed:** 2026-07-09 · **Status:** ✅ Done · **Verdict: the self-reported fix holds up — no UTC-day-boundary regression found — but the report-generation code path itself was untested; that gap is now closed.**
+
+**What was checked (code read, not just docs):**
+- `backend/src/common/ist-date.ts` — the shared `toIstDateString()` helper applies a fixed `+5:30` offset before deriving the date string, with its own boundary-crossing test suite (`ist-date.spec.ts`) already covering the exact 00:00–05:30 IST window from the original bug report.
+- `backend/src/reports/reports.service.ts:119` — `getCycleAnalysis()`'s `growthChart` mapping calls `toIstDateString()` on each sampling — confirmed the *actual* consumer uses the shared helper, not a re-derived UTC split.
+- `backend/src/feed-records/feed-records.service.ts:242` — `getDailyFeedUsage()` also uses the shared helper, not a `setHours()`-based UTC window (the other historically-broken spot per the audit).
+- `frontend/src/screens/harvest/HarvestPlansScreen.tsx` — confirmed it imports and uses `todayLocalISODate`/`toLocalISODate` from `frontend/src/utils/localDate.ts` (device-local getters, not `toISOString()`), which already has its own boundary test in `frontend/src/utils/__tests__/localDate.test.ts`.
+- Grepped the whole repo for any remaining raw `toISOString().split('T')[0]` / `setHours(0,0,0,0)` calendar-day derivations outside the two known-fixed spots — found none; all remaining `toISOString()` usages are instant timestamps (e.g. health-check payloads), not calendar-day buckets.
+
+**Gap found and closed:** `backend/src/reports/reports.service.spec.ts` was a one-line stub (`it('should pass', ...)`) — the pure `toIstDateString()` helper had a real test, but the actual report code path that calls it (`getCycleAnalysis`) had **zero** coverage, so a future regression (e.g. someone "simplifying" the mapping back to `new Date(s.samplingDate).toISOString().slice(0,10)`) would not be caught by any test.
+
+**Action taken:** replaced the stub with two real tests instantiating `ReportsService` directly (mocked collaborators) and asserting `getCycleAnalysis()`'s `growthChart[0].date`:
+1. A sampling at `2026-06-16T20:30:00.000Z` (= 2026-06-17 02:00 IST) must bucket to `'2026-06-17'`, not the naive-UTC `'2026-06-16'`.
+2. A sampling already on the same IST/UTC day buckets correctly as a sanity check.
+
+**Result:** `backend/src/reports/reports.service.spec.ts` 2/2 passing; full backend suite re-run clean (78 suites / 514 tests, up from the 498-test baseline — the +16 comes from this task's 2 new tests plus Task 3's parity tests below).
+
+**Conclusion for `docs/APP_STATUS.md` §5:** `DATE-1` can be moved from "self-reported, needs independent verification" to **"independently verified — helper, both consumer code paths, and frontend harvest-plans path all confirmed correct; report-service test gap closed."**
+
+---
+
+## 9. Task 3 — completion notes (PWDVAL-1 independent verification: client↔server password parity)
+
+**Completed:** 2026-07-09 · **Status:** ✅ Done · **Verdict: the two independently-written implementations do agree — confirmed empirically, not just by comment — across 15 edge cases including several neither side's original test set covered.**
+
+**What was checked (code read, not just docs):**
+- `backend/src/auth/dto/signup.dto.ts` — `SignupDto.password` uses `@MinLength(8)` + `@Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/)`. Notably the special-character set is **already the broadened "any non-alphanumeric" set**, not the older restricted `@$!%*?&` set the original finding described — confirming `PWDVAL-2` (the follow-on widening decision) was also completed, not just `PWDVAL-1`.
+- `frontend/src/features/passwordPolicy.ts` — `passwordPolicyError()`/`isPasswordValid()` implement the same 4 rules as **discrete, independent regex tests** (a structurally different implementation from the backend's single combined lookahead regex) — meaning the two sides can silently diverge without either side's own unit test noticing, since each only tests its own logic against its own examples.
+- `frontend/src/screens/auth/RegisterScreen.tsx` and `frontend/src/screens/auth/ResetPasswordScreen.tsx` both import and call the shared `passwordPolicyError()` — confirmed the fix covers **both** signup and password-reset, closing the adjacent audit row (#171) about `ResetPassword` previously only checking `length < 8`.
+
+**Gap found and closed:** both existing tests (`frontend/src/features/__tests__/passwordPolicy.test.ts` and `backend/src/auth/dto/signup.dto.spec.ts`) only asserted each side's own regex against a handful of hand-picked examples — neither proved the two sides *agree with each other* on the same input, which is the literal acceptance criteria ("any password the client accepts is accepted by the server, and vice versa"). A future edit to either side's regex (e.g. tightening the special-character set, or changing the length bound) could pass both existing suites while silently breaking parity.
+
+**Action taken:** added a matching 15-case fixture list to **both** test files (kept identical on purpose, cross-referenced by file path in code comments) covering cases neither original suite exercised: exactly-8-chars boundary, 7-chars-under-boundary, hyphen/underscore/period/space as the "special" character, an emoji as the special character (multi-byte edge case), an accented letter (to confirm it still counts as non-alphanumeric on both sides, not as a false "letter"), a 200+ character password, an all-symbols password missing letters/digit, and leading/trailing whitespace.
+- Frontend: new `describe('passwordPolicy vs backend SignupDto regex — cross-boundary parity (PWDVAL-1)')` block runs each fixture through `isPasswordValid()` AND a verbatim copy of the backend regex, asserting they agree.
+- Backend: new `describe('SignupDto — password policy vs frontend fixtures (PWDVAL-1 parity)')` block runs the same fixtures through the real `SignupDto` + `class-validator`, with an explicit expected valid/invalid flag per case, mirroring the frontend file.
+
+**Result:** all 15 fixtures agree on both sides — frontend suite 18/18 passing (up from 3 tests), backend suite 19/19 passing (up from 4 tests). Full suites re-run clean: backend 78/514, frontend 18/138 (from 122-test baseline).
+
+**Conclusion for `docs/APP_STATUS.md` §5:** `PWDVAL-1` can be moved from "self-reported, needs independent verification" to **"independently verified — cross-boundary parity empirically confirmed across 15 fixtures including multi-byte/unicode edge cases; both signup and reset-password screens confirmed to use the shared, verified policy."**
+
+---
+
+## 10. Task 4 — completion notes (regression tests for the two historically dead-button flows)
+
+**Completed:** 2026-07-09 · **Status:** ✅ Done · **Verdict: both flows are genuinely fixed today — confirmed by real component tests, not just a code read — and both tests were mutation-tested to prove they actually catch the original bug class.**
+
+**What was checked (code read, not just docs):**
+- `frontend/src/screens/inventory/InventoryListScreen.tsx` — the FAB and empty-state action both call `openAdd()`, which opens a real `Modal` with a real form (`Input` fields for name/category/quantity/unit/reorder level/price/supplier) whose submit button calls `inventoryApi.create(...)` and then force-refetches the list. No `Alert.alert()` stub remains anywhere in this flow.
+- `frontend/src/screens/harvest/HarvestPlansScreen.tsx` — "Mark Complete" on a planned plan's card opens a real modal collecting **actual weight** and **actual price**, validates both are `> 0` before allowing submit, calls `harvestPlansApi.complete(id, { actualWeightKg, actualPricePerKg, actualHarvestDate, farmId, cropId })`, then refetches. No auto-booked `0/0` and no silent no-op.
+
+**Gap found and closed:** neither screen had **any** test coverage at all — a regression back to either historical bug (dead FAB / silently-closing modal) would have shipped undetected. Added two new screen-level test files using `@testing-library/react-native`:
+- `frontend/src/screens/inventory/__tests__/InventoryListScreen.test.tsx` — presses the FAB, fills the real form, submits, asserts `inventoryApi.create()` is called with the right payload and the list force-refetches; a second test asserts an empty name is rejected client-side without ever calling the API.
+- `frontend/src/screens/harvest/__tests__/HarvestPlansScreen.test.tsx` — presses "Mark Complete", fills real weight/price into the modal, submits, asserts `harvestPlansApi.complete()` is called with the exact actual values (never 0/0) and the list refetches; a second test asserts a blank/zero submission is rejected client-side without calling the API.
+
+**Notable environment fix required for both:** `ScreenWrapper` → `OfflineIndicator` calls `useSafeAreaInsets()`, and `react-native-safe-area-context`'s real `initialWindowMetrics` is statically `null` outside a native runtime — so `SafeAreaProvider` silently renders `null` children (no thrown error) unless given explicit fake metrics. Both test files wrap the screen in `<SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>` with a hand-built frame/insets object; worth reusing this pattern for any future full-screen RNTL test in this repo rather than rediscovering it.
+
+**Verification that the tests actually catch the bug class (not just passing trivially):** for each screen, temporarily reintroduced the original bug (FAB `onPress` → no-op; `submitComplete` → close modal and `return` before calling the API) and reran the test — confirmed it fails with a clear "0 calls" assertion error — then reverted and confirmed green again. This is stronger evidence than "the test passes," since a test can pass for the wrong reasons (e.g. matching the wrong element).
+
+**Result:** both new test files pass (2/2 each); full frontend suite re-run clean: **20 suites / 142 tests** (up from 138).
+
+**Recommendation carried forward from the task's own description:** re-run these two test files (or the full suite) on every release before shipping, not just once — they're now the fast, automated version of the manual click-test called out in `docs/APP_STATUS.md` §4.
+
+---
+
+## 11. Task 5 — completion notes (quick-mode for daily logging forms — Water Quality log; other log types still open)
+
+**Completed:** 2026-07-09 · **Status:** 🟡 Partially done · **Scope done: Water Quality log (the flagship 10-field example named in the analysis). Not yet done: Weekly Chemistry (7 fields), Plankton (13 fields), Microbiology, Feed log — same pattern applies, not yet applied.**
+
+**What changed in `frontend/src/screens/logs/WaterQualityLogScreen.tsx`:**
+- **Quick mode:** only pH, DO, and Temperature — the 3 readings a farmer actually logs every visit — show by default in a "Today's Reading" card. The other 7 fields (Transparency, Salinity, Ammonia, Nitrite, Nitrate, Alkalinity, Hardness) sit behind a new "Add more readings" / "Show fewer readings" toggle, mirroring the existing show-more/show-less pattern already established in `PondDashboardScreen.tsx` (same chevron-icon + `accessibilityState={{expanded}}` convention, for UI consistency rather than inventing a new pattern).
+- **Smart pre-fill:** on mount, fetches the pond's last reading via the already-existing (but previously unused by this screen) `waterQualityApi.getLatest(pondId)` endpoint, and pre-fills the 4 genuinely slow-changing fields — salinity, alkalinity, hardness, transparency — from that record. pH/DO/temperature are deliberately **never** pre-filled since they're the reason the farmer opened the screen and must be a fresh reading, not yesterday's number silently resubmitted.
+- **Critical design decision:** the "more readings" section stays **collapsed** even when pre-fill succeeds — the pre-filled values are already in component state and get submitted on Save whether or not the farmer ever opens the expander. This is the actual efficiency win: a farmer whose pond chemistry hasn't shifted can log pH/DO/temp and hit Save without ever touching the other 7 fields, and the record still saves complete data. A small italic hint line appears *inside* the expanded section (not before) naming which fields were carried over and inviting an edit if something changed.
+- **Failure handling:** a 404 (brand-new pond, no prior reading) or a network error while fetching the latest reading is swallowed silently — the form just starts blank, no error alert interrupts a farmer who's simply logging for the first time or is offline.
+- Added 3 new i18n keys (`waterQuality_showMore`, `waterQuality_showFewer`, `waterQuality_prefillHint`, `waterQuality_sectionDaily`) to `en/logs.ts` with inline `t(key, englishDefault)` fallbacks in code, and logged them in `docs/I18N_TELUGU_TODO.md`'s existing tracked-keys table — per this repo's own established convention (machine translation is not acceptable for farmer-facing UI; `fallbackLng: 'en'` covers the gap until a native speaker translates).
+
+**Verification:** added `frontend/src/screens/logs/__tests__/WaterQualityLogScreen.test.tsx` (3 tests): (1) only the 3 headline fields render by default, the rest appear after tapping "Add more readings"; (2) pre-filled values from a mocked `getLatest()` response are included in the `saveRecord()` payload even without ever expanding the section; (3) a 404/network failure on `getLatest()` doesn't error and leaves the optional fields `undefined`. **Mutation-tested**: temporarily flipped the default `showMore` state to `true` and confirmed test (1) fails with a clear assertion error, then reverted — proving the test actually catches a "quick mode silently disabled" regression, not just passing trivially.
+
+**Result:** new test file 3/3 passing; full frontend suite re-run clean: **21 suites / 145 tests** (up from 142); `tsc --noEmit` clean (same 2 pre-existing unrelated `expo-camera`/`expo-location` errors as before, untouched by this change).
+
+**Explicitly NOT done yet (do not mark this task fully complete in `docs/APP_STATUS.md` or elsewhere until these are addressed):**
+- `WeeklyChemistryScreen.tsx` (7 fields) — same headline/expander split would apply; alkalinity/hardness/calcium/magnesium are natural slow-changing pre-fill candidates there too.
+- Plankton log (13 plankton-type counts) — the single worst offender by field count named in the original analysis; would benefit most from this pattern but wasn't touched this session.
+- Microbiology and Feed logs — smaller field counts, lower priority, but same principle applies for consistency.
+- Consider extracting the "quick mode toggle + pre-fill from latest" logic into a small shared hook (e.g. `useQuickModeLog`) if/when a second screen adopts this pattern, rather than copy-pasting the `useEffect`/`Set<string>` bookkeeping — flagging this now so the next screen doesn't reinvent it slightly differently.
+
+---
+
+## 6. History
+
+- **2026-07-09** — List created. OTA config independently verified end-to-end (package, config, native manifest, string resource) — confirmed correctly wired, no action needed. Task priority order derived from `docs/USER_PERSPECTIVE_PRODUCT_ANALYSIS.md` Part 2's ranked findings table plus open items already tracked in `docs/APP_STATUS.md` §6.
+- **2026-07-09** — Task 1 (SYNC-1/SYNC-4 independent verification) completed. Read `recordSync.ts`/`syncStore.ts`/`authStore.ts` directly, confirmed the "Option B" per-user queue-filtering design is actually implemented (not just documented), found and closed a test-coverage gap (no test previously exercised token-expiry + shared-device-switch *together* through the real production call path), added that test, ran the full `src/sync` + `src/store` suite clean (22/22 passing, no regressions). See §7 for full detail. Marked Done in §2.
+- **2026-07-09** — Tasks 2 and 3 completed together. **Task 2 (DATE-1):** confirmed both backend consumer code paths (`reports.service.ts`, `feed-records.service.ts`) and the frontend harvest-plans screen all correctly use the shared IST/local-day helpers, found `reports.service.spec.ts` was a 1-line stub with zero coverage of the actual report code path, replaced it with 2 real boundary tests. **Task 3 (PWDVAL-1):** confirmed the backend `SignupDto` regex and frontend `passwordPolicy.ts` are two independently-written implementations that each only tested themselves in isolation; added a matching 15-fixture cross-boundary parity suite to both sides (multi-byte/emoji, accented letters, boundary lengths, whitespace) and confirmed empirical agreement, not just by comment. Also confirmed `ResetPasswordScreen` uses the same shared, now-verified policy. Full suites re-run clean after both tasks: backend 78 suites/514 tests (from 498), frontend 18 suites/138 tests (from 122) — no regressions. See §8 and §9 for full detail. Marked Done in §2.
+- **2026-07-09** — Task 4 completed. Confirmed both the Inventory Add-Item and Harvest mark-complete flows are genuinely fixed in current code (real forms, real API calls, no stubs). Neither screen had any test coverage at all, so added two new screen-level RNTL test files that exercise the full user flow end-to-end. Solved a `react-native-safe-area-context` test-environment gotcha (`initialWindowMetrics` is `null` outside native, so `SafeAreaProvider` renders nothing without fake metrics). Mutation-tested both new tests by temporarily reintroducing each original bug and confirming the test fails, then reverted. Full frontend suite re-run clean: 20 suites/142 tests (from 138). See §10 for full detail. Marked Done in §2.
+- **2026-07-09** — Task 5 partially completed: implemented quick-mode (headline fields + collapsible "more readings" expander) and slow-changing-field pre-fill (from `waterQualityApi.getLatest()`) for `WaterQualityLogScreen.tsx` only. Added 3 new i18n keys (English + fallback, tracked in `docs/I18N_TELUGU_TODO.md` per existing convention). Added a new 3-test file, mutation-tested to confirm it catches a "quick mode silently disabled" regression. Full suite clean: 21 suites/145 tests (from 142), `tsc` clean. **Deliberately left open**: WeeklyChemistry/Plankton/Microbiology/Feed logs still show all fields at once — same pattern needs applying there; flagged as follow-up work in §11 rather than overclaiming full completion. Status set to 🟡 Partially done, not ✅ Done, in §3.
+
+*(Add a dated line here every time a task's status changes, a new task is added, or this list is re-synced against the source docs.)*

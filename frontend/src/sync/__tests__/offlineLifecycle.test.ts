@@ -6,13 +6,34 @@ jest.mock('../../api/client', () => ({
     __esModule: true,
     default: { post: jest.fn(), request: jest.fn() },
 }));
+// authStore pulls in native/session modules that don't exist under jest;
+// stub them so we can exercise the REAL useAuthStore (not a store mock) —
+// this test needs saveRecord()/drainRecordQueue() to read the actual
+// currently-logged-in user off the real store, the same as production.
+jest.mock('expo-secure-store', () => ({
+    getItemAsync: jest.fn(async () => null),
+    setItemAsync: jest.fn(async () => undefined),
+    deleteItemAsync: jest.fn(async () => undefined),
+}));
+jest.mock('../../native/TruecallerAuth', () => ({ TruecallerAuth: { clear: jest.fn() } }));
+jest.mock('../../api/auth', () => ({ authApi: { refresh: jest.fn(), signout: jest.fn() } }));
+jest.mock('../../api/profiles', () => ({ profilesApi: {} }));
 
 import apiClient from '../../api/client';
 import { useSyncStore } from '../../store/syncStore';
+import { useAuthStore } from '../../store/authStore';
 import { saveRecord, replayQueuedOp, drainRecordQueue } from '../recordSync';
 
 const mockedPost = (apiClient as any).post as jest.Mock;
 const mockedRequest = (apiClient as any).request as jest.Mock;
+
+/** Simulate a farmer/worker being logged in on the shared device. */
+const loginAs = (id: string) =>
+    useAuthStore.setState({
+        user: { id, email: `${id}@pond.in`, name: id, avatarUrl: null, provider: 'email', emailVerified: true, accountType: 'worker' },
+        isAuthenticated: true,
+        status: 'authenticated',
+    } as any);
 
 describe('offline→online record lifecycle (TEST-1)', () => {
     beforeEach(() => {
@@ -52,5 +73,50 @@ describe('offline→online record lifecycle (TEST-1)', () => {
         expect(useSyncStore.getState().queue).toHaveLength(0);
 
         expect(mockedPost).not.toHaveBeenCalled(); // everything went through the drain path
+    });
+
+    it('shared-device + expired-token combo: worker A queues offline, phone is handed to worker B before reconnect, B\'s drain must not lose or mis-attribute A\'s record (SYNC-1 + SYNC-4 together)', async () => {
+        // 1. Worker A is logged in on the shared phone and logs a reading with no signal.
+        loginAs('worker-A');
+        useSyncStore.getState().setConnected(false);
+        const r = await saveRecord({ entity: 'water_quality', endpoint: '/water-quality', payload: { pondId: 'p1', ph: 7.9 } });
+        expect(r.queued).toBe(true);
+        expect(useSyncStore.getState().queue[0].userId).toBe('worker-A');
+
+        // 2. Before signal returns, the phone is handed to worker B, who logs in.
+        //    (authStore.logout()/login() never clears the sync queue — the design
+        //    intent per SYNC-4 is per-op ownership filtering, not queue-wipe-on-logout.)
+        loginAs('worker-B');
+        useSyncStore.getState().setConnected(true);
+
+        // 3. Signal returns while B is holding the phone. B's drain runs — A's
+        //    queued op must be SKIPPED (not replayed under B's token, and not
+        //    dropped/lost) even though a request would 401 anyway (A's token is
+        //    stale). No network call should even be attempted for A's op.
+        mockedRequest.mockRejectedValue({ response: { status: 401 } }); // would fire if wrongly attempted
+        await drainRecordQueue();
+        expect(mockedRequest).not.toHaveBeenCalled();                   // never attempted under B
+        expect(useSyncStore.getState().queue).toHaveLength(1);          // A's record preserved
+        expect(useSyncStore.getState().queue[0].userId).toBe('worker-A');
+        expect(useSyncStore.getState().queue[0].retryCount).toBe(0);    // untouched, not burning A's retry budget
+        expect(useSyncStore.getState().failedOperations).toHaveLength(0);
+
+        // 4. Phone is handed back to A. A's own drain now runs, hits the classic
+        //    "token expired while offline" 401 first — must still be preserved,
+        //    not dropped, exactly as in the single-user case above.
+        loginAs('worker-A');
+        mockedRequest.mockRejectedValueOnce({ response: { status: 401 } });
+        await drainRecordQueue();
+        expect(useSyncStore.getState().queue).toHaveLength(1);
+        expect(useSyncStore.getState().queue[0].retryCount).toBe(1);
+
+        // 5. A's token refreshes; the next drain finally delivers A's original
+        //    reading — under A's own request, correctly attributed.
+        mockedRequest.mockResolvedValueOnce({ data: { id: expect.any(String) } });
+        useSyncStore.getState().setStatus('online');
+        await drainRecordQueue();
+        expect(useSyncStore.getState().queue).toHaveLength(0);
+        expect(useSyncStore.getState().failedOperations).toHaveLength(0);
+        expect(mockedPost).not.toHaveBeenCalled(); // still only ever went through the queue/drain path
     });
 });

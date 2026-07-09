@@ -176,5 +176,9 @@ const logs = {
   waterQuality_placeholderNotes: 'Any unusual observations...',
   waterQuality_saveBtn: 'Save Log',
   waterQuality_errorSave: 'Failed to save water quality log',
+  waterQuality_showMore: 'Add more readings',
+  waterQuality_showFewer: 'Show fewer readings',
+  waterQuality_prefillHint: 'Salinity, alkalinity, hardness & transparency are carried over from your last reading — edit any that changed.',
+  waterQuality_sectionDaily: "Today's Reading",
 };
 export default logs;
