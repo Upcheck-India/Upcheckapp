@@ -56,6 +56,8 @@ const logs = {
   feed_placeholderFeedType: 'e.g. Grower 2mm',
   feed_sectionFeedingTrays: 'Feeding Trays (Leftover %)',
   feed_trayDesc: 'Estimate remaining feed after 2 hours',
+  feed_showTrays: 'Add feeding-tray check',
+  feed_hideTrays: 'Hide feeding-tray check',
   feed_labelTray1: 'Tray 1',
   feed_labelTray2: 'Tray 2',
   feed_labelTray3: 'Tray 3',

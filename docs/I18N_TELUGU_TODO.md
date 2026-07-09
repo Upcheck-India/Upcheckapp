@@ -19,6 +19,7 @@ in code / the `en` locale):
 | `ponds.*` | dimHistory, dimHistoryFor, dimChange, dimBefore, dimHistoryEmptyTitle, dimHistoryEmptySub |
 | `logs.feedingTray_*` | title, trayNumber, residue, empty, few_left, a_lot_left, tray, recent, emptyTitle, emptySub, errorSave |
 | `logs.waterQuality_*` | showMore, showFewer, prefillHint, sectionDaily (quick-mode expander added for the daily-logging-friction fix) |
+| `logs.feed_*` | showTrays, hideTrays (tray-check section collapsed by default) |
 | `auth.*` | resetTitle, newPassword, confirmPassword, resetCta, resetWaiting, useOtpInstead, passwordMin, passwordMismatch, resetDoneTitle, resetDoneSub, resetError |
 | `home.*` | workerNoFarm, logNow, workerLogPrompt |
 | `members.*` | roleLabel, changeRoleTitle, roleChangeError, transferTitle, transferConfirm, transferCta, transferError |

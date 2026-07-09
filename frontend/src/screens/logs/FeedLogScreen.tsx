@@ -31,6 +31,11 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
     const [notes, setNotes] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
+    // Tray checks are a supplementary observation, not required to save a
+    // feed log — collapse them by default so the daily-fatigue field count
+    // is just amount + type, with tray detail one tap away when a farmer
+    // actually wants to record leftovers (USER_PERSPECTIVE_PRODUCT_ANALYSIS §Part 2 row #2).
+    const [showTrays, setShowTrays] = useState(false);
 
     const handleSave = async () => {
         if (!fasting) {
@@ -130,27 +135,44 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                             />
                         </Card>
 
-                        <Card style={styles.card}>
-                            <Text style={styles.sectionTitle}>{t('logs.feed_sectionFeedingTrays')}</Text>
-                            <Text style={styles.labelDesc}>{t('logs.feed_trayDesc')}</Text>
+                        <TouchableOpacity
+                            style={styles.moreToggle}
+                            onPress={() => setShowTrays((v) => !v)}
+                            activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityState={{ expanded: showTrays }}
+                        >
+                            <Text style={styles.moreToggleText}>
+                                {showTrays
+                                    ? t('logs.feed_hideTrays', 'Hide feeding-tray check')
+                                    : t('logs.feed_showTrays', 'Add feeding-tray check')}
+                            </Text>
+                            <MaterialCommunityIcons name={showTrays ? 'chevron-up' : 'chevron-down'} size={18} color={theme.roles.light.primary} />
+                        </TouchableOpacity>
 
-                            <View style={styles.trayGrid}>
-                                <View style={styles.trayItem}>
-                                    <Input label={t('logs.feed_labelTray1')} value={tray1} onChangeText={setTray1} keyboardType="number-pad" placeholder="0%" />
+                        {showTrays && (
+                            <Card style={styles.card}>
+                                <Text style={styles.sectionTitle}>{t('logs.feed_sectionFeedingTrays')}</Text>
+                                <Text style={styles.labelDesc}>{t('logs.feed_trayDesc')}</Text>
+
+                                <View style={styles.trayGrid}>
+                                    <View style={styles.trayItem}>
+                                        <Input label={t('logs.feed_labelTray1')} value={tray1} onChangeText={setTray1} keyboardType="number-pad" placeholder="0%" />
+                                    </View>
+                                    <View style={styles.trayItem}>
+                                        <Input label={t('logs.feed_labelTray2')} value={tray2} onChangeText={setTray2} keyboardType="number-pad" placeholder="0%" />
+                                    </View>
                                 </View>
-                                <View style={styles.trayItem}>
-                                    <Input label={t('logs.feed_labelTray2')} value={tray2} onChangeText={setTray2} keyboardType="number-pad" placeholder="0%" />
+                                <View style={styles.trayGrid}>
+                                    <View style={styles.trayItem}>
+                                        <Input label={t('logs.feed_labelTray3')} value={tray3} onChangeText={setTray3} keyboardType="number-pad" placeholder="0%" />
+                                    </View>
+                                    <View style={styles.trayItem}>
+                                        <Input label={t('logs.feed_labelTray4')} value={tray4} onChangeText={setTray4} keyboardType="number-pad" placeholder="0%" />
+                                    </View>
                                 </View>
-                            </View>
-                            <View style={styles.trayGrid}>
-                                <View style={styles.trayItem}>
-                                    <Input label={t('logs.feed_labelTray3')} value={tray3} onChangeText={setTray3} keyboardType="number-pad" placeholder="0%" />
-                                </View>
-                                <View style={styles.trayItem}>
-                                    <Input label={t('logs.feed_labelTray4')} value={tray4} onChangeText={setTray4} keyboardType="number-pad" placeholder="0%" />
-                                </View>
-                            </View>
-                        </Card>
+                            </Card>
+                        )}
                     </>
                 )}
 
@@ -232,6 +254,19 @@ const styles = StyleSheet.create({
     },
     trayItem: {
         flex: 1,
+    },
+    moreToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: theme.spacing[1],
+        paddingVertical: theme.spacing[3],
+        marginBottom: theme.spacing[4],
+    },
+    moreToggleText: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.primary,
+        fontWeight: '600',
     },
     textArea: {
         minHeight: 80,
