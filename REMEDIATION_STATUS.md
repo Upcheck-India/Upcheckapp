@@ -15,6 +15,8 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 
 **Session 6 done (WORKFLOW — 8 module-partitioned agents, 4 Opus + 4 Sonnet, disjoint file sets): 91 findings addressed + reference/news admin-gating (#48) by integrator. 211/215 rows ✅. Backend 78 suites/498 tests + build clean; frontend 18 suites/122 tests + tsc clean; CI green.** Highlights: timezone/DOC unified (IST, stocking-day=1 across crop entity/service/measurement), closeCycle idempotent + two-active-cycle lock, harvest/transaction idempotency, feed inventory compensation, N+1 collapses, disease-library/reference/news/product writes admin-gated, redis error-listener+recovery, email throws+no-PII, health/water-quality no silent-swallow; frontend error-vs-empty states + pull-to-refresh + a11y + store resets (uploadStore→expo-crypto), form pickers/validation/pagination, platform-gated Google sign-in, brand/copy/i18n cleanup, unused deps + RN permissions removed; docs accuracy + supabase on_auth_user_deleted trigger. **BEHAVIOR CHANGES to eyeball on-device: crop DOC now 1-based (+1); crop harvest status 'harvested'→'completed'; reference/news/disease-library API writes now require SUPER_ADMIN.** **REMAINING: 4 minor codeable ⬜ (CreateCycle stocking-count client-validation, ResetPassword password-parity, pond-context pH/Temp/Salinity confidence age, supabase.service dead-code) + external 🔷 (Android upload keystore via `eas credentials`; frontend `@sentry/react-native` + `EXPO_PUBLIC_SENTRY_DSN`; truecaller patched-fork replacement; authentic non-English translations; operator legal placeholders).**
 
+**Session 7 done: closed the final 4 minor codeable items — ResetPassword now enforces full signup password policy; pond-context confidence uses each parameter's own source-record timestamp (DO/pH/temp/salinity); dead SupabaseService deleted; CreateCycle stocking-count validation confirmed already correct. Backend 498/498, frontend 122/122, build+tsc clean. 213/215 ✅ — ONLY 2 rows remain, both requiring an EXTERNAL artifact that cannot live in the repo: 🔷 Android upload keystore (`eas credentials`) and 🔷 Truecaller patched-fork replacement (needs a different npm package / real TurboModule). All code-closable audit findings are DONE.**
+
 **Session 3 done: codeable ops-hardening (11 findings). helmet security headers + graceful shutdown hooks + process crash handlers (main.ts); health check now reports redis degraded/up and returns HTTP 503 when DB is down (+3 unit tests); @Throttle added to the 4 unthrottled public auth endpoints (login-otp/verify, oauth/google, oauth/truecaller, oauth/truecaller/exchange) + resend-verification now uses ResendVerificationDto; backend CI quality-gate workflow (.github/workflows/ci.yml) runs backend build+test and frontend tsc+jest on push/PR. Backend 468/468 green, build clean.**
 
 | # | Sev | Status | Area | Issue |
@@ -82,7 +84,7 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 60 | MEDI | ✅ | security-headers | No helmet / security-response-headers middleware anywhere; bootstrap enables CORS + c |
 | 61 | MEDI | ✅ | Graceful shutdown | No app.enableShutdownHooks() and no SIGTERM handler. On deploy Render sends SIGTERM;  |
 | 62 | MEDI | ✅ | Process crash safety | No process-level 'unhandledRejection'/'uncaughtException' handler anywhere in the bac |
-| 63 | MEDI | ⬜ | pond-context / overstated data confide | Alkalinity's confidence age uses chemistryAsOf, which is derived solely from the late |
+| 63 | MEDI | ✅ | pond-context / overstated data confide | Alkalinity's confidence age uses chemistryAsOf, which is derived solely from the late |
 | 64 | MEDI | ✅ | Entity vs migration divergence (NOT NU | pond.entity.ts marks geometry_type, construction_type, depth_m and calculated_area_m2 |
 | 65 | MEDI | ✅ | Authorization consistency (members loc | Engine/finance features (feed-advisor, disease-warning, harvest-timing, simulations,  |
 | 66 | MEDI | ✅ | Shared-catalog integrity (no admin gat | Product entity has no owner column (global catalog) yet POST/PATCH/PATCH:id/stock/DEL |
@@ -155,7 +157,7 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 133 | MEDI | ✅ | Content & copy — brand naming | Product name is spelled two ways in user-facing copy: 'UpCheck' (settings.ts:41,65,71 |
 | 134 | MEDI | ✅ | Google Sign-In web divergence | Same ungated GoogleLoginButton on the Login screen: rendered on web while Truecaller  |
 | 135 | MEDI | ✅ | Google Sign-In web divergence | The GoogleLoginButton is rendered unconditionally on every platform, but signInWithGo |
-| 136 | MEDI | ⬜ | frontend form / stocking count validat | Client validation is only `!stockingCount // isNaN(parseInt(stockingCount))`; `parseI |
+| 136 | MEDI | ✅ | frontend form / stocking count validat | Client validation is only `!stockingCount // isNaN(parseInt(stockingCount))`; `parseI |
 | 137 | MEDI | ✅ | Connection & wiring — pagination trunc | pondsApi.getAll(farmId) is called with no take param; backend /ponds is paginated wit |
 | 138 | MEDI | ✅ | Connection & wiring — pagination trunc | Crop total feed is computed by summing feedApi.getByCrop(cropId), but /feed-records d |
 | 139 | MEDI | ✅ | Connection & wiring — pagination trunc | feedApi.getByCrop/getAll are called once with no take param and the screen has no pag |
@@ -177,7 +179,7 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 155 | LOW | ✅ | sampling ignores requested crop | create() hard-codes cropId: pond.activeCycleId and ignores the DTO's optional cropId, |
 | 156 | LOW | ✅ | calc DTO validation gaps | FCR/ADG/survival/feeding/expected-harvest DTOs have @IsNumber with no @Min, so negati |
 | 157 | LOW | ✅ | biomass GET returns NaN | biomass reads query params via Number(stockCount)/Number(averageWeightG) with no vali |
-| 158 | LOW | ⬜ | Dead code / token cleanup | SupabaseService (~280 lines, a parallel auth/user/token data layer) is never injected |
+| 158 | LOW | ✅ | Dead code / token cleanup | SupabaseService (~280 lines, a parallel auth/user/token data layer) is never injected |
 | 159 | LOW | ✅ | Docs vs code — deep-link scheme | APP_FLOW.md says the password-reset flow uses deep link `upcheck://`, but the app's a |
 | 160 | LOW | ✅ | Docs vs code — public endpoint surface | FEATURES.md claims '`GET price*` is `@Public()`', implying both GET /india/price and  |
 | 161 | LOW | ✅ | Build config / stale comment | The comment claims truecaller-sdk:2.7.0 is "used by the native bridge in com.upcheck. |
@@ -190,7 +192,7 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 168 | LOW | ✅ | api / token refresh | Requests queued behind an in-flight refresh are retried via apiClient(originalRequest |
 | 169 | LOW | ✅ | Inert lint suppressions hide stale-clo | react-hooks/exhaustive-deps is disabled here and in 4 screens (CreatePondScreen, Refe |
 | 170 | LOW | ✅ | i18n — dead/orphan translation keys | All five non-English locales carry engines.lunar.stepPeak/stepPre/stepPost/stepNoHand |
-| 171 | LOW | ⬜ | auth | Reset-password validation only checks password.length < 8, weaker than the enforced s |
+| 171 | LOW | ✅ | auth | Reset-password validation only checks password.length < 8, weaker than the enforced s |
 | 172 | LOW | ✅ | calculators — wasted API call | handleCalculate calls calculatorsApi.calculateCultivationPerformance and stores perfR |
 | 173 | LOW | ✅ | cycles | Stocking date is a free-text Input with no validation and no date picker (inconsisten |
 | 174 | LOW | ✅ | farms | During pendingFarmSetup this screen (the forced first-run route) has no header, back, |
