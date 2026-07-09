@@ -16,7 +16,7 @@ const calculators = {
       description: 'तालाब की मात्रा और ppm लक्ष्य के आधार पर उत्पाद/रसायन की मात्रा गणना करें',
     },
     freeAmmonia: {
-      title: 'मुक्त अमोनिया (NH3)',
+      title: 'मुक्त अमोनिया (NH₃)',
       description: 'TAN, pH, तापमान और लवणता से विषाक्त मुक्त अमोनिया की गणना करें',
     },
     growthHarvest: {

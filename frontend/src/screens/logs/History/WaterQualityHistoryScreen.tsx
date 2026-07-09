@@ -67,7 +67,7 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
         setError(null);
 
         try {
-            const response = await waterQualityApi.getAll(pondId);
+            const response = await waterQualityApi.getAll(pondId, { take: 100 });
             const result = response.data;
             const pondRecords: WaterQualityRecord[] = Array.isArray(result) ? result : (result as any).data || [];
             pondRecords.sort((a, b) => new Date(b.recordedAt || '').getTime() - new Date(a.recordedAt || '').getTime());

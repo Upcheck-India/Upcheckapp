@@ -59,10 +59,10 @@ export const FeedStatsScreen = ({ route }: any) => {
         const toRecords = (data: any): FeedRecord[] => (Array.isArray(data) ? data : data?.data || []);
 
         const [recRes, ctxRes, totalRes, invRes] = await Promise.all([
-          feedApi.getAll(pondId).then((r) => toRecords(r.data)).catch(() => [] as FeedRecord[]),
+          feedApi.getAll(pondId, { take: 100 }).then((r) => toRecords(r.data)).catch(() => [] as FeedRecord[]),
           pondContextApi.get(pondId).then((r) => r.data).catch(() => null),
           (cropId
-            ? feedApi.getByCrop(cropId).then((r) => toRecords(r.data).reduce((s, x) => s + (Number(x.quantityKg) || 0), 0))
+            ? feedApi.getByCrop(cropId, { take: 100 }).then((r) => toRecords(r.data).reduce((s, x) => s + (Number(x.quantityKg) || 0), 0))
             : feedApi.getTotalByPond(pondId).then((r) => Number(r.data))
           ).catch(() => null),
           farmId ? inventoryApi.getAll(farmId).then((r) => r.data).catch(() => []) : Promise.resolve([]),

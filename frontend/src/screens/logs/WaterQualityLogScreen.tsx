@@ -109,10 +109,10 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                     <View style={styles.row}>
                         <ParameterInput label={t('logs.waterQuality_labelAlkalinity')} unit="mg/L" value={alkalinity} onChangeText={setAlkalinity} parameterKey="alkalinity" />
                         <View style={styles.spacer} />
-                        <ParameterInput label={t('logs.waterQuality_labelNitrate')} unit="mg/L" value={nitrate} onChangeText={setNitrate} />
+                        <ParameterInput label={t('logs.waterQuality_labelNitrate')} unit="mg/L" value={nitrate} onChangeText={setNitrate} parameterKey="nitrate" />
                     </View>
                     <View style={styles.row}>
-                        <ParameterInput label={t('logs.waterQuality_labelHardness')} unit="mg/L" value={hardness} onChangeText={setHardness} />
+                        <ParameterInput label={t('logs.waterQuality_labelHardness')} unit="mg/L" value={hardness} onChangeText={setHardness} parameterKey="hardness" />
                         <View style={styles.spacer} />
                         <View style={styles.halfCol} />
                     </View>

@@ -40,10 +40,17 @@ interface ActiveFarmState {
     clearAll: () => void;
 }
 
-const computeDOC = (stockingDate: string, initialAgeDays: number): number => {
-    const stocking = new Date(stockingDate);
-    const today = new Date();
-    const daysSinceStocking = Math.floor(
+export const computeDOC = (stockingDate: string, initialAgeDays: number): number => {
+    // Parse 'YYYY-MM-DD' as a LOCAL calendar day, not UTC. `new Date('2026-07-09')`
+    // is UTC midnight; subtracting a local `now` and flooring drops a whole day for
+    // positive-offset zones like IST (+5:30). Diff local-midnight to local-midnight
+    // instead — same convention as utils/localDate.ts. (round, not floor, so a DST
+    // hour never shifts the day count.)
+    const [y, m, d] = stockingDate.split('-').map(Number);
+    const stocking = new Date(y, (m ?? 1) - 1, d ?? 1);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const daysSinceStocking = Math.round(
         (today.getTime() - stocking.getTime()) / (1000 * 60 * 60 * 24)
     );
     return daysSinceStocking + initialAgeDays;

@@ -10,15 +10,21 @@ interface Props {
 interface State {
     hasError: boolean;
     error: Error | null;
+    // Bumped on reset to force a full remount of the child tree. Just clearing
+    // hasError re-renders the SAME (crashed) navigation state, so a screen that
+    // threw during render throws again immediately. Remounting drops the crashed
+    // subtree — including the NavigationContainer, which rebuilds at its initial
+    // (safe) route — which is the real "get me out of here" recovery.
+    resetKey: number;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
     constructor(props: Props) {
         super(props);
-        this.state = { hasError: false, error: null };
+        this.state = { hasError: false, error: null, resetKey: 0 };
     }
 
-    static getDerivedStateFromError(error: Error): State {
+    static getDerivedStateFromError(error: Error): Partial<State> {
         return { hasError: true, error };
     }
 
@@ -27,7 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     handleReset = () => {
-        this.setState({ hasError: false, error: null });
+        this.setState((s) => ({ hasError: false, error: null, resetKey: s.resetKey + 1 }));
     };
 
     render() {
@@ -56,7 +62,7 @@ export class ErrorBoundary extends Component<Props, State> {
             );
         }
 
-        return this.props.children;
+        return <React.Fragment key={this.state.resetKey}>{this.props.children}</React.Fragment>;
     }
 }
 

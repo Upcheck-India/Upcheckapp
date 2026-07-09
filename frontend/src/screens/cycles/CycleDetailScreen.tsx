@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { MetricCard } from '../../components/ui/MetricCard';
@@ -17,23 +18,31 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
     const { cycleId } = route.params;
     const [cycle, setCycle] = useState<Crop | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<any>(null);
 
-    const fetchCycle = async () => {
+    const fetchCycle = useCallback(async () => {
+        setError(null);
         try {
             const { data } = await cropsApi.getById(cycleId);
             setCycle(data);
-        } catch (error) {
-            console.error('Failed to fetch cycle details:', error);
+        } catch (err) {
+            console.error('Failed to fetch cycle details:', err);
+            setError(err);
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [cycleId]);
 
     useFocusEffect(
         useCallback(() => {
             fetchCycle();
-        }, [cycleId])
+        }, [fetchCycle])
     );
+
+    const onRetry = useCallback(() => {
+        setIsLoading(true);
+        fetchCycle();
+    }, [fetchCycle]);
 
     const handleCloseCycle = () => {
         Alert.alert(
@@ -57,8 +66,17 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
         );
     };
 
-    if (isLoading || !cycle) {
+    if (isLoading) {
         return <ScreenWrapper><Text>{t('common.loading')}</Text></ScreenWrapper>;
+    }
+    // A fetch failure must show a retry action, never a permanent "Loading…" — the
+    // old guard left the screen stuck on the loading text on any API error.
+    if (!cycle) {
+        return (
+            <ScreenWrapper>
+                <ErrorState title={t('cycles.errorLoadTitle', "Couldn't load this cycle")} error={error} onRetry={onRetry} />
+            </ScreenWrapper>
+        );
     }
 
     const calculateDOC = (stockingDateStr: string) => {
@@ -131,7 +149,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                     <View style={styles.actionContainer}>
                         <Button
                             title={t('cycles.btnRecordHarvest')}
-                            onPress={() => navigation.navigate('HarvestHistory', { pondId: cycle.pondId, cycleId: cycle.id, cropId: cycle.id })}
+                            onPress={() => navigation.navigate('HarvestLog', { pondId: cycle.pondId, pondName: (cycle as any).pondName, cropId: cycle.id })}
                             style={styles.actionBtn}
                         />
                         <Button

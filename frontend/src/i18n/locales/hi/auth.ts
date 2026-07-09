@@ -1,6 +1,6 @@
 const auth = {
   // ── App header (LoginScreen) ──────────────────────────────────────────────
-  title: 'UpCheck',
+  title: 'Upcheck',
   subtitle: 'झींगा जलकृषि प्रबंधन',
 
   // ── Shared field labels / placeholders ───────────────────────────────────
@@ -36,7 +36,7 @@ const auth = {
 
   // ── RegisterScreen ────────────────────────────────────────────────────────
   createAccountTitle: 'खाता बनाएं',
-  registerSubtitle: 'अपने झींगा फार्म प्रबंधित करने के लिए UpCheck से जुड़ें',
+  registerSubtitle: 'अपने झींगा फार्म प्रबंधित करने के लिए Upcheck से जुड़ें',
 
   firstNameLabel: 'पहला नाम',
   firstNamePlaceholder: 'अपना पहला नाम दर्ज करें',

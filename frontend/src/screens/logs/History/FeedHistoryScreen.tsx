@@ -23,8 +23,8 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
 
         try {
             const { data } = cropId
-                ? await feedApi.getByCrop(cropId)
-                : await feedApi.getAll(pondId);
+                ? await feedApi.getByCrop(cropId, { take: 100 })
+                : await feedApi.getAll(pondId, { take: 100 });
             const pondRecords: FeedRecord[] = Array.isArray(data) ? data : (data as any).data || [];
             pondRecords.sort((a, b) => new Date(b.recordedAt || '').getTime() - new Date(a.recordedAt || '').getTime());
             setRecords(pondRecords);

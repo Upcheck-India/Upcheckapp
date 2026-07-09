@@ -14,6 +14,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
 
@@ -40,14 +41,18 @@ export const QuickLogScreen = ({ navigation }: any) => {
     const [ponds, setPonds] = useState<Pond[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    // A network failure must NOT masquerade as "no ponds — create a farm"; the
+    // farmer likely already has ponds and only the request failed. Show retry.
+    const [error, setError] = useState<any>(null);
 
     const load = useCallback(async () => {
+        setError(null);
         try {
             const { data } = await pondsApi.getMine();
             setPonds(data);
             setSelectedId((prev) => prev ?? data[0]?.id ?? null);
-        } catch {
-            setPonds([]);
+        } catch (err) {
+            setError(err);
         } finally {
             setLoading(false);
         }
@@ -80,6 +85,10 @@ export const QuickLogScreen = ({ navigation }: any) => {
 
             {loading ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
+            ) : error && ponds.length === 0 ? (
+                <View style={styles.center}>
+                    <ErrorState error={error} onRetry={() => { setLoading(true); load(); }} />
+                </View>
             ) : ponds.length === 0 ? (
                 <View style={styles.center}>
                     <EmptyState

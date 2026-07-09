@@ -16,7 +16,7 @@ const calculators = {
       description: 'ପୋଖରୀ ଆୟତନ ଓ ppm ଲକ୍ଷ୍ୟ ଆଧାରରେ ଉତ୍ପାଦ/ରାସାୟନିକ ପରିମାଣ ଗଣନା',
     },
     freeAmmonia: {
-      title: 'ମୁକ୍ତ ଅ୍ୟାମୋନିଆ (NH3)',
+      title: 'ମୁକ୍ତ ଅ୍ୟାମୋନିଆ (NH₃)',
       description: 'TAN, pH, ତାପ ଓ ଲବଣତ ଦ୍ୱାରା ବିଷ ମୁକ୍ତ ଅ୍ୟାମୋନିଆ ଗଣନା',
     },
     growthHarvest: {

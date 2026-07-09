@@ -1,6 +1,6 @@
 const auth = {
   // ── App header (LoginScreen) ──────────────────────────────────────────────
-  title: 'UpCheck',
+  title: 'Upcheck',
   subtitle: 'ଚିଙ୍ଗୁଡ଼ି ଜଳକୃଷି ପ୍ରବନ୍ଧନ',
 
   // ── Shared field labels / placeholders ───────────────────────────────────
@@ -36,7 +36,7 @@ const auth = {
 
   // ── RegisterScreen ────────────────────────────────────────────────────────
   createAccountTitle: 'ଆକାଉଣ୍ଟ ତୈରି କରନ୍ତୁ',
-  registerSubtitle: 'ଆପଣଙ୍କ ଚିଙ୍ଗୁଡ଼ି ଫାର୍ମ ପ୍ରବନ୍ଧନ ପାଇଁ UpCheck ରେ ଯୋଗ ଦିଅନ୍ତୁ',
+  registerSubtitle: 'ଆପଣଙ୍କ ଚିଙ୍ଗୁଡ଼ି ଫାର୍ମ ପ୍ରବନ୍ଧନ ପାଇଁ Upcheck ରେ ଯୋଗ ଦିଅନ୍ତୁ',
 
   firstNameLabel: 'ପ୍ରଥମ ନାମ',
   firstNamePlaceholder: 'ଆପଣଙ୍କ ପ୍ରଥମ ନାମ ଦିଅନ୍ତୁ',

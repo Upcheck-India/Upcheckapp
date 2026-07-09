@@ -10,7 +10,7 @@ const settings = {
   pushNotifications: 'Push Notifications',
   pushNotificationsDesc: 'Alerts for water quality & feeding',
   emailSummaries: 'Email Summaries',
-  emailSummariesDesc: 'Weekly performance reports',
+  emailSummariesDesc: 'Weekly performance reports (coming soon)',
   security: 'Security',
   twoFactor: 'Two-Factor Authentication',
   about: 'About Upcheck',
@@ -38,7 +38,7 @@ const settings = {
   helpAndSupport: 'Help & Support',
   helpIntroTitle: 'How can we help?',
   helpIntroText:
-    "UpCheck is your shrimp aquaculture management companion. Here's how to get the most out of it.",
+    "Upcheck is your shrimp aquaculture management companion. Here's how to get the most out of it.",
   quickGuides: 'Quick Guides',
   contactUs: 'Contact Us',
   // Help topic titles
@@ -62,13 +62,13 @@ const settings = {
     'Organize ponds, manage cycles, track inventory, and view financial reports per farm.',
 
   // ── AboutScreen ───────────────────────────────────────────────────────────
-  aboutUpcheck: 'About UpCheck',
+  aboutUpcheck: 'About Upcheck',
   appTagline: 'Shrimp Aquaculture Management',
   versionLabel: 'Version',
   buildInfo: 'Build 2026.04.30',
   descriptionLabel: 'Description',
   descriptionText:
-    'UpCheck is a comprehensive shrimp aquaculture management application designed to help farmers monitor water quality, manage feed, track growth, and optimize cultivation practices.',
+    'Upcheck is a comprehensive shrimp aquaculture management application designed to help farmers monitor water quality, manage feed, track growth, and optimize cultivation practices.',
   featuresLabel: 'Features',
   featureMultiFarm: 'Multi-farm management',
   featurePondMonitoring: 'Pond monitoring & logs',
@@ -77,9 +77,9 @@ const settings = {
   featureGrowthSimulations: 'Growth simulations',
   featureFinancialReports: 'Financial reports',
   developedByLabel: 'Developed By',
-  developedByTeam: 'UpCheck Team',
+  developedByTeam: 'Upcheck Team',
   developedByLocation: 'India',
-  footerCopyright: '© 2026 UpCheck. All rights reserved.',
+  footerCopyright: '© 2026 Upcheck. All rights reserved.',
 
   // ── TwoFactorScreen ───────────────────────────────────────────────────────
   twoFactorTitle: 'Two-Factor Authentication',

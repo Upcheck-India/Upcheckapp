@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { FAB } from '../../components/ui/FAB';
 import { theme } from '../../theme';
 import { simulationsApi, SavedSimulation } from '../../api/simulations';
@@ -13,18 +14,29 @@ export const SimulationListScreen = ({ navigation }: any) => {
 
     const [simulations, setSimulations] = useState<SavedSimulation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    // A load failure must render an error+retry block, not the "create your first
+    // simulation" empty state — the two are indistinguishable to the farmer otherwise.
+    const [error, setError] = useState<any>(null);
 
-    const fetchSimulations = async () => {
-        setIsLoading(true);
+    const fetchSimulations = useCallback(async () => {
+        setError(null);
         try {
             const { data } = await simulationsApi.getAll();
             setSimulations(data);
-        } catch (error) {
-            console.log('Failed to fetch simulations', error);
+        } catch (err) {
+            console.log('Failed to fetch simulations', err);
+            setError(err);
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
-    };
+    }, []);
+
+    const onRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        fetchSimulations();
+    }, [fetchSimulations]);
 
     useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
@@ -77,7 +89,7 @@ export const SimulationListScreen = ({ navigation }: any) => {
     return (
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel={t('common.back', 'Back')}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>{t('simulations.list.title')}</Text>
@@ -88,12 +100,17 @@ export const SimulationListScreen = ({ navigation }: any) => {
                 <View style={styles.center}>
                     <ActivityIndicator size="large" color={theme.roles.light.primary} />
                 </View>
+            ) : error && simulations.length === 0 ? (
+                <ErrorState error={error} onRetry={fetchSimulations} />
             ) : (
                 <FlatList
                     data={simulations}
                     keyExtractor={(item) => item.id}
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={[theme.roles.light.primary]} tintColor={theme.roles.light.primary} />
+                    }
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <MaterialCommunityIcons name="chart-timeline-variant-shimmer" size={64} color={theme.roles.light.borderDefault} />

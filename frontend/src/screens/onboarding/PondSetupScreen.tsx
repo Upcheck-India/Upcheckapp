@@ -64,6 +64,9 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
     const totalPonds: number = Math.max(1, route.params?.totalPonds ?? 1);
 
     const scrollRef = useRef<ScrollView>(null);
+    // Survives a failed crop-create so retry reuses the already-created pond (see handleSaveStep).
+    const pendingPondIdRef = useRef<string | null>(null);
+    const pendingAreaRef = useRef<number | null>(null);
     const [index, setIndex] = useState(0);
     const [form, setForm] = useState(emptyForm());
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -165,25 +168,36 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
             const ac = parseInt(form.aeratorCount, 10);
             const hp = parseFloat(form.hpPerAerator);
             const hasAerators = !!form.aeratorCount && !isNaN(ac) && ac > 0;
-
-            const pondRes = await pondsApi.create({
-                farmId,
-                namePrefix: derivePrefix(form.name),
-                displayName: form.name.trim(),
-                geometryType: form.geometry,
-                constructionType: 'earthen',
-                depthM: parseFloat(form.depthM),
-                ...(form.geometry === 'circular'
-                    ? { diameterM: parseFloat(form.diameterM) }
-                    : { lengthM: parseFloat(form.lengthM), widthM: parseFloat(form.widthM) }),
-                aeratorCount: form.aeratorCount ? ac : undefined,
-                installedAeratorHp: hasAerators && !isNaN(hp) ? Math.round(ac * hp * 100) / 100 : undefined,
-            });
-
-            const result = pondRes.data as unknown as CreatePondResult;
-            const pondId = result.pond?.id ?? (result as any).id;
-            const areaM2 = result.calculatedAreaM2 ?? previewArea ?? 0;
             const density = parseFloat(form.stockingDensity);
+
+            // ponytail: pond-then-crop is two non-atomic calls. If a prior attempt for
+            // this same pond already created the pond but the crop call failed, reuse
+            // that pondId on retry instead of creating a duplicate orphan pond.
+            let pondId = pendingPondIdRef.current;
+            let areaM2 = pendingAreaRef.current ?? previewArea ?? 0;
+
+            if (!pondId) {
+                const pondRes = await pondsApi.create({
+                    farmId,
+                    namePrefix: derivePrefix(form.name),
+                    displayName: form.name.trim(),
+                    geometryType: form.geometry,
+                    constructionType: 'earthen',
+                    depthM: parseFloat(form.depthM),
+                    ...(form.geometry === 'circular'
+                        ? { diameterM: parseFloat(form.diameterM) }
+                        : { lengthM: parseFloat(form.lengthM), widthM: parseFloat(form.widthM) }),
+                    aeratorCount: form.aeratorCount ? ac : undefined,
+                    installedAeratorHp: hasAerators && !isNaN(hp) ? Math.round(ac * hp * 100) / 100 : undefined,
+                });
+
+                const result = pondRes.data as unknown as CreatePondResult;
+                pondId = result.pond?.id ?? (result as any).id;
+                areaM2 = result.calculatedAreaM2 ?? previewArea ?? 0;
+                pendingPondIdRef.current = pondId;
+                pendingAreaRef.current = areaM2;
+            }
+
             const stockingCount = areaM2 > 0 ? Math.round(density * areaM2) : undefined;
 
             await cropsApi.create({
@@ -199,6 +213,11 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
                 hatcheryId: form.hatcheryId ?? undefined,
             });
 
+            // Crop succeeded — this pond's pending state is done with, clear it before
+            // moving to (or resetting for) the next pond in the loop.
+            pendingPondIdRef.current = null;
+            pendingAreaRef.current = null;
+
             if (index >= totalPonds - 1) {
                 finish();
             } else {
@@ -208,7 +227,10 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
                 scrollRef.current?.scrollTo({ y: 0, animated: false });
             }
         } catch (err: any) {
-            Alert.alert(t('common.error'), err.response?.data?.message || t('pondSetup.errSave'));
+            const message = pendingPondIdRef.current
+                ? t('pondSetup.errSaveCropRetry', 'Pond was created but saving the crop failed. Tap Save again to retry with the same pond.')
+                : err.response?.data?.message || t('pondSetup.errSave');
+            Alert.alert(t('common.error'), message);
         } finally {
             setSubmitting(false);
         }

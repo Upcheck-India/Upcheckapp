@@ -28,7 +28,7 @@ const members = {
     notFoundTitle: 'उपयोगकर्ता नहीं मिला',
     notFoundSub: 'उस पहचान से कोई खाता मेल नहीं खाता। जाँचें और पुनः प्रयास करें।',
     invalidQrTitle: 'अमान्य QR',
-    invalidQrSub: 'यह UpCheck वर्कर कोड नहीं है।',
+    invalidQrSub: 'यह Upcheck वर्कर कोड नहीं है।',
     confirmAdd: 'फ़ार्म में जोड़ें',
     addedTitle: 'वर्कर जोड़ा गया',
     addedSub: '{{name}} अब इस फ़ार्म के लिए डेटा दर्ज कर सकता है।',

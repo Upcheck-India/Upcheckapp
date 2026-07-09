@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import 'react-native-get-random-values';
-import { v4 as uuidv4 } from 'uuid';
+import * as Crypto from 'expo-crypto';
 
 export type UploadStatus = 'pending' | 'uploading' | 'completed' | 'failed';
 
@@ -25,13 +24,15 @@ interface UploadState {
     retryJob: (id: string) => void;
     removeJob: (id: string) => void;
     pendingCount: () => number;
+    /** Drop all jobs — called on logout so one user's uploads never replay under another's token. */
+    reset: () => void;
 }
 
 export const useUploadStore = create<UploadState>()((set, get) => ({
     jobs: [],
 
     addJob: (job) => {
-        const id = uuidv4();
+        const id = Crypto.randomUUID();
         set((state) => ({
             jobs: [
                 ...state.jobs,
@@ -74,4 +75,6 @@ export const useUploadStore = create<UploadState>()((set, get) => ({
 
     pendingCount: () =>
         get().jobs.filter((j) => j.status === 'pending' || j.status === 'uploading').length,
+
+    reset: () => set({ jobs: [] }),
 }));

@@ -38,7 +38,7 @@ const settings = {
   helpAndSupport: 'ସାହାଯ୍ୟ ଓ ସହଯୋଗ',
   helpIntroTitle: 'ଆମେ କିଭଳି ସାହାଯ୍ୟ କରିପାରିବୁ?',
   helpIntroText:
-    'UpCheck ହେଉଛି ଆପଣଙ୍କ ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା ସହଯୋଗୀ। ଏଥିରୁ ସର୍ବଶ୍ରେଷ୍ଠ ଫଳ ପାଇବାର ଉପାୟ ଜାଣନ୍ତୁ।',
+    'Upcheck ହେଉଛି ଆପଣଙ୍କ ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା ସହଯୋଗୀ। ଏଥିରୁ ସର୍ବଶ୍ରେଷ୍ଠ ଫଳ ପାଇବାର ଉପାୟ ଜାଣନ୍ତୁ।',
   quickGuides: 'ଦ୍ରୁତ ଗାଇଡ',
   contactUs: 'ଆମ ସହ ଯୋଗାଯୋଗ',
   // Help topic titles
@@ -62,13 +62,13 @@ const settings = {
     'ପୋଖରି ସଂଗଠିତ କରନ୍ତୁ, ଚକ୍ର ପରିଚାଳନା କରନ୍ତୁ, ଭଣ୍ଡାର ଟ୍ର୍ୟାକ୍ କରନ୍ତୁ ଏବଂ ପ୍ରତି ଫାର୍ମ ଅର୍ଥ ରିପୋର୍ଟ ଦେଖନ୍ତୁ।',
 
   // ── AboutScreen ───────────────────────────────────────────────────────────
-  aboutUpcheck: 'UpCheck ବିଷୟରେ',
+  aboutUpcheck: 'Upcheck ବିଷୟରେ',
   appTagline: 'ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା',
   versionLabel: 'ସଂସ୍କରଣ',
   buildInfo: 'Build 2026.04.30',
   descriptionLabel: 'ବିବରଣ',
   descriptionText:
-    'UpCheck ହେଉଛି ଏକ ସମ୍ପୂର୍ଣ୍ଣ ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା ଆପ୍ଲିକେସନ ଯାହା ଚାଷୀଙ୍କୁ ଜଳ ଗୁଣମାନ ଦେଖୁ ରଖିବା, ଖାଦ୍ୟ ପ୍ରଦାନ ପରିଚାଳନା, ବୃଦ୍ଧି ଟ୍ର୍ୟାକ ଏବଂ ଚାଷ ଅଭ୍ୟାସ ଅପ୍ଟିମାଇଜ୍ କରିବାରେ ସାହାଯ୍ୟ କରିବା ପାଇଁ ଡିଜାଇନ ହୋଇଛି।',
+    'Upcheck ହେଉଛି ଏକ ସମ୍ପୂର୍ଣ୍ଣ ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା ଆପ୍ଲିକେସନ ଯାହା ଚାଷୀଙ୍କୁ ଜଳ ଗୁଣମାନ ଦେଖୁ ରଖିବା, ଖାଦ୍ୟ ପ୍ରଦାନ ପରିଚାଳନା, ବୃଦ୍ଧି ଟ୍ର୍ୟାକ ଏବଂ ଚାଷ ଅଭ୍ୟାସ ଅପ୍ଟିମାଇଜ୍ କରିବାରେ ସାହାଯ୍ୟ କରିବା ପାଇଁ ଡିଜାଇନ ହୋଇଛି।',
   featuresLabel: 'ବୈଶିଷ୍ଟ୍ୟ',
   featureMultiFarm: 'ବହୁ-ଫାର୍ମ ପରିଚାଳନା',
   featurePondMonitoring: 'ପୋଖରି ଦେଖୁ ରଖିବା ଓ ଲଗ',
@@ -77,9 +77,9 @@ const settings = {
   featureGrowthSimulations: 'ବୃଦ୍ଧି ଅନୁକରଣ',
   featureFinancialReports: 'ଅର୍ଥ ରିପୋର୍ଟ',
   developedByLabel: 'ବିକଶିତ',
-  developedByTeam: 'UpCheck ଦଳ',
+  developedByTeam: 'Upcheck ଦଳ',
   developedByLocation: 'ଭାରତ',
-  footerCopyright: '© 2026 UpCheck। ସମସ୍ତ ଅଧିକାର ସଂରକ୍ଷିତ।',
+  footerCopyright: '© 2026 Upcheck। ସମସ୍ତ ଅଧିକାର ସଂରକ୍ଷିତ।',
 
   // ── TwoFactorScreen ───────────────────────────────────────────────────────
   twoFactorTitle: 'ଦ୍ୱି-ଘଟକ ପ୍ରମାଣୀକରଣ',

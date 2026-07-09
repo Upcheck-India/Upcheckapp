@@ -79,6 +79,5 @@ export function usePermissions(farmId?: string): Permissions {
             canTransferOwnership: canOwnerActions,
             canChangeRoles: canOwnerActions,
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [targetFarmId, memberships, roleForFarm]);
 }

@@ -23,7 +23,7 @@ const home = {
   moreSectionHelp: 'உதவி & தகவல்',
   moreUserFallback: 'பயனர்',
   moreEmailFallback: 'மின்னஞ்சல் இல்லை',
-  moreVersion: 'UpCheck v1.0.0',
+  moreVersion: 'Upcheck v1.0.0',
   moreSignOutTitle: 'வெளியேறு',
   moreSignOutMessage: 'நிச்சயமாக வெளியேற விரும்புகிறீர்களா?',
   // Account items
@@ -58,7 +58,7 @@ const home = {
   // Help items
   moreHelp: 'உதவி & ஆதரவு',
   moreHelpDesc: 'அடிக்கடி கேட்கப்படும் கேள்விகள் மற்றும் பயிற்சிகள்',
-  moreAbout: 'UpCheck பற்றி',
+  moreAbout: 'Upcheck பற்றி',
   moreAboutDesc: 'ஆப் பதிப்பு மற்றும் வரவேற்புகள்',
 
   // ReportsScreen

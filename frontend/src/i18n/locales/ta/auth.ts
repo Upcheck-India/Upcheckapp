@@ -1,6 +1,6 @@
 const auth = {
   // ── App header (LoginScreen) ──────────────────────────────────────────────
-  title: 'UpCheck',
+  title: 'Upcheck',
   subtitle: 'இறால் மீன்வளர்ப்பு மேலாண்மை',
 
   // ── Shared field labels / placeholders ───────────────────────────────────
@@ -36,7 +36,7 @@ const auth = {
 
   // ── RegisterScreen ────────────────────────────────────────────────────────
   createAccountTitle: 'கணக்கு உருவாக்கு',
-  registerSubtitle: 'உங்கள் இறால் பண்ணைகளை நிர்வகிக்க UpCheck-ல் சேருங்கள்',
+  registerSubtitle: 'உங்கள் இறால் பண்ணைகளை நிர்வகிக்க Upcheck-ல் சேருங்கள்',
 
   firstNameLabel: 'முதல் பெயர்',
   firstNamePlaceholder: 'உங்கள் முதல் பெயரை உள்ளிடுக',

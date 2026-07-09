@@ -90,10 +90,15 @@ export const OfflineIndicator = () => {
  * (SYNC-1/SYNC-3: parked ops must be visible, never silently dropped). Tapping it
  * offers a retry, which re-queues the parked ops with a fresh budget and drains.
  */
+// Approximate rendered height of the offline banner (padding + one text line);
+// used to stack the attention banner beneath it when both are visible.
+const OFFLINE_BANNER_HEIGHT = 30;
+
 export const SyncAttentionBanner = () => {
     const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const failedCount = useSyncStore((s) => s.failedOperations.length);
+    const isConnected = useSyncStore((s) => s.isConnected);
     const retryFailed = useSyncStore((s) => s.retryFailed);
 
     if (failedCount === 0) return null;
@@ -126,7 +131,7 @@ export const SyncAttentionBanner = () => {
             accessibilityLabel={t('common.syncFailedA11y', '{{count}} records failed to sync, tap to retry', {
                 count: failedCount,
             })}
-            style={[styles.attention, { top: insets.top }]}
+            style={[styles.attention, { top: insets.top + (isConnected ? 0 : OFFLINE_BANNER_HEIGHT) }]}
         >
             <MaterialCommunityIcons name="alert-circle-outline" size={16} color={theme.roles.light.surface} />
             <Text style={styles.text}>

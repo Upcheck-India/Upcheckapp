@@ -16,7 +16,7 @@ const calculators = {
       description: 'Calculate product/chemical amount based on pond volume and ppm target',
     },
     freeAmmonia: {
-      title: 'Free Ammonia (NH3)',
+      title: 'Free Ammonia (NH₃)',
       description: 'Calculate toxic free ammonia from TAN, pH, Temp and Salinity',
     },
     growthHarvest: {

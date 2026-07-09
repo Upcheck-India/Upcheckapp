@@ -84,6 +84,9 @@ export const WQ_REMINDER_TIMES = [
  * any existing reminders first so calling on every app launch won't duplicate.
  */
 export async function scheduleDailyWaterQualityReminders(): Promise<void> {
+    // ponytail: local scheduled notifications aren't supported on web (expo-notifications
+    // throws there); skip rather than let every call log a warning for a platform gap.
+    if (Platform.OS === 'web') return;
     try {
         await cancelWaterQualityReminders();
         for (const slot of WQ_REMINDER_TIMES) {
@@ -130,6 +133,7 @@ export const CHEM_REMINDER = { weekday: 1, hour: 7, minute: 30 };
  * daily. Idempotent. Logging these raises the engines' data-confidence score.
  */
 export async function scheduleWeeklyChemistryReminder(): Promise<void> {
+    if (Platform.OS === 'web') return;
     try {
         await cancelWeeklyChemistryReminder();
         await Notifications.scheduleNotificationAsync({

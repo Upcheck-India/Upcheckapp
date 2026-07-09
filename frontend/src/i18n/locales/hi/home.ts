@@ -23,7 +23,7 @@ const home = {
   moreSectionHelp: 'सहायता और जानकारी',
   moreUserFallback: 'उपयोगकर्ता',
   moreEmailFallback: 'कोई ईमेल नहीं',
-  moreVersion: 'UpCheck v1.0.0',
+  moreVersion: 'Upcheck v1.0.0',
   moreSignOutTitle: 'साइन आउट',
   moreSignOutMessage: 'क्या आप वाकई साइन आउट करना चाहते हैं?',
   // Account items
@@ -58,7 +58,7 @@ const home = {
   // Help items
   moreHelp: 'सहायता और समर्थन',
   moreHelpDesc: 'FAQ और ट्यूटोरियल',
-  moreAbout: 'UpCheck के बारे में',
+  moreAbout: 'Upcheck के बारे में',
   moreAboutDesc: 'ऐप संस्करण और श्रेय',
 
   // ReportsScreen

@@ -38,7 +38,7 @@ const pondSetup = {
   fieldHpPerAerator: 'HP per aerator',
   totalHp: 'Total installed: {{hp}} HP',
 
-  cropSuffix: 'Crop 1',
+  cropSuffix: 'Cycle 1',
   saveAndNext: 'Save & continue',
   finishSetup: 'Finish setup',
 

@@ -30,7 +30,11 @@ export interface CreateFeedRecordDto {
 export const feedApi = {
     /** Returns the total feed quantity (kg) logged for a pond, not a record. */
     getTotalByPond: (pondId: string) => apiClient.get<number>(`/feed-records/pond/${pondId}/total`),
-    getAll: (pondId?: string) => apiClient.get<FeedRecord[]>('/feed-records', { params: pondId ? { pondId } : {} }),
-    getByCrop: (cropId: string) => apiClient.get<FeedRecord[]>('/feed-records', { params: { cropId } }),
+    // Backend /feed-records returns a paginated PageDto (default take:10, max take:100);
+    // callers that need the full history/total must pass take explicitly.
+    getAll: (pondId?: string, params?: { take?: number; page?: number }) =>
+        apiClient.get<FeedRecord[]>('/feed-records', { params: { ...(pondId ? { pondId } : {}), ...params } }),
+    getByCrop: (cropId: string, params?: { take?: number; page?: number }) =>
+        apiClient.get<FeedRecord[]>('/feed-records', { params: { cropId, ...params } }),
     create: (data: CreateFeedRecordDto) => apiClient.post<FeedRecord>('/feed-records', data),
 };

@@ -5,7 +5,7 @@ const feedStats = {
   lowStock: 'Low',
   lastFed: 'Last fed',
   totalFed: 'Total fed',
-  thisCrop: 'this crop',
+  thisCrop: 'this cycle',
   thisPond: 'this pond',
   fcr: 'Running FCR',
   runningFcr: 'feed ÷ growth',

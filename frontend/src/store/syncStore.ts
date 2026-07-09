@@ -158,7 +158,16 @@ export const useSyncStore = create<SyncState>()(
                     } else if (outcome === 'failed') {
                         get().markFailed(op.id); // permanent → park as visible, never drop
                     } else {
-                        // Transient: keep retrying until the cap, then park it.
+                        // Transient failure. A pure connectivity drop (the device went
+                        // offline mid-drain) must NOT consume any op's retry budget —
+                        // otherwise a perfectly good op is parked as failed after a few
+                        // offline cycles. Stop draining here; the remaining ops (and this
+                        // one) replay on reconnect with their budget intact.
+                        // ponytail: isConnected is the only connectivity signal in-store;
+                        // if NetInfo hasn't fired yet a server-side 5xx still counts. Fine —
+                        // the cap is meant to catch persistent server rejects, not outages.
+                        if (!get().isConnected) break;
+                        // Keep retrying until the cap, then park it.
                         const cur = get().queue.find((o) => o.id === op.id);
                         if (cur && cur.retryCount + 1 >= MAX_SYNC_RETRIES) {
                             get().markFailed(op.id);

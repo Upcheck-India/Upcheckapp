@@ -1,6 +1,6 @@
 const auth = {
   // ── App header (LoginScreen) ──────────────────────────────────────────────
-  title: 'UpCheck',
+  title: 'Upcheck',
   subtitle: 'চিংড়ি অ্যাকুয়াকালচার ম্যানেজমেন্ট',
 
   // ── Shared field labels / placeholders ───────────────────────────────────
@@ -36,7 +36,7 @@ const auth = {
 
   // ── RegisterScreen ────────────────────────────────────────────────────────
   createAccountTitle: 'অ্যাকাউন্ট তৈরি করুন',
-  registerSubtitle: 'চিংড়ি খামার পরিচালনা করতে UpCheck-এ যোগ দিন',
+  registerSubtitle: 'চিংড়ি খামার পরিচালনা করতে Upcheck-এ যোগ দিন',
 
   firstNameLabel: 'প্রথম নাম',
   firstNamePlaceholder: 'আপনার প্রথম নাম লিখুন',

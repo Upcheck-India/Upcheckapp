@@ -28,7 +28,7 @@ const members = {
     notFoundTitle: 'ব্যবহারকারী পাওয়া যায়নি',
     notFoundSub: 'সেই শনাক্তকারীর সাথে কোনো অ্যাকাউন্ট মেলেনি। যাচাই করে আবার চেষ্টা করুন।',
     invalidQrTitle: 'অচেনা QR',
-    invalidQrSub: 'এটি একটি UpCheck কর্মী কোড নয়।',
+    invalidQrSub: 'এটি একটি Upcheck কর্মী কোড নয়।',
     confirmAdd: 'খামারে যোগ করুন',
     addedTitle: 'কর্মী যোগ হয়েছে',
     addedSub: '{{name}} এখন এই খামারের জন্য ডেটা লিপিবদ্ধ করতে পারেন।',

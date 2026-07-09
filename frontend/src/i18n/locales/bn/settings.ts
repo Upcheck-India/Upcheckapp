@@ -38,7 +38,7 @@ const settings = {
   helpAndSupport: 'সাহায্য ও সহায়তা',
   helpIntroTitle: 'আমরা কীভাবে সাহায্য করতে পারি?',
   helpIntroText:
-    'UpCheck হলো আপনার চিংড়ি অ্যাকুয়াকালচার ব্যবস্থাপনার সঙ্গী। এটি থেকে সর্বোচ্চ সুবিধা পাওয়ার উপায় জানুন।',
+    'Upcheck হলো আপনার চিংড়ি অ্যাকুয়াকালচার ব্যবস্থাপনার সঙ্গী। এটি থেকে সর্বোচ্চ সুবিধা পাওয়ার উপায় জানুন।',
   quickGuides: 'দ্রুত গাইড',
   contactUs: 'যোগাযোগ করুন',
   // Help topic titles
@@ -62,13 +62,13 @@ const settings = {
     'পুকুর সংগঠিত করুন, চক্র পরিচালনা করুন, ইনভেন্টরি ট্র্যাক করুন এবং খামার প্রতি আর্থিক প্রতিবেদন দেখুন।',
 
   // ── AboutScreen ───────────────────────────────────────────────────────────
-  aboutUpcheck: 'UpCheck সম্পর্কে',
+  aboutUpcheck: 'Upcheck সম্পর্কে',
   appTagline: 'চিংড়ি অ্যাকুয়াকালচার ম্যানেজমেন্ট',
   versionLabel: 'সংস্করণ',
   buildInfo: 'বিল্ড 2026.04.30',
   descriptionLabel: 'বিবরণ',
   descriptionText:
-    'UpCheck হলো একটি ব্যাপক চিংড়ি অ্যাকুয়াকালচার ব্যবস্থাপনা অ্যাপ্লিকেশন যা কৃষকদের পানির মান পর্যবেক্ষণ, খাদ্য ব্যবস্থাপনা, বৃদ্ধি ট্র্যাকিং এবং চাষ পদ্ধতি অপ্টিমাইজ করতে সাহায্য করে।',
+    'Upcheck হলো একটি ব্যাপক চিংড়ি অ্যাকুয়াকালচার ব্যবস্থাপনা অ্যাপ্লিকেশন যা কৃষকদের পানির মান পর্যবেক্ষণ, খাদ্য ব্যবস্থাপনা, বৃদ্ধি ট্র্যাকিং এবং চাষ পদ্ধতি অপ্টিমাইজ করতে সাহায্য করে।',
   featuresLabel: 'বৈশিষ্ট্য',
   featureMultiFarm: 'একাধিক খামার ব্যবস্থাপনা',
   featurePondMonitoring: 'পুকুর পর্যবেক্ষণ ও লগ',
@@ -77,9 +77,9 @@ const settings = {
   featureGrowthSimulations: 'বৃদ্ধির সিমুলেশন',
   featureFinancialReports: 'আর্থিক প্রতিবেদন',
   developedByLabel: 'নির্মাতা',
-  developedByTeam: 'UpCheck টিম',
+  developedByTeam: 'Upcheck টিম',
   developedByLocation: 'ভারত',
-  footerCopyright: '© 2026 UpCheck। সর্বস্বত্ব সংরক্ষিত।',
+  footerCopyright: '© 2026 Upcheck। সর্বস্বত্ব সংরক্ষিত।',
 
   // ── TwoFactorScreen ───────────────────────────────────────────────────────
   twoFactorTitle: 'দ্বি-স্তরীয় প্রমাণীকরণ',

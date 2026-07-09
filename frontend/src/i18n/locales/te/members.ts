@@ -28,7 +28,7 @@ const members = {
     notFoundTitle: 'వినియోగదారు కనుగొనబడలేదు',
     notFoundSub: 'ఆ గుర్తింపుతో ఏ ఖాతా సరిపోలలేదు. తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
     invalidQrTitle: 'గుర్తించని QR',
-    invalidQrSub: 'ఇది UpCheck వర్కర్ కోడ్ కాదు.',
+    invalidQrSub: 'ఇది Upcheck వర్కర్ కోడ్ కాదు.',
     confirmAdd: 'ఫారంకు చేర్చు',
     addedTitle: 'వర్కర్ చేర్చబడ్డారు',
     addedSub: '{{name}} ఇప్పుడు ఈ ఫారం కోసం డేటా నమోదు చేయవచ్చు.',

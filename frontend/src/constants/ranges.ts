@@ -7,6 +7,11 @@ export const WaterQualityRanges = {
     nitrite: { min: null, max: 1.0 }, // Less than 1.0
     alkalinity: { min: 100, max: 150 },
     transparency: { min: 30, max: 40 },
+    // ponytail: nitrate ceiling mirrors features/waterQualityThresholds.ts (vannamei
+    // cautionHigh 60mg/L); hardness band is the commonly-cited shrimp-pond ideal
+    // (20-150mg/L CaCO3) — both provisional, no agronomist-confirmed source yet.
+    nitrate: { min: null, max: 60 },
+    hardness: { min: 20, max: 150 },
 };
 
 export type ParameterStatus = 'safe' | 'warning' | 'critical' | 'none';

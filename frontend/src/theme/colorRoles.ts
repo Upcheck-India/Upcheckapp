@@ -40,46 +40,6 @@ export const light = {
     infoBg: '#EBF4FD',
     infoBorder: '#1A7FD4',
 };
-
-// theme/colorRoles.ts — dark variant
-export const dark = {
-    // Backgrounds
-    background: '#0C1117', // deep ocean dark
-    surface: '#151E28', // card surface
-    surfaceVariant: '#1E2C3A', // input bg
-    surfaceOverlay: 'rgba(0, 205, 232, 0.05)',
-
-    // Borders
-    borderDefault: '#243342',
-    borderStrong: '#2F4257',
-    borderBrand: '#0EA8D8',
-
-    // Text
-    textPrimary: '#ECF3F8',
-    textSecondary: '#8AACC0',
-    textTertiary: '#556878',
-    textDisabled: '#3E5163',
-    textInverse: '#0C1117',
-    textBrand: '#29BCE6',
-    textLink: '#29BCE6',
-
-    // Interactive — gradient unchanged, always vibrant
-    primary: '#0D84D6',
-    primaryHover: '#0EA8D8',
-    primaryPressed: '#0B6DC7',
-    primaryDisabled: '#243342',
-
-    // Status (slightly lighter fills on dark bg)
-    successText: '#4DC97C',
-    successBg: '#0D2116',
-    successBorder: '#1A6B3A',
-    warningText: '#F5A623',
-    warningBg: '#241600',
-    warningBorder: '#8A4700',
-    dangerText: '#F07070',
-    dangerBg: '#240808',
-    dangerBorder: '#A41B1B',
-    infoText: '#7BC4F0',
-    infoBg: '#061524',
-    infoBorder: '#0B4F8A',
-};
+// ponytail: dark palette removed — was exported but never rendered (no useColorScheme
+// hook, all 118 screens hardcode roles.light, StatusBar fixed dark-content). Re-add
+// alongside a real useTheme()/useColorScheme() wire-up if dark mode ships.

@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { MoonPhaseCard } from '../../components/ui/MoonPhaseCard';
 import { FarmGlanceCards } from '../../components/dashboard/FarmGlanceCards';
@@ -27,33 +28,51 @@ export const HomeScreen = ({ navigation }: any) => {
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [ponds, setPonds] = useState<Pond[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    // Distinct from summary===null: on a fetch FAILURE we must show a retry state,
+    // not the "no farm data / create your first farm" CTA (which is for a genuinely
+    // empty account). Conflating them pushes an existing owner to re-create a farm.
+    const [error, setError] = useState<any>(null);
+
+    const fetchSummary = useCallback(async () => {
+        setError(null);
+        try {
+            // The dashboard aggregates per-farm; without a farmId the backend
+            // returns all-zeros. Use the selected farm, else default to the
+            // user's first farm (and remember it as the active farm).
+            let farmId = selectedFarm?.id;
+            if (!farmId) {
+                const { data: farms } = await farmsApi.getAll();
+                const first = Array.isArray(farms) ? farms[0] : undefined;
+                if (first) {
+                    farmId = first.id;
+                    setSelectedFarm({ id: first.id, name: first.name, location: (first as any).location });
+                }
+            }
+            const { data } = await reportsApi.getDashboardSummary(farmId);
+            setSummary(data);
+        } catch (err) {
+            console.error("Failed to fetch dashboard summary", err);
+            setError(err);
+        } finally {
+            setIsLoading(false);
+            setIsRefreshing(false);
+        }
+    }, [selectedFarm?.id, setSelectedFarm]);
 
     useEffect(() => {
-        const fetchSummary = async () => {
-            try {
-                // The dashboard aggregates per-farm; without a farmId the backend
-                // returns all-zeros. Use the selected farm, else default to the
-                // user's first farm (and remember it as the active farm).
-                let farmId = selectedFarm?.id;
-                if (!farmId) {
-                    const { data: farms } = await farmsApi.getAll();
-                    const first = Array.isArray(farms) ? farms[0] : undefined;
-                    if (first) {
-                        farmId = first.id;
-                        setSelectedFarm({ id: first.id, name: first.name, location: (first as any).location });
-                    }
-                }
-                const { data } = await reportsApi.getDashboardSummary(farmId);
-                setSummary(data);
-            } catch (error) {
-                console.error("Failed to fetch dashboard summary", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         fetchSummary();
-    }, [selectedFarm?.id]);
+    }, [fetchSummary]);
+
+    const onRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        fetchSummary();
+    }, [fetchSummary]);
+
+    const onRetry = useCallback(() => {
+        setIsLoading(true);
+        fetchSummary();
+    }, [fetchSummary]);
 
     // Ponds for the one-tap "Your Ponds" shortcut — so the farmer reaches a pond
     // (and its daily loop) without drilling Farms → Farm → Pond.
@@ -93,7 +112,11 @@ export const HomeScreen = ({ navigation }: any) => {
     ];
 
     return (
-        <ScreenWrapper>
+        <ScreenWrapper
+            refreshControl={
+                <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={[theme.roles.light.primary]} tintColor={theme.roles.light.primary} />
+            }
+        >
             <View style={styles.header}>
                 <View>
                     <Text style={styles.greeting}>{t('home.greeting')}</Text>
@@ -137,6 +160,14 @@ export const HomeScreen = ({ navigation }: any) => {
                         </Card>
                     ))}
                 </View>
+            ) : error && !summary ? (
+                // Fetch failed and we have nothing cached — show retry, NOT the
+                // create-farm CTA (the owner already has farms; only the request failed).
+                <ErrorState
+                    title={t('home.summaryErrorTitle', "Couldn't load your dashboard")}
+                    error={error}
+                    onRetry={onRetry}
+                />
             ) : summary ? (
                 <View style={styles.statsGrid}>
                     <Card style={styles.statCard}>

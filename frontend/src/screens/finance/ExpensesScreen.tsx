@@ -25,6 +25,7 @@ import {
     CycleFinancials,
     ExpenseCategory,
 } from '../../api/expenses';
+import { cropsApi } from '../../api/crops';
 
 const CATEGORY_OPTIONS = Object.values(ExpenseCategory);
 
@@ -49,7 +50,8 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
     const [formCategory, setFormCategory] = useState<ExpenseCategory>(ExpenseCategory.FEED);
     const [formDescription, setFormDescription] = useState('');
     const [formDate, setFormDate] = useState(todayISO());
-    const [formPondId, setFormPondId] = useState('');
+    // ponytail: a crop belongs to exactly one pond, so pondId is derived from the crop, not typed.
+    const [pondId, setPondId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     const loadData = useCallback(async (showRefreshIndicator = false) => {
@@ -61,12 +63,14 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
         setError(null);
 
         try {
-            const [expensesRes, financialsRes] = await Promise.all([
+            const [expensesRes, financialsRes, cropRes] = await Promise.all([
                 expensesApi.findByCycle(cropId),
                 expensesApi.getCycleFinancials(cropId),
+                cropsApi.getById(cropId),
             ]);
             setExpenses(expensesRes.data);
             setFinancials(financialsRes.data);
+            setPondId(cropRes.data.pondId);
         } catch (err: any) {
             setError(err?.response?.data?.message || 'Failed to load expenses');
         } finally {
@@ -93,7 +97,7 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
             Alert.alert(t('finance.validationError'), t('finance.dateRequired'));
             return;
         }
-        if (!formPondId.trim()) {
+        if (!pondId) {
             Alert.alert(t('finance.validationError'), t('finance.pondIdRequired'));
             return;
         }
@@ -102,7 +106,7 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
         try {
             await expensesApi.create({
                 cropId,
-                pondId: formPondId.trim(),
+                pondId,
                 date: formDate.trim(),
                 category: formCategory,
                 amount: parseFloat(formAmount),
@@ -112,7 +116,6 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
             setFormAmount('');
             setFormDescription('');
             setFormDate(todayISO());
-            setFormPondId('');
             setFormCategory(ExpenseCategory.FEED);
             setShowForm(false);
             // Refresh data
@@ -227,15 +230,6 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
                 placeholder={t('finance.placeholderAmount')}
                 keyboardType="decimal-pad"
                 leftIcon="currency-inr"
-                required
-            />
-
-            <Input
-                label={t('finance.fieldPondId')}
-                value={formPondId}
-                onChangeText={setFormPondId}
-                placeholder={t('finance.placeholderPondId')}
-                leftIcon="waves"
                 required
             />
 

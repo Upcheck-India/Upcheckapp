@@ -108,7 +108,7 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
             }
             Alert.alert(
                 t('auth.loginFailed'),
-                'The server did not return a session. Please try again.',
+                t('auth.truecallerNoSession', 'The server did not return a session. Please try again.'),
             );
         } catch (err: unknown) {
             const status = (err as { response?: { status?: number } })?.response?.status;
@@ -117,12 +117,12 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
             if (status && status >= 400 && status < 500) {
                 Alert.alert(
                     t('auth.loginFailed'),
-                    serverMessage || 'Truecaller verification failed. Please try again.',
+                    serverMessage || t('auth.truecallerVerificationFailed', 'Truecaller verification failed. Please try again.'),
                 );
             } else {
                 Alert.alert(
                     t('auth.networkError'),
-                    serverMessage || 'Could not reach the server. Please try again.',
+                    serverMessage || t('auth.networkErrorBody', 'Could not reach the server. Please try again.'),
                 );
             }
         } finally {

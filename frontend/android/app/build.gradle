@@ -156,9 +156,10 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
-    // Truecaller SDK legacy v2.x (Partner Key) — used by the native bridge in
-    // com.upcheck.app.TruecallerAuthModule. 2.7.0 is the oldest 2.x published
-    // to Maven Central; 2.6.0 only ever existed on the now-defunct JCenter.
+    // Truecaller SDK legacy v2.x (Partner Key) — backs the autolinked
+    // @dhana-cs/react-native-truecaller module (see src/native/TruecallerAuth.ts).
+    // 2.7.0 is the oldest 2.x published to Maven Central; 2.6.0 only ever existed
+    // on the now-defunct JCenter.
     implementation 'com.truecaller.android.sdk:truecaller-sdk:2.7.0'
 
 

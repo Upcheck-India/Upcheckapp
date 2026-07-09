@@ -26,25 +26,17 @@ export default {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#ffffff"
       },
-      intentFilters: [
-        {
-          action: "VIEW",
-          autoVerify: true,
-          data: [
-            {
-              scheme: "upcheckapp"
-            }
-          ],
-          category: [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        }
-      ],
+      // No intentFilters entry here: `scheme: "upcheckapp"` above already gets Expo
+      // to generate the plain custom-scheme intent-filter on prebuild. autoVerify
+      // only applies to http/https App Links with a verified domain, so an entry
+      // for this custom scheme was a manifest-warning no-op duplicating that filter.
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false
     },
     extra: {
+      // These fallbacks are the PUBLIC Supabase project ref + publishable anon key
+      // (client-safe by design, not a secret — RLS is the real access control).
+      // They're committed so builds from a fresh checkout work without a .env.
       supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL || "https://mcslntwchfucavjrrhnu.supabase.co",
       supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_Gc9IN6iWX-a-K7UpEqz9PQ_n1KcQncF",
       apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.upcheck.in/api",

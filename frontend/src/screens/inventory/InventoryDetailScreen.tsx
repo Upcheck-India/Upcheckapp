@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Modal } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { inventoryApi, InventoryItem } from '../../api/inventory';
 
@@ -13,6 +14,17 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
     const { inventoryId, itemName } = route.params;
     const [item, setItem] = useState<InventoryItem | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Adjust-stock modal state
+    const [adjustMode, setAdjustMode] = useState<'add' | 'reduce' | null>(null);
+    const [adjustAmount, setAdjustAmount] = useState('');
+    const [adjustReason, setAdjustReason] = useState('');
+    const [isAdjusting, setIsAdjusting] = useState(false);
+
+    // Edit-item modal state
+    const [showEdit, setShowEdit] = useState(false);
+    const [editForm, setEditForm] = useState({ name: '', category: '', unit: '', reorderLevel: '', unitPrice: '', supplier: '' });
+    const [isEditSaving, setIsEditSaving] = useState(false);
 
     useEffect(() => {
         fetchItem();
@@ -42,15 +54,67 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
             t('inventory.adjustStock'),
             t('inventory.adjustStockChoose'),
             [
-                { text: t('inventory.addStock'), onPress: () => Alert.alert(t('inventory.comingSoon'), t('inventory.stockAdjustComingSoon')) },
-                { text: t('inventory.reduceStock'), onPress: () => Alert.alert(t('inventory.comingSoon'), t('inventory.stockAdjustComingSoon')) },
+                { text: t('inventory.addStock'), onPress: () => { setAdjustAmount(''); setAdjustReason(''); setAdjustMode('add'); } },
+                { text: t('inventory.reduceStock'), onPress: () => { setAdjustAmount(''); setAdjustReason(''); setAdjustMode('reduce'); } },
                 { text: t('common.cancel'), style: 'cancel' },
             ]
         );
     };
 
+    const submitAdjust = async () => {
+        const amount = parseFloat(adjustAmount);
+        if (!adjustAmount.trim() || isNaN(amount) || amount <= 0) {
+            Alert.alert(t('common.error'), t('inventory.validAmountRequired', 'Enter a valid quantity greater than 0.'));
+            return;
+        }
+        setIsAdjusting(true);
+        try {
+            const signedAmount = adjustMode === 'reduce' ? -amount : amount;
+            await inventoryApi.adjustStock(inventoryId, signedAmount, adjustReason.trim() || undefined);
+            setAdjustMode(null);
+            await fetchItem();
+        } catch (err: any) {
+            Alert.alert(t('common.error'), err?.response?.data?.message ?? t('inventory.adjustFailed', 'Failed to adjust stock.'));
+        } finally {
+            setIsAdjusting(false);
+        }
+    };
+
     const handleEdit = () => {
-        Alert.alert(t('inventory.comingSoon'), t('inventory.editComingSoon'));
+        if (!item) return;
+        setEditForm({
+            name: item.name,
+            category: item.category,
+            unit: item.unit ?? '',
+            reorderLevel: item.reorderLevel != null ? String(item.reorderLevel) : '',
+            unitPrice: item.unitPrice != null ? String(item.unitPrice) : '',
+            supplier: item.supplier ?? '',
+        });
+        setShowEdit(true);
+    };
+
+    const submitEdit = async () => {
+        if (!editForm.name.trim()) {
+            Alert.alert(t('common.error'), t('inventory.nameRequired', 'Item name is required.'));
+            return;
+        }
+        setIsEditSaving(true);
+        try {
+            await inventoryApi.update(inventoryId, {
+                name: editForm.name.trim(),
+                category: editForm.category.trim() || undefined,
+                unit: editForm.unit.trim() || undefined,
+                reorderLevel: editForm.reorderLevel ? Number(editForm.reorderLevel) : undefined,
+                unitPrice: editForm.unitPrice ? Number(editForm.unitPrice) : undefined,
+                supplier: editForm.supplier.trim() || undefined,
+            });
+            setShowEdit(false);
+            await fetchItem();
+        } catch (err: any) {
+            Alert.alert(t('common.error'), err?.response?.data?.message ?? t('inventory.editFailed', 'Failed to update item.'));
+        } finally {
+            setIsEditSaving(false);
+        }
     };
 
     if (isLoading) {
@@ -178,6 +242,121 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                     </View>
                 </Card>
             </ScrollView>
+
+            <Modal
+                visible={adjustMode !== null}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setAdjustMode(null)}
+            >
+                <View style={styles.modalOverlay}>
+                    <Card style={styles.modalCard}>
+                        <Text style={styles.modalTitle}>
+                            {adjustMode === 'reduce' ? t('inventory.reduceStock') : t('inventory.addStock')}
+                        </Text>
+                        <Input
+                            label={t('inventory.fieldQuantity', 'Quantity')}
+                            value={adjustAmount}
+                            onChangeText={setAdjustAmount}
+                            placeholder="0"
+                            keyboardType="decimal-pad"
+                            leftIcon="counter"
+                            required
+                        />
+                        <Input
+                            label={t('common.notes')}
+                            value={adjustReason}
+                            onChangeText={setAdjustReason}
+                            placeholder={t('inventory.reasonPlaceholder', 'Optional reason')}
+                            leftIcon="note-text-outline"
+                        />
+                        <View style={styles.modalActions}>
+                            <Button
+                                title={t('common.cancel')}
+                                variant="outlined"
+                                onPress={() => setAdjustMode(null)}
+                                style={styles.modalBtn}
+                                disabled={isAdjusting}
+                            />
+                            <Button
+                                title={t('common.save')}
+                                onPress={() => void submitAdjust()}
+                                loading={isAdjusting}
+                                style={styles.modalBtn}
+                            />
+                        </View>
+                    </Card>
+                </View>
+            </Modal>
+
+            <Modal
+                visible={showEdit}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowEdit(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <Card style={styles.modalCard}>
+                        <ScrollView keyboardShouldPersistTaps="handled">
+                            <Text style={styles.modalTitle}>{t('inventory.editItem', 'Edit item')}</Text>
+                            <Input
+                                label={t('inventory.fieldName', 'Item name')}
+                                value={editForm.name}
+                                onChangeText={(v) => setEditForm((f) => ({ ...f, name: v }))}
+                                required
+                                leftIcon="tag-outline"
+                            />
+                            <Input
+                                label={t('inventory.fieldCategory', 'Category')}
+                                value={editForm.category}
+                                onChangeText={(v) => setEditForm((f) => ({ ...f, category: v }))}
+                                leftIcon="shape"
+                            />
+                            <Input
+                                label={t('inventory.fieldUnit', 'Unit')}
+                                value={editForm.unit}
+                                onChangeText={(v) => setEditForm((f) => ({ ...f, unit: v }))}
+                                leftIcon="scale-balance"
+                            />
+                            <Input
+                                label={t('inventory.fieldReorderLevel', 'Reorder level')}
+                                value={editForm.reorderLevel}
+                                onChangeText={(v) => setEditForm((f) => ({ ...f, reorderLevel: v }))}
+                                keyboardType="decimal-pad"
+                                leftIcon="alert-outline"
+                            />
+                            <Input
+                                label={t('inventory.fieldUnitPrice', 'Unit price (₹)')}
+                                value={editForm.unitPrice}
+                                onChangeText={(v) => setEditForm((f) => ({ ...f, unitPrice: v }))}
+                                keyboardType="decimal-pad"
+                                leftIcon="currency-inr"
+                            />
+                            <Input
+                                label={t('inventory.fieldSupplier', 'Supplier')}
+                                value={editForm.supplier}
+                                onChangeText={(v) => setEditForm((f) => ({ ...f, supplier: v }))}
+                                leftIcon="truck-outline"
+                            />
+                            <View style={styles.modalActions}>
+                                <Button
+                                    title={t('common.cancel')}
+                                    variant="outlined"
+                                    onPress={() => setShowEdit(false)}
+                                    style={styles.modalBtn}
+                                    disabled={isEditSaving}
+                                />
+                                <Button
+                                    title={t('common.save')}
+                                    onPress={() => void submitEdit()}
+                                    loading={isEditSaving}
+                                    style={styles.modalBtn}
+                                />
+                            </View>
+                        </ScrollView>
+                    </Card>
+                </View>
+            </Modal>
         </ScreenWrapper>
     );
 };
@@ -314,5 +493,28 @@ const styles = StyleSheet.create({
         ...theme.typeScale.bodyMedium,
         color: theme.roles.light.textDisabled,
         marginTop: theme.spacing[2],
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        padding: theme.spacing[4],
+    },
+    modalCard: {
+        width: '100%',
+        maxHeight: '85%',
+    },
+    modalTitle: {
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[4],
+    },
+    modalActions: {
+        flexDirection: 'row',
+        gap: theme.spacing[3],
+        marginTop: theme.spacing[2],
+    },
+    modalBtn: {
+        flex: 1,
     },
 });

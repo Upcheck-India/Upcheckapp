@@ -23,7 +23,7 @@ const home = {
   moreSectionHelp: 'Help & Info',
   moreUserFallback: 'User',
   moreEmailFallback: 'No email',
-  moreVersion: 'UpCheck v1.0.0',
+  moreVersion: 'Upcheck v1.0.0',
   moreSignOutTitle: 'Sign Out',
   moreSignOutMessage: 'Are you sure you want to sign out?',
   // Account items
@@ -58,7 +58,7 @@ const home = {
   // Help items
   moreHelp: 'Help & Support',
   moreHelpDesc: 'FAQs and tutorials',
-  moreAbout: 'About UpCheck',
+  moreAbout: 'About Upcheck',
   moreAboutDesc: 'App version and credits',
 
   // ReportsScreen
@@ -116,9 +116,9 @@ const home = {
   expenses: 'Expenses',
   net: 'Net {{amount}}',
   tapToManage: 'Tap to manage',
-  cropPnl: 'Crop P&L',
+  cropPnl: 'Cycle P&L',
   marginRoi: 'Margin {{margin}}% · ROI {{roi}}%',
-  noActiveCrop: 'No active crop',
+  noActiveCrop: 'No active cycle',
 };
 
 export default home;

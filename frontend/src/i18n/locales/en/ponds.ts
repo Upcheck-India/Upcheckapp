@@ -37,7 +37,7 @@ const ponds = {
   metricBiomass: 'Biomass',
   metricFcr: 'FCR',
   idleTitle: 'Pond is Idle',
-  idleSubtitle: 'Ready for the next crop cycle',
+  idleSubtitle: 'Ready for the next cycle',
   startNewCycle: 'Start New Cycle',
   tabLogData: 'Log Data',
   tabViewHistory: 'View History',

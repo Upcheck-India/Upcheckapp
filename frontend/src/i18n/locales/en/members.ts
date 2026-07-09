@@ -32,7 +32,7 @@ const members = {
     notFoundTitle: 'User not found',
     notFoundSub: 'No account matches that identifier. Check and try again.',
     invalidQrTitle: 'Unrecognized QR',
-    invalidQrSub: 'That is not an UpCheck worker code.',
+    invalidQrSub: 'That is not an Upcheck worker code.',
     confirmAdd: 'Add to farm',
     addedTitle: 'Worker added',
     addedSub: '{{name}} can now log data for this farm.',

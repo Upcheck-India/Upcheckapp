@@ -63,7 +63,7 @@ const finance = {
   fieldDescriptionLabel: 'Description',
   placeholderDescription: 'Optional notes',
   fieldDateLabel: 'Date (YYYY-MM-DD) *',
-  placeholderDateAlt: '2025-01-01',
+  placeholderDateAlt: '2026-01-01',
 
   // Validation errors (inline)
   categoryRequired: 'Category is required.',

@@ -126,12 +126,15 @@ export const LoginScreen = ({ navigation }: any) => {
                 <View style={styles.socialSection}>
                     <Text style={styles.socialLabel}>{t('auth.orContinueWith')}</Text>
                     <View style={styles.socialButtons}>
-                        <GoogleLoginButton onPress={async () => {
-                            const r = await signInWithGoogle();
-                            if (r?.requires2FA && r.tempToken) {
-                                navigation.navigate('TwoFactorChallenge', { tempToken: r.tempToken });
-                            }
-                        }} loading={isLoading} />
+                        {/* @react-native-google-signin has no web build — hide on web like Truecaller below */}
+                        {Platform.OS !== 'web' && (
+                            <GoogleLoginButton onPress={async () => {
+                                const r = await signInWithGoogle();
+                                if (r?.requires2FA && r.tempToken) {
+                                    navigation.navigate('TwoFactorChallenge', { tempToken: r.tempToken });
+                                }
+                            }} loading={isLoading} />
+                        )}
                         {/* Truecaller SDK bridge is Android-only — hide the entry point elsewhere */}
                         {Platform.OS === 'android' && (
                             <TruecallerLoginButton

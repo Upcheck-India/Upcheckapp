@@ -1,6 +1,6 @@
 const auth = {
   // ── App header (LoginScreen) ──────────────────────────────────────────────
-  title: 'UpCheck',
+  title: 'Upcheck',
   subtitle: 'Shrimp Aquaculture Management',
 
   // ── Shared field labels / placeholders ───────────────────────────────────
@@ -36,7 +36,7 @@ const auth = {
 
   // ── RegisterScreen ────────────────────────────────────────────────────────
   createAccountTitle: 'Create Account',
-  registerSubtitle: 'Join UpCheck to manage your shrimp farms',
+  registerSubtitle: 'Join Upcheck to manage your shrimp farms',
 
   firstNameLabel: 'First Name',
   firstNamePlaceholder: 'Enter your first name',

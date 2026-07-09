@@ -28,7 +28,7 @@ const members = {
     notFoundTitle: 'ବ୍ୟବହାରକାରୀ ମିଳିଲେ ନାହିଁ',
     notFoundSub: 'ସେହି ପରିଚୟ ସହିତ କୌଣସି ଖାତା ମେଳ ଖାଉ ନାହିଁ। ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
     invalidQrTitle: 'ଅଚିହ୍ନା QR',
-    invalidQrSub: 'ଏହା ଏକ UpCheck ୱାର୍କର କୋଡ୍ ନୁହେଁ।',
+    invalidQrSub: 'ଏହା ଏକ Upcheck ୱାର୍କର କୋଡ୍ ନୁହେଁ।',
     confirmAdd: 'ଫାର୍ମରେ ଯୋଡ଼ନ୍ତୁ',
     addedTitle: 'ୱାର୍କର ଯୋଡ଼ାଗଲା',
     addedSub: '{{name}} ବର୍ତ୍ତମାନ ଏହି ଫାର୍ମ ପାଇଁ ତଥ୍ୟ ଲିପିବଦ୍ଧ କରିପାରିବେ।',

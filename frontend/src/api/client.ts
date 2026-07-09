@@ -77,6 +77,7 @@ apiClient.interceptors.response.use(
                 failedQueue.push({ resolve, reject });
             }).then((token) => {
                 originalRequest.headers.Authorization = `Bearer ${token}`;
+                originalRequest._retry = true;
                 return apiClient(originalRequest);
             }).catch((err) => {
                 return Promise.reject(err);

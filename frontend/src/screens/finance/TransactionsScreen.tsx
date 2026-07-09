@@ -113,7 +113,8 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
             setFormError(t('finance.validPositiveAmount'));
             return;
         }
-        if (!formDate.trim()) {
+        const parsedDate = new Date(formDate);
+        if (!formDate.trim() || isNaN(parsedDate.getTime())) {
             setFormError(t('finance.dateRequiredDot'));
             return;
         }
@@ -123,7 +124,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
 
         const payload: CreateTransactionDto = {
             farmId,
-            transactionDate: new Date(formDate).toISOString(),
+            transactionDate: parsedDate.toISOString(),
             type: formType,
             category: formCategory.trim(),
             amount: parsedAmount,

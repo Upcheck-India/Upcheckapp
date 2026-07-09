@@ -5,9 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import { CalendarPicker } from '../../components/ui/CalendarPicker';
 import { theme } from '../../theme';
 import { cropsApi } from '../../api/crops';
-import { todayLocalISODate } from '../../utils/localDate';
+import { toLocalISODate } from '../../utils/localDate';
 
 /** Parse a non-empty numeric string, else undefined (so the column default applies). */
 const num = (s: string) => (s.trim() ? Number(s) : undefined);
@@ -29,7 +30,7 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { pondId } = route.params;
     const [name, setName] = useState('');
-    const [stockingDate, setStockingDate] = useState(todayLocalISODate());
+    const [stockingDate, setStockingDate] = useState<Date>(new Date());
     const [stockingCount, setStockingCount] = useState('');
     const [speciesType, setSpeciesType] = useState('Vannamei');
     const [seedType, setSeedType] = useState('');
@@ -51,7 +52,10 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
         if (!name.trim()) {
             newErrors.name = t('cycles.errorCycleNameRequired');
         }
-        if (!stockingCount || isNaN(parseInt(stockingCount))) {
+        // parseInt('-500')=-500 and parseInt('500abc')=500 both slipped through the
+        // old isNaN check; require a whole positive count so typos/garbage are caught.
+        const count = Number(stockingCount);
+        if (!Number.isInteger(count) || count <= 0) {
             newErrors.stockingCount = t('cycles.errorStockingCountRequired');
         }
         if (Object.keys(newErrors).length > 0) {
@@ -66,8 +70,8 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
             await cropsApi.create({
                 pondId,
                 name: name.trim(),
-                stockingDate,
-                stockingCount: parseInt(stockingCount, 10),
+                stockingDate: toLocalISODate(stockingDate),
+                stockingCount: count,
                 speciesType: speciesType.trim() || undefined,
                 seedType: seedType.trim() || undefined,
                 totalSeed: num(totalSeed),
@@ -96,11 +100,11 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
                     error={errors.name}
                     required
                 />
-                <Input
+                <CalendarPicker
                     label={t('cycles.fieldStockingDate')}
                     value={stockingDate}
-                    onChangeText={setStockingDate}
-                    placeholder={t('cycles.placeholderStockingDate')}
+                    onChange={setStockingDate}
+                    maxDate={new Date()}
                     required
                 />
                 <Input

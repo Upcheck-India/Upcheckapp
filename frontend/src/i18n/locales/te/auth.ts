@@ -1,6 +1,6 @@
 const auth = {
   // ── App header (LoginScreen) ──────────────────────────────────────────────
-  title: 'UpCheck',
+  title: 'Upcheck',
   subtitle: 'రొయ్యల జలకృషి నిర్వహణ',
 
   // ── Shared field labels / placeholders ───────────────────────────────────
@@ -36,7 +36,7 @@ const auth = {
 
   // ── RegisterScreen ────────────────────────────────────────────────────────
   createAccountTitle: 'ఖాతా సృష్టించు',
-  registerSubtitle: 'మీ రొయ్యల ఫారాలను నిర్వహించడానికి UpCheck లో చేరండి',
+  registerSubtitle: 'మీ రొయ్యల ఫారాలను నిర్వహించడానికి Upcheck లో చేరండి',
 
   firstNameLabel: 'మొదటి పేరు',
   firstNamePlaceholder: 'మీ మొదటి పేరు నమోదు చేయండి',

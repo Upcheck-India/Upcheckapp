@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet, ViewStyle, StatusBar, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, ViewStyle, StatusBar, KeyboardAvoidingView, Platform, RefreshControlProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../../theme';
 import { OfflineIndicator, SyncAttentionBanner } from '../ui/OfflineIndicator';
@@ -12,6 +12,8 @@ interface ScreenWrapperProps {
     padded?: boolean;
     backgroundColor?: string;
     keyboardAvoiding?: boolean;
+    /** Pull-to-refresh control for the scroll view (only applies when scroll). */
+    refreshControl?: React.ReactElement<RefreshControlProps>;
 }
 
 export const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
@@ -22,6 +24,7 @@ export const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
     padded = true,
     backgroundColor = theme.roles.light.background,
     keyboardAvoiding = true,
+    refreshControl,
 }) => {
     const Container = safeArea ? SafeAreaView : View;
 
@@ -30,6 +33,7 @@ export const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[padded && styles.padded, style]}
             keyboardShouldPersistTaps="handled"
+            refreshControl={refreshControl}
         >
             {children}
         </ScrollView>

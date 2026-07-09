@@ -38,7 +38,7 @@ const settings = {
   helpAndSupport: 'सहायता और समर्थन',
   helpIntroTitle: 'हम कैसे मदद कर सकते हैं?',
   helpIntroText:
-    'UpCheck आपका झींगा जलकृषि प्रबंधन साथी है। इसका अधिकतम लाभ उठाने का तरीका यहाँ है।',
+    'Upcheck आपका झींगा जलकृषि प्रबंधन साथी है। इसका अधिकतम लाभ उठाने का तरीका यहाँ है।',
   quickGuides: 'त्वरित मार्गदर्शिकाएं',
   contactUs: 'हमसे संपर्क करें',
   // Help topic titles
@@ -62,13 +62,13 @@ const settings = {
     'तालाब व्यवस्थित करें, चक्र प्रबंधित करें, इन्वेंटरी ट्रैक करें, और प्रत्येक फार्म की वित्तीय रिपोर्ट देखें।',
 
   // ── AboutScreen ───────────────────────────────────────────────────────────
-  aboutUpcheck: 'UpCheck के बारे में',
+  aboutUpcheck: 'Upcheck के बारे में',
   appTagline: 'झींगा जलकृषि प्रबंधन',
   versionLabel: 'संस्करण',
   buildInfo: 'बिल्ड 2026.04.30',
   descriptionLabel: 'विवरण',
   descriptionText:
-    'UpCheck एक व्यापक झींगा जलकृषि प्रबंधन ऐप है जो किसानों को जल गुणवत्ता निगरानी, आहार प्रबंधन, वृद्धि ट्रैकिंग और खेती प्रथाओं को अनुकूलित करने में मदद करता है।',
+    'Upcheck एक व्यापक झींगा जलकृषि प्रबंधन ऐप है जो किसानों को जल गुणवत्ता निगरानी, आहार प्रबंधन, वृद्धि ट्रैकिंग और खेती प्रथाओं को अनुकूलित करने में मदद करता है।',
   featuresLabel: 'विशेषताएं',
   featureMultiFarm: 'बहु-फार्म प्रबंधन',
   featurePondMonitoring: 'तालाब निगरानी और लॉग',
@@ -77,9 +77,9 @@ const settings = {
   featureGrowthSimulations: 'वृद्धि सिमुलेशन',
   featureFinancialReports: 'वित्तीय रिपोर्ट',
   developedByLabel: 'विकसित किया',
-  developedByTeam: 'UpCheck टीम',
+  developedByTeam: 'Upcheck टीम',
   developedByLocation: 'भारत',
-  footerCopyright: '© 2026 UpCheck. सर्वाधिकार सुरक्षित।',
+  footerCopyright: '© 2026 Upcheck. सर्वाधिकार सुरक्षित।',
 
   // ── TwoFactorScreen ───────────────────────────────────────────────────────
   twoFactorTitle: 'दो-चरणीय प्रमाणीकरण',

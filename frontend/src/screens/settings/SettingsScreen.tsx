@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
@@ -9,25 +9,24 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
+import { registerForPushNotificationsAsync } from '../../utils/notifications';
+import { pushApi } from '../../api/push';
 
 import { useAuthStore } from '../../store/authStore';
 
 export const SettingsScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
-    const [offlineSync, setOfflineSync] = useState(true);
+    // ponytail: offlineSync + emailAlerts toggles removed (no gate/backend read them —
+    // offline queueing already always runs via saveRecord, and there's no weekly-email
+    // feature to switch). pushNotifications is the one toggle with a real effect.
     const [pushNotifications, setPushNotifications] = useState(true);
-    const [emailAlerts, setEmailAlerts] = useState(false);
+    const [isTogglingPush, setIsTogglingPush] = useState(false);
 
     useEffect(() => {
         const loadSettings = async () => {
             try {
-                const storedOfflineSync = await AsyncStorage.getItem('offlineSync');
                 const storedPushNotifications = await AsyncStorage.getItem('pushNotifications');
-                const storedEmailAlerts = await AsyncStorage.getItem('emailAlerts');
-
-                if (storedOfflineSync !== null) setOfflineSync(JSON.parse(storedOfflineSync));
                 if (storedPushNotifications !== null) setPushNotifications(JSON.parse(storedPushNotifications));
-                if (storedEmailAlerts !== null) setEmailAlerts(JSON.parse(storedEmailAlerts));
             } catch (e) {
                 console.error("Failed to load settings", e);
             }
@@ -35,12 +34,27 @@ export const SettingsScreen = ({ navigation }: any) => {
         loadSettings();
     }, []);
 
-    const handleSettingChange = async (key: string, value: boolean, setter: (val: boolean) => void) => {
-        setter(value);
+    const handlePushToggle = async (value: boolean) => {
+        setIsTogglingPush(true);
         try {
-            await AsyncStorage.setItem(key, JSON.stringify(value));
-        } catch (e) {
-            console.error(`Failed to save ${key}`, e);
+            if (value) {
+                const token = await registerForPushNotificationsAsync();
+                if (!token) {
+                    Alert.alert(t('common.error'), t('settings.pushPermissionDenied', 'Push notifications need permission in your device settings.'));
+                    setIsTogglingPush(false);
+                    return;
+                }
+                await pushApi.registerToken(token);
+            } else {
+                await pushApi.unregister();
+            }
+            setPushNotifications(value);
+            await AsyncStorage.setItem('pushNotifications', JSON.stringify(value));
+        } catch (e: any) {
+            console.error('Failed to update push notification setting', e);
+            Alert.alert(t('common.error'), t('settings.pushToggleError', 'Could not update push notification setting. Please try again.'));
+        } finally {
+            setIsTogglingPush(false);
         }
     };
 
@@ -92,28 +106,9 @@ export const SettingsScreen = ({ navigation }: any) => {
                 </Card>
 
                 <Card style={styles.section}>
-                    <Text style={styles.sectionTitle}>{t('settings.appPreferences')}</Text>
-
-                    <View style={styles.settingRow}>
-                        <View style={styles.settingInfo}>
-                            <MaterialCommunityIcons name="cloud-sync" size={24} color={theme.roles.light.primary} />
-                            <View style={styles.settingTextContainer}>
-                                <Text style={styles.settingLabel}>{t('settings.offlineSync')}</Text>
-                                <Text style={styles.settingDesc}>{t('settings.offlineSyncDesc')}</Text>
-                            </View>
-                        </View>
-                        <Switch
-                            value={offlineSync}
-                            onValueChange={(val) => handleSettingChange('offlineSync', val, setOfflineSync)}
-                            trackColor={{ false: theme.roles.light.borderDefault, true: theme.roles.light.primary }}
-                        />
-                    </View>
-                </Card>
-
-                <Card style={styles.section}>
                     <Text style={styles.sectionTitle}>{t('settings.notifications')}</Text>
 
-                    <View style={styles.settingRow}>
+                    <View style={[styles.settingRow, styles.noBottomBorder]}>
                         <View style={styles.settingInfo}>
                             <MaterialCommunityIcons name="bell-ring" size={24} color={theme.roles.light.primary} />
                             <View style={styles.settingTextContainer}>
@@ -123,22 +118,8 @@ export const SettingsScreen = ({ navigation }: any) => {
                         </View>
                         <Switch
                             value={pushNotifications}
-                            onValueChange={(val) => handleSettingChange('pushNotifications', val, setPushNotifications)}
-                            trackColor={{ false: theme.roles.light.borderDefault, true: theme.roles.light.primary }}
-                        />
-                    </View>
-
-                    <View style={[styles.settingRow, styles.noBottomBorder]}>
-                        <View style={styles.settingInfo}>
-                            <MaterialCommunityIcons name="email" size={24} color={theme.roles.light.primary} />
-                            <View style={styles.settingTextContainer}>
-                                <Text style={styles.settingLabel}>{t('settings.emailSummaries')}</Text>
-                                <Text style={styles.settingDesc}>{t('settings.emailSummariesDesc')}</Text>
-                            </View>
-                        </View>
-                        <Switch
-                            value={emailAlerts}
-                            onValueChange={(val) => handleSettingChange('emailAlerts', val, setEmailAlerts)}
+                            onValueChange={handlePushToggle}
+                            disabled={isTogglingPush}
                             trackColor={{ false: theme.roles.light.borderDefault, true: theme.roles.light.primary }}
                         />
                     </View>

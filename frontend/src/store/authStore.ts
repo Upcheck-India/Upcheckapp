@@ -7,6 +7,8 @@ import { profilesApi } from '../api/profiles';
 import { TruecallerAuth } from '../native/TruecallerAuth';
 import { useSyncStore } from './syncStore';
 import { useActiveFarmStore } from './activeFarmStore';
+import { useNotificationStore } from './notificationStore';
+import { useUploadStore } from './uploadStore';
 
 export type AuthStatus =
     | 'initializing'       // app just launched, checking stored session
@@ -143,10 +145,13 @@ export const useAuthStore = create<AuthState>()(
             clearError: () => set({ error: null }),
 
             clearSession: () => {
-                // Drop the previous user's farm/pond/cycle context so a second
-                // user on a shared device never sees User A's farm (cross-tenant
-                // bleed via the still-truthy selectedFarm on HomeScreen).
+                // Drop the previous user's in-memory context so a second user on a
+                // shared device never inherits User A's state: farm/pond/cycle
+                // (HomeScreen), notifications + unread counts, and pending photo
+                // uploads (which would otherwise replay under User B's token).
                 useActiveFarmStore.getState().clearAll();
+                useNotificationStore.getState().clearAll();
+                useUploadStore.getState().reset();
                 set({
                     session: null,
                     accessToken: null,

@@ -68,7 +68,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
         setIsOffline(false);
 
         try {
-            const response = await pondsApi.getAll(farmId);
+            const response = await pondsApi.getAll(farmId, { take: 100 });
             const result = response.data;
             const pondsData = Array.isArray(result) ? result : result.data || [];
             setPonds(pondsData);

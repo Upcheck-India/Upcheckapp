@@ -7,7 +7,7 @@ import { radius } from './radius';
 import { shadows } from './shadows';
 import { tokens } from './tokens';
 import { gradients } from './gradients';
-import { light, dark } from './colorRoles';
+import { light } from './colorRoles';
 
 // TODO: The `colors` key below currently points to the `light` semantic roles.
 // To fully support dark mode, this should be accessed via a `useTheme` hook,
@@ -21,7 +21,7 @@ export const theme = {
     shadows,
     tokens,
     gradients,
-    roles: { light, dark },
+    roles: { light },
 } as const;
 
 export type Theme = typeof theme;
