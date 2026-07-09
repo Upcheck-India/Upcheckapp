@@ -16,14 +16,7 @@ import {
 import { HarvestRecommendation } from './harvest-recommendation.entity';
 import { PricingService } from '../india/pricing.service';
 import { PondsService } from '../ponds/ponds.service';
-
-/** Allows specifying a region to resolve price bands instead of passing them. */
-interface OptimizeBody extends Partial<HarvestTimingInput> {
-  region?: string;
-  pondId?: string;
-  cropId?: string;
-  persist?: boolean;
-}
+import { OptimizeHarvestTimingDto } from './dto/optimize.dto';
 
 /** Harvest-Timing Decision Engine (farmer_features_spec.md §1). */
 @Controller('harvest-timing')
@@ -41,7 +34,7 @@ export class HarvestTimingController {
    * `priceBands` is omitted; optionally persists when `persist` + `pondId`.
    */
   @Post('optimize')
-  async optimize(@Body() body: OptimizeBody, @CurrentUser() user) {
+  async optimize(@Body() body: OptimizeHarvestTimingDto, @CurrentUser() user) {
     let priceBands = body.priceBands;
     if ((!priceBands || !priceBands.length) && body.region) {
       const feed = await this.pricing.latestForRegion(body.region);

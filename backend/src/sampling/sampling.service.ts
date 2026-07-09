@@ -71,7 +71,8 @@ export class SamplingService {
       .where('pond.farmId IN (:...farmIds)', { farmIds })
       .orderBy('sampling.samplingDate', 'DESC');
     if (cropId) qb.andWhere('sampling.cropId = :cropId', { cropId });
-    return qb.getMany();
+    // ponytail: bounded cap to avoid an unbounded payload; paginate if needed.
+    return qb.take(500).getMany();
   }
 
   async findOne(id: string): Promise<SamplingData> {

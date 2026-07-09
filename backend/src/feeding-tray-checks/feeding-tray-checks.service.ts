@@ -58,7 +58,9 @@ export class FeedingTrayChecksService {
       .where('pond.farmId IN (:...farmIds)', { farmIds })
       .orderBy('ftc.checkDate', 'DESC');
     if (cropId) qb.andWhere('ftc.cropId = :cropId', { cropId });
-    return qb.getMany();
+    // ponytail: bounded cap to avoid an unbounded payload on long-running
+    // farms; paginate if a farm ever exceeds this many checks.
+    return qb.take(500).getMany();
   }
 
   async findOne(id: string): Promise<FeedingTrayCheck> {

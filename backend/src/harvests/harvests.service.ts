@@ -45,7 +45,8 @@ export class HarvestsService {
       .where('pond.farmId IN (:...farmIds)', { farmIds })
       .orderBy('harvest.harvestDate', 'DESC');
     if (cropId) qb.andWhere('harvest.cropId = :cropId', { cropId });
-    return qb.getMany();
+    // ponytail: bounded cap to avoid an unbounded payload; paginate if needed.
+    return qb.take(500).getMany();
   }
 
   async findOne(id: string): Promise<Harvest> {

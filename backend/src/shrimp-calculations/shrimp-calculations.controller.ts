@@ -123,11 +123,15 @@ export class ShrimpCalculationsController {
   }
 
   @Get('recommended-feeding-rate')
-  getRecommendedFeedingRate(@Query('averageWeightG') averageWeightG: number) {
+  getRecommendedFeedingRate(
+    @Query('averageWeightG') averageWeightG: number,
+    @Query('species') species?: string,
+  ) {
     return {
       recommendedFeedingRatePercent:
         this.calculationsService.getRecommendedFeedingRate(
           Number(averageWeightG),
+          species,
         ),
     };
   }
