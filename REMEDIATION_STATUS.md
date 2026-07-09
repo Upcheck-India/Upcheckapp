@@ -9,6 +9,8 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 
 > Note: the `#` column below is a row index, NOT the audit JSON `id`. HIGH ⬜ rows 24/27/28/29/37 = audit ids 82/86/69/71/127 respectively.
 
+**Session 3 done: codeable ops-hardening (11 findings). helmet security headers + graceful shutdown hooks + process crash handlers (main.ts); health check now reports redis degraded/up and returns HTTP 503 when DB is down (+3 unit tests); @Throttle added to the 4 unthrottled public auth endpoints (login-otp/verify, oauth/google, oauth/truecaller, oauth/truecaller/exchange) + resend-verification now uses ResendVerificationDto; backend CI quality-gate workflow (.github/workflows/ci.yml) runs backend build+test and frontend tsc+jest on push/PR. Backend 468/468 green, build clean.**
+
 | # | Sev | Status | Area | Issue |
 |---|---|---|---|---|
 | 0 | CRIT | ✅ | credit | POST /credit binds @Body() to Partial<CreditLedger>, which erases to the native Objec |
@@ -17,7 +19,7 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 3 | CRIT | ✅ | disease records / cross-tenant delete  | DELETE disease/record/:id has no OwnershipGuard and removeRecord() (disease.service.t |
 | 4 | CRIT | ✅ | Caching & staleness (cross-tenant read | getDashboardSummary passes an arbitrary client-supplied farmId straight into the serv |
 | 5 | CRIT | ✅ | Caching & staleness (frontend persiste | logout() only calls clearSession() + TruecallerAuth.clear(); it never resets the in-m |
-| 6 | HIGH | 🔷 | CI has no quality gate | The only push/PR-triggered workflow is docs.yml (doc-link check + a soft warning). Th |
+| 6 | HIGH | ✅ | CI has no quality gate | The only push/PR-triggered workflow is docs.yml (doc-link check + a soft warning). Th |
 | 7 | HIGH | 🔷 | Backend lint gate fails | `npm run lint` (eslint) exits 1 with 1042 errors + 269 warnings in src alone (486 no- |
 | 8 | HIGH | ✅ | crops harvest unvalidated body / mass  | harvest(@Body() harvestData: {...}) uses an inline type (no DTO class) so the global  |
 | 9 | HIGH | ✅ | Multi-tenant isolation (IDOR read) | GET /disease/record/crop/:cropId → disease.service.ts:237 findRecordsByCrop(cropId) q |
@@ -54,9 +56,9 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 40 | HIGH | ✅ | backend DTO / harvest data-shape | weightKg (and count, averageSize, salePriceTotal) are @IsNumber() with no @Min(0); PO |
 | 41 | HIGH | ✅ | backend DTO / finance amount | amount is @IsNumber() with no @Min, while type is constrained to income/expense (sign |
 | 42 | HIGH | ✅ | Connection & wiring — response shape | feedApi.getAll returns the backend PageDto envelope {data, meta} (feed-records.servic |
-| 43 | MEDI | ⬜ | rate-limiting-otp | POST /login-otp/verify has no @Throttle, so it inherits only the global 60/min bucket |
-| 44 | MEDI | ⬜ | rate-limiting-auth | POST /oauth/google (l.342) and POST /oauth/truecaller (l.361) are @Public account-cre |
-| 45 | MEDI | ⬜ | rate-limiting-email | POST /resend-verification is @Public with no @Throttle and takes an untyped inline bo |
+| 43 | MEDI | ✅ | rate-limiting-otp | POST /login-otp/verify has no @Throttle, so it inherits only the global 60/min bucket |
+| 44 | MEDI | ✅ | rate-limiting-auth | POST /oauth/google (l.342) and POST /oauth/truecaller (l.361) are @Public account-cre |
+| 45 | MEDI | ✅ | rate-limiting-email | POST /resend-verification is @Public with no @Throttle and takes an untyped inline bo |
 | 46 | MEDI | ⬜ | crop terminal status inconsistency | crops.harvest() sets status='harvested' while closeCycle() (also called by harvests.c |
 | 47 | MEDI | ⬜ | authorization | disease_library is a global, non-tenant-scoped table, yet createDisease (l.29), seedD |
 | 48 | MEDI | ⬜ | authorization / shared reference data  | Global disease-library POST (line 29), PUT (55), DELETE (60) and reference species/ha |
@@ -68,12 +70,12 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 54 | MEDI | ⬜ | harvest-plans wrong cycle summary math | getCycleSummary (route pond/:pondId/summary) sums revenue/expense across the entire f |
 | 55 | MEDI | ⬜ | harvest-timing unvalidated input | optimize(@Body() body: OptimizeBody) uses an interface (no DTO class), so abwNow/adgN |
 | 56 | MEDI | ⬜ | harvests missing idempotency | create() has no client-minted id/idempotency guard (unlike feed/water/sampling/mortal |
-| 57 | MEDI | ⬜ | Health check depth / observability | Health check pings only Postgres; it never reports RedisService.useMemory. When Redis |
-| 58 | MEDI | ⬜ | health check / broken-instance stays i | check() returns HTTP 200 even when the 'SELECT 1' database probe fails (only body.sta |
-| 59 | MEDI | ⬜ | Health check depth | check() returns a plain object, so Nest always responds HTTP 200 even when the DB pro |
-| 60 | MEDI | ⬜ | security-headers | No helmet / security-response-headers middleware anywhere; bootstrap enables CORS + c |
-| 61 | MEDI | ⬜ | Graceful shutdown | No app.enableShutdownHooks() and no SIGTERM handler. On deploy Render sends SIGTERM;  |
-| 62 | MEDI | ⬜ | Process crash safety | No process-level 'unhandledRejection'/'uncaughtException' handler anywhere in the bac |
+| 57 | MEDI | ✅ | Health check depth / observability | Health check pings only Postgres; it never reports RedisService.useMemory. When Redis |
+| 58 | MEDI | ✅ | health check / broken-instance stays i | check() returns HTTP 200 even when the 'SELECT 1' database probe fails (only body.sta |
+| 59 | MEDI | ✅ | Health check depth | check() returns a plain object, so Nest always responds HTTP 200 even when the DB pro |
+| 60 | MEDI | ✅ | security-headers | No helmet / security-response-headers middleware anywhere; bootstrap enables CORS + c |
+| 61 | MEDI | ✅ | Graceful shutdown | No app.enableShutdownHooks() and no SIGTERM handler. On deploy Render sends SIGTERM;  |
+| 62 | MEDI | ✅ | Process crash safety | No process-level 'unhandledRejection'/'uncaughtException' handler anywhere in the bac |
 | 63 | MEDI | ⬜ | pond-context / overstated data confide | Alkalinity's confidence age uses chemistryAsOf, which is derived solely from the late |
 | 64 | MEDI | ⬜ | Entity vs migration divergence (NOT NU | pond.entity.ts marks geometry_type, construction_type, depth_m and calculated_area_m2 |
 | 65 | MEDI | ⬜ | Authorization consistency (members loc | Engine/finance features (feed-advisor, disease-warning, harvest-timing, simulations,  |
@@ -132,7 +134,7 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 118 | MEDI | ⬜ | Accessibility — missing labels | Icon-only controls (e.g. the arrow-left back button here) carry no accessibilityRole/ |
 | 119 | MEDI | ⬜ | Pull-to-refresh consistency | SimulationListScreen, FeedingTrayChecksScreen and PondDimensionHistoryScreen render F |
 | 120 | MEDI | ⬜ | Caching & staleness (in-memory store n | logout() never resets the in-memory notificationStore. notifications/unreadCount/unre |
-| 121 | MEDI | ⬜ | Ops — no backend CI gate before auto-d | `autoDeploy: true` ships every master commit straight to production, but no GitHub wo |
+| 121 | MEDI | ✅ | Ops — no backend CI gate before auto-d | `autoDeploy: true` ships every master commit straight to production, but no GitHub wo |
 | 122 | MEDI | ⬜ | Ops — free plan cold starts undocument | Service runs on Render `plan: free`, which spins the instance down after ~15 min idle |
 | 123 | MEDI | ⬜ | Content & copy — untranslated core sur | App offers 6 languages (Hindi/Tamil/Telugu/Bengali/Odia) and localizes all UI strings |
 | 124 | MEDI | ⬜ | Time & timezone — DOC day boundary | The `computedDOC` entity getter duplicates the same UTC-vs-IST DOC bug as crops.servi |

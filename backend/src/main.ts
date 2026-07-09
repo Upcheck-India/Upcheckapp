@@ -12,9 +12,14 @@ import { assertSchemaReady } from './common/schema-guard';
 import { assertCorsOriginAllowed } from './common/cors-guard';
 
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Security response headers (HSTS, X-Content-Type-Options, frameguard, …).
+  // Defaults are safe for a JSON API — no HTML is served, so CSP is a no-op.
+  app.use(helmet());
 
   // Behind Render's reverse proxy, trust the X-Forwarded-For chain so
   // ThrottlerGuard (and req.ip generally) keys by real client IP instead of
@@ -48,6 +53,20 @@ async function bootstrap() {
   );
 
   app.useGlobalFilters(new TypeORMExceptionFilter());
+
+  // Run onModuleDestroy/onApplicationShutdown hooks (e.g. close the DB pool)
+  // when Render sends SIGTERM on deploy, instead of dropping in-flight work.
+  app.enableShutdownHooks();
+
+  // Last-resort crash safety: log and shut down gracefully rather than leaving
+  // the process wedged in an undefined state.
+  process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled promise rejection:', reason);
+  });
+  process.on('uncaughtException', (err) => {
+    console.error('Uncaught exception — shutting down:', err);
+    void app.close().finally(() => process.exit(1));
+  });
 
   const port = process.env.PORT ?? 8080;
   await app.listen(port, '0.0.0.0');

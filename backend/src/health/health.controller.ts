@@ -1,11 +1,19 @@
-import { Controller, Get } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { Public } from '../auth/decorators/auth.decorators';
+import { RedisService } from '../redis/redis.service';
 
 @Controller('health')
 export class HealthController {
-  constructor(@InjectDataSource() private dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private dataSource: DataSource,
+    private readonly redis: RedisService,
+  ) {}
 
   /**
    * Comprehensive health check endpoint for Render.
@@ -28,6 +36,12 @@ export class HealthController {
       };
     }
 
+    // Redis check — 'degraded' (not 'down') on the in-memory fallback: the app
+    // still works on one instance, but shared-state guarantees are weakened.
+    checks['redis'] = {
+      status: this.redis.isMemoryFallback ? 'degraded' : 'up',
+    };
+
     // Memory check
     const memoryUsage = process.memoryUsage();
     checks['memory'] = {
@@ -39,15 +53,18 @@ export class HealthController {
       },
     };
 
-    // Overall status - unhealthy if any critical check fails
-    const allHealthy = checks['database'].status === 'up';
-
-    return {
-      status: allHealthy ? 'ok' : 'error',
+    // Database is the only hard dependency. If it's down, return HTTP 503 so
+    // Render's health probe pulls the instance out of rotation instead of
+    // leaving a broken instance serving 500s (a 200 body would keep it live).
+    const dbDown = checks['database'].status === 'down';
+    const payload = {
+      status: dbDown ? 'error' : 'ok',
       checks,
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
     };
+    if (dbDown) throw new ServiceUnavailableException(payload);
+    return payload;
   }
 
   /**

@@ -35,6 +35,7 @@ import { Disable2faDto } from './dto/disable-2fa.dto';
 import { Login2faDto } from './dto/login-2fa.dto';
 import { Reset2faCheckDto } from './dto/reset-2fa-check.dto';
 import { LoginOtpRequestDto, LoginOtpVerifyDto } from './dto/login-otp.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { SignupDto } from './dto/signup.dto';
 import { ChangePasswordDto } from './dto/auth.dto';
 import { Throttle } from '@nestjs/throttler';
@@ -208,6 +209,7 @@ export class SupabaseAuthController {
   }
 
   @Public()
+  @Throttle(SENSITIVE_THROTTLE)
   @Post('login-otp/verify')
   @HttpCode(HttpStatus.OK)
   async verifyLoginOtp(@Body() body: LoginOtpVerifyDto) {
@@ -339,6 +341,7 @@ export class SupabaseAuthController {
   // ==================== OAuth ====================
 
   @Public()
+  @Throttle(AUTH_THROTTLE)
   @Post('oauth/google')
   async googleOAuth(@Body() body: { idToken: string }) {
     const { idToken } = body;
@@ -358,6 +361,7 @@ export class SupabaseAuthController {
   }
 
   @Public()
+  @Throttle(AUTH_THROTTLE)
   @Post('oauth/truecaller')
   // Requirement 11.5: response status MUST match POST /auth/supabase/signin,
   // which returns HTTP 200. Without this Nest defaults POST to 201, which
@@ -454,6 +458,7 @@ export class SupabaseAuthController {
    * response, never from the request body.
    */
   @Public()
+  @Throttle(AUTH_THROTTLE)
   @Post('oauth/truecaller/exchange')
   @HttpCode(HttpStatus.OK)
   @UseFilters(TruecallerInvalidRequestFilter)
@@ -567,8 +572,9 @@ export class SupabaseAuthController {
   // ==================== Email Verification ====================
 
   @Public()
+  @Throttle(SENSITIVE_THROTTLE)
   @Post('resend-verification')
-  async resendVerification(@Body() body: { email: string }) {
+  async resendVerification(@Body() body: ResendVerificationDto) {
     const { email } = body;
 
     if (!email) {

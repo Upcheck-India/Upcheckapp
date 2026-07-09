@@ -12,6 +12,16 @@ export class RedisService implements OnModuleInit {
 
   constructor(private configService: ConfigService) {}
 
+  /**
+   * True when Redis is unreachable and the service is running on the in-memory
+   * fallback — shared 2FA temp-tokens / nonce replay-protection then hold only
+   * per-instance (safe on Render's single free instance, degraded if scaled).
+   * Surfaced in the health check so ops can see the degraded mode.
+   */
+  get isMemoryFallback(): boolean {
+    return this.useMemory;
+  }
+
   async onModuleInit() {
     const redisHost = this.configService.get<string>('REDIS_HOST', 'localhost');
     const redisPort = this.configService.get<number>('REDIS_PORT', 6379);
