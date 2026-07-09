@@ -11,6 +11,8 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 
 **Session 4 done (user-directed): EAS remote versioning + autoIncrement (#22/#23); backend Sentry wired behind `SENTRY_DSN` env — init + `SentryExceptionFilter` reports 5xx + crash-handler capture (#33); safe non-breaking `npm audit fix` (backend 45→10, frontend 36→19, both clear CRITICAL + most HIGH) (#31/#36); `eslint --fix` safe/formatting + non-blocking CI lint step (#7). CAVEATS: #74 store signing = EAS-account keystore via `eas credentials` (ops step, no keystore in repo); #38 frontend crash reporting left as the `reportError()` seam (needs `@sentry/react-native` native install by you, set `EXPO_PUBLIC_SENTRY_DSN`); #31/#36 residual advisories need breaking upgrades (deferred per your call). Backend 468/468, frontend 120/120, build+tsc clean.**
 
+**Session 5 done (~31 findings): (a) Play Store legal copy filled — Upcheck Technologies Private Limited / admin@upcheck.in / effective 9 Jul 2026 across LEGAL_META + docs/legal/*.md; only [Registered office address] + [State] governing-law + hosted URLs left for the operator (#21/#25). (b) Backend input-validation cluster — @ArrayMaxSize + per-element @MaxLength on all string/URL arrays (shared BoundaryPointDto for farm/pond boundary + @ValidateNested), @MaxLength on free-text, @Min/@Max on calculator DTOs + crop targetSrPercent, feeding-tray trayNumber @IsInt @Min(1) + status @IsIn, push register → RegisterPushTokenDto (rows 100/102/105/106/108/109/110/111/147/148/187/188/189/200/201/204). (c) List endpoints bounded via .take(500) (row 52); species FR @Query passthrough (row 68); harvest-timing → OptimizeHarvestTimingDto (row 55). (d) Removed 5 unused deps + dead @types + committed debris (output*.txt, verify_2fa dup, root package-lock stub, .kiro tree) (rows 94/95/96/183/184/185/198/199/209/212). Backend 468/468, build clean. 83/215 done; ~132 MEDIUM/LOW polish remain.**
+
 **Session 3 done: codeable ops-hardening (11 findings). helmet security headers + graceful shutdown hooks + process crash handlers (main.ts); health check now reports redis degraded/up and returns HTTP 503 when DB is down (+3 unit tests); @Throttle added to the 4 unthrottled public auth endpoints (login-otp/verify, oauth/google, oauth/truecaller, oauth/truecaller/exchange) + resend-verification now uses ResendVerificationDto; backend CI quality-gate workflow (.github/workflows/ci.yml) runs backend build+test and frontend tsc+jest on push/PR. Backend 468/468 green, build clean.**
 
 | # | Sev | Status | Area | Issue |
@@ -36,11 +38,11 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 18 | HIGH | ✅ | Multi-tenant isolation (IDOR read + wr | GET /profiles/:id calls profilesService.upsert(id, user.email) with no id===user.id c |
 | 19 | HIGH | ✅ | Auth mirror trigger / account deletion | deleteAccount() deletes the local public.users row (and cascaded farm data) FIRST, th |
 | 20 | HIGH | ✅ | Multi-tenant isolation (IDOR read) | getDashboardSummary(userId, farmId) (GET /reports/dashboard?farmId=) never checks tha |
-| 21 | HIGH | 🔷 | content — Play Store legal docs incomp | The public-hosting legal docs required for the Play Store listing still contain unfil |
+| 21 | HIGH | ✅ | content — Play Store legal docs incomp | The public-hosting legal docs required for the Play Store listing still contain unfil |
 | 22 | HIGH | ✅ | Docs vs code / release | Doc instructs "Bump version/versionCode per release in app.config.ts", but app.config |
 | 23 | HIGH | ✅ | Release config / EAS versioning | Production build profile has no autoIncrement and cli has no appVersionSource; the co |
 | 24 | HIGH | ✅ | offline sync / api | The 'Offline-first measurement queue (capture works with no signal, PRD §8.A)' module |
-| 25 | HIGH | 🔷 | content — placeholder legal copy shipp | LEGAL_META fields are unfilled bracket placeholders (contactEmail '[support@yourdomai |
+| 25 | HIGH | ✅ | content — placeholder legal copy shipp | LEGAL_META fields are unfilled bracket placeholders (contactEmail '[support@yourdomai |
 | 26 | HIGH | ✅ | calculators — wrong dosage formula (10 | The concentration-adjusted amount uses clientCalc = (pondVolume*ppm)/(conc*10000). Ba |
 | 27 | HIGH | ✅ | i18n — un-localized screen | This live, navigable screen (routed from CycleDetailScreen and PondDashboardScreen, R |
 | 28 | HIGH | ✅ | harvest — mark-complete flow broken | promptCompleteValues promises 'You will be asked for actual harvest weight and price  |
@@ -67,10 +69,10 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 49 | MEDI | ⬜ | Email silent failure | sendEmail logs Brevo 4xx/5xx and returns void with no throw, retry, or queue; callers |
 | 50 | MEDI | ⬜ | feed-records inventory drift | create() deducts inventory stock via adjustStock, but remove() deletes the feed recor |
 | 51 | MEDI | ⬜ | feed-records non-transactional deducti | Inventory is decremented before the feed record is saved with no surrounding transact |
-| 52 | MEDI | ⬜ | unbounded list endpoints | findAll returns every tray check across all accessible farms with no take/skip; the s |
+| 52 | MEDI | ✅ | unbounded list endpoints | findAll returns every tray check across all accessible farms with no take/skip; the s |
 | 53 | MEDI | ⬜ | harvest-plans complete unvalidated mon | complete(@Body() payload:{...}) inline type bypasses validation, so actualWeightKg/ac |
 | 54 | MEDI | ⬜ | harvest-plans wrong cycle summary math | getCycleSummary (route pond/:pondId/summary) sums revenue/expense across the entire f |
-| 55 | MEDI | ⬜ | harvest-timing unvalidated input | optimize(@Body() body: OptimizeBody) uses an interface (no DTO class), so abwNow/adgN |
+| 55 | MEDI | ✅ | harvest-timing unvalidated input | optimize(@Body() body: OptimizeBody) uses an interface (no DTO class), so abwNow/adgN |
 | 56 | MEDI | ⬜ | harvests missing idempotency | create() has no client-minted id/idempotency guard (unlike feed/water/sampling/mortal |
 | 57 | MEDI | ✅ | Health check depth / observability | Health check pings only Postgres; it never reports RedisService.useMemory. When Redis |
 | 58 | MEDI | ✅ | health check / broken-instance stays i | check() returns HTTP 200 even when the 'SELECT 1' database probe fails (only body.sta |
@@ -83,7 +85,7 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 65 | MEDI | ⬜ | Authorization consistency (members loc | Engine/finance features (feed-advisor, disease-warning, harvest-timing, simulations,  |
 | 66 | MEDI | ⬜ | Shared-catalog integrity (no admin gat | Product entity has no owner column (global catalog) yet POST/PATCH/PATCH:id/stock/DEL |
 | 67 | MEDI | ⬜ | Redis fallback recovery | retryStrategy returns null after 3 failures and flips useMemory=true permanently; onc |
-| 68 | MEDI | ⬜ | species feeding-rate endpoint dead | getRecommendedFeedingRate calls the service with only averageWeightG and never forwar |
+| 68 | MEDI | ✅ | species feeding-rate endpoint dead | getRecommendedFeedingRate calls the service with only averageWeightG and never forwar |
 | 69 | MEDI | ⬜ | simulations / profit math not comparab | simulated totalCost = totalFeedCost + baselineOtherCosts, but baselineNetProfit (line |
 | 70 | MEDI | ⬜ | transactions | Financial write endpoints (POST /transactions, POST /expenses, POST /credit) have no  |
 | 71 | MEDI | ⬜ | water-quality lost measurement time | recordedAt is a @CreateDateColumn (server insert time) and the create DTO exposes no  |
@@ -109,24 +111,24 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 91 | MEDI | ⬜ | utils / date math | computeDOC does new Date(stockingDate) where stockingDate is 'YYYY-MM-DD', which JS p |
 | 92 | MEDI | ⬜ | offline sync | drainQueue counts transient failures toward MAX_SYNC_RETRIES. replayQueuedOp returns  |
 | 93 | MEDI | ⬜ | Auth mirror trigger — no DELETE sync | The auth->public.users mirror installs only INSERT (on_auth_user_created) and UPDATE  |
-| 94 | MEDI | ⬜ | Dependencies / two libs same job, one  | @getbrevo/brevo SDK is declared as a prod dependency but email.service.ts calls the B |
-| 95 | MEDI | ⬜ | Dependencies / unused heavy dep | argon2 (a native-compiled dependency) is declared but never imported in any .ts file; |
-| 96 | MEDI | ⬜ | Dependencies / unused heavy dep | nodemailer is declared as a prod dependency but is never imported anywhere in the rep |
+| 94 | MEDI | ✅ | Dependencies / two libs same job, one  | @getbrevo/brevo SDK is declared as a prod dependency but email.service.ts calls the B |
+| 95 | MEDI | ✅ | Dependencies / unused heavy dep | argon2 (a native-compiled dependency) is declared but never imported in any .ts file; |
+| 96 | MEDI | ✅ | Dependencies / unused heavy dep | nodemailer is declared as a prod dependency but is never imported anywhere in the rep |
 | 97 | MEDI | ⬜ | N+1 query | liveBriefing (endpoint GET alert-center live briefing) sequentially awaits pondContex |
 | 98 | MEDI | ⬜ | Concurrency — double cycle close / dup | closeCycle unconditionally sets status='completed' with no precheck that the crop is  |
 | 99 | MEDI | ⬜ | Concurrency — two active cycles per po | create() checks pond.activeCycleId then, later (line 78), sets it. There is no DB con |
-| 100 | MEDI | ⬜ | Unbounded array input | commonNames/symptoms/preventionMeasures/treatmentRecommendations/imageUrls/photoUrls  |
+| 100 | MEDI | ✅ | Unbounded array input | commonNames/symptoms/preventionMeasures/treatmentRecommendations/imageUrls/photoUrls  |
 | 101 | MEDI | ⬜ | N+1 query | getFarmIdsWithCapability loops over every accessible farm id and calls getRoleOnFarm( |
-| 102 | MEDI | ⬜ | Unbounded array input (DoS) | boundary: {latitude,longitude}[] is @IsArray() with no size cap and no @ValidateNeste |
+| 102 | MEDI | ✅ | Unbounded array input (DoS) | boundary: {latitude,longitude}[] is @IsArray() with no size cap and no @ValidateNeste |
 | 103 | MEDI | ⬜ | missing index | cropId column has no @Index, but it is the query filter in feeding-tray-checks.servic |
 | 104 | MEDI | ⬜ | N+1 query | createBatch (offline-sync ingest) processes items in a sequential for loop; each item |
-| 105 | MEDI | ⬜ | Unbounded array input (DoS) | images: string[] has @IsArray()/@IsString({each:true}) but no @ArrayMaxSize, so a req |
-| 106 | MEDI | ⬜ | Unbounded array input (DoS) | boundary array on pond creation has no @ArrayMaxSize and no element validation; unbou |
+| 105 | MEDI | ✅ | Unbounded array input (DoS) | images: string[] has @IsArray()/@IsString({each:true}) but no @ArrayMaxSize, so a req |
+| 106 | MEDI | ✅ | Unbounded array input (DoS) | boundary array on pond creation has no @ArrayMaxSize and no element validation; unbou |
 | 107 | MEDI | ⬜ | missing index | pondId column has no @Index, but getDimensionHistory (ponds.service.ts:374) queries f |
-| 108 | MEDI | ⬜ | Unvalidated request body | register uses @Body() body: { token: string } — an inline TS type, not a class, so th |
-| 109 | MEDI | ⬜ | Missing string length limit | notes is @IsString() @IsOptional() with no @MaxLength, allowing arbitrarily large not |
-| 110 | MEDI | ⬜ | Unbounded array input (DoS) | photoUrls is @IsArray() with no @ArrayMaxSize and no per-element validation; an authe |
-| 111 | MEDI | ⬜ | Missing string length limit | title and description are @IsString() with no @MaxLength; a client can persist multi- |
+| 108 | MEDI | ✅ | Unvalidated request body | register uses @Body() body: { token: string } — an inline TS type, not a class, so th |
+| 109 | MEDI | ✅ | Missing string length limit | notes is @IsString() @IsOptional() with no @MaxLength, allowing arbitrarily large not |
+| 110 | MEDI | ✅ | Unbounded array input (DoS) | photoUrls is @IsArray() with no @ArrayMaxSize and no per-element validation; an authe |
+| 111 | MEDI | ✅ | Missing string length limit | title and description are @IsString() with no @MaxLength; a client can persist multi- |
 | 112 | MEDI | ⬜ | Observability — error logged then swal | Water-quality alert creation failures are caught and written with raw `console.error` |
 | 113 | MEDI | ⬜ | bundle bloat | react-native-maps@1.20.1 (heavyweight native module requiring Google Maps SDK linkage |
 | 114 | MEDI | ⬜ | Error boundary recovery | A single global ErrorBoundary wraps the whole NavigationContainer, and its "Try Again |
@@ -162,8 +164,8 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 144 | LOW | ⬜ | pii-in-logs | Recipient email addresses are logged at info level ('Email sent via Brevo API to ${to |
 | 145 | LOW | ⬜ | Dead email templates | sendVerificationEmail/sendPasswordResetEmail/sendOtpEmail/sendWelcomeEmail/sendPasswo |
 | 146 | LOW | ⬜ | feed-records fasting guard bypass on u | The fasting-day enforcement (quantityKg must be 0 when isFasting) runs only in create |
-| 147 | LOW | ⬜ | tray number validation | trayNumber is @IsNumber with no @Min/@IsInt, so zero, negative, or fractional tray nu |
-| 148 | LOW | ⬜ | feeding-tray-checks weak enum validati | remainingFeedStatus is validated only as @IsString despite the entity documenting a f |
+| 147 | LOW | ✅ | tray number validation | trayNumber is @IsNumber with no @Min/@IsInt, so zero, negative, or fractional tray nu |
+| 148 | LOW | ✅ | feeding-tray-checks weak enum validati | remainingFeedStatus is validated only as @IsString despite the entity documenting a f |
 | 149 | LOW | ⬜ | finances | getCycleFinancials sums Number(amount) in JS floating point and returns totalRevenue/ |
 | 150 | LOW | ⬜ | measurement / DOC derived from unowned | create() verifies ownership of dto.pondId but deriveDoc looks up dto.cropId with no c |
 | 151 | LOW | ⬜ | pnl | computeCropPnl authorizes via cropsService.findOne (crop owner only) while expenses.g |
@@ -198,13 +200,13 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 180 | LOW | ⬜ | ponds | getDimensionHistory failure is swallowed to an empty list, so a network/server error  |
 | 181 | LOW | ⬜ | shop — products not interactive | The Shop lists products with price/sale-price/stock but product cards have no onPress |
 | 182 | LOW | ⬜ | Doc claim vs reality | Doc states "...`tsc --noEmit` clean, backend lint clean." tsc is clean, but backend l |
-| 183 | LOW | ⬜ | Dependencies / unused direct dep | ua-parser-js is a direct prod dependency (and flagged for a ReDoS advisory GHSA-9h5v- |
-| 184 | LOW | ⬜ | Dependencies / unused dep + misplaced  | zxcvbn (runtime dep, line 62) and its @types/zxcvbn (line 41) are never imported in a |
-| 185 | LOW | ⬜ | Dependencies / redundant deprecated ty | @types/otplib@10.0.0 is a deprecated stub types package, but the installed otplib@12  |
+| 183 | LOW | ✅ | Dependencies / unused direct dep | ua-parser-js is a direct prod dependency (and flagged for a ReDoS advisory GHSA-9h5v- |
+| 184 | LOW | ✅ | Dependencies / unused dep + misplaced  | zxcvbn (runtime dep, line 62) and its @types/zxcvbn (line 41) are never imported in a |
+| 185 | LOW | ✅ | Dependencies / redundant deprecated ty | @types/otplib@10.0.0 is a deprecated stub types package, but the installed otplib@12  |
 | 186 | LOW | ⬜ | Ops — silent misconfig fallback in pro | When DATABASE_URL is unset the code logs a warning via console.error and silently fal |
-| 187 | LOW | ⬜ | Missing string length limit | name (and other string fields at lines 19/27/50/57) have no @MaxLength; a 1MB farm na |
-| 188 | LOW | ⬜ | Unbounded array input | priceBands array feeds an economics computation but has no @ArrayMaxSize; a large arr |
-| 189 | LOW | ⬜ | Widespread missing input caps | Only 3 of 88 DTOs use @MaxLength and the global ValidationPipe sets no default length |
+| 187 | LOW | ✅ | Missing string length limit | name (and other string fields at lines 19/27/50/57) have no @MaxLength; a 1MB farm na |
+| 188 | LOW | ✅ | Unbounded array input | priceBands array feeds an economics computation but has no @ArrayMaxSize; a large arr |
+| 189 | LOW | ✅ | Widespread missing input caps | Only 3 of 88 DTOs use @MaxLength and the global ValidationPipe sets no default length |
 | 190 | LOW | ⬜ | Account deletion — no re-authenticatio | DeleteAccountDto (backend/src/auth/dto/delete-account.dto.ts) defines an optional pas |
 | 191 | LOW | ⬜ | Caching & staleness (stale cache after | getDashboardSummary caches the summary for 300s but no write path (feed record create |
 | 192 | LOW | ⬜ | bundle bloat | react-native-linear-gradient@2.8.3 is unused (no imports in frontend/src); expo-linea |
@@ -213,20 +215,20 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 195 | LOW | ⬜ | UI overlap — status banners | OfflineIndicator (top: insets.top, zIndex 999) and SyncAttentionBanner (top: insets.t |
 | 196 | LOW | ⬜ | Caching & staleness (in-memory store n | uploadStore has no reset and is never cleared on logout; user A's pending/failed phot |
 | 197 | LOW | ⬜ | CI / build workflow | The APK build workflow runs `npm install -g expo-cli` (the legacy global CLI, depreca |
-| 198 | LOW | ⬜ | git hygiene / debris | Captured run-output and one-off debug scripts are committed to the repo: backend/outp |
-| 199 | LOW | ⬜ | git hygiene / duplication | backend/scripts/verify_2fa.ts and backend/verify_2fa.mjs are the same manual 2FA smok |
-| 200 | LOW | ⬜ | backend DTO / crop name shape | name is @IsString() only — an empty string '' (and unbounded 1000-char / emoji / RTL  |
-| 201 | LOW | ⬜ | backend DTO / SR upper bound | targetSrPercent is @Min(0) with no @Max(100); a survival-rate target of 150% is accep |
+| 198 | LOW | ✅ | git hygiene / debris | Captured run-output and one-off debug scripts are committed to the repo: backend/outp |
+| 199 | LOW | ✅ | git hygiene / duplication | backend/scripts/verify_2fa.ts and backend/verify_2fa.mjs are the same manual 2FA smok |
+| 200 | LOW | ✅ | backend DTO / crop name shape | name is @IsString() only — an empty string '' (and unbounded 1000-char / emoji / RTL  |
+| 201 | LOW | ✅ | backend DTO / SR upper bound | targetSrPercent is @Min(0) with no @Max(100); a survival-rate target of 150% is accep |
 | 202 | LOW | ⬜ | Content & copy — date formatting for I | Password-changed security email interpolates `new Date().toLocaleString()` with no lo |
 | 203 | LOW | ⬜ | backend DTO / sampling date & text bou | samplingDate is only @IsDateString (future dates accepted) and mbwG/notes have no @Ma |
-| 204 | LOW | ⬜ | backend calc DTO / survival over 100% | CalculateSurvivalRateDto has no @Min and no cross-check that harvestedCount <= initia |
+| 204 | LOW | ✅ | backend calc DTO / survival over 100% | CalculateSurvivalRateDto has no @Min and no cross-check that harvestedCount <= initia |
 | 205 | LOW | ⬜ | docs accuracy | The reference feature matrix cites specific source lines that have drifted and are no |
 | 206 | LOW | ⬜ | Content & copy — chemical formula form | The calculator hub card title reads 'Free Ammonia (NH3)' with a plain digit, while th |
 | 207 | LOW | ⬜ | Content & copy — inconsistent severity | The disease log severity field placeholder suggests 'Mild, Moderate, Severe' (logs.ts |
 | 208 | LOW | ⬜ | Local notifications web divergence | scheduleDailyWaterQualityReminders/scheduleWeeklyChemistryReminder (the 'continuous-d |
-| 209 | LOW | ⬜ | git hygiene / debris | The repo-root package-lock.json is an empty stub ({name:'Upcheckapp', packages:{}}) w |
+| 209 | LOW | ✅ | git hygiene / debris | The repo-root package-lock.json is an empty stub ({name:'Upcheckapp', packages:{}}) w |
 | 210 | IMPR | ⬜ | Redis error handling | No client.on('error') listener is attached; the service leans on ioredis' internal 'U |
 | 211 | IMPR | ⬜ | Dark mode — dead code / false support | A full `dark` color-role palette is exported but never referenced anywhere; all 118 s |
-| 212 | IMPR | ⬜ | git hygiene / IDE artifacts | A Kiro IDE working-spec tree (11 files under .kiro/specs, including .config.kiro dotf |
+| 212 | IMPR | ✅ | git hygiene / IDE artifacts | A Kiro IDE working-spec tree (11 files under .kiro/specs, including .config.kiro dotf |
 | 213 | IMPR | ⬜ | Content & copy — inconsistent example  | Date-field example/placeholder years are inconsistent across the app: stocking date e |
 | 214 | IMPR | ⬜ | Android native SDK in shared bundle | authStore (loaded on every platform at startup) imports TruecallerAuth, whose module  |
