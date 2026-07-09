@@ -9,6 +9,8 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 
 > Note: the `#` column below is a row index, NOT the audit JSON `id`. HIGH ⬜ rows 24/27/28/29/37 = audit ids 82/86/69/71/127 respectively.
 
+**Session 4 done (user-directed): EAS remote versioning + autoIncrement (#22/#23); backend Sentry wired behind `SENTRY_DSN` env — init + `SentryExceptionFilter` reports 5xx + crash-handler capture (#33); safe non-breaking `npm audit fix` (backend 45→10, frontend 36→19, both clear CRITICAL + most HIGH) (#31/#36); `eslint --fix` safe/formatting + non-blocking CI lint step (#7). CAVEATS: #74 store signing = EAS-account keystore via `eas credentials` (ops step, no keystore in repo); #38 frontend crash reporting left as the `reportError()` seam (needs `@sentry/react-native` native install by you, set `EXPO_PUBLIC_SENTRY_DSN`); #31/#36 residual advisories need breaking upgrades (deferred per your call). Backend 468/468, frontend 120/120, build+tsc clean.**
+
 **Session 3 done: codeable ops-hardening (11 findings). helmet security headers + graceful shutdown hooks + process crash handlers (main.ts); health check now reports redis degraded/up and returns HTTP 503 when DB is down (+3 unit tests); @Throttle added to the 4 unthrottled public auth endpoints (login-otp/verify, oauth/google, oauth/truecaller, oauth/truecaller/exchange) + resend-verification now uses ResendVerificationDto; backend CI quality-gate workflow (.github/workflows/ci.yml) runs backend build+test and frontend tsc+jest on push/PR. Backend 468/468 green, build clean.**
 
 | # | Sev | Status | Area | Issue |
@@ -20,7 +22,7 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 4 | CRIT | ✅ | Caching & staleness (cross-tenant read | getDashboardSummary passes an arbitrary client-supplied farmId straight into the serv |
 | 5 | CRIT | ✅ | Caching & staleness (frontend persiste | logout() only calls clearSession() + TruecallerAuth.clear(); it never resets the in-m |
 | 6 | HIGH | ✅ | CI has no quality gate | The only push/PR-triggered workflow is docs.yml (doc-link check + a soft warning). Th |
-| 7 | HIGH | 🔷 | Backend lint gate fails | `npm run lint` (eslint) exits 1 with 1042 errors + 269 warnings in src alone (486 no- |
+| 7 | HIGH | ✅ | Backend lint gate fails | `npm run lint` (eslint) exits 1 with 1042 errors + 269 warnings in src alone (486 no- |
 | 8 | HIGH | ✅ | crops harvest unvalidated body / mass  | harvest(@Body() harvestData: {...}) uses an inline type (no DTO class) so the global  |
 | 9 | HIGH | ✅ | Multi-tenant isolation (IDOR read) | GET /disease/record/crop/:cropId → disease.service.ts:237 findRecordsByCrop(cropId) q |
 | 10 | HIGH | ✅ | disease records / cross-tenant read | GET disease/record/crop/:cropId has no OwnershipGuard/@OwnsResource; findRecordsByCro |
@@ -35,8 +37,8 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 19 | HIGH | ✅ | Auth mirror trigger / account deletion | deleteAccount() deletes the local public.users row (and cascaded farm data) FIRST, th |
 | 20 | HIGH | ✅ | Multi-tenant isolation (IDOR read) | getDashboardSummary(userId, farmId) (GET /reports/dashboard?farmId=) never checks tha |
 | 21 | HIGH | 🔷 | content — Play Store legal docs incomp | The public-hosting legal docs required for the Play Store listing still contain unfil |
-| 22 | HIGH | 🔷 | Docs vs code / release | Doc instructs "Bump version/versionCode per release in app.config.ts", but app.config |
-| 23 | HIGH | 🔷 | Release config / EAS versioning | Production build profile has no autoIncrement and cli has no appVersionSource; the co |
+| 22 | HIGH | ✅ | Docs vs code / release | Doc instructs "Bump version/versionCode per release in app.config.ts", but app.config |
+| 23 | HIGH | ✅ | Release config / EAS versioning | Production build profile has no autoIncrement and cli has no appVersionSource; the co |
 | 24 | HIGH | ✅ | offline sync / api | The 'Offline-first measurement queue (capture works with no signal, PRD §8.A)' module |
 | 25 | HIGH | 🔷 | content — placeholder legal copy shipp | LEGAL_META fields are unfilled bracket placeholders (contactEmail '[support@yourdomai |
 | 26 | HIGH | ✅ | calculators — wrong dosage formula (10 | The concentration-adjusted amount uses clientCalc = (pondVolume*ppm)/(conc*10000). Ba |
@@ -44,14 +46,14 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 28 | HIGH | ✅ | harvest — mark-complete flow broken | promptCompleteValues promises 'You will be asked for actual harvest weight and price  |
 | 29 | HIGH | ✅ | inventory — Add Item is a dead button | Both the FAB (line 243) and the empty-state action (line 237) only fire Alert.alert(t |
 | 30 | HIGH | ✅ | permissions / store | roleForFarm returns null for a farm the user OWNS: backend GET /farm-members/mine (li |
-| 31 | HIGH | 🔷 | Dependencies / known vulns (backend) | npm audit --omit=dev on installed backend tree reports 18 HIGH vulns in the prod runt |
+| 31 | HIGH | ✅ | Dependencies / known vulns (backend) | npm audit --omit=dev on installed backend tree reports 18 HIGH vulns in the prod runt |
 | 32 | HIGH | ✅ | Concurrency — single-use backup code d | verifyCodeOrBackup reads user.backupCodes, splices the matched code in memory, and sa |
-| 33 | HIGH | 🔷 | Observability — no error tracking (bac | The only global exception filter is `@Catch(QueryFailedError)` and logs to console on |
+| 33 | HIGH | ✅ | Observability — no error tracking (bac | The only global exception filter is `@Catch(QueryFailedError)` and logs to console on |
 | 34 | HIGH | ✅ | Account deletion — residual user data | deleteAccount only runs DELETE FROM users + DELETE FROM profiles and relies on ON DEL |
 | 35 | HIGH | ✅ | Account deletion — zombie auth identit | Supabase auth-user deletion is wrapped in a try/catch that only logs on failure, so t |
-| 36 | HIGH | 🔷 | Dependencies / known vulns (frontend) | npm audit --omit=dev on installed frontend tree reports 33 vulns including 1 CRITICAL |
+| 36 | HIGH | ✅ | Dependencies / known vulns (frontend) | npm audit --omit=dev on installed frontend tree reports 33 vulns including 1 CRITICAL |
 | 37 | HIGH | ✅ | Concurrency — offline measurement queu | flush() reads the queue snapshot, awaits the batch POST (seconds on mobile), then rew |
-| 38 | HIGH | 🔷 | Observability — no crash reporting (ap | The single crash-report choke-point is console-only for a pre-launch consumer app; Er |
+| 38 | HIGH | ✅ | Observability — no crash reporting (ap | The single crash-report choke-point is console-only for a pre-launch consumer app; Er |
 | 39 | HIGH | ✅ | backend DTO / crop stocking count | stockingCount is @IsInt() @IsOptional() with NO @Min(0) (unlike totalSeed which has @ |
 | 40 | HIGH | ✅ | backend DTO / harvest data-shape | weightKg (and count, averageSize, salePriceTotal) are @IsNumber() with no @Min(0); PO |
 | 41 | HIGH | ✅ | backend DTO / finance amount | amount is @IsNumber() with no @Min, while type is constrained to income/expense (sign |
@@ -87,7 +89,7 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 71 | MEDI | ⬜ | water-quality lost measurement time | recordedAt is a @CreateDateColumn (server insert time) and the create DTO exposes no  |
 | 72 | MEDI | ⬜ | Backend e2e suite non-runnable | `npm run test:e2e` fails 6/6 tests. app.e2e-spec.ts uses TypeOrmModule.forRoot({type: |
 | 73 | MEDI | ⬜ | content — deletion doc overclaims casc | ACCOUNT_DELETION.md promises account deletion removes 'all farm data you own … (casca |
-| 74 | MEDI | ⬜ | Release signing | The release buildType uses signingConfig signingConfigs.debug, so any locally produce |
+| 74 | MEDI | ✅ | Release signing | The release buildType uses signingConfig signingConfigs.debug, so any locally produce |
 | 75 | MEDI | ⬜ | Docs vs code — frontend architecture | This doc states the frontend 'communicates indirectly with the backend database via t |
 | 76 | MEDI | ⬜ | Frontend has no lint/test scripts or e | frontend/package.json scripts define only expo start/android/ios/web — no `test` and  |
 | 77 | MEDI | ⬜ | i18n — hardcoded English in alerts | Login-failure alert bodies are hardcoded English while only the titles use t(): 'The  |
