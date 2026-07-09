@@ -36,6 +36,7 @@ import {
     type Measurement,
 } from '../../api/measurements';
 import { useUIStore } from '../../store/uiStore';
+import { saveRecord } from '../../sync/recordSync';
 
 export const MeasurementsScreen = ({ route }: any) => {
     const { t } = useTranslation();
@@ -101,26 +102,34 @@ export const MeasurementsScreen = ({ route }: any) => {
         if (!entry) return;
         setSubmitting(true);
         try {
-            await measurementsApi.create({
-                pondId,
-                cropId,
-                param,
-                source: 'manual',
-                ...(entry.valueType === 'categorical'
-                    ? { valueText }
-                    : { valueNum: Number(valueNum) }),
+            // Route through the offline-first queue: captured with no signal,
+            // deduped on a client id, user-scoped, drained on reconnect
+            // (recordSync — same path as the log screens).
+            const res = await saveRecord({
+                entity: 'measurement',
+                endpoint: '/measurements',
+                payload: {
+                    pondId,
+                    cropId,
+                    param,
+                    source: 'manual',
+                    ...(entry.valueType === 'categorical'
+                        ? { valueText }
+                        : { valueNum: Number(valueNum) }),
+                },
             });
             setValueNum('');
             setValueText('');
-            showToast({ message: t('common.savedSuccess'), type: 'success' });
-            await loadSeries();
+            showToast({
+                message: res.queued
+                    ? t('common.savedOffline', 'Saved — will sync when online')
+                    : t('common.savedSuccess'),
+                type: 'success',
+            });
+            if (!res.queued) await loadSeries();
         } catch (err: any) {
-            if (!err?.response) {
-                // Network/timeout failure — not a validation problem, and the
-                // reading was never saved. Say so, don't call it "invalid".
-                Alert.alert(t('common.noInternet'), t('common.networkError'));
-                return;
-            }
+            // saveRecord only throws on real rejections (validation/permission);
+            // network failures are queued, not surfaced as errors.
             const message =
                 err?.response?.data?.message ||
                 t('engines.measurements.invalidReadingSub');

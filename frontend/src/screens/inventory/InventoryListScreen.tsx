@@ -1,15 +1,18 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated, Alert, ScrollView, Modal } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { FAB } from '../../components/ui/FAB';
+import { Input } from '../../components/ui/Input';
+import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { SkeletonList } from '../../components/ui/Skeleton';
 import { theme } from '../../theme';
 import { inventoryApi, InventoryItem } from '../../api/inventory';
+import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { useFocusEffect } from '@react-navigation/native';
 
 export const InventoryListScreen = ({ navigation }: any) => {
@@ -29,6 +32,20 @@ export const InventoryListScreen = ({ navigation }: any) => {
     const [error, setError] = useState<any>(null);
     const [isOffline, setIsOffline] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState('all');
+
+    // Add-item form state
+    const selectedFarm = useActiveFarmStore((s) => s.selectedFarm);
+    const [showAdd, setShowAdd] = useState(false);
+    const [addSubmitting, setAddSubmitting] = useState(false);
+    const [form, setForm] = useState({
+        name: '',
+        category: 'feed',
+        quantity: '',
+        unit: '',
+        unitPrice: '',
+        reorderLevel: '',
+        supplier: '',
+    });
 
     // Animation refs
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -100,6 +117,54 @@ export const InventoryListScreen = ({ navigation }: any) => {
         setIsLoading(true);
         fetchInventory(true);
     }, [fetchInventory]);
+
+    const openAdd = useCallback(() => {
+        setForm({
+            name: '',
+            // default to the category the user is currently viewing (not 'all')
+            category: selectedCategory !== 'all' ? selectedCategory : 'feed',
+            quantity: '',
+            unit: '',
+            unitPrice: '',
+            reorderLevel: '',
+            supplier: '',
+        });
+        setShowAdd(true);
+    }, [selectedCategory]);
+
+    const submitAdd = useCallback(async () => {
+        const farmId = selectedFarm?.id;
+        if (!farmId) {
+            Alert.alert(t('common.error'), t('inventory.noFarmSelected', 'Select a farm before adding inventory.'));
+            return;
+        }
+        if (!form.name.trim()) {
+            Alert.alert(t('common.error'), t('inventory.nameRequired', 'Item name is required.'));
+            return;
+        }
+        setAddSubmitting(true);
+        try {
+            await inventoryApi.create({
+                farmId,
+                name: form.name.trim(),
+                category: form.category,
+                unit: form.unit.trim() || undefined,
+                quantity: form.quantity ? Number(form.quantity) : undefined,
+                reorderLevel: form.reorderLevel ? Number(form.reorderLevel) : undefined,
+                unitPrice: form.unitPrice ? Number(form.unitPrice) : undefined,
+                supplier: form.supplier.trim() || undefined,
+            });
+            setShowAdd(false);
+            await fetchInventory(true); // force refresh past the 30s cache
+        } catch (err: any) {
+            Alert.alert(
+                t('common.error'),
+                err?.response?.data?.message ?? t('inventory.addFailed', 'Failed to add inventory item.'),
+            );
+        } finally {
+            setAddSubmitting(false);
+        }
+    }, [selectedFarm, form, fetchInventory, t]);
 
     const filteredInventory = selectedCategory === 'all'
         ? inventory
@@ -234,18 +299,178 @@ export const InventoryListScreen = ({ navigation }: any) => {
                             title={t('inventory.emptyTitle')}
                             subtitle={t('inventory.emptySubtitle')}
                             actionLabel={t('inventory.addItem')}
-                            onAction={() => Alert.alert(t('inventory.addItem'), t('inventory.addItemComingSoon'))}
+                            onAction={openAdd}
                         />
                     }
                 />
             )}
 
-            <FAB icon="plus" onPress={() => Alert.alert(t('inventory.addItem'), t('inventory.addItemComingSoon'))} />
+            <FAB icon="plus" onPress={openAdd} />
+
+            {/* Add-item modal — real create form (was a comingSoon stub). */}
+            <Modal
+                visible={showAdd}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowAdd(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <Card style={styles.modalCard}>
+                        <ScrollView keyboardShouldPersistTaps="handled">
+                            <Text style={styles.modalTitle}>{t('inventory.addItem')}</Text>
+
+                            <Input
+                                label={t('inventory.fieldName', 'Item name')}
+                                value={form.name}
+                                onChangeText={(v) => setForm((f) => ({ ...f, name: v }))}
+                                placeholder={t('inventory.namePlaceholder', 'e.g. Starter feed')}
+                                required
+                                leftIcon="tag-outline"
+                            />
+
+                            <Text style={styles.fieldLabel}>{t('inventory.fieldCategory', 'Category')}</Text>
+                            <View style={styles.catChips}>
+                                {CATEGORIES.filter((c) => c.key !== 'all').map((c) => {
+                                    const active = form.category === c.key;
+                                    return (
+                                        <TouchableOpacity
+                                            key={c.key}
+                                            style={[styles.catChip, active && styles.catChipActive]}
+                                            onPress={() => setForm((f) => ({ ...f, category: c.key }))}
+                                        >
+                                            <MaterialCommunityIcons
+                                                name={c.icon as any}
+                                                size={16}
+                                                color={active ? theme.roles.light.primary : theme.roles.light.textSecondary}
+                                            />
+                                            <Text style={[styles.catChipLabel, active && styles.catChipLabelActive]}>
+                                                {c.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+
+                            <Input
+                                label={t('inventory.fieldQuantity', 'Quantity')}
+                                value={form.quantity}
+                                onChangeText={(v) => setForm((f) => ({ ...f, quantity: v }))}
+                                placeholder="0"
+                                keyboardType="decimal-pad"
+                                leftIcon="counter"
+                            />
+                            <Input
+                                label={t('inventory.fieldUnit', 'Unit')}
+                                value={form.unit}
+                                onChangeText={(v) => setForm((f) => ({ ...f, unit: v }))}
+                                placeholder={t('inventory.unitPlaceholder', 'e.g. kg, bag')}
+                                leftIcon="scale-balance"
+                            />
+                            <Input
+                                label={t('inventory.fieldReorderLevel', 'Reorder level')}
+                                value={form.reorderLevel}
+                                onChangeText={(v) => setForm((f) => ({ ...f, reorderLevel: v }))}
+                                placeholder="0"
+                                keyboardType="decimal-pad"
+                                leftIcon="alert-outline"
+                            />
+                            <Input
+                                label={t('inventory.fieldUnitPrice', 'Unit price (₹)')}
+                                value={form.unitPrice}
+                                onChangeText={(v) => setForm((f) => ({ ...f, unitPrice: v }))}
+                                placeholder="0"
+                                keyboardType="decimal-pad"
+                                leftIcon="currency-inr"
+                            />
+                            <Input
+                                label={t('inventory.fieldSupplier', 'Supplier')}
+                                value={form.supplier}
+                                onChangeText={(v) => setForm((f) => ({ ...f, supplier: v }))}
+                                placeholder={t('inventory.supplierPlaceholder', 'Optional')}
+                                leftIcon="truck-outline"
+                            />
+
+                            <View style={styles.modalActions}>
+                                <Button
+                                    title={t('common.cancel', 'Cancel')}
+                                    variant="outlined"
+                                    onPress={() => setShowAdd(false)}
+                                    style={styles.modalBtn}
+                                    disabled={addSubmitting}
+                                />
+                                <Button
+                                    title={t('inventory.addItem')}
+                                    onPress={() => void submitAdd()}
+                                    loading={addSubmitting}
+                                    style={styles.modalBtn}
+                                />
+                            </View>
+                        </ScrollView>
+                    </Card>
+                </View>
+            </Modal>
         </ScreenWrapper>
     );
 };
 
 const styles = StyleSheet.create({
+    // Add-item modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        padding: theme.spacing[4],
+    },
+    modalCard: {
+        width: '100%',
+        maxHeight: '85%',
+    },
+    modalTitle: {
+        ...theme.typeScale.h4,
+        color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[4],
+    },
+    fieldLabel: {
+        ...theme.typeScale.labelSmall,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[2],
+    },
+    catChips: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: theme.spacing[2],
+        marginBottom: theme.spacing[4],
+    },
+    catChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[1],
+        paddingHorizontal: theme.spacing[3],
+        paddingVertical: theme.spacing[2],
+        borderRadius: theme.radius.md,
+        borderWidth: 1,
+        borderColor: theme.roles.light.borderDefault,
+    },
+    catChipActive: {
+        borderColor: theme.roles.light.primary,
+        backgroundColor: theme.roles.light.infoBg,
+    },
+    catChipLabel: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
+    },
+    catChipLabelActive: {
+        color: theme.roles.light.primary,
+        fontWeight: '600',
+    },
+    modalActions: {
+        flexDirection: 'row',
+        gap: theme.spacing[3],
+        marginTop: theme.spacing[2],
+    },
+    modalBtn: {
+        flex: 1,
+    },
     header: {
         flexDirection: 'row',
         alignItems: 'center',

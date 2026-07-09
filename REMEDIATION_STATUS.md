@@ -5,6 +5,10 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 
 **Session 1 done: all 6 CRITICAL + 22 HIGH (28 findings), backend 465/465 + frontend 120/120 green.**
 
+**Session 2 done: remaining 5 HIGH closed (measurement offline queue wired through hardened `saveRecord` + dead `measurementSync.ts` deleted → fixes both the dead-module and lost-write-race findings; harvest mark-complete modal + i18n confirmed already fixed in Session 1; inventory Add-item real create form). tsc clean, frontend 120/120 green.**
+
+> Note: the `#` column below is a row index, NOT the audit JSON `id`. HIGH ⬜ rows 24/27/28/29/37 = audit ids 82/86/69/71/127 respectively.
+
 | # | Sev | Status | Area | Issue |
 |---|---|---|---|---|
 | 0 | CRIT | ✅ | credit | POST /credit binds @Body() to Partial<CreditLedger>, which erases to the native Objec |
@@ -31,12 +35,12 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 21 | HIGH | 🔷 | content — Play Store legal docs incomp | The public-hosting legal docs required for the Play Store listing still contain unfil |
 | 22 | HIGH | 🔷 | Docs vs code / release | Doc instructs "Bump version/versionCode per release in app.config.ts", but app.config |
 | 23 | HIGH | 🔷 | Release config / EAS versioning | Production build profile has no autoIncrement and cli has no appVersionSource; the co |
-| 24 | HIGH | ⬜ | offline sync / api | The 'Offline-first measurement queue (capture works with no signal, PRD §8.A)' module |
+| 24 | HIGH | ✅ | offline sync / api | The 'Offline-first measurement queue (capture works with no signal, PRD §8.A)' module |
 | 25 | HIGH | 🔷 | content — placeholder legal copy shipp | LEGAL_META fields are unfilled bracket placeholders (contactEmail '[support@yourdomai |
 | 26 | HIGH | ✅ | calculators — wrong dosage formula (10 | The concentration-adjusted amount uses clientCalc = (pondVolume*ppm)/(conc*10000). Ba |
-| 27 | HIGH | ⬜ | i18n — un-localized screen | This live, navigable screen (routed from CycleDetailScreen and PondDashboardScreen, R |
-| 28 | HIGH | ⬜ | harvest — mark-complete flow broken | promptCompleteValues promises 'You will be asked for actual harvest weight and price  |
-| 29 | HIGH | ⬜ | inventory — Add Item is a dead button | Both the FAB (line 243) and the empty-state action (line 237) only fire Alert.alert(t |
+| 27 | HIGH | ✅ | i18n — un-localized screen | This live, navigable screen (routed from CycleDetailScreen and PondDashboardScreen, R |
+| 28 | HIGH | ✅ | harvest — mark-complete flow broken | promptCompleteValues promises 'You will be asked for actual harvest weight and price  |
+| 29 | HIGH | ✅ | inventory — Add Item is a dead button | Both the FAB (line 243) and the empty-state action (line 237) only fire Alert.alert(t |
 | 30 | HIGH | ✅ | permissions / store | roleForFarm returns null for a farm the user OWNS: backend GET /farm-members/mine (li |
 | 31 | HIGH | 🔷 | Dependencies / known vulns (backend) | npm audit --omit=dev on installed backend tree reports 18 HIGH vulns in the prod runt |
 | 32 | HIGH | ✅ | Concurrency — single-use backup code d | verifyCodeOrBackup reads user.backupCodes, splices the matched code in memory, and sa |
@@ -44,7 +48,7 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 34 | HIGH | ✅ | Account deletion — residual user data | deleteAccount only runs DELETE FROM users + DELETE FROM profiles and relies on ON DEL |
 | 35 | HIGH | ✅ | Account deletion — zombie auth identit | Supabase auth-user deletion is wrapped in a try/catch that only logs on failure, so t |
 | 36 | HIGH | 🔷 | Dependencies / known vulns (frontend) | npm audit --omit=dev on installed frontend tree reports 33 vulns including 1 CRITICAL |
-| 37 | HIGH | ⬜ | Concurrency — offline measurement queu | flush() reads the queue snapshot, awaits the batch POST (seconds on mobile), then rew |
+| 37 | HIGH | ✅ | Concurrency — offline measurement queu | flush() reads the queue snapshot, awaits the batch POST (seconds on mobile), then rew |
 | 38 | HIGH | 🔷 | Observability — no crash reporting (ap | The single crash-report choke-point is console-only for a pre-launch consumer app; Er |
 | 39 | HIGH | ✅ | backend DTO / crop stocking count | stockingCount is @IsInt() @IsOptional() with NO @Min(0) (unlike totalSeed which has @ |
 | 40 | HIGH | ✅ | backend DTO / harvest data-shape | weightKg (and count, averageSize, salePriceTotal) are @IsNumber() with no @Min(0); PO |
