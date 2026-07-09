@@ -28,6 +28,10 @@ jobs:
   frontend:
     name: Frontend (typecheck + test)
     runs-on: ubuntu-latest
+    # Canonical app timezone is IST (DATE-1); local-date tests assert non-UTC
+    # behavior, so run in Asia/Kolkata rather than the runner's default UTC.
+    env:
+      TZ: Asia/Kolkata
     defaults:
       run:
         working-directory: frontend
