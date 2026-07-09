@@ -44,5 +44,15 @@ services:
       # Used in password-reset / verification email links.
       - key: FRONTEND_URL
         sync: false
+      # Boot-critical in production (CORS-1, backend/src/common/cors-guard.ts):
+      # main.ts defaults this to "*" for dev convenience, but the app refuses
+      # to boot with a wildcard when NODE_ENV=production. The mobile app
+      # itself is unaffected either way (CORS is browser-only — native HTTP
+      # clients never send/enforce an Origin header); this only matters if a
+      # browser-based client (e.g. an Expo web build or admin panel) ever
+      # calls this API. Comma-separate multiple origins, no trailing slash,
+      # never "*". Must be set on the Render dashboard — not committed here.
+      - key: CORS_ORIGIN
+        sync: false
   # Note: a former "otp-cleanup" cron was removed — OTP login is Supabase-native
   # and 2FA pending/temp tokens auto-expire in Redis, so there is nothing to prune.
