@@ -184,7 +184,7 @@ All engines are **pure/request-driven** (no persisted cron). Each is a per-pond 
 | Feature | Backend | Frontend | Entity | Notes |
 |---|---|---|---|---|
 | Economics (CoP, margin, ROI, break-even) | `india` → `POST economics` | *(surfaced in CropPnl/Reports)* | *(stateless)* | Break-even count by interpolating count↔price bands (clamps out-of-range). |
-| Regional price feeds | `india` → `GET price`, `GET price-feeds`, `POST price-feeds` | *(surfaced in economics)* | `price_feeds` | **Crowdsourced/user-entered** (`enteredBy`), not an external market API; no scheduled refresh. `GET price*` is `@Public()`. |
+| Regional price feeds | `india` → `GET price`, `GET price-feeds`, `POST price-feeds` | *(surfaced in economics)* | `price_feeds` | **Crowdsourced/user-entered** (`enteredBy`), not an external market API; no scheduled refresh. `GET price-feeds` is `@Public()`; `GET price` requires auth. |
 
 ## 17. Simulations
 

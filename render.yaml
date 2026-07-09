@@ -3,11 +3,17 @@ services:
   - type: web
     name: upcheck-backend
     env: node
+    # Free plan spins the instance down after ~15 min idle; the first request
+    # after that eats a ~50s cold-start boot. No keep-alive cron is configured
+    # here — mitigate with an external uptime ping (see docs/OPERATIONS.md).
     plan: free
     rootDir: backend
     buildCommand: npm ci && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /api/health
+    # autoDeploy ships every master commit straight to prod. .github/workflows/ci.yml
+    # runs backend build+test (and frontend tsc+jest) on PRs as the gate before merge —
+    # this deploy step itself does not re-run tests, so keep CI green on master.
     autoDeploy: true
     envVars:
       - key: NODE_ENV

@@ -19,7 +19,7 @@ Most items `AUDIT.md` (2026-06-01) flagged as broken were **fixed in the remedia
 | Feature | Verdict | Notes / Evidence |
 |---|---|---|
 | Email/password signup, signin | WIRED | `RegisterScreen`/`LoginScreen` → `authStore` → `auth.ts` → `supabase-auth.controller.ts` → `BaselineSchema`. |
-| Email verification + resend | WIRED | `supabase-auth.controller.ts:434`. |
+| Email verification + resend | WIRED | `supabase-auth.controller.ts`. |
 | Forgot password | PARTIAL | Sends Supabase reset email, **but no in-app deep-link landing for the reset link** — reset completes only in Supabase's web UI. *Gap A1.* |
 | Google OAuth | WIRED | Android uses **Android client ID** via expo-auth-session. |
 | Truecaller (One-Tap + PKCE exchange) | WIRED | `TruecallerLoginScreen` → `/auth/supabase/oauth/truecaller/exchange`. |
@@ -27,7 +27,7 @@ Most items `AUDIT.md` (2026-06-01) flagged as broken were **fixed in the remedia
 | 2FA TOTP (setup/enable/disable/login challenge) | WIRED | `TwoFactorScreen` + `TwoFactorChallengeScreen`; cols in `Add2faAndPushColumns`. |
 | JWT refresh / signout / me | WIRED | `client.ts` 401-refresh queue; `authStore`. |
 | Profile read/update, username check | WIRED | `ProfileScreen` → `profiles.controller.ts`. |
-| Delete account (cascade) | WIRED (verify) | `profiles.service.ts:83` deletes `public.users` (cascades farm data) + `profiles` + Supabase `auth.users`. *Confirm cascade on a real account — SEC-3.* |
+| Delete account (cascade) | WIRED (verify) | `profiles.service.ts` `deleteAccount()` deletes `public.users` (cascades farm data) + `credit_ledgers` + `profiles` + Supabase `auth.users`. *Confirm cascade on a real account — SEC-3.* |
 | Onboarding role split (owner→CreateFarm, worker→dashboard) | WIRED | `RootNavigator` `pendingFarmSetup` gate. Backend doesn't *enforce* owner-only on `POST /farms` (ownership is row-level FK, acceptable). |
 | Language / theme / notification prefs | PARTIAL | Stored **locally** (AsyncStorage/i18n) only; **not synced to backend** `profiles`. Fine for launch; note it. *Gap A2.* |
 | Help / About screens | WIRED | Static content. |
@@ -126,7 +126,7 @@ Mapped to the workstreams in `UPCHECK_LAUNCH_PLAN.md`. **Verify-or-fix, not buil
 > **Scope (2026-06-16):** every item below is **built to completion** — nothing in-app is hidden or cut. The four external-dependency features (IoT, marketplace checkout, traceability public web, expert consultation) are the only deferrals. See `UPCHECK_LAUNCH_PLAN.md` D9. All UI built to `UPCHECK_DESIGN_SYSTEM.md` (no emojis).
 
 ### [P0] Production / must-fix
-- **X4 — Migrations don't auto-run** on a fresh DB (`app.module.ts:120`, `render.yaml`). → Plan **DB-1**. *This is the #1 launch risk and the root of the Supabase relink pain.*
+- **X4 — Migrations don't auto-run** on a fresh DB (`app.module.ts` `migrationsRun`, `render.yaml`). → Plan **DB-1**. *This is the #1 launch risk and the root of the Supabase relink pain.*
 - **SEC-1 — anon key lockdown** (not a feature, a gate): prove the client's anon key cannot read/write tables (data flows via NestJS only). → Plan **SEC-1**.
 
 ### [P1] Should-fix before launch

@@ -8,7 +8,7 @@
 
 ## ✅ Completion status — 2026-07-08
 
-All 19 items implemented, tested, and green: **backend 73 suites / 465 tests** (was 58/414), **frontend 17 suites / 120 tests**, `tsc --noEmit` clean, backend lint clean. New user-facing strings translated across all 6 locales.
+All 19 items implemented, tested, and green: **backend 73 suites / 465 tests** (was 58/414), **frontend 17 suites / 120 tests**, `tsc --noEmit` clean. Backend lint is **not** clean (non-blocking CI step, known debt — see backlog) and is tracked separately from this remediation. New user-facing strings translated across all 6 locales.
 
 | ID | Status | Notes |
 |---|---|---|

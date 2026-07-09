@@ -117,6 +117,30 @@ CREATE TRIGGER on_auth_user_updated
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ──────────────────────────────────────────────────────────────
+-- 2b. TRIGGER FUNCTION: mirror auth.users DELETE → public.users
+--     Covers deletes done outside the app (dashboard / admin GDPR
+--     delete), so a direct auth.users delete doesn't orphan the
+--     public.users row (and its farms/ponds/crops/logs) or block a
+--     later re-signup on the same email via the UNIQUE(email) constraint.
+-- ──────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.handle_deleted_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    DELETE FROM public.users WHERE id = OLD.id;
+    RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_deleted ON auth.users;
+CREATE TRIGGER on_auth_user_deleted
+    AFTER DELETE ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_deleted_user();
+
+-- ──────────────────────────────────────────────────────────────
 -- 3. BACKFILL: copy any existing auth.users into public.users
 --    (users who signed up before the trigger existed)
 -- ──────────────────────────────────────────────────────────────
@@ -177,7 +201,7 @@ WHERE NOT EXISTS (
 -- ──────────────────────────────────────────────────────────────
 SELECT trigger_name, event_manipulation, event_object_table
 FROM information_schema.triggers
-WHERE trigger_name IN ('on_auth_user_created', 'on_auth_user_updated');
+WHERE trigger_name IN ('on_auth_user_created', 'on_auth_user_updated', 'on_auth_user_deleted');
 
 SELECT COUNT(*) AS public_users_count FROM public.users;
 SELECT COUNT(*) AS auth_users_count   FROM auth.users;

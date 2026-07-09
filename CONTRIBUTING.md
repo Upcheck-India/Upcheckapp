@@ -36,6 +36,8 @@ npx jest                             # tests
 
 **Touched docs?** From the repo root: `node scripts/check-doc-links.mjs` — verifies every relative cross-link resolves. CI runs this on every PR (the **Docs** workflow), and also posts a non-blocking reminder if you change app code without touching docs.
 
+**CI:** the **CI** workflow (`.github/workflows/ci.yml`) runs on every PR — backend build + `npm test`, frontend `tsc --noEmit` + `jest`. It doesn't yet enforce lint (backend lint has known debt; see [LAUNCH_REMEDIATION](./LAUNCH_REMEDIATION.md)).
+
 **Non-trivial behavior change?** Actually exercise it (boot the API / drive the screen), don't rely on tests alone.
 
 ## 3. Testing expectations

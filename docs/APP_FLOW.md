@@ -25,7 +25,7 @@ Legend: **→** = navigates to · *italic* = data collected/sent · `param` = pa
 | **TruecallerLogin** | One-tap phone auth (native only) | *Truecaller token (SDK)* |
 | **TwoFactorChallenge** | 2FA step after login | `tempToken`, *6-digit TOTP* |
 | **ForgotPassword** | Request reset email | *email* |
-| **ResetPassword** | Set new password from email link | *new password* (deep link `upcheck://`) |
+| **ResetPassword** | Set new password from email link | *new password* (deep link `upcheckapp://`) |
 | **PrivacyPolicy / Terms** | Legal, reachable from Register consent | — |
 
 **Flow:** Login ↔ Register · Login → OtpLogin / TruecallerLogin / ForgotPassword · login → (2FA?) → **owner:** CreateFarm · **worker:** Home.
