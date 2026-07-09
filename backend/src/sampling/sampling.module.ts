@@ -7,12 +7,9 @@ import { SamplingData } from './sampling-data.entity';
 import { PondsModule } from '../ponds/ponds.module';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([SamplingData]),
-        PondsModule,
-    ],
-    controllers: [SamplingController],
-    providers: [SamplingService],
-    exports: [SamplingService],
+  imports: [TypeOrmModule.forFeature([SamplingData]), PondsModule],
+  controllers: [SamplingController],
+  providers: [SamplingService],
+  exports: [SamplingService],
 })
-export class SamplingModule { }
+export class SamplingModule {}

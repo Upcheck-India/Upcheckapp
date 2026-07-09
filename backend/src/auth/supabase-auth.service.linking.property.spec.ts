@@ -167,7 +167,8 @@ class StatefulSupabaseMock {
         return {
           data: null,
           error: {
-            message: 'duplicate key value violates unique constraint "users_phone_key"',
+            message:
+              'duplicate key value violates unique constraint "users_phone_key"',
           },
         };
       }
@@ -310,87 +311,82 @@ describe('SupabaseAuthService.signInWithTruecaller property: idempotence + branc
 
   it('signInWithTruecaller is idempotent and selects the correct branch (Validates: Requirements 11.1, 11.2, 11.3, 11.4)', async () => {
     await fc.assert(
-      fc.asyncProperty(
-        arbProfile,
-        arbSeedKind,
-        async (profile, seedKind) => {
-          const mock = new StatefulSupabaseMock();
+      fc.asyncProperty(arbProfile, arbSeedKind, async (profile, seedKind) => {
+        const mock = new StatefulSupabaseMock();
 
-          let expectedBranch: 1 | 2 | 3;
-          let expectedFirstId: string | null = null;
+        let expectedBranch: 1 | 2 | 3;
+        let expectedFirstId: string | null = null;
 
-          if (seedKind === 'samePhone') {
-            // Branch 1: phone-match takes precedence regardless of email.
-            mock.seedExistingUser({
-              id: 'seed-phone',
-              email: profile.email,
-              phone: profile.phoneNumber,
-            });
-            expectedBranch = 1;
-            expectedFirstId = 'seed-phone';
-          } else if (seedKind === 'sameEmail') {
-            // SECURITY: phone differs but (unverified) email matches. The
-            // account-takeover fix means this must NOT link to the existing
-            // email user — it creates a fresh phone-keyed account (branch 3).
-            mock.seedExistingUser({
-              id: 'seed-email',
-              email: profile.email,
-              phone: deriveDifferentPhone(profile.phoneNumber),
-            });
-            expectedBranch = 3;
-          } else if (seedKind === 'differentBoth') {
-            // Branch 3: pre-existing user is unrelated to `profile`.
-            mock.seedExistingUser({
-              id: 'seed-other',
-              email: deriveDifferentEmail(profile.email),
-              phone: deriveDifferentPhone(profile.phoneNumber),
-            });
-            expectedBranch = 3;
-          } else {
-            // 'none' — empty initial state; Branch 3.
-            expectedBranch = 3;
-          }
+        if (seedKind === 'samePhone') {
+          // Branch 1: phone-match takes precedence regardless of email.
+          mock.seedExistingUser({
+            id: 'seed-phone',
+            email: profile.email,
+            phone: profile.phoneNumber,
+          });
+          expectedBranch = 1;
+          expectedFirstId = 'seed-phone';
+        } else if (seedKind === 'sameEmail') {
+          // SECURITY: phone differs but (unverified) email matches. The
+          // account-takeover fix means this must NOT link to the existing
+          // email user — it creates a fresh phone-keyed account (branch 3).
+          mock.seedExistingUser({
+            id: 'seed-email',
+            email: profile.email,
+            phone: deriveDifferentPhone(profile.phoneNumber),
+          });
+          expectedBranch = 3;
+        } else if (seedKind === 'differentBoth') {
+          // Branch 3: pre-existing user is unrelated to `profile`.
+          mock.seedExistingUser({
+            id: 'seed-other',
+            email: deriveDifferentEmail(profile.email),
+            phone: deriveDifferentPhone(profile.phoneNumber),
+          });
+          expectedBranch = 3;
+        } else {
+          // 'none' — empty initial state; Branch 3.
+          expectedBranch = 3;
+        }
 
-          const svc = buildService(mock);
+        const svc = buildService(mock);
 
-          // ──────── First call ────────
-          const callsBefore = mock.createUserCalls;
-          const result1 = await svc.signInWithTruecaller(profile);
-          const created1 = mock.createUserCalls - callsBefore;
+        // ──────── First call ────────
+        const callsBefore = mock.createUserCalls;
+        const result1 = await svc.signInWithTruecaller(profile);
+        const created1 = mock.createUserCalls - callsBefore;
 
-          // Branch correctness on the first call.
-          if (expectedBranch === 1) {
-            expect(created1).toBe(0);
-            expect(result1.user.id).toBe(expectedFirstId);
-          } else {
-            // Branch 3: a fresh auth user was created.
-            expect(created1).toBe(1);
-          }
+        // Branch correctness on the first call.
+        if (expectedBranch === 1) {
+          expect(created1).toBe(0);
+          expect(result1.user.id).toBe(expectedFirstId);
+        } else {
+          // Branch 3: a fresh auth user was created.
+          expect(created1).toBe(1);
+        }
 
-          // No rollback fired on a successful path (Req 11.4 corollary).
-          expect(mock.deleteUserCalls).toBe(0);
+        // No rollback fired on a successful path (Req 11.4 corollary).
+        expect(mock.deleteUserCalls).toBe(0);
 
-          // ──────── Second call — must always hit Branch 1 ────────
-          const result2 = await svc.signInWithTruecaller(profile);
-          const created2 =
-            mock.createUserCalls - callsBefore - created1;
+        // ──────── Second call — must always hit Branch 1 ────────
+        const result2 = await svc.signInWithTruecaller(profile);
+        const created2 = mock.createUserCalls - callsBefore - created1;
 
-          // Idempotence: no new auth user created on the second call.
-          expect(created2).toBe(0);
+        // Idempotence: no new auth user created on the second call.
+        expect(created2).toBe(0);
 
-          // Idempotence (Req 11.1): same Supabase user id both times.
-          expect(result1.user.id).toBe(result2.user.id);
+        // Idempotence (Req 11.1): same Supabase user id both times.
+        expect(result1.user.id).toBe(result2.user.id);
 
-          // Exactly one row in the application table whose phone matches
-          // the profile, and that row is fully verified per Req 11.2/3/4.
-          const phoneRows = [...mock.usersTable.values()].filter(
-            (r) => r.phone === profile.phoneNumber,
-          );
-          expect(phoneRows).toHaveLength(1);
-          expect(phoneRows[0].phone_verified).toBe(true);
-          expect(phoneRows[0].auth_provider).toBe('truecaller');
-        },
-      ),
+        // Exactly one row in the application table whose phone matches
+        // the profile, and that row is fully verified per Req 11.2/3/4.
+        const phoneRows = [...mock.usersTable.values()].filter(
+          (r) => r.phone === profile.phoneNumber,
+        );
+        expect(phoneRows).toHaveLength(1);
+        expect(phoneRows[0].phone_verified).toBe(true);
+        expect(phoneRows[0].auth_provider).toBe('truecaller');
+      }),
       { numRuns: 100 },
     );
   });

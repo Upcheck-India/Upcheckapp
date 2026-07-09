@@ -104,7 +104,7 @@ export const HomeScreen = ({ navigation }: any) => {
                         <Text style={styles.roleLabel}>{ROLE_LABEL[perms.role]}</Text>
                     ) : null}
                 </View>
-                <TouchableOpacity onPress={() => navigation.getParent()?.navigate('Settings') ?? navigation.navigate('Settings')} style={styles.avatar}>
+                <TouchableOpacity onPress={() => navigation.getParent()?.navigate('Settings') ?? navigation.navigate('Settings')} style={styles.avatar} accessibilityRole="button" accessibilityLabel={t('common.settings', 'Settings')}>
                     <MaterialCommunityIcons name="account-circle" size={40} color={theme.roles.light.primary} />
                 </TouchableOpacity>
             </View>

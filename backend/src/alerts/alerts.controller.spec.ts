@@ -11,12 +11,15 @@ describe('AlertsController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AlertsController],
       providers: [
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
+        },
         { provide: AlertsService, useValue: {} },
         { provide: DataSource, useValue: {} },
         { provide: 'EmailService', useValue: {} },
         { provide: 'PondsService', useValue: {} },
-        { provide: 'InventoryService', useValue: {} }
+        { provide: 'InventoryService', useValue: {} },
       ],
     }).compile();
 

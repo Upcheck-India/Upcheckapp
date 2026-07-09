@@ -9,9 +9,11 @@ import { SimulationsController } from './simulations.controller';
 import { SimulationsService } from './simulations.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Simulation, Crop, FeedRecord, Transaction, Pond])],
+  imports: [
+    TypeOrmModule.forFeature([Simulation, Crop, FeedRecord, Transaction, Pond]),
+  ],
   controllers: [SimulationsController],
   providers: [SimulationsService],
   exports: [SimulationsService],
 })
-export class SimulationsModule { }
+export class SimulationsModule {}

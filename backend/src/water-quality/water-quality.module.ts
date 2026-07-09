@@ -7,9 +7,13 @@ import { PondsModule } from '../ponds/ponds.module';
 import { AlertsModule } from '../alerts/alerts.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([WaterQualityRecord]), PondsModule, AlertsModule],
+  imports: [
+    TypeOrmModule.forFeature([WaterQualityRecord]),
+    PondsModule,
+    AlertsModule,
+  ],
   controllers: [WaterQualityController],
   providers: [WaterQualityService],
   exports: [WaterQualityService],
 })
-export class WaterQualityModule { }
+export class WaterQualityModule {}

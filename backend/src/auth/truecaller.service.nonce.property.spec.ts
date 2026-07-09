@@ -51,7 +51,9 @@ function opArb(nonces: readonly string[]): fc.Arbitrary<Op> {
   );
 }
 
-async function expectRejectedWithReplayBody(p: Promise<unknown>): Promise<void> {
+async function expectRejectedWithReplayBody(
+  p: Promise<unknown>,
+): Promise<void> {
   let threw: unknown = null;
   try {
     await p;
@@ -63,7 +65,7 @@ async function expectRejectedWithReplayBody(p: Promise<unknown>): Promise<void> 
       `Expected UnauthorizedException, got ${threw === null ? 'no throw' : String(threw)}`,
     );
   }
-  const response = (threw as UnauthorizedException).getResponse() as {
+  const response = threw.getResponse() as {
     success?: boolean;
     message?: string;
   };
@@ -75,10 +77,8 @@ async function expectRejectedWithReplayBody(p: Promise<unknown>): Promise<void> 
       `Expected response { success: false, message: 'Nonce already used' }, got ${JSON.stringify(response)}`,
     );
   }
-  if ((threw as UnauthorizedException).getStatus() !== 401) {
-    throw new Error(
-      `Expected status 401, got ${(threw as UnauthorizedException).getStatus()}`,
-    );
+  if (threw.getStatus() !== 401) {
+    throw new Error(`Expected status 401, got ${threw.getStatus()}`);
   }
 }
 
@@ -98,10 +98,10 @@ describe('InMemoryNonceReplayStore — property-based replay protection', () => 
         // drawn from that alphabet so collisions are common (otherwise
         // the property is trivially true on every step).
         fc
-          .uniqueArray(
-            fc.string({ minLength: 1, maxLength: 16 }),
-            { minLength: 1, maxLength: 5 },
-          )
+          .uniqueArray(fc.string({ minLength: 1, maxLength: 16 }), {
+            minLength: 1,
+            maxLength: 5,
+          })
           .chain((nonces) =>
             fc.record({
               nonces: fc.constant(nonces),
@@ -178,10 +178,10 @@ describe('InMemoryNonceReplayStore — property-based replay protection', () => 
     await fc.assert(
       fc.asyncProperty(
         fc
-          .uniqueArray(
-            fc.string({ minLength: 1, maxLength: 16 }),
-            { minLength: 2, maxLength: 6 },
-          )
+          .uniqueArray(fc.string({ minLength: 1, maxLength: 16 }), {
+            minLength: 2,
+            maxLength: 6,
+          })
           .chain((nonces) =>
             fc.record({
               nonces: fc.constant(nonces),

@@ -6,6 +6,7 @@ import { authApi } from '../api/auth';
 import { profilesApi } from '../api/profiles';
 import { TruecallerAuth } from '../native/TruecallerAuth';
 import { useSyncStore } from './syncStore';
+import { useActiveFarmStore } from './activeFarmStore';
 
 export type AuthStatus =
     | 'initializing'       // app just launched, checking stored session
@@ -66,6 +67,8 @@ interface AuthState {
 
     // ── API Actions ──
     initialize: () => Promise<void>;
+    enterOfflineSession: () => void;
+    recoverSession: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
     googleLogin: (idToken: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
     signup: (email: string, password: string, firstName?: string, lastName?: string, accountType?: AccountType) => Promise<void>;
@@ -139,7 +142,11 @@ export const useAuthStore = create<AuthState>()(
             setError: (error) => set({ error, isLoading: false }),
             clearError: () => set({ error: null }),
 
-            clearSession: () =>
+            clearSession: () => {
+                // Drop the previous user's farm/pond/cycle context so a second
+                // user on a shared device never sees User A's farm (cross-tenant
+                // bleed via the still-truthy selectedFarm on HomeScreen).
+                useActiveFarmStore.getState().clearAll();
                 set({
                     session: null,
                     accessToken: null,
@@ -150,7 +157,8 @@ export const useAuthStore = create<AuthState>()(
                     pendingFarmSetup: false,
                     error: null,
                     isLoading: false,
-                }),
+                });
+            },
 
             hydrateFromSupabaseUser: (user, session) =>
                 set({
@@ -167,20 +175,80 @@ export const useAuthStore = create<AuthState>()(
                 // Check if we have a refresh token stored
                 const refreshToken = state.refreshToken;
 
-                if (refreshToken) {
-                    try {
-                        // Use refresh token to get new session
-                        const { data } = await authApi.refresh(refreshToken);
-                        if (data.session) {
-                            get().setSession(data.session);
-                            return; // Successfully restored session
-                        }
-                    } catch {
-                        // Refresh failed — clear and show login
-                    }
-                    get().clearSession();
-                } else {
+                if (!refreshToken) {
                     set({ status: 'unauthenticated', isLoading: false });
+                    return;
+                }
+
+                try {
+                    // Use refresh token to get new session
+                    const { data } = await authApi.refresh(refreshToken);
+                    if (data.session) {
+                        get().setSession(data.session);
+                        return; // Successfully restored session
+                    }
+                    // 2xx with no session → nothing to restore.
+                    get().clearSession();
+                } catch (err: any) {
+                    const status = err?.response?.status;
+                    // A real auth rejection (revoked/expired token) → log out.
+                    if (status === 401 || status === 403) {
+                        get().clearSession();
+                        return;
+                    }
+                    // Transient/offline failure (no response, timeout, 5xx): do NOT
+                    // log the farmer out (AUTH-1). Restore a minimal offline session
+                    // from the persisted identity so the app is usable against cached
+                    // data; recoverSession() re-attempts a real refresh on reconnect.
+                    get().enterOfflineSession();
+                }
+            },
+
+            // Rebuild a usable-but-tokenless authenticated state from the persisted
+            // identity (userId/userEmail) after a transient refresh failure at
+            // launch. No access token yet — API calls will 401 and lazily refresh
+            // (client.ts) or recoverSession() restores a real session on reconnect.
+            enterOfflineSession: () => {
+                const persisted = get() as unknown as { userId?: string; userEmail?: string };
+                if (!persisted.userId) {
+                    // No cached identity to fall back on — show login.
+                    set({ status: 'unauthenticated', isLoading: false });
+                    return;
+                }
+                set({
+                    user: {
+                        id: persisted.userId,
+                        email: persisted.userEmail ?? '',
+                        name: persisted.userEmail ? persisted.userEmail.split('@')[0] : 'You',
+                        avatarUrl: null,
+                        provider: 'email',
+                        emailVerified: true,
+                        accountType: null,
+                    },
+                    session: null,
+                    accessToken: null,
+                    isAuthenticated: true,
+                    status: 'authenticated',
+                    error: null,
+                    isLoading: false,
+                });
+            },
+
+            // Proactively restore a real session on reconnect when we're in the
+            // offline-authenticated state (authenticated but no access token). A
+            // genuine 401/403 here means the token was revoked → log out.
+            recoverSession: async () => {
+                const s = get();
+                if (s.accessToken || !s.isAuthenticated) return; // already have a token / not logged in
+                const refreshToken = s.refreshToken;
+                if (!refreshToken) return;
+                try {
+                    const { data } = await authApi.refresh(refreshToken);
+                    if (data.session) get().setSession(data.session);
+                } catch (err: any) {
+                    const status = err?.response?.status;
+                    if (status === 401 || status === 403) get().clearSession();
+                    // else stay offline-authenticated and try again next reconnect
                 }
             },
 

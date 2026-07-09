@@ -1,7 +1,12 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreditLedger } from './credit-ledger.entity';
+import { CreateCreditDto } from './dto/create-credit.dto';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -44,23 +49,40 @@ export class CreditService {
   }
 
   // ── Ledger persistence ──────────────────────────────────────────────────
-  async create(data: Partial<CreditLedger>, userId: string): Promise<CreditLedger> {
-    const entity = this.repo.create({ ...data, userId, repaid: data.repaid ?? 0 });
+  async create(
+    data: CreateCreditDto,
+    userId: string,
+  ): Promise<CreditLedger> {
+    const entity = this.repo.create({
+      ...data,
+      userId,
+      repaid: data.repaid ?? 0,
+    });
     return this.repo.save(entity);
   }
 
-  async list(userId: string): Promise<Array<CreditLedger & { outstanding: number }>> {
+  async list(
+    userId: string,
+  ): Promise<Array<CreditLedger & { outstanding: number }>> {
     const rows = await this.repo.find({
       where: { userId },
       order: { startDate: 'DESC' },
     });
     return rows.map((r) => ({
       ...r,
-      outstanding: this.outstanding(Number(r.principal), Number(r.interestPct), Number(r.repaid)),
+      outstanding: this.outstanding(
+        Number(r.principal),
+        Number(r.interestPct),
+        Number(r.repaid),
+      ),
     }));
   }
 
-  async recordRepayment(id: string, amount: number, userId: string): Promise<CreditLedger> {
+  async recordRepayment(
+    id: string,
+    amount: number,
+    userId: string,
+  ): Promise<CreditLedger> {
     const row = await this.repo.findOne({ where: { id } });
     if (!row) throw new NotFoundException('Credit entry not found');
     if (row.userId !== userId) throw new ForbiddenException();
@@ -78,7 +100,9 @@ export class CreditService {
     let totalOutstanding = 0;
     for (const r of rows) {
       totalOutstanding += r.outstanding;
-      byDealer[r.dealerName] = round2((byDealer[r.dealerName] ?? 0) + r.outstanding);
+      byDealer[r.dealerName] = round2(
+        (byDealer[r.dealerName] ?? 0) + r.outstanding,
+      );
     }
     return { totalOutstanding: round2(totalOutstanding), byDealer };
   }

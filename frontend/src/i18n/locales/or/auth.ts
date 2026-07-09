@@ -47,7 +47,12 @@ const auth = {
 
   passwordAtLeast8Placeholder: 'ଅନ୍ତତଃ ୮ ଅକ୍ଷର',
   passwordTooShortRegister: 'ପାସୱାର୍ଡ ଅନ୍ତତଃ ୮ ଅକ୍ଷର ହେବା ଆବଶ୍ୟକ',
-  passwordHint: 'ସର୍ବନିମ୍ନ ୮ ଅକ୍ଷର',
+  passwordHint: '୮+ ଅକ୍ଷର — ଗୋଟିଏ ବଡ଼ ଓ ଛୋଟ ଅକ୍ଷର, ଗୋଟିଏ ସଂଖ୍ୟା ଏବଂ ଗୋଟିଏ ବିଶେଷ ଚିହ୍ନ',
+  passwordRuleLength: 'ଅତିକମରେ ୮ଟି ଅକ୍ଷର ବ୍ୟବହାର କରନ୍ତୁ',
+  passwordRuleLower: 'ଗୋଟିଏ ଛୋଟ ଅକ୍ଷର ଯୋଡ଼ନ୍ତୁ',
+  passwordRuleUpper: 'ଗୋଟିଏ ବଡ଼ ଅକ୍ଷର ଯୋଡ଼ନ୍ତୁ',
+  passwordRuleDigit: 'ଗୋଟିଏ ସଂଖ୍ୟା ଯୋଡ଼ନ୍ତୁ',
+  passwordRuleSpecial: 'ଗୋଟିଏ ବିଶେଷ ଚିହ୍ନ ଯୋଡ଼ନ୍ତୁ (ଯେପରି # @ ! -)',
 
   confirmPasswordLabel: 'ପାସୱାର୍ଡ ନିଶ୍ଚିତ କରନ୍ତୁ',
   confirmPasswordPlaceholder: 'ପାସୱାର୍ଡ ପୁଣି ଦିଅନ୍ତୁ',
@@ -93,6 +98,12 @@ const auth = {
   invalidCodeAlert: 'ଆପଣଙ୍କ ଅଥେଣ୍ଟିକେଟର ଆପ ରୁ ୬-ଅଙ୍କ କୋଡ଼ ଦିଅନ୍ତୁ।',
   noSessionSignInAgain: 'ସେସନ ଫେରିଲା ନାହିଁ। ପୁଣି ସାଇନ ଇନ କରନ୍ତୁ।',
   invalidVerificationCode: 'ଅବୈଧ ଯାଞ୍ଚ କୋଡ଼',
+
+  // ── Backup codes (AUTH-4) ──
+  twoFactorBackupHelp: 'ସାଇନ୍ ଇନ୍ ସମ୍ପୂର୍ଣ୍ଣ କରିବାକୁ ଆପଣଙ୍କ ସଞ୍ଚିତ ବ୍ୟାକଅପ୍ କୋଡ଼ ମଧ୍ୟରୁ ଗୋଟିଏ ପ୍ରବେଶ କରନ୍ତୁ।',
+  backupCodeLabel: 'ବ୍ୟାକଅପ୍ କୋଡ଼',
+  useBackupCode: 'ଏହା ପରିବର୍ତ୍ତେ ଏକ ବ୍ୟାକଅପ୍ କୋଡ଼ ବ୍ୟବହାର କରନ୍ତୁ',
+  useAuthenticatorInstead: 'ଏହା ପରିବର୍ତ୍ତେ ପ୍ରାମାଣିକ ଆପ୍ ବ୍ୟବହାର କରନ୍ତୁ',
   verify: 'ଯାଞ୍ଚ କରନ୍ତୁ',
 
   // ── TruecallerLoginScreen ─────────────────────────────────────────────────

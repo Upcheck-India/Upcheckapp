@@ -17,4 +17,4 @@ import { InventoryModule } from '../inventory/inventory.module';
   providers: [FeedRecordsService],
   exports: [FeedRecordsService],
 })
-export class FeedRecordsModule { }
+export class FeedRecordsModule {}

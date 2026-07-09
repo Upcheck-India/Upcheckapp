@@ -41,5 +41,10 @@ const common = {
   serverErrorMessage: 'మా సర్వర్‌లలో సమస్య ఉంది. దయచేసి తర్వాత ప్రయత్నించండి.',
   showPassword: 'పాస్‌వర్డ్ చూపించు',
   hidePassword: 'పాస్‌వర్డ్ దాచు',
+  settings: 'సెట్టింగ్‌లు',
+  syncFailedTitle: 'కొన్ని రికార్డులకు శ్రద్ధ అవసరం',
+  syncFailedBody: '{{count}} రికార్డు(లు) సింక్ కాలేదు. ఇప్పుడు మళ్లీ ప్రయత్నించాలా?',
+  syncFailedBanner: 'రికార్డులకు శ్రద్ధ అవసరం',
+  syncFailedA11y: '{{count}} రికార్డులు సింక్ కాలేదు, మళ్లీ ప్రయత్నించడానికి నొక్కండి',
 };
 export default common;

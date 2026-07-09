@@ -16,9 +16,7 @@ import {
  *  - Dictionary seed uses `ON CONFLICT DO NOTHING` so re-runs add nothing.
  *  - Fully reversible (drops only what it created).
  */
-export class CreateMeasurementAndDataDictionary1780300000000
-  implements MigrationInterface
-{
+export class CreateMeasurementAndDataDictionary1780300000000 implements MigrationInterface {
   name = 'CreateMeasurementAndDataDictionary1780300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

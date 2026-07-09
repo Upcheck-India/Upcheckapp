@@ -12,13 +12,24 @@ describe('FeedRecordsController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [FeedRecordsController],
       providers: [
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
+        },
         { provide: FeedRecordsService, useValue: {} },
         { provide: DataSource, useValue: {} },
-        { provide: FarmAccessService, useValue: { getRoleOnFarm: jest.fn().mockResolvedValue('owner'), assertCanAccessFarm: jest.fn(), assertCanAccessPond: jest.fn(), getAccessibleFarmIds: jest.fn().mockResolvedValue([]) } },
+        {
+          provide: FarmAccessService,
+          useValue: {
+            getRoleOnFarm: jest.fn().mockResolvedValue('owner'),
+            assertCanAccessFarm: jest.fn(),
+            assertCanAccessPond: jest.fn(),
+            getAccessibleFarmIds: jest.fn().mockResolvedValue([]),
+          },
+        },
         { provide: 'EmailService', useValue: {} },
         { provide: 'PondsService', useValue: {} },
-        { provide: 'InventoryService', useValue: {} }
+        { provide: 'InventoryService', useValue: {} },
       ],
     }).compile();
 

@@ -21,6 +21,7 @@ export const TwoFactorChallengeScreen = ({ route, navigation }: any) => {
     const setSession = useAuthStore((s) => s.setSession);
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
+    const [useBackup, setUseBackup] = useState(false);
 
     const verify = async () => {
         if (code.trim().length < 6) {
@@ -56,18 +57,27 @@ export const TwoFactorChallengeScreen = ({ route, navigation }: any) => {
             <ScrollView contentContainerStyle={styles.content}>
                 <Card style={styles.card}>
                     <Text style={styles.help}>
-                        {t('auth.twoFactorHelp')}
+                        {useBackup ? t('auth.twoFactorBackupHelp') : t('auth.twoFactorHelp')}
                     </Text>
                     <Input
-                        label={t('auth.authenticatorCodeLabel')}
+                        label={useBackup ? t('auth.backupCodeLabel') : t('auth.authenticatorCodeLabel')}
                         value={code}
                         onChangeText={setCode}
-                        placeholder="123456"
-                        keyboardType="number-pad"
-                        maxLength={6}
+                        placeholder={useBackup ? 'A1B2C3D4' : '123456'}
+                        keyboardType={useBackup ? 'default' : 'number-pad'}
+                        autoCapitalize={useBackup ? 'characters' : 'none'}
+                        maxLength={useBackup ? 8 : 6}
                         required
                     />
                     <Button title={t('auth.verify')} onPress={verify} loading={loading} style={styles.btn} />
+                    <TouchableOpacity
+                        onPress={() => { setUseBackup((v) => !v); setCode(''); }}
+                        style={styles.toggle}
+                    >
+                        <Text style={styles.toggleText}>
+                            {useBackup ? t('auth.useAuthenticatorInstead') : t('auth.useBackupCode')}
+                        </Text>
+                    </TouchableOpacity>
                 </Card>
             </ScrollView>
         </ScreenWrapper>
@@ -89,4 +99,6 @@ const styles = StyleSheet.create({
     card: { marginBottom: theme.spacing[6] },
     help: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[4] },
     btn: { marginTop: theme.spacing[3] },
+    toggle: { marginTop: theme.spacing[4], alignItems: 'center' },
+    toggleText: { ...theme.typeScale.labelMedium, color: theme.roles.light.primary },
 });

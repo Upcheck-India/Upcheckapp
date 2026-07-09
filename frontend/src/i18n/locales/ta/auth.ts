@@ -47,7 +47,12 @@ const auth = {
 
   passwordAtLeast8Placeholder: 'குறைந்தது 8 எழுத்துகள்',
   passwordTooShortRegister: 'கடவுச்சொல் குறைந்தது 8 எழுத்துகள் இருக்க வேண்டும்',
-  passwordHint: 'குறைந்தது 8 எழுத்துகள்',
+  passwordHint: '8+ எழுத்துகள் — ஒரு பெரிய & சிறிய எழுத்து, ஒரு எண், ஒரு சிறப்பு குறியீடு',
+  passwordRuleLength: 'குறைந்தது 8 எழுத்துகளைப் பயன்படுத்தவும்',
+  passwordRuleLower: 'ஒரு சிறிய எழுத்தைச் சேர்க்கவும்',
+  passwordRuleUpper: 'ஒரு பெரிய எழுத்தைச் சேர்க்கவும்',
+  passwordRuleDigit: 'ஒரு எண்ணைச் சேர்க்கவும்',
+  passwordRuleSpecial: 'ஒரு சிறப்பு குறியீட்டைச் சேர்க்கவும் (எ.கா. # @ ! -)',
 
   confirmPasswordLabel: 'கடவுச்சொல்லை உறுதிப்படுத்து',
   confirmPasswordPlaceholder: 'கடவுச்சொல்லை மீண்டும் உள்ளிடுக',
@@ -93,6 +98,12 @@ const auth = {
   invalidCodeAlert: 'அங்கீகரிப்பு ஆப்பிலிருந்து 6 இலக்க குறியீட்டை உள்ளிடுக.',
   noSessionSignInAgain: 'அமர்வு கிடைக்கவில்லை. மீண்டும் உள்நுழையவும்.',
   invalidVerificationCode: 'தவறான சரிபார்ப்பு குறியீடு',
+
+  // ── Backup codes (AUTH-4) ──
+  twoFactorBackupHelp: 'உள்நுழைவை முடிக்க உங்கள் சேமித்த காப்பு குறியீடுகளில் ஒன்றை உள்ளிடவும்.',
+  backupCodeLabel: 'காப்பு குறியீடு',
+  useBackupCode: 'மாற்றாக காப்பு குறியீட்டைப் பயன்படுத்தவும்',
+  useAuthenticatorInstead: 'மாற்றாக அங்கீகரிப்பு பயன்பாட்டைப் பயன்படுத்தவும்',
   verify: 'சரிபார்',
 
   // ── TruecallerLoginScreen ─────────────────────────────────────────────────

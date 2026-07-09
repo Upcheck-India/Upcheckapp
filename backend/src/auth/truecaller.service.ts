@@ -1,4 +1,9 @@
-import { Injectable, Logger, Optional, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  Optional,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import * as crypto from 'crypto';
@@ -163,10 +168,14 @@ export const TRUECALLER_DEFAULT_KEYS_API_URL =
  * is not a usable key and would otherwise inflate the verification loop
  * with guaranteed-false attempts.)
  */
-export function extractTruecallerPublicKeys(raw: unknown): TruecallerPublicKey[] {
+export function extractTruecallerPublicKeys(
+  raw: unknown,
+): TruecallerPublicKey[] {
   const candidates: unknown[] = Array.isArray(raw)
     ? raw
-    : raw && typeof raw === 'object' && Array.isArray((raw as { keys?: unknown[] }).keys)
+    : raw &&
+        typeof raw === 'object' &&
+        Array.isArray((raw as { keys?: unknown[] }).keys)
       ? (raw as { keys: unknown[] }).keys
       : [];
   const out: TruecallerPublicKey[] = [];
@@ -256,9 +265,7 @@ export class InMemoryTruecallerKeyCache implements TruecallerKeyCache {
     }
     const keys = extractTruecallerPublicKeys(raw);
     if (!keys.length) {
-      this.logger?.error?.(
-        'Truecaller key fetch returned zero usable keys',
-      );
+      this.logger?.error?.('Truecaller key fetch returned zero usable keys');
       throw new UnauthorizedException({
         success: false,
         message: 'Public key fetch failed',
@@ -382,7 +389,12 @@ export class RedisNonceReplayStore implements NonceReplayStore {
   constructor(
     private readonly redis: {
       get(key: string): Promise<string | null>;
-      set(key: string, value: string, mode?: 'EX', duration?: number): Promise<void>;
+      set(
+        key: string,
+        value: string,
+        mode?: 'EX',
+        duration?: number,
+      ): Promise<void>;
     },
     private readonly ttlMs: number,
   ) {
@@ -408,7 +420,12 @@ export class RedisNonceReplayStore implements NonceReplayStore {
   }
 
   async markUsed(nonce: string): Promise<void> {
-    await this.redis.set(this.key(nonce), '1', 'EX', Math.ceil(this.ttlMs / 1000));
+    await this.redis.set(
+      this.key(nonce),
+      '1',
+      'EX',
+      Math.ceil(this.ttlMs / 1000),
+    );
   }
 }
 
@@ -670,7 +687,8 @@ export class TruecallerService {
         typeof profile.firstName === 'string' && profile.firstName.length > 0
           ? profile.firstName
           : 'User',
-      lastName: typeof profile.lastName === 'string' ? profile.lastName : undefined,
+      lastName:
+        typeof profile.lastName === 'string' ? profile.lastName : undefined,
       email: typeof profile.email === 'string' ? profile.email : undefined,
       avatarUrl:
         typeof profile.avatarUrl === 'string' ? profile.avatarUrl : undefined,

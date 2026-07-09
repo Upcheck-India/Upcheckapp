@@ -8,13 +8,13 @@ import { PondsModule } from '../ponds/ponds.module';
 import { HarvestsModule } from '../harvests/harvests.module';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Expense, Crop]),
-        PondsModule,
-        HarvestsModule,
-    ],
-    controllers: [ExpensesController],
-    providers: [ExpensesService],
-    exports: [ExpensesService],
+  imports: [
+    TypeOrmModule.forFeature([Expense, Crop]),
+    PondsModule,
+    HarvestsModule,
+  ],
+  controllers: [ExpensesController],
+  providers: [ExpensesService],
+  exports: [ExpensesService],
 })
-export class FinancesModule { }
+export class FinancesModule {}

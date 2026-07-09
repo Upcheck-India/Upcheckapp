@@ -5,8 +5,8 @@ import { MicrobiologyData } from './microbiology-data.entity';
 import { MicrobiologyService } from './microbiology.service';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([MicrobiologyData])],
-    controllers: [MicrobiologyController],
-    providers: [MicrobiologyService],
+  imports: [TypeOrmModule.forFeature([MicrobiologyData])],
+  controllers: [MicrobiologyController],
+  providers: [MicrobiologyService],
 })
-export class MicrobiologyModule { }
+export class MicrobiologyModule {}

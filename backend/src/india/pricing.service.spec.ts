@@ -1,7 +1,7 @@
 import { PricingService } from './pricing.service';
 
 function makeService(repo: any) {
-  return new PricingService(repo as any);
+  return new PricingService(repo);
 }
 
 describe('PricingService', () => {

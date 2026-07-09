@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { supabase } from '../../lib/supabase';
+import { authApi } from '../../api/auth';
 
 const c = theme.roles.light;
 
@@ -60,6 +61,31 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
         try {
             const { error } = await supabase.auth.updateUser({ password });
             if (error) throw error;
+
+            // AUTH-2: the recovery session must not walk straight into the app.
+            // Ask the backend whether 2FA gates this account; if so, hand the
+            // recovery tokens over for a TOTP/backup challenge and drop the
+            // local recovery session so it is never treated as authenticated.
+            const { data: sess } = await supabase.auth.getSession();
+            const access = sess.session?.access_token;
+            const refresh = sess.session?.refresh_token;
+            if (access && refresh) {
+                try {
+                    const { data } = await authApi.reset2faCheck(access, refresh);
+                    if (data.requires2FA && data.tempToken) {
+                        // Local scope only — clears the client session WITHOUT
+                        // revoking the tokens server-side, so the challenge path
+                        // can still redeem the stashed recovery session.
+                        await supabase.auth.signOut({ scope: 'local' });
+                        navigation.navigate('TwoFactorChallenge', { tempToken: data.tempToken });
+                        return;
+                    }
+                } catch {
+                    // If the 2FA check itself fails we fall through to the normal
+                    // "signed out, go log in" path rather than stranding the user.
+                }
+            }
+
             Alert.alert(
                 t('auth.resetDoneTitle', 'Password updated'),
                 t('auth.resetDoneSub', 'You can now sign in with your new password.'),

@@ -1,38 +1,50 @@
-import { IsDateString, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
 export class CreateMicrobiologyDataDto {
-    @IsUUID()
-    cropId: string;
+  // Client-minted idempotency key — lets offline replays be safe (insert-or-return).
+  @IsUUID()
+  @IsOptional()
+  id?: string;
 
-    @IsDateString()
-    measurementDate: string;
+  @IsUUID()
+  cropId: string;
 
-    @IsOptional()
-    @IsNumber()
-    @Min(0)
-    totalBacillusCfuMl?: number;
+  @IsDateString()
+  measurementDate: string;
 
-    @IsOptional()
-    @IsNumber()
-    @Min(0)
-    totalVibrioCountTvcCfuMl?: number;
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  totalBacillusCfuMl?: number;
 
-    @IsOptional()
-    @IsNumber()
-    @Min(0)
-    yellowVibrioCountTvcCfuMl?: number;
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  totalVibrioCountTvcCfuMl?: number;
 
-    @IsOptional()
-    @IsNumber()
-    @Min(0)
-    greenVibrioCountTvcCfuMl?: number;
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  yellowVibrioCountTvcCfuMl?: number;
 
-    @IsOptional()
-    @IsNumber()
-    @Min(0)
-    luminescentBacteriaLbCfuMl?: number;
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  greenVibrioCountTvcCfuMl?: number;
 
-    @IsOptional()
-    @IsString()
-    note?: string;
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  luminescentBacteriaLbCfuMl?: number;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
 }

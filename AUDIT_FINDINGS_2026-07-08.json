@@ -1,0 +1,2152 @@
+[
+  {
+    "severity": "HIGH",
+    "area": "CI has no quality gate",
+    "location": ".github/workflows/docs.yml:1",
+    "issue": "The only push/PR-triggered workflow is docs.yml (doc-link check + a soft warning). The android-build workflows are workflow_dispatch / opt-in-by-commit-message only. No workflow runs backend tsc, eslint, or jest, and none runs frontend tsc/jest. The 465 backend + 120 frontend passing tests never gate a PR or push \u2014 a regression cannot fail CI.",
+    "fix": "Add a CI job (on push/PR) running `cd backend && npx tsc --noEmit && npm test` and `cd frontend && npx tsc --noEmit && npx jest --ci`.",
+    "lens": "gates",
+    "id": 99,
+    "note": "docs.yml runs on push(master)+PR but only does node scripts/check-doc-links.mjs + a soft ::warning docs-drift nudge; the three android-build workflows are workflow_dispatch or opt-in via commit-message contains([auto-build]/[ab]/[auto]). grep for tsc/jest/test/lint across all workflows finds none. No workflow gates PR/push on tests or typecheck."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Backend lint gate fails",
+    "location": "backend/package.json:16",
+    "issue": "`npm run lint` (eslint) exits 1 with 1042 errors + 269 warnings in src alone (486 no-unsafe-member-access, 272 no-unsafe-argument, 157 no-unsafe-assignment, 63 no-unused-vars, ...); only 155 are auto-fixable by --fix, so the gate cannot pass. Confirmed instance: backend/src/water-quality/water-quality.service.ts:4 imports unused `ForbiddenException`.",
+    "fix": "Fix the unsafe-any/unused-var violations (add types to Supabase query results, remove dead imports) or relax the type-aware rules in eslint.config.mjs, until `eslint \"{src,apps,libs,test}/**/*.ts\"` exits 0.",
+    "lens": "gates",
+    "id": 96,
+    "note": "Ran `npx eslint src/**/*.ts`: exit 1, 1311 problems (1042 errors, 269 warnings), only 155 --fix-able \u2014 matches finding exactly. eslint.config.mjs enables recommendedTypeChecked (unsafe-* + no-unused-vars as errors). water-quality.service.ts:4 imports ForbiddenException, sole occurrence is the import line \u2014 genuinely unused. `npm run lint` uses --fix but still exits 1."
+  },
+  {
+    "severity": "LOW",
+    "area": "alerts / inconsistent severity vocabulary",
+    "location": "backend/src/alerts/alerts.service.ts:31",
+    "issue": "createAutoAlert types severity as 'info'|'warning'|'critical' and the entity comment (alert.entity.ts:41) documents info/warning/critical, but AlertCenterService.emit (alert-center.service.ts:57 via create) persists engine severities of 'watch'. The column is free text so nothing crashes, but two write paths store different vocabularies for the same field; any consumer filtering on 'warning' will miss 'watch' rows.",
+    "fix": "Normalize on one severity vocabulary (map 'watch'\u2192'warning' on emit, or widen the type) across both write paths.",
+    "lens": "be-sweep-c",
+    "id": 53,
+    "note": "createAutoAlert types severity as info|warning|critical; AlertCenterService.emit (alert-center.service.ts:57) calls the same AlertsService.create into the same free-text severity column with AlertSeverity=info|watch|critical, and engine-alert.service.ts writes 'watch'. Both vocabularies land in one column; a filter on 'warning' misses 'watch' rows. LOW appropriate (free text, no crash)."
+  },
+  {
+    "severity": "LOW",
+    "area": "Dead auth code / latent bug",
+    "location": "backend/src/auth/guards/roles.guard.ts:22",
+    "issue": "RolesGuard and PermissionsGuard read user.roles, but the global JwtAuthGuard sets req.user = { id, email } with no roles and neither guard/@Roles/@Permissions is referenced anywhere; if ever applied they would silently fail-closed (return false) on every request. GetUserId decorator (auth.decorators.ts:18) likewise reads request.user.userId which is always undefined.",
+    "fix": "Delete RolesGuard/PermissionsGuard/roles.enum/permissions.enum/GetUserId, or populate user.roles in JwtAuthGuard before using them.",
+    "lens": "auth-tenant",
+    "id": 9,
+    "note": "JwtAuthGuard sets req.user={id,email} (no roles). RolesGuard/PermissionsGuard read user.roles and fail-closed. GetUserId returns request.user.userId which is always undefined (guard sets id). Grep confirms RolesGuard, PermissionsGuard, and GetUserId have zero references outside their own definitions/specs \u2014 dead code + latent bug. LOW appropriate."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "rate-limiting-otp",
+    "location": "backend/src/auth/supabase-auth.controller.ts:211",
+    "issue": "POST /login-otp/verify has no @Throttle, so it inherits only the global 60/min bucket while its sibling /login-otp/request is capped at 5/min (SENSITIVE_THROTTLE). The verify endpoint is the actual brute-force surface for the emailed OTP and is 12x more permissive than the send endpoint.",
+    "fix": "Add @Throttle(SENSITIVE_THROTTLE) to verifyLoginOtp().",
+    "lens": "security-generic",
+    "id": 11,
+    "note": "login-otp/verify (l.211) has @Public + @HttpCode but no @Throttle, while sibling login-otp/request (l.203) has @Throttle(SENSITIVE_THROTTLE)=5/60s. Global bucket is 60/60s (app.module.ts:63-64), so verify (the OTP brute-force surface) is 12x more permissive. MEDIUM appropriate."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "rate-limiting-auth",
+    "location": "backend/src/auth/supabase-auth.controller.ts:342",
+    "issue": "POST /oauth/google (l.342) and POST /oauth/truecaller (l.361) are @Public account-creation/login surfaces with no @Throttle, inheriting only the 60/min global bucket while password signup/signin are capped tighter (SENSITIVE/AUTH_THROTTLE). Credential/token-guessing and account-spray on these paths is under-limited relative to the other auth routes.",
+    "fix": "Add @Throttle(AUTH_THROTTLE) to the oauth/google and oauth/truecaller handlers.",
+    "lens": "security-generic",
+    "id": 14,
+    "note": "oauth/google (~l.342) and oauth/truecaller (~l.361) are @Public with no @Throttle, inheriting only the 60/60s global bucket, whereas signup=@Throttle(SENSITIVE 5/60s) and signin=@Throttle(AUTH 10/60s). OAuth login/creation surfaces under-limited relative to peers. MEDIUM appropriate."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "rate-limiting-email",
+    "location": "backend/src/auth/supabase-auth.controller.ts:570",
+    "issue": "POST /resend-verification is @Public with no @Throttle and takes an untyped inline body ({ email: string }) instead of a validated DTO, so the whitelist ValidationPipe cannot strip/validate it. It is an unthrottled email-sending (bombing) surface bounded only by the global 60/min bucket and accepts arbitrary payloads.",
+    "fix": "Add @Throttle(SENSITIVE_THROTTLE) and replace the inline body with a class-validated ResendVerificationDto (IsEmail).",
+    "lens": "security-generic",
+    "id": 13,
+    "note": "resend-verification (l.570) is @Public with no @Throttle and takes inline `@Body() body: { email: string }` (not a DTO, so whitelist ValidationPipe can't validate it). Unthrottled email-send surface bounded only by global 60/60s. MEDIUM appropriate."
+  },
+  {
+    "severity": "CRITICAL",
+    "area": "credit",
+    "location": "backend/src/credit/credit.controller.ts:24",
+    "issue": "POST /credit binds @Body() to Partial<CreditLedger>, which erases to the native Object type at runtime, so Nest's global ValidationPipe skips it entirely. The purpose-built CreateCreditDto (which its own docstring says omits `id` specifically to stop hijack) is never used. Service does repo.create({...body}) then repo.save; a client-supplied `id` makes save() UPDATE an existing row, and because userId is spread after `...data` the row's userId is reassigned to the attacker. POST {id: <victim ledger id>, dealerName, principal, startDate} overwrites and takes over another user's credit ledger row; negative principal/repaid also pass unvalidated.",
+    "fix": "Change the param to `@Body() body: CreateCreditDto` so validation runs and `id`/`userId` cannot be client-supplied.",
+    "lens": "be-sweep-b",
+    "id": 37,
+    "note": "@Body() Partial<CreditLedger> erases to Object so ValidationPipe is skipped; CreateCreditDto (which omits id by design) is unused. service.create does repo.create({...data, userId, repaid}) then save(); client-supplied id makes save() UPDATE an existing PK row and userId (spread after ...data) is forced to the attacker, taking over another user's ledger row. Real cross-tenant mass-assignment. CRITICAL correct."
+  },
+  {
+    "severity": "LOW",
+    "area": "credit",
+    "location": "backend/src/credit/credit.service.ts:88",
+    "issue": "recordRepayment does `row.repaid = round2(Number(row.repaid) + amount)` with no sign/bound check, and the controller types the body as the plain interface RepaymentBody (erases to Object, so ValidationPipe never runs). A negative `amount` decreases repaid and inflates the outstanding balance; over-repayment pushes repaid above principal silently. Financial ledger corruption from an unvalidated number.",
+    "fix": "Reject amount <= 0 (throw BadRequestException) in recordRepayment, or bind to a validated DTO with @IsNumber()@Min(0.01).",
+    "lens": "be-sweep-b",
+    "id": 38,
+    "note": "recordRepayment has no sign/type check and RepaymentBody is a bare interface (no validation); negative/NaN/string amount corrupts the ledger. But ownership is enforced (row.userId !== userId -> Forbidden at credit.service.ts:87), so it only corrupts the caller's OWN row. Self-scoped data-integrity gap, not cross-tenant \u2014 HIGH overstated."
+  },
+  {
+    "severity": "HIGH",
+    "area": "crops harvest unvalidated body / mass assignment",
+    "location": "backend/src/crops/crops.controller.ts:63",
+    "issue": "harvest(@Body() harvestData: {...}) uses an inline type (no DTO class) so the global ValidationPipe skips it; service then spreads {...harvestData, status} into cropsRepository.update, accepting negative/NaN harvestWeightKg and letting arbitrary crop columns (status, stockingCount, pondId) be overwritten.",
+    "fix": "Introduce a HarvestCropDto with @IsNumber @Min(0) harvestWeightKg + @IsDateString, and only assign the two whitelisted fields.",
+    "lens": "be-sweep-a",
+    "id": 19,
+    "note": "harvest(@Body() inline-typed object) bypasses ValidationPipe; crops.service.ts:197 spreads {...harvestData, status:'harvested'} into cropsRepository.update, so any entity column in the body (pondId, stockingCount, actualHarvestDate) is written unwhitelisted and harvestWeightKg is unbounded. status is forced, but pondId reassignment is a real cross-tenant/mass-assignment concern. HIGH defensible."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "crop terminal status inconsistency",
+    "location": "backend/src/crops/crops.service.ts:199",
+    "issue": "crops.harvest() sets status='harvested' while closeCycle() (also called by harvests.create full) sets status='completed', and the entity documents only 'active|completed|cancelled'; the two code paths leave the same real event in two different states, breaking status-based filtering.",
+    "fix": "Pick one terminal status (e.g. 'completed') and use it in both harvest() and closeCycle().",
+    "lens": "be-sweep-a",
+    "id": 25,
+    "note": "crops.service.ts:199 harvest() sets status='harvested'; closeCycle() (line 221, also reached via harvests.service full-harvest -> closeCycle) sets 'completed'; entity comment (crop.entity.ts:142) documents only active|completed|cancelled. Two paths for the same event yield divergent, undocumented states."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "authorization",
+    "location": "backend/src/disease/disease.controller.ts:29",
+    "issue": "disease_library is a global, non-tenant-scoped table, yet createDisease (l.29), seedDiseases (l.45), updateLibrary (Put library/:id), and removeLibrary (Delete library/:id) carry only the global JwtAuthGuard with no RolesGuard/@Roles. Any authenticated farmer can create, overwrite, seed, or delete the shared disease reference data seen by every tenant.",
+    "fix": "Add @UseGuards(RolesGuard) + @Roles(Role.Admin) to the four library-mutation handlers.",
+    "lens": "security-generic",
+    "id": 12,
+    "note": "disease library POST(29)/seed(45)/PUT(55)/DELETE(60) carry no @UseGuards; only the global JwtAuthGuard applies. Any authenticated user can create/seed/overwrite/delete the shared, non-tenant-scoped disease_library. No RolesGuard/@Roles present."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "authorization / shared reference data mutable by any user",
+    "location": "backend/src/disease/disease.controller.ts:29",
+    "issue": "Global disease-library POST (line 29), PUT (55), DELETE (60) and reference species/hatchery/broodstock create/update/delete (reference.controller.ts:25 onward) and news create/update/delete (news.controller.ts:20) have no role/admin guard. RolesGuard exists (auth/guards/roles.guard.ts) but @Roles is never used anywhere in the codebase, so every authenticated farmer can rewrite or wipe shared catalog/content data.",
+    "fix": "Wire an admin RolesGuard (@UseGuards(RolesGuard) + @Roles('admin')) onto all write/delete endpoints for disease library, reference catalogs, and news.",
+    "lens": "be-sweep-c",
+    "id": 52,
+    "note": "Confirmed superset of 12: reference.controller.ts create/update/delete for species/hatcheries/broodstocks (lines 25-101) and news.controller.ts create/update/delete (20-42) have no role guard. Verified @Roles is used in zero files and RolesGuard is only defined, never applied. Every authenticated user can rewrite/wipe shared catalog/content."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Multi-tenant isolation (IDOR read)",
+    "location": "backend/src/disease/disease.controller.ts:74",
+    "issue": "GET /disease/record/crop/:cropId \u2192 disease.service.ts:237 findRecordsByCrop(cropId) queries by cropId with no user parameter and no ownership check, so any authenticated user can read any crop's disease occurrence history by guessing/enumerating cropIds.",
+    "fix": "Add @UseGuards(OwnershipGuard)+@OwnsResource('Crop','cropId','pond.farm.userId','READ') to the route.",
+    "lens": "auth-tenant",
+    "id": 3,
+    "note": "GET record/crop/:cropId (disease.controller.ts:74) has no OwnershipGuard; findRecordsByCrop queries by cropId only. Sibling controllers guard this exact path with @OwnsResource('Crop','cropId','pond.farm.userId','READ'). Global JwtAuthGuard means any authenticated user can read another farm's records with a known cropId (UUIDs, so enumeration is hard but cross-tenant access is real). HIGH is correct."
+  },
+  {
+    "severity": "HIGH",
+    "area": "disease records / cross-tenant read",
+    "location": "backend/src/disease/disease.controller.ts:74",
+    "issue": "GET disease/record/crop/:cropId has no OwnershipGuard/@OwnsResource; findRecordsByCrop returns every record for the given cropId with no ownership check, so any authenticated user reads any other farm's disease records by guessing/enumerating cropIds. Sibling data controllers (chemical/plankton/microbiology/treatments) all guard this exact path with @OwnsResource('Crop','cropId','pond.farm.userId','READ').",
+    "fix": "Add @UseGuards(OwnershipGuard) + @OwnsResource('Crop','cropId','pond.farm.userId','READ') to findRecordsByCrop.",
+    "lens": "be-sweep-c",
+    "id": 45,
+    "note": "Same defect as id 3, confirmed. Read-only cross-tenant leak (cropIds are UUIDs, not trivially enumerable) \u2014 HIGH is more accurate than CRITICAL for a read-only IDOR."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Multi-tenant isolation (IDOR write)",
+    "location": "backend/src/disease/disease.controller.ts:79",
+    "issue": "PATCH /disease/record/:id \u2192 disease.service.ts:245 updateRecord(id,dto,userId) fetches the record by id and updates it with no ownership verification (only stamps updatedById), so any authenticated user can modify any farm's disease record, including re-pointing its cropId/severity.",
+    "fix": "Add @UseGuards(OwnershipGuard)+@OwnsResource('DiseaseRecord','id','crop.pond.farm.userId','WRITE_MANAGEMENT') and assert access inside updateRecord.",
+    "lens": "auth-tenant",
+    "id": 2,
+    "note": "PATCH record/:id (disease.controller.ts:79) has no ownership guard; updateRecord (service:245) fetches by id and updates with no ownership check, only stamps updatedById. Any authenticated user can modify any farm's record. Siblings guard with @OwnsResource('...Data','id','crop.pond.farm.userId')."
+  },
+  {
+    "severity": "CRITICAL",
+    "area": "disease records / cross-tenant write",
+    "location": "backend/src/disease/disease.controller.ts:79",
+    "issue": "PATCH disease/record/:id has no OwnershipGuard and updateRecord() (disease.service.ts:245) updates by id with no ownership check; any authenticated user can overwrite any farm's disease record.",
+    "fix": "Add @UseGuards(OwnershipGuard) + @OwnsResource('DiseaseRecord','id','crop.pond.farm.userId') to updateRecord.",
+    "lens": "be-sweep-c",
+    "id": 47,
+    "note": "Same cross-tenant write defect as id 2, confirmed at disease.controller.ts:79 / service:245. Cross-tenant tamper of records justifies CRITICAL."
+  },
+  {
+    "severity": "CRITICAL",
+    "area": "Multi-tenant isolation (IDOR / data loss)",
+    "location": "backend/src/disease/disease.controller.ts:88",
+    "issue": "DELETE /disease/record/:id has only the global JwtAuthGuard and no ownership check; disease.service.ts:261 removeRecord(id) looks up the record by id and deletes it with zero user/crop scoping, so any authenticated user can delete any farm's disease records.",
+    "fix": "Add @UseGuards(OwnershipGuard)+@OwnsResource('DiseaseRecord','id','crop.pond.farm.userId','WRITE_MANAGEMENT') on the route and verify ownership in removeRecord like microbiology does.",
+    "lens": "auth-tenant",
+    "id": 1,
+    "note": "DELETE record/:id (disease.controller.ts:88) has only global JwtAuthGuard, no OwnershipGuard; removeRecord (service:261) deletes by id with no user/crop scoping and never receives userId. Any authenticated user can delete any farm's records. Microbiology guards the equivalent route."
+  },
+  {
+    "severity": "CRITICAL",
+    "area": "disease records / cross-tenant delete (data loss)",
+    "location": "backend/src/disease/disease.controller.ts:88",
+    "issue": "DELETE disease/record/:id has no OwnershipGuard and removeRecord() (disease.service.ts:261) does no ownership check and does not even receive the caller's userId; any authenticated user can delete any farm's disease record by id.",
+    "fix": "Add @UseGuards(OwnershipGuard) + @OwnsResource('DiseaseRecord','id','crop.pond.farm.userId') to removeRecord.",
+    "lens": "be-sweep-c",
+    "id": 46,
+    "note": "Same cross-tenant delete/data-loss defect as id 1, confirmed at disease.controller.ts:88 / service:261."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Email silent failure",
+    "location": "backend/src/email.service.ts:67",
+    "issue": "sendEmail logs Brevo 4xx/5xx and returns void with no throw, retry, or queue; callers cannot tell delivery failed. profiles.controller inviteFriend (line 66) returns {success:true} even when Brevo rejected the send, so users see success for mail that never left.",
+    "fix": "Return a boolean/throw from sendEmail on !res.ok and have callers surface the failure; add a bounded retry for 5xx.",
+    "lens": "reliability",
+    "id": 111,
+    "note": "sendEmail (email.service.ts:37-78) returns void, logs Brevo !res.ok/catch errors and swallows them; inviteFriend (profiles.controller.ts:66-67) awaits it then unconditionally returns {success:true}. Real silent-failure. Note: only sendInviteEmail is a live caller (OTP/verify/reset go through supabaseAuthService, not this service), so practical blast radius is invite emails."
+  },
+  {
+    "severity": "LOW",
+    "area": "pii-in-logs",
+    "location": "backend/src/email.service.ts:73",
+    "issue": "Recipient email addresses are logged at info level ('Email sent via Brevo API to ${to}: ${subject}') and again in the error branch (l.76), writing user PII into application logs on every transactional email (OTP, verification, password reset).",
+    "fix": "Drop or hash the ${to} address in these log lines, logging only the subject/outcome.",
+    "lens": "security-generic",
+    "id": 15,
+    "note": "Lines 73 and 70 (and warn at 44/76) log full recipient ${to} at log/error level. Real PII-in-logs. Scope caveat: live path is invite email; OTP/verify/reset methods here are dead code, so those addresses don't actually reach these lines today."
+  },
+  {
+    "severity": "LOW",
+    "area": "Dead email templates",
+    "location": "backend/src/email.service.ts:80",
+    "issue": "sendVerificationEmail/sendPasswordResetEmail/sendOtpEmail/sendWelcomeEmail/sendPasswordChangedNotification are never called (active auth uses supabase.auth for these mails); only sendInviteEmail is live, so most of the Brevo integration is untested cruft.",
+    "fix": "Remove the unused email methods or route the real auth flows through EmailService instead of supabase.auth.",
+    "lens": "reliability",
+    "id": 114,
+    "note": "grep confirms sendVerificationEmail/sendPasswordResetEmail/sendOtpEmail/sendWelcomeEmail/sendPasswordChangedNotification have no callers; auth uses supabaseAuthService's own same-named methods. Only sendInviteEmail is live. Dead cruft confirmed."
+  },
+  {
+    "severity": "HIGH",
+    "area": "feed-products authorization",
+    "location": "backend/src/feed-products/feed-products.controller.ts:18",
+    "issue": "No @UseGuards/@OwnsResource on any route and FeedProduct has no farmId/userId column, so any authenticated farmer can POST/PATCH/DELETE the globally-shared feed-product catalog, mutating or wiping reference data used by every tenant.",
+    "fix": "Add an admin-only role guard (or OwnsResource) to create/update/remove; leave findAll public-read.",
+    "lens": "be-sweep-a",
+    "id": 17,
+    "note": "Global APP_GUARD is JwtAuthGuard (authentication only). feed-products.controller has no role/owner guard on POST/PATCH/DELETE and FeedProduct entity has no farmId/userId column \u2014 it's a global catalog. Any authenticated user can mutate/delete shared reference data for all tenants. HIGH is apt."
+  },
+  {
+    "severity": "LOW",
+    "area": "feed-records fasting guard bypass on update",
+    "location": "backend/src/feed-records/feed-records.service.ts:141",
+    "issue": "The fasting-day enforcement (quantityKg must be 0 when isFasting) runs only in create(); update() spreads updateDto directly, so a PATCH setting isFasting with a nonzero quantity is not blocked (and isFasting, not a column, is silently dropped).",
+    "fix": "Apply the same fasting/inventory reconciliation logic in update() or reject isFasting on PATCH.",
+    "lens": "be-sweep-a",
+    "id": 34,
+    "note": "update() (l.141-152) does repository.update(id, {...updateDto}); the create()-only fasting guard (l.48-56) is not applied, and isFasting is not a mapped column so TypeORM drops it while quantityKg (a column) is written \u2014 a fasting PATCH with nonzero quantity is unchecked. LOW is apt."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "feed-records inventory drift",
+    "location": "backend/src/feed-records/feed-records.service.ts:154",
+    "issue": "create() deducts inventory stock via adjustStock, but remove() deletes the feed record without restoring stock and update() never reconciles a changed quantityKg, so inventory permanently drifts on edits/deletes.",
+    "fix": "On remove re-add the previously deducted quantity; on update apply the delta to inventory.",
+    "lens": "be-sweep-a",
+    "id": 22,
+    "note": "create() deducts via adjustStock (l.66-72); remove() (l.154-158) deletes the record with no re-add; update() (l.141-152) never applies a quantity delta to inventory. Permanent drift on edit/delete confirmed."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "feed-records non-transactional deduction",
+    "location": "backend/src/feed-records/feed-records.service.ts:66",
+    "issue": "Inventory is decremented before the feed record is saved with no surrounding transaction, so if the record insert fails the stock is left phantom-deducted with no matching record.",
+    "fix": "Wrap adjustStock + record save in a single dataSource.transaction.",
+    "lens": "be-sweep-a",
+    "id": 23,
+    "note": "adjustStock (l.67-71) runs before recordsRepository.save (l.91) with no dataSource.transaction wrapping them; a save failure leaves stock phantom-deducted with no matching record. Confirmed."
+  },
+  {
+    "severity": "LOW",
+    "area": "tray number validation",
+    "location": "backend/src/feeding-tray-checks/dto/create-feeding-tray-check.dto.ts:29",
+    "issue": "trayNumber is @IsNumber with no @Min/@IsInt, so zero, negative, or fractional tray numbers are accepted into an int column.",
+    "fix": "Use @IsInt @Min(1).",
+    "lens": "be-sweep-a",
+    "id": 36,
+    "note": "trayNumber @IsNumber only (dto:28-29); entity col is int (entity:37). Accepts 0/negative/fractional."
+  },
+  {
+    "severity": "LOW",
+    "area": "feeding-tray-checks weak enum validation",
+    "location": "backend/src/feeding-tray-checks/dto/create-feeding-tray-check.dto.ts:32",
+    "issue": "remainingFeedStatus is validated only as @IsString despite the entity documenting a fixed set ('empty'|'few_left'|'a_lot_left'), so arbitrary strings persist and any downstream feed-adjust logic branching on these values silently mis-advises.",
+    "fix": "Replace @IsString with @IsIn(['empty','few_left','a_lot_left']).",
+    "lens": "be-sweep-a",
+    "id": 26,
+    "note": "@IsString only, arbitrary strings persist; but sole consumer pond-context.service.ts:295-302 guards to valid-or-null, so 'mis-advises' is overstated \u2014 validation gap real, downstream impact minimal."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "unbounded list endpoints",
+    "location": "backend/src/feeding-tray-checks/feeding-tray-checks.service.ts:48",
+    "issue": "findAll returns every tray check across all accessible farms with no take/skip; the same unbounded pattern exists in sampling.service.ts:62 and harvests.service.ts:34, so long-running farms return huge unpaginated payloads.",
+    "fix": "Add PageOptionsDto take/skip (as water-quality/feed-records already do) to these list queries.",
+    "lens": "be-sweep-a",
+    "id": 27,
+    "note": "feeding-tray-checks:48, sampling:62, harvests:34 all getMany() with no take/skip; only scoped by accessible farmIds."
+  },
+  {
+    "severity": "LOW",
+    "area": "finances",
+    "location": "backend/src/finances/expenses.service.ts:107",
+    "issue": "getCycleFinancials sums Number(amount) in JS floating point and returns totalRevenue/totalExpenses/netProfit/marginPercent unrounded; reports.getFinancialReport re-sums those floats unrounded. Values like 12345.67 can surface as 12345.670000000002 in API responses.",
+    "fix": "Apply round2() to the returned totals (revenue, expenses, profit) as pnl.service.ts already does.",
+    "lens": "be-sweep-b",
+    "id": 43,
+    "note": "getCycleFinancials returns unrounded floats (106-112); reports.service.ts:172-173 re-sums unrounded; pnl.service uses round2 as the fix precedent."
+  },
+  {
+    "severity": "HIGH",
+    "area": "finances",
+    "location": "backend/src/finances/expenses.service.ts:53",
+    "issue": "create() only authorizes createDto.pondId (assertCanAccessPond) but then trusts createDto.cropId verbatim without checking crop.pondId === createDto.pondId. A user with access to their own pond can POST an expense with their pondId but a victim's cropId; the row lands under the victim's crop. PnlService/getCycleFinancials sum expenses by cropId, so the attacker's bogus cost pollutes another tenant's P&L, break-even and margin.",
+    "fix": "Load the crop and assert crop.pondId === createDto.pondId (and caller access to it) before saving when cropId is supplied.",
+    "lens": "be-sweep-b",
+    "id": 40,
+    "note": "create() checks only pondId (assertCanAccessPond); persists createDto.cropId verbatim at line 53 with no crop.pondId===pondId check. getCycleFinancials/findByCycle group by cropId \u2192 cross-tenant P&L pollution. Real IDOR."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "harvest-plans complete unvalidated money",
+    "location": "backend/src/harvest-plans/harvest-plans.controller.ts:52",
+    "issue": "complete(@Body() payload:{...}) inline type bypasses validation, so actualWeightKg/actualPricePerKg can be negative or NaN and are multiplied into actualRevenue and written to a Transaction.",
+    "fix": "Add a CompletePlanDto with @IsNumber @Min(0) on weight and price and @IsDateString on date.",
+    "lens": "be-sweep-a",
+    "id": 30,
+    "note": "Inline @Body() payload type (controller:54-59) is erased at runtime; ValidationPipe cannot validate native Object metatype, so negative/NaN weight*price reach actualRevenue and a Transaction row."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "harvest-plans wrong cycle summary math",
+    "location": "backend/src/harvest-plans/harvest-plans.service.ts:108",
+    "issue": "getCycleSummary (route pond/:pondId/summary) sums revenue/expense across the entire farm and all time via t.farmId only, ignoring pondId and the cycle entirely, so the per-pond 'cycle summary' reports farm-wide lifetime totals.",
+    "fix": "Scope the transaction sums to the pond/crop (join through pond or filter by cropId), not just farmId.",
+    "lens": "be-sweep-a",
+    "id": 21,
+    "note": "getCycleSummary sums by t.farmId only (112,119), ignoring pondId/cycle; route pond/:pondId/summary returns pondId \u2192 farm-wide totals mislabeled per-pond. Note: Transaction entity has no pondId/cropId, so suggested cropId-filter fix needs schema change."
+  },
+  {
+    "severity": "HIGH",
+    "area": "harvest-plans non-idempotent financial write",
+    "location": "backend/src/harvest-plans/harvest-plans.service.ts:55",
+    "issue": "completePlan inserts a new 'income' Transaction on every call with no status/idempotency guard, so a double-tap or offline retry of PATCH :id/complete double-books harvest revenue into the farm P&L.",
+    "fix": "Return early (or throw) if plan.status==='completed' before writing the Transaction, or upsert the transaction keyed by plan id.",
+    "lens": "be-sweep-a",
+    "id": 20,
+    "note": "completePlan (harvest-plans.service.ts:83) always saves an income Transaction with no plan.status==='completed' guard; sibling modules in this repo implement insert-or-return idempotency, this financial write does not."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "harvest-timing unvalidated input",
+    "location": "backend/src/harvest-timing/harvest-timing.controller.ts:44",
+    "issue": "optimize(@Body() body: OptimizeBody) uses an interface (no DTO class), so abwNow/adgNow/nNow/feedPricePerKg are never validated; negative or NaN values produce negative/garbage net-profit and optimal-day advice with no error.",
+    "fix": "Convert OptimizeBody to a class with @IsNumber @Min(0) on the numeric fields.",
+    "lens": "be-sweep-a",
+    "id": 29,
+    "note": "OptimizeBody is a TS interface (line 21) so ValidationPipe cannot validate it; numeric fields taken via ?? 0 with no @Min(0), negatives/NaN reach the projection math and can be persisted."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "harvests missing idempotency",
+    "location": "backend/src/harvests/harvests.service.ts:19",
+    "issue": "create() has no client-minted id/idempotency guard (unlike feed/water/sampling/mortality), so an offline-queue retry double-inserts the harvest and calls closeCycle twice, double-counting biomass and revenue.",
+    "fix": "Add optional @IsUUID id to CreateHarvestDto and short-circuit-return an existing row within the same cropId.",
+    "lens": "be-sweep-a",
+    "id": 24,
+    "note": "CreateHarvestDto lacks optional @IsUUID id and create() (line 19) plain-inserts + calls closeCycle; feed/water/sampling/mortality all have the documented insert-or-return idempotency this one is missing."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Health check depth / observability",
+    "location": "backend/src/health/health.controller.ts:16",
+    "issue": "Health check pings only Postgres; it never reports RedisService.useMemory. When Redis is down the app silently degrades to a per-instance token store (documented as BROKEN when scaled), yet /health still reports 'ok' \u2014 ops have no signal the multi-instance auth store is broken.",
+    "fix": "Inject RedisService, expose a status flag, and include checks['redis'] = { status: useMemory ? 'degraded' : 'up' }.",
+    "lens": "reliability",
+    "id": 110,
+    "note": "RedisService.useMemory exists (redis.service.ts:11) and gates the token store, but health.controller.ts probes only Postgres; no redis/degraded signal exposed."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "health check / broken-instance stays in rotation",
+    "location": "backend/src/health/health.controller.ts:45",
+    "issue": "check() returns HTTP 200 even when the 'SELECT 1' database probe fails (only body.status flips to 'error'). Render/load-balancer probes that key on HTTP status treat the instance as healthy and keep routing traffic to a DB-disconnected instance.",
+    "fix": "Throw ServiceUnavailableException (503) when checks.database.status === 'down' so the probe fails on HTTP status.",
+    "lens": "be-sweep-c",
+    "id": 49,
+    "note": "check() returns plain 200 object with only body.status flipping to 'error' on DB-down; root render.yaml healthCheckPath=/api/health keys on this so probe never fails on status code."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Health check depth",
+    "location": "backend/src/health/health.controller.ts:45",
+    "issue": "check() returns a plain object, so Nest always responds HTTP 200 even when the DB probe fails (body {status:'error'} but status code 200). Render/most orchestrators treat 2xx as healthy, so a DB-down instance keeps receiving traffic \u2014 the readiness probe can never fail.",
+    "fix": "When database.status==='down', throw new ServiceUnavailableException(payload) so the endpoint returns 503.",
+    "lens": "reliability",
+    "id": 106,
+    "note": "Same defect as 49 (200 on DB-down); severity lowered to MEDIUM \u2014 Render uses health path mainly at deploy time, a separate /api/liveness exists, so 'keeps routing traffic' is overstated."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "security-headers",
+    "location": "backend/src/main.ts:34",
+    "issue": "No helmet / security-response-headers middleware anywhere; bootstrap enables CORS + cookie-parser but never sets HSTS, X-Content-Type-Options, X-Frame-Options, or a CSP (helmet is not even a dependency in backend/package.json). API responses ship with default Express headers, leaving the app open to clickjacking, MIME-sniffing, and downgrade attacks.",
+    "fix": "npm i helmet and add app.use(helmet()) before app.enableCors() in main.ts.",
+    "lens": "security-generic",
+    "id": 10,
+    "note": "No helmet in backend/package.json (grep empty) and no security-header middleware in main.ts; lowered to MEDIUM since this is a JSON-only API behind Render TLS \u2014 clickjacking/MIME-sniffing largely N/A, HSTS/no-sniff still worthwhile."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Graceful shutdown",
+    "location": "backend/src/main.ts:53",
+    "issue": "No app.enableShutdownHooks() and no SIGTERM handler. On deploy Render sends SIGTERM; Node terminates immediately without draining in-flight HTTP requests, so writes in progress are lost and OnModuleDestroy cleanup never runs.",
+    "fix": "Call app.enableShutdownHooks() and handle SIGTERM/SIGINT to await app.close() before exit.",
+    "lens": "reliability",
+    "id": 107,
+    "note": "main.ts:16-60 has no enableShutdownHooks() and bootstrap only registers .catch->process.exit; grep confirms zero SIGTERM/SIGINT handlers repo-wide. Render's SIGTERM kills Node without draining."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Process crash safety",
+    "location": "backend/src/main.ts:57",
+    "issue": "No process-level 'unhandledRejection'/'uncaughtException' handler anywhere in the backend; under Node's default a single stray un-awaited promise rejection (e.g. a future fire-and-forget push/email) terminates the entire process, taking down all in-flight requests.",
+    "fix": "Register process.on('unhandledRejection'/'uncaughtException') handlers that log and, for rejections, avoid hard-exit; wire to app.close() on fatal.",
+    "lens": "reliability",
+    "id": 112,
+    "note": "Grep confirms no unhandledRejection/uncaughtException handlers anywhere in src/. Modern Node crashes the process on an unhandled rejection; the 'future fire-and-forget' framing is speculative but the gap is real today."
+  },
+  {
+    "severity": "LOW",
+    "area": "measurement / DOC derived from unowned crop",
+    "location": "backend/src/measurement/measurement.service.ts:242",
+    "issue": "create() verifies ownership of dto.pondId but deriveDoc looks up dto.cropId with no check that the crop belongs to that owned pond; a caller can pass another tenant's cropId and have its stockingDate used to compute the stored DOC (minor incorrectness / info inference).",
+    "fix": "Validate that dto.cropId's pond matches dto.pondId (and is owned) before deriving DOC.",
+    "lens": "be-sweep-c",
+    "id": 54,
+    "note": "create() asserts dto.pondId ownership (line 49) but deriveDoc (242) does findOne({id:cropId}) with no check crop.pondId==dto.pondId or is owned; another tenant's stockingDate drives the stored DOC, leaking it via inference."
+  },
+  {
+    "severity": "LOW",
+    "area": "pnl",
+    "location": "backend/src/pnl/pnl.service.ts:51",
+    "issue": "computeCropPnl authorizes via cropsService.findOne (crop owner only) while expenses.getCycleFinancials authorizes via farmAccess VIEW_FINANCIALS (owner or manager). A farm manager can see per-cycle financials but is denied the P&L rollup of the same crop \u2014 inconsistent authorization on the same financial data.",
+    "fix": "Gate computeCropPnl through farmAccess VIEW_FINANCIALS on the crop's pond, matching the expenses path.",
+    "lens": "be-sweep-b",
+    "id": 44,
+    "note": "computeCropPnl->cropsService.findOne is owner-only (crops.service.ts:118 via pondsService.findOne owner check); expenses.getCycleFinancials uses assertCanAccessPond VIEW_FINANCIALS (owner+manager). Manager sees cycle financials but 403 on PnL \u2014 inconsistent on the app's own capability model."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "pond-context / overstated data confidence",
+    "location": "backend/src/pond-context/pond-context.service.ts:349",
+    "issue": "Alkalinity's confidence age uses chemistryAsOf, which is derived solely from the latest ammonia record's timestamp (line 138/151), not alkalinity's own measurement time \u2014 so alkalinity freshness is wrong whenever ammonia and alkalinity were measured on different dates. Likewise pH/Temperature/Salinity (lines 327,333,341) use records[0].recordedAt (newest entry) even when their non-null value was carried forward from an older record, scoring stale carried-forward values as fresh. Both inflate the confidence score the engines attach to their advice.",
+    "fix": "Track each parameter's own source-record timestamp in resolveWaterQuality and use it for that parameter's ageDays.",
+    "lens": "be-sweep-c",
+    "id": 51,
+    "note": "chemistryAsOf=amm.at (line 151, ammonia's ts) but Alkalinity ageDays uses chemistryAsOf (356) \u2014 wrong when measured on different dates. pH/Temp/Salinity (328/335/342) use wq.recordedAt=records[0].recordedAt (newest) while resolveWaterQuality carries forward older non-null values, scoring stale carried-forward values as fresh. Both inflate confidence."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Entity vs migration divergence (NOT NULL)",
+    "location": "backend/src/ponds/pond.entity.ts:71",
+    "issue": "pond.entity.ts marks geometry_type, construction_type, depth_m and calculated_area_m2 as nullable:true, but migration 1771597711215-InitialSchema.ts:30-41 sets all four NOT NULL with no DB default. With synchronize:!isProduction (app.module.ts:81) dev boots and ALTERs these columns to DROP NOT NULL every start, so the dev schema silently diverges from prod; any insert path that omits one (seed/bulk import/future endpoint) passes in dev but raises not-null-violation only in production.",
+    "fix": "Remove nullable:true on those four columns in pond.entity.ts so the entity matches the migration (or add DB defaults in a migration).",
+    "lens": "db-data",
+    "id": 103,
+    "note": "pond.entity.ts marks geometry_type/construction_type/depth_m/calculated_area_m2 nullable:true (71-113); migration 30-41 SETs all four NOT NULL, no default. synchronize:!isProduction (app.module.ts:81) means dev ALTERs to DROP NOT NULL each boot -> dev/prod schema divergence; an insert omitting one passes dev, fails prod."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Authorization consistency (members locked out)",
+    "location": "backend/src/ponds/ponds.service.ts:255",
+    "issue": "Engine/finance features (feed-advisor, disease-warning, harvest-timing, simulations, measurement, pnl, pond-context) authorize via the owner-only pondsService.findOne/cropsService.findOne (throws Forbidden unless pond.farm.userId===userId), while the OwnershipGuard-based controllers grant managers/workers access; a farm manager can log water quality but is 403'd from generating a feed plan or viewing P&L on the same pond.",
+    "fix": "Route these services through farmAccess.assertCanAccessPond/findOneAccessible with the appropriate capability instead of the owner-only findOne.",
+    "lens": "auth-tenant",
+    "id": 7,
+    "note": "feed-advisor/disease-warning/harvest-timing/pond-context/pnl/measurement all authorize via owner-only pondsService.findOne or cropsService.findOne (grep-confirmed), while OwnershipGuard+@OwnsResource grants managers/workers. Members are locked out of engine/finance features. Note: crops.findOne is documented 'STRICT... feeds economics' so economics strictness is partly deliberate, but it still contradicts VIEW_FINANCIALS (owner+manager) \u2014 genuine inconsistency."
+  },
+  {
+    "severity": "HIGH",
+    "area": "ponds hard delete data loss",
+    "location": "backend/src/ponds/ponds.service.ts:360",
+    "issue": "remove() hard-deletes a pond checking only activeCycleId; onDelete:CASCADE then destroys ALL historical crops, feed, water-quality, harvests, mortality and sampling for that pond, contradicting the doc comment 'Only allowed for ponds with no cycles ever'.",
+    "fix": "Block delete when any crop has ever existed for the pond (count crops>0 -> ConflictException); otherwise require archive.",
+    "lens": "be-sweep-a",
+    "id": 18,
+    "note": "remove() at ponds.service.ts:360 only checks activeCycleId, reachable via DELETE /ponds/:id (controller:95); migrations show crops/water_quality/sampling/feed_records/harvest_plans/expenses/alerts FK to ponds ON DELETE CASCADE, so historical (closed-cycle) data is destroyed despite the 'no cycles ever' doc."
+  },
+  {
+    "severity": "HIGH",
+    "area": "products",
+    "location": "backend/src/products/products.controller.ts:20",
+    "issue": "The products marketplace catalog (price, salePrice, stock) has only the global JwtAuthGuard (authentication) and NO authorization. create, update, updateStock and remove have no role/admin check, so any authenticated farmer or worker can create products, rewrite prices, change stock, or delete the entire catalog. `UseGuards` is imported but never applied.",
+    "fix": "Add an admin RolesGuard (@UseGuards(RolesGuard) @Roles('admin')) to the write endpoints of ProductsController.",
+    "lens": "be-sweep-b",
+    "id": 39,
+    "note": "Only global JwtAuthGuard (app.module.ts:180); RolesGuard exists but is applied in zero controllers; write endpoints have no role check, any authenticated user can create/update/updateStock/delete the shared catalog."
+  },
+  {
+    "severity": "LOW",
+    "area": "products",
+    "location": "backend/src/products/products.controller.ts:41",
+    "issue": "updateStock uses @Body('quantity') quantity: number with no DTO/validation and sets stock to the absolute value. A negative quantity drives stock below zero, and a non-integer/string value reaches the integer `stock` column and errors at the DB layer.",
+    "fix": "Bind a validated DTO with @IsInt()@Min(0) for quantity.",
+    "lens": "be-sweep-b",
+    "id": 42,
+    "note": "updateStock binds @Body('quantity') raw primitive (no DTO class) so ValidationPipe is a no-op; service sets stock to absolute value, allowing negative or type-mismatched writes."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Shared-catalog integrity (no admin gate)",
+    "location": "backend/src/products/products.controller.ts:45",
+    "issue": "Product entity has no owner column (global catalog) yet POST/PATCH/PATCH:id/stock/DELETE on /products carry only the JwtAuthGuard, so any authenticated user can edit pricing/stock or delete products the whole platform sees; same pattern on feed-products, news and reference (species/hatcheries/broodstocks) controllers.",
+    "fix": "Gate all create/update/delete routes on these global catalogs behind an admin authorization check (a real admin role, since RolesGuard is currently unused).",
+    "lens": "auth-tenant",
+    "id": 8,
+    "note": "Product entity (product.entity.ts) has no owner column; write routes carry only JwtAuthGuard; RolesGuard verified unused across all controllers. Products claim proven; sibling controllers asserted but not individually re-verified here."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Cross-tenant PII exposure",
+    "location": "backend/src/profiles/profiles.controller.ts:41",
+    "issue": "GET /profiles (findAll) has no @Public but any authenticated user reaches it; profiles.service.ts:28 returns profilesRepository.find() \u2014 every user's full profile row including email \u2014 with no scoping.",
+    "fix": "Delete this endpoint (or restrict it to return only the caller's own profile / public fields).",
+    "lens": "auth-tenant",
+    "id": 5,
+    "note": "findAll() returns profilesRepository.find() (full rows incl. email); no @Public but global JwtAuthGuard permits any authenticated user, no owner scoping."
+  },
+  {
+    "severity": "LOW",
+    "area": "Input validation",
+    "location": "backend/src/profiles/profiles.controller.ts:62",
+    "issue": "inviteFriend takes an inline { toEmail: string } with no DTO/@IsEmail, so the global ValidationPipe does nothing; unvalidated/garbage recipient addresses are passed straight to Brevo.",
+    "fix": "Introduce an InviteDto with @IsEmail() toEmail.",
+    "lens": "reliability",
+    "id": 115,
+    "note": "inviteFriend uses inline { toEmail: string } (no class, no @IsEmail); global ValidationPipe cannot validate a bare TS type; value flows straight to sendInviteEmail/Brevo."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Multi-tenant isolation (IDOR read + write via GET)",
+    "location": "backend/src/profiles/profiles.controller.ts:78",
+    "issue": "GET /profiles/:id calls profilesService.upsert(id, user.email) with no id===user.id check: for an existing id it returns another user's full profile (email included), and its upsert branch will overwrite a victim profile's empty email with the CALLER's email, or create a junk profile row stamped with the caller's email for any non-existent id.",
+    "fix": "Guard with if (id !== user.id) throw ForbiddenException (mirror the PATCH handler), and use a read-only findOne instead of upsert.",
+    "lens": "auth-tenant",
+    "id": 6,
+    "note": "GET /profiles/:id findOne calls upsert(id, user?.email) with no id===user.id check (unlike PATCH); reads any user's full profile, and upsert's `if(!profile.email && email)` branch overwrites victim's empty email with caller's, or creates junk row for non-existent id."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Auth mirror trigger / account deletion",
+    "location": "backend/src/profiles/profiles.service.ts:127",
+    "issue": "deleteAccount() deletes the local public.users row (and cascaded farm data) FIRST, then calls Supabase auth.admin.deleteUser in a try/catch that only logs on failure and still returns HTTP 204 'deleted'. If the auth delete fails, the auth.users identity survives; on the user's next login Supabase updates auth.users (last_sign_in_at), firing the on_auth_user_updated mirror trigger (supabase_setup.sql:114) which re-INSERTs a public.users row (ON CONFLICT id) \u2014 resurrecting a 'deleted' account that can still sign in, while the user was told deletion succeeded.",
+    "fix": "Delete the Supabase auth user BEFORE the local rows and let its failure abort the request (throw), so the identity is gone before/with the mirror source.",
+    "lens": "db-data",
+    "id": 102,
+    "note": "deleteAccount deletes public.users+profiles first (lines 118-121), then Supabase auth in a log-only try/catch (126-132) returning 204. on_auth_user_updated fires handle_new_user on any auth.users UPDATE (e.g. last_sign_in_at on next login), which INSERT ... ON CONFLICT (id) DO UPDATE re-creates public.users (supabase_setup.sql:75-100,114-117). Resurrection + still-signable identity is real."
+  },
+  {
+    "severity": "LOW",
+    "area": "Push stale tokens",
+    "location": "backend/src/push/push.service.ts:60",
+    "issue": "sendToUser only catches non-2xx from Expo; Expo returns HTTP 200 with body data[].status==='error'/details.error==='DeviceNotRegistered' for stale tokens, which is ignored \u2014 the token is never cleared and sendToUser returns true, so the backend keeps pushing to dead tokens forever.",
+    "fix": "Parse res.data.data[0]; on 'DeviceNotRegistered' call clearToken(userId) and return false.",
+    "lens": "reliability",
+    "id": 108,
+    "note": "axios throws only on non-2xx; res.data is never read, so Expo's HTTP-200 body with data[].status==='error'/DeviceNotRegistered is ignored and returns true \u2014 stale tokens never cleared. Real but impact is only wasted pushes; LOW."
+  },
+  {
+    "severity": "IMPROVEMENT",
+    "area": "Redis error handling",
+    "location": "backend/src/redis/redis.service.ts:20",
+    "issue": "No client.on('error') listener is attached; the service leans on ioredis' internal 'Unhandled error event' handling and only reacts via retryStrategy, so transient mid-session Redis errors are neither logged nor trigger the memory fallback until the retry cap is hit.",
+    "fix": "Add this.client.on('error', ...) to log and, on terminal failures, invoke enableMemoryFallback.",
+    "lens": "reliability",
+    "id": 116,
+    "note": "No this.client.on('error', ...) anywhere in the service; only retryStrategy reacts. Accurate improvement."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Redis fallback recovery",
+    "location": "backend/src/redis/redis.service.ts:24",
+    "issue": "retryStrategy returns null after 3 failures and flips useMemory=true permanently; once on the per-instance in-memory store the service never attempts to reconnect, so even after Redis recovers 2FA temp tokens and Truecaller nonce replay protection stay per-instance until a full process restart.",
+    "fix": "Keep the ioredis client reconnecting (drop the times>3 cap or add a periodic reconnect probe) and reset useMemory=false on the 'ready' event.",
+    "lens": "reliability",
+    "id": 109,
+    "note": "retryStrategy returns null when times>3 (stops reconnecting) and enableMemoryFallback sets useMemory=true; useMemory is never reset and no 'ready'/reconnect path exists, so fallback is permanent until process restart."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Multi-tenant isolation (IDOR read)",
+    "location": "backend/src/reports/reports.service.ts:33",
+    "issue": "getDashboardSummary(userId, farmId) (GET /reports/dashboard?farmId=) never checks that the caller owns/belongs to farmId before counting that farm's active/total ponds, low-stock items and today's feed usage; any authenticated user can read another farm's operational metrics by passing an arbitrary farmId.",
+    "fix": "At the top of getDashboardSummary add: await this.farmAccess.assertCanAccessFarm(userId, farmId, 'READ') before running the counts.",
+    "lens": "auth-tenant",
+    "id": 4,
+    "note": "getDashboardSummary (lines 33-75) runs counts scoped only by farmId with no farmAccess.assertCanAccessFarm \u2014 unlike sibling getFinancialReport (136) and getCycleAnalysis (79). Controller passes raw ?farmId with no guard. Cross-tenant read of pond/low-stock/feed metrics confirmed."
+  },
+  {
+    "severity": "LOW",
+    "area": "sampling ignores requested crop",
+    "location": "backend/src/sampling/sampling.service.ts:47",
+    "issue": "create() hard-codes cropId: pond.activeCycleId and ignores the DTO's optional cropId, so a sampling record for a specific non-active crop cannot be recorded and lands with null cropId when no active cycle exists.",
+    "fix": "Use createDto.cropId ?? pond.activeCycleId.",
+    "lens": "be-sweep-a",
+    "id": 35,
+    "note": "CreateSamplingDto.cropId is optional (dto line 22-23) but create() hard-codes cropId: pond.activeCycleId (service line 47), ignoring it; null when no active cycle. Confirmed LOW."
+  },
+  {
+    "severity": "LOW",
+    "area": "calc DTO validation gaps",
+    "location": "backend/src/shrimp-calculations/dto/calculation.dto.ts:3",
+    "issue": "FCR/ADG/survival/feeding/expected-harvest DTOs have @IsNumber with no @Min, so negative feed, negative days, or negative counts are accepted; calculateFcr also returns 0 when harvestWeightKg===0, masking a division error as a valid result.",
+    "fix": "Add @Min(0) to quantity/count/day fields and return null (or throw) for zero-denominator FCR.",
+    "lens": "be-sweep-a",
+    "id": 32,
+    "note": "calculation.dto.ts: all Fcr/Adg/Survival/Feeding/ExpectedHarvest fields are @IsNumber with no @Min \u2014 negatives accepted. calculateFcr returns 0 when harvestWeightKg===0 (service line 35), masking zero-denominator. Confirmed LOW."
+  },
+  {
+    "severity": "LOW",
+    "area": "biomass GET returns NaN",
+    "location": "backend/src/shrimp-calculations/shrimp-calculations.controller.ts:112",
+    "issue": "biomass reads query params via Number(stockCount)/Number(averageWeightG) with no validation, so a missing or non-numeric query yields NaN in the response body.",
+    "fix": "Validate with a DTO (ParseFloatPipe / @IsNumber) and reject NaN.",
+    "lens": "be-sweep-a",
+    "id": 33,
+    "note": "@Query params typed number but Nest does not coerce/validate without a pipe; Number(undefined)/Number('abc')=NaN reaches calculateBiomass. Minor imprecision: JSON.stringify(NaN) emits null, so body is {\"biomassKg\":null} not literal NaN, but the garbage-in/no-validation defect is real."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "species feeding-rate endpoint dead",
+    "location": "backend/src/shrimp-calculations/shrimp-calculations.controller.ts:126",
+    "issue": "getRecommendedFeedingRate calls the service with only averageWeightG and never forwards a species param, so the elaborate per-species FR tables (monodon/scampi/indicus) in the service are unreachable via the public endpoint and every caller gets vannamei rates.",
+    "fix": "Accept @Query('species') and pass it through to getRecommendedFeedingRate.",
+    "lens": "be-sweep-a",
+    "id": 28,
+    "note": "Controller line 126 only forwards averageWeightG; service getRecommendedFeedingRate defaults species='vannamei'. The monodon/scampi tables (service lines 140-153) are unreachable via the only public endpoint. Confirmed dead per-species path."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "simulations / profit math not comparable",
+    "location": "backend/src/simulations/simulations.service.ts:139",
+    "issue": "simulated totalCost = totalFeedCost + baselineOtherCosts, but baselineNetProfit (line 99) is recorded revenue \u2212 all expense transactions with no separate feed term. For FeedChange scenarios the projected feed cost is added to the simulated side only (and double-counted if feed is already among the logged expense transactions in baselineOtherCosts), so profitDifference is systematically wrong.",
+    "fix": "Put baseline and simulated on the same basis: subtract the baseline feed cost from baselineOtherCosts before adding projected totalFeedCost, or model feed as a first-class term on both sides.",
+    "lens": "be-sweep-c",
+    "id": 50,
+    "note": "baselineNetProfit (rev - all expenses incl. logged feed) vs simulatedNetProfit (rev - projectedFeed - all expenses) are not same-basis. In profitDifference baselineOtherCosts cancels, leaving a null FeedChange scenario (growth=0) yielding profitDifference = -totalFeedCost instead of ~0, and reported totalCost double-counts feed if logged as an expense. Systematic error confirmed."
+  },
+  {
+    "severity": "LOW",
+    "area": "Dead code / token cleanup",
+    "location": "backend/src/supabase.service.ts:6",
+    "issue": "SupabaseService (~280 lines, a parallel auth/user/token data layer) is never injected or registered in any module \u2014 fully dead; its cleanupExpiredTokens() has no scheduler/caller so verification_tokens and refresh_tokens would accumulate unbounded if it were ever wired.",
+    "fix": "Delete SupabaseService (the active path uses TypeORM + supabase.auth); if kept, schedule cleanupExpiredTokens via @nestjs/schedule.",
+    "lens": "reliability",
+    "id": 113,
+    "note": "grep confirms SupabaseService only appears in its own file \u2014 never imported, injected, or in any module providers. No ScheduleModule/@Cron in the repo, so cleanupExpiredTokens has no caller. Fully dead."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "transactions",
+    "location": "backend/src/transactions/transactions.service.ts:24",
+    "issue": "Financial write endpoints (POST /transactions, POST /expenses, POST /credit) have no idempotency key. A mobile client retrying a timed-out request double-records income/expense/loan rows, silently corrupting farm financial summaries.",
+    "fix": "Accept a client idempotency key (e.g. referenceNumber/UUID) with a unique constraint and no-op on duplicate insert.",
+    "lens": "be-sweep-b",
+    "id": 41,
+    "note": "transactions.service.create() does farm-access check then create+save with no dedup; referenceNumber column is nullable and non-unique. Retried timed-out POST double-records. Notably water-quality.service already implements idempotent replay via a client id, so the pattern exists in-repo but transactions lacks it."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "water-quality lost measurement time",
+    "location": "backend/src/water-quality/water-quality-record.entity.ts:26",
+    "issue": "recordedAt is a @CreateDateColumn (server insert time) and the create DTO exposes no measurement-timestamp field, so offline records synced later (the app supports idempotent replay) are stamped with the drain time, not when the reading was taken.",
+    "fix": "Add an optional @IsDateString recordedAt to CreateWaterQualityRecordDto and persist it instead of relying on CreateDateColumn.",
+    "lens": "be-sweep-a",
+    "id": 31,
+    "note": "recordedAt is @CreateDateColumn (insert time); CreateWaterQualityRecordDto exposes id (idempotency key, replay supported at service lines 34-70) but no measurement-timestamp field, and record is built by spreading createDto so recordedAt is not settable. Late offline sync is stamped with sync time. Confirmed."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Backend e2e suite non-runnable",
+    "location": "backend/test/app.e2e-spec.ts:15",
+    "issue": "`npm run test:e2e` fails 6/6 tests. app.e2e-spec.ts uses TypeOrmModule.forRoot({type:'sqlite',...}) but sqlite3 is not installed -> DriverPackageNotInstalledError ('SQLite package has not been found installed'), beforeEach times out at 5000ms. core-flow.e2e-spec.ts:32 imports the real AppModule needing a live DB and fails to connect, tearing down mid-run ('trying to import a file after the Jest environment has been torn down'). The e2e suite cannot run locally at all.",
+    "fix": "Add sqlite3 to backend devDependencies for app.e2e, and gate core-flow.e2e behind a provisioned test DB (or spin an in-memory Postgres/sqlite for AppModule) so `npm run test:e2e` can pass locally.",
+    "lens": "gates",
+    "id": 98,
+    "note": "Suite is non-runnable locally: app.e2e-spec fails (times out at 5004ms \u2014 sqlite3 IS in devDependencies/node_modules but its native binding is not built, `require('sqlite3')` => 'Could not locate the bindings file', so the SQLite driver load fails after teardown); core-flow.e2e (6 it() tests) needs live Postgres and cannot connect. Corrections: mechanism is a missing/unbuilt native binding, not a missing devDependency, so the proposed fix 'add sqlite3 to devDependencies' is moot (it's already there \u2014 needs rebuild or dropping sqlite); count is 7 tests across 2 suites (1 + 6), not 6/6. Test-infra only, so severity MEDIUM."
+  },
+  {
+    "severity": "LOW",
+    "area": "Docs vs code \u2014 deep-link scheme",
+    "location": "docs/APP_FLOW.md:28",
+    "issue": "APP_FLOW.md says the password-reset flow uses deep link `upcheck://`, but the app's actual scheme is `upcheckapp://` (app.config.ts:9 scheme:'upcheckapp'; App.tsx:7 prefixes:['upcheckapp://'] mapping reset-password \u2192 ResetPassword). A tester following the doc opens a non-registered scheme.",
+    "fix": "Change `upcheck://` to `upcheckapp://` in APP_FLOW.md:28.",
+    "lens": "claims-vs-code",
+    "id": 95,
+    "note": "APP_FLOW.md:28 ResetPassword row says deep link `upcheck://`; app.config.ts:9/35 scheme is `upcheckapp`, App.tsx:7 prefixes ['upcheckapp://']. Wrong scheme."
+  },
+  {
+    "severity": "LOW",
+    "area": "Docs vs code \u2014 public endpoint surface",
+    "location": "docs/FEATURES.md:187",
+    "issue": "FEATURES.md claims '`GET price*` is `@Public()`', implying both GET /india/price and GET /india/price-feeds are unauthenticated. In india.controller.ts only listFeeds (GET price-feeds, line 58-59) carries @Public(); priceForCount (GET price, line 45) has no @Public() and requires a bearer token.",
+    "fix": "Change the note to '`GET price-feeds` is `@Public()`' (or add @Public() to GET price if it was meant to be open).",
+    "lens": "claims-vs-code",
+    "id": 94,
+    "note": "FEATURES.md:187 note 'GET price* is @Public()' overclaims; india.controller.ts:45 priceForCount (GET price) has no @Public, only listFeeds line 58-59 does; no class-level @Public, so GET price needs auth."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "content \u2014 deletion doc overclaims cascade",
+    "location": "docs/legal/ACCOUNT_DELETION.md:13",
+    "issue": "ACCOUNT_DELETION.md promises account deletion removes 'all farm data you own \u2026 (cascade)' and relies on ON DELETE CASCADE from the users row (profiles.service.ts:118 does DELETE FROM users), but credit_ledgers stores user_id as a plain @Column with no ManyToOne relation and no onDelete (credit-ledger.entity.ts:21) \u2014 so credit-ledger rows are neither cascade-deleted nor block the delete, leaving orphaned per-user financial records after 'deletion', contradicting the doc.",
+    "fix": "Add a @ManyToOne(() => User, { onDelete: 'CASCADE' }) relation on credit_ledgers.user_id (and verify every user-owned table has it), or explicitly delete credit_ledgers in deleteAccount().",
+    "lens": "i18n-content",
+    "id": 92,
+    "note": "Migration 1780300500000-CreateCreditLedgers.ts explicitly creates credit_ledgers with 'No foreign keys'; entity user_id is plain @Column. deleteAccount() (profiles.service.ts:113) only DELETE FROM users/profiles, so per-user credit rows are orphaned, contradicting the cascade/full-deletion promise."
+  },
+  {
+    "severity": "HIGH",
+    "area": "content \u2014 Play Store legal docs incomplete",
+    "location": "docs/legal/PRIVACY_POLICY.md:51",
+    "issue": "The public-hosting legal docs required for the Play Store listing still contain unfilled placeholders: PRIVACY_POLICY.md:51 '[support@yourdomain.com]' and '[Registered office address]', :3 '[EFFECTIVE DATE]'/'[LAST UPDATED]'; TERMS_AND_CONDITIONS.md:33 '[State], India' and '[support@yourdomain.com]'; ACCOUNT_DELETION.md:19/30 '[support@yourdomain.com]' and '[30] days'. Play Console requires a reachable, complete privacy-policy and data-deletion URL \u2014 these documents cannot be published as-is.",
+    "fix": "Fill every [PLACEHOLDER] (contact email, address, jurisdiction, dates, retention window) in the three docs/legal markdown files and host them at real URLs.",
+    "lens": "i18n-content",
+    "id": 88,
+    "note": "Placeholders present: PRIVACY_POLICY.md:3 [EFFECTIVE DATE]/[LAST UPDATED], :51 [support@yourdomain.com]/[Registered office address]; TERMS:33 [State]/[support@yourdomain.com]; ACCOUNT_DELETION:16/19/27/30 [30] days & [support@yourdomain.com]. Not publishable as-is."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Docs vs code / release",
+    "location": "docs/PLAY_STORE_LAUNCH.md:45",
+    "issue": "Doc instructs \"Bump version/versionCode per release in app.config.ts\", but app.config.ts has no versionCode field and android/ is committed (bare workflow, per this same doc line 12), so versionCode is governed by frontend/android/app/build.gradle:96 (=1); following the doc changes nothing and the upload keeps versionCode 1.",
+    "fix": "Rewrite the instruction to bump versionCode in android/app/build.gradle:96 (or enable EAS remote/autoIncrement) and drop the app.config.ts reference.",
+    "lens": "mobile-platform",
+    "id": 118,
+    "note": "Doc:45 says bump version/versionCode in app.config.ts, but app.config.ts has no versionCode field, eas.json has no autoIncrement, android/ committed (bare), so versionCode is governed by build.gradle:96 (=1); following doc leaves versionCode 1."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Release signing",
+    "location": "frontend/android/app/build.gradle:115",
+    "issue": "The release buildType uses signingConfig signingConfigs.debug, so any locally produced release AAB/APK is signed with the shared debug keystore (password 'android') and is rejected by Play; only EAS-managed builds are safe, making the native project a signing footgun.",
+    "fix": "Define a real release signingConfig backed by an upload keystore, or document that release builds must go through EAS credentials only.",
+    "lens": "mobile-platform",
+    "id": 121,
+    "note": "build.gradle:115 release buildType uses signingConfig signingConfigs.debug (debug keystore, password 'android'); local release builds are debug-signed and Play-rejected. Only EAS-managed credentials override signing."
+  },
+  {
+    "severity": "LOW",
+    "area": "Build config / stale comment",
+    "location": "frontend/android/app/build.gradle:160",
+    "issue": "The comment claims truecaller-sdk:2.7.0 is \"used by the native bridge in com.upcheck.app.TruecallerAuthModule\", but no such class exists (main/java only has MainApplication.kt and MainActivity.kt); the JS path uses the autolinked @dhana-cs/react-native-truecaller module (src/native/TruecallerAuth.ts:17), so the comment misleads maintainers about where Truecaller is wired.",
+    "fix": "Correct the comment to state the SDK backs the autolinked @dhana-cs TrueCallerModule, not a nonexistent local module.",
+    "lens": "mobile-platform",
+    "id": 124,
+    "note": "build.gradle:159-160 comment names com.upcheck.app.TruecallerAuthModule as the bridge, but src/main/java has only MainApplication.kt & MainActivity.kt; the string TruecallerAuthModule exists only in this comment. JS uses @dhana-cs/react-native-truecaller (TruecallerAuth.ts:17). Comment is misleading."
+  },
+  {
+    "severity": "LOW",
+    "area": "Android permissions",
+    "location": "frontend/android/app/src/main/AndroidManifest.xml:4",
+    "issue": "RECORD_AUDIO is requested, but the camera is used only for QR scanning (frontend/src/screens/farms/AddWorkerScreen.tsx:11,163) with no audio/video capture anywhere in src/; it is a sensitive permission requiring Data Safety justification and adds review friction. Doc PLAY_STORE_LAUNCH.md:14 flags it, unremediated.",
+    "fix": "Remove RECORD_AUDIO (add tools:node=\"remove\") or configure expo-camera without microphone.",
+    "lens": "mobile-platform",
+    "id": 120,
+    "note": "Manifest line 4 has RECORD_AUDIO; grep of src/ finds no audio/microphone/recording use, expo-camera plugin config sets only cameraPermission (QR scan). PLAY_STORE_LAUNCH.md flags it. Unused sensitive permission."
+  },
+  {
+    "severity": "LOW",
+    "area": "Deep links",
+    "location": "frontend/android/app/src/main/AndroidManifest.xml:43",
+    "issue": "A second intent-filter sets android:autoVerify=\"true\" on the custom scheme \"upcheckapp\" (no host, not https); autoVerify only applies to http/https App Links with a verified domain, so it is a no-op that logs a manifest warning, and it duplicates the plain upcheckapp intent-filter at lines 37-42.",
+    "fix": "Delete the duplicate autoVerify intent-filter (lines 43-48); keep the single custom-scheme filter.",
+    "lens": "mobile-platform",
+    "id": 122,
+    "note": "Lines 43-48: second intent-filter with android:autoVerify=\"true\" on custom scheme 'upcheckapp' (no host, not https) \u2014 autoVerify only applies to http/https App Links, so no-op + manifest warning; duplicates the scheme filter at 37-42. Also carries an invalid data-generated attr."
+  },
+  {
+    "severity": "LOW",
+    "area": "Android permissions",
+    "location": "frontend/android/app/src/main/AndroidManifest.xml:5",
+    "issue": "SYSTEM_ALERT_WINDOW (\"display over other apps\") is declared in the production main manifest, but no feature draws overlays (grep of src/ finds only UI style \"overlay\", no canDrawOverlays/manageOverlay). This is a Play-scrutinized permission that inflates review and Data Safety surface; doc PLAY_STORE_LAUNCH.md:14 flags it but it was never removed.",
+    "fix": "Delete the SYSTEM_ALERT_WINDOW uses-permission line from the main manifest (add tools:node=\"remove\" if a dependency re-injects it).",
+    "lens": "mobile-platform",
+    "id": 119,
+    "note": "Line 5 declares SYSTEM_ALERT_WINDOW; no canDrawOverlays/manageOverlay/overlay-draw code in src/. PLAY_STORE_LAUNCH.md itself notes it's likely dependency-injected and should be removed. Unused permission adding review surface."
+  },
+  {
+    "severity": "LOW",
+    "area": "Android permissions",
+    "location": "frontend/android/app/src/main/AndroidManifest.xml:7",
+    "issue": "WRITE_EXTERNAL_STORAGE (and READ_EXTERNAL_STORAGE line 3) are declared without android:maxSdkVersion; they are ignored on the targetSdk 33+ this app builds against and only widen the Data Safety/storage-access surface flagged by Play.",
+    "fix": "Add android:maxSdkVersion=\"32\" to both, or remove them if scoped-storage image-picker is sufficient.",
+    "lens": "mobile-platform",
+    "id": 123,
+    "note": "READ_EXTERNAL_STORAGE (line 3) and WRITE_EXTERNAL_STORAGE (line 7) declared without android:maxSdkVersion. Expo SDK (edge-to-edge deprecation \u2192 SDK 53+) sets targetSdk 34/35, so WRITE is ignored and READ superseded by granular media perms on target; only widens declared-permission surface."
+  },
+  {
+    "severity": "LOW",
+    "area": "committed-config",
+    "location": "frontend/app.config.ts:48",
+    "issue": "A live Supabase project URL (mcslntwchfucavjrrhnu.supabase.co) and publishable anon key are hardcoded as source fallbacks (l.48-49). The publishable key is client-safe by design so this is not a secret leak, but committing the concrete project identifiers as a code fallback hard-binds the repo to one project and defeats the env override for anyone building from source.",
+    "fix": "Remove the string fallbacks and fail loudly (throw) when EXPO_PUBLIC_SUPABASE_URL/ANON_KEY are unset, keeping identifiers env-only.",
+    "lens": "security-generic",
+    "id": 16,
+    "note": "app.config.ts:48-49 hardcode live Supabase URL + sb_publishable_ anon key as env fallbacks. Publishable key is client-safe (correct), but concrete project ref (mcslntwchfucavjrrhnu, same ref cited in ARCHITECTURE.md) hard-binds the repo; env override never fails loudly. Hygiene/IMPROVEMENT."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Docs vs code \u2014 frontend architecture",
+    "location": "frontend/backend.md:8",
+    "issue": "This doc states the frontend 'communicates indirectly with the backend database via the Supabase Client SDK for standard operations (Auth, CRUD)' and (lines 51-58) that the current interaction pattern is 'Direct-to-Database (Supabase)' via src/services/farmService.ts using supabase.from('farms').select('*'), with security 'relying on Supabase RLS' and NestJS as a 'future API gateway'. The actual code does the opposite: there is no frontend/src/services/ dir, no supabase.from(...) data access anywhere in frontend/src, all CRUD goes through axios modules in frontend/src/api/*.ts to the NestJS API, and ARCHITECTURE.md's central invariant is 'the client never reads/writes Postgres directly.' A dev following this doc would build a direct-to-DB client that breaks the tenant-isolation model.",
+    "fix": "Delete frontend/backend.md (it describes a removed/never-shipped architecture) or rewrite it to point at docs/guides/frontend.md and the api/* \u2192 NestJS flow.",
+    "lens": "claims-vs-code",
+    "id": 93,
+    "note": "frontend/backend.md:8,51-58 claim frontend does direct-to-DB CRUD via src/services/farmService.ts using supabase.from('farms'). No src/services dir exists; all CRUD goes through frontend/src/api/*.ts (axios apiClient) to NestJS. docs/ARCHITECTURE.md:63-64 states the invariant 'client never reads/writes Postgres directly' \u2014 backend.md directly contradicts it. Supabase SDK in src/ is auth-only (lib/supabase.ts, authStore.ts). Stale/misleading doc, not code \u2014 no runtime impact, so severity downgraded."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Release config / EAS versioning",
+    "location": "frontend/eas.json:14",
+    "issue": "Production build profile has no autoIncrement and cli has no appVersionSource; the committed bare-workflow build.gradle:96 pins versionCode 1, so every production AAB ships versionCode 1 and Play rejects the second upload (\"Version code 1 has already been used\").",
+    "fix": "Add \"appVersionSource\": \"remote\" under cli (or \"autoIncrement\": true to the production build profile) in eas.json.",
+    "lens": "mobile-platform",
+    "id": 117,
+    "note": "eas.json production profile (lines 18-23) has no autoIncrement and cli block (lines 2-3) has no appVersionSource; committed bare-workflow build.gradle:96 pins versionCode 1. EAS uses local versionCode as-is, so every production AAB ships versionCode 1 \u2192 Play rejects the second upload. Real release blocker."
+  },
+  {
+    "severity": "LOW",
+    "area": "Dependency version",
+    "location": "frontend/package.json:23",
+    "issue": "@react-native-picker/picker is pinned ^2.11.4 while the installed Expo SDK 54 expects 2.11.1 (frontend/web_output.log warns the project \"may not work correctly\"); expo doctor flags the mismatch and it risks web/native picker breakage.",
+    "fix": "Pin @react-native-picker/picker to 2.11.1 to match the Expo SDK-aligned version.",
+    "lens": "mobile-platform",
+    "id": 125,
+    "note": "web_output.log:4 confirms picker@2.11.4 vs expected 2.11.1; pinned ^2.11.4 at package.json:23; Picker used in MeasurementsScreen."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Frontend has no lint/test scripts or eslint config",
+    "location": "frontend/package.json:5",
+    "issue": "frontend/package.json scripts define only expo start/android/ios/web \u2014 no `test` and no `lint`. `npm test` and `npm run lint` both error 'Missing script'. There is no eslint config and no eslint dependency at all, yet frontend/src contains 6 `// eslint-disable-next-line ...` directives (e.g. react-hooks/exhaustive-deps in usePermissions.ts:82, CreatePondScreen.tsx:73) that are inert since nothing lints them. The 120 jest tests only run via ad-hoc `npx jest`.",
+    "fix": "Add `\"test\": \"jest\"` and an eslint config + `\"lint\": \"eslint . --ext .ts,.tsx\"` to frontend, and wire both into CI.",
+    "lens": "gates",
+    "id": 100,
+    "note": "No test/lint scripts, no eslint dep or config file; 6 inert eslint-disable directives exist. Verified."
+  },
+  {
+    "severity": "LOW",
+    "area": "api / token refresh",
+    "location": "frontend/src/api/client.ts:79",
+    "issue": "Requests queued behind an in-flight refresh are retried via apiClient(originalRequest) without setting originalRequest._retry = true (only the refresh initiator sets it at client.ts:86). If such a retried request immediately 401s again (token revoked in the window), it re-enters the response interceptor and triggers another refresh instead of failing out, since the _retry guard at client.ts:64 is not set on it.",
+    "fix": "Set originalRequest._retry = true before returning apiClient(originalRequest) in the queued branch.",
+    "lens": "fe-infra",
+    "id": 85,
+    "note": "Queued retry at client.ts:80 omits _retry; a re-401 would start one extra refresh instead of failing out. Real but low impact."
+  },
+  {
+    "severity": "HIGH",
+    "area": "offline sync / api",
+    "location": "frontend/src/api/measurementSync.ts:5",
+    "issue": "The 'Offline-first measurement queue (capture works with no signal, PRD \u00a78.A)' module is dead code \u2014 measurementSync.enqueue/flush/pendingCount are never imported anywhere in src. MeasurementsScreen.handleSubmit calls measurementsApi.create directly (frontend/src/screens/measurements/MeasurementsScreen.tsx:104) and on a network error only shows a 'no internet' alert and discards the reading. The claimed offline-first measurement capture is unimplemented at the UI; readings taken offline are lost, not queued.",
+    "fix": "Route MeasurementsScreen saves through measurementSync.enqueue (or saveRecord) and call measurementSync.flush() on reconnect in OfflineIndicator, or delete the unused module.",
+    "lens": "fe-infra",
+    "id": 82,
+    "note": "measurementSync has zero importers; MeasurementsScreen.handleSubmit calls measurementsApi.create directly and on network error (line 118-122) alerts and returns, discarding the reading. Offline-first unimplemented at UI."
+  },
+  {
+    "severity": "LOW",
+    "area": "Inert lint suppressions hide stale-closure risk",
+    "location": "frontend/src/hooks/usePermissions.ts:82",
+    "issue": "react-hooks/exhaustive-deps is disabled here and in 4 screens (CreatePondScreen, ReferenceScreen, LunarScreen, TransactionsScreen) \u2014 the exact rule that catches stale-closure bugs \u2014 but with no eslint configured the suppressions do nothing and the rule never actually runs to verify the deps are safe.",
+    "fix": "Configure eslint with eslint-plugin-react-hooks, then justify or remove each exhaustive-deps disable.",
+    "lens": "gates",
+    "id": 101,
+    "note": "usePermissions.ts:82 exhaustive-deps disable confirmed; no eslint configured so it never runs. Same pattern in the 4 other screens."
+  },
+  {
+    "severity": "LOW",
+    "area": "i18n \u2014 dead/orphan translation keys",
+    "location": "frontend/src/i18n/locales/hi/engines.ts:160",
+    "issue": "All five non-English locales carry engines.lunar.stepPeak/stepPre/stepPost/stepNoHandling and duplicate engines.routine.phase_* keys that no code references (grep of frontend/src finds zero usages) and that the English locale (en/engines.ts) does not even contain. They appear to be an abandoned attempt to localize the lunar playbook (which is still rendered raw from the backend), leaving translated strings that never display and 14 keys that break structural parity with the en base.",
+    "fix": "Either wire the lunar playbook to these keys (see LunarScreen finding) or delete stepPeak/stepPre/stepPost/stepNoHandling and the routine.phase_* duplicates from all locale files.",
+    "lens": "i18n-content",
+    "id": 90,
+    "note": "stepPeak/Pre/Post/NoHandling present in hi/ta/te/bn/or, absent in en; phase_ block duplicated in non-en routine section; unreferenced in src. Real dead-key/parity issue but no display/runtime impact, so LOW."
+  },
+  {
+    "severity": "HIGH",
+    "area": "content \u2014 placeholder legal copy shipped in-app",
+    "location": "frontend/src/legal/content.ts:17",
+    "issue": "LEGAL_META fields are unfilled bracket placeholders (contactEmail '[support@yourdomain.com]', address '[Registered office address]', governingLaw '[State], India', effectiveDate '[Effective date]', lastUpdated '[Last updated date]', privacyUrl/termsUrl/deletionUrl). They are interpolated straight into the Privacy Policy and Terms blocks rendered by LegalScreen (content.ts:33 'Effective [Effective date]. Last updated [Last updated date].', :114 'requests: [support@yourdomain.com]. Upcheck Technologies, [Registered office address].', :182 'Contact: [support@yourdomain.com].'), so users literally read the square-bracket placeholders as the legal text.",
+    "fix": "Populate LEGAL_META with the real company email, registered address, jurisdiction, dates and hosted policy URLs before any release build.",
+    "lens": "i18n-content",
+    "id": 87,
+    "note": "LEGAL_META bracket placeholders (contactEmail/address/dates/URLs/governingLaw) interpolated into rendered PRIVACY_POLICY/TERMS text at content.ts:33,114,123,182. Users would read the brackets in a release build."
+  },
+  {
+    "severity": "LOW",
+    "area": "auth",
+    "location": "frontend/src/screens/auth/ResetPasswordScreen.tsx:52",
+    "issue": "Reset-password validation only checks password.length < 8, weaker than the enforced signup policy (passwordPolicy: upper+lower+digit+special), so a user can set a password via reset that the Register form would reject.",
+    "fix": "Reuse passwordPolicyError(password) here so reset and signup enforce the same rule.",
+    "lens": "fe-screens-a",
+    "id": 64,
+    "note": "ResetPasswordScreen:52 checks only password.length<8, while RegisterScreen:41 uses passwordPolicyError (upper+lower+digit+special+len8). Reset uses supabase.auth.updateUser directly, bypassing the backend SignupDto regex, so a reset password like 'password' is accepted where signup rejects it. Real inconsistency; LOW correct."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "i18n \u2014 hardcoded English in alerts",
+    "location": "frontend/src/screens/auth/TruecallerLoginScreen.tsx:111",
+    "issue": "Login-failure alert bodies are hardcoded English while only the titles use t(): 'The server did not return a session. Please try again.' (:111), fallback 'Truecaller verification failed. Please try again.' (:120), and 'Could not reach the server. Please try again.' (:125). Non-English users hit English error messages during sign-in failures.",
+    "fix": "Add auth.* keys for these three messages to all 6 locales and pass them through t().",
+    "lens": "i18n-content",
+    "id": 91,
+    "note": "Bodies hardcoded English at :111, :120, :125 while titles use t('auth.loginFailed')/t('auth.networkError'). Non-English users get English failure text. Confirmed MEDIUM."
+  },
+  {
+    "severity": "LOW",
+    "area": "calculators \u2014 wasted API call",
+    "location": "frontend/src/screens/calculators/CultivationPerformanceScreen.tsx:113",
+    "issue": "handleCalculate calls calculatorsApi.calculateCultivationPerformance and stores perfRes.data as results.perf, but the results JSX only renders fcr/adg/sr/productivity \u2014 perf is never displayed, so the extra network round-trip (and its fr computation at line 99) is dead.",
+    "fix": "Render the perf fields or drop the calculateCultivationPerformance call from Promise.all.",
+    "lens": "fe-screens-b",
+    "id": 77,
+    "note": "perfRes.data stored as results.perf (line 113) and the fr computation runs at line 99, but results JSX (237-266) renders only fcr/adg/sr/productivity \u2014 perf never read. Dead API call. LOW correct."
+  },
+  {
+    "severity": "HIGH",
+    "area": "calculators \u2014 wrong dosage formula (1000x)",
+    "location": "frontend/src/screens/calculators/ProductAmountScreen.tsx:59",
+    "issue": "The concentration-adjusted amount uses clientCalc = (pondVolume*ppm)/(conc*10000). Backend (correct) amount = pondVolume*ppm/1000 kg of active ingredient, so a product at conc% needs pondVolume*ppm/(10*conc) kg. Dividing by conc*10000 is 1000x too small \u2014 at conc=100 it shows 0.01 kg where 10 kg is required, and the printed formula string (line 149) is likewise wrong. A farmer following it grossly under-doses a treatment.",
+    "fix": "Change the divisor to conc*10 (clientCalc = pondVolume*ppm/(conc*10)) and update the displayed formula text accordingly.",
+    "lens": "fe-screens-b",
+    "id": 72,
+    "note": "Backend amountKg=(area*depth*ppm)/1000 (service.ts:262) = active kg at 100%. Product at conc% needs pondVolume*ppm/(10*conc); client divides by conc*10000 (line 59) = 1000x too small. At conc=100 shows 0.01 vs 10 kg. Displayed formula string (line 149) also wrong. HIGH correct."
+  },
+  {
+    "severity": "LOW",
+    "area": "cycles",
+    "location": "frontend/src/screens/cycles/CreateCycleScreen.tsx:99",
+    "issue": "Stocking date is a free-text Input with no validation and no date picker (inconsistent with PondSetupScreen's CalendarPicker); a malformed date string is sent straight to cropsApi.create.",
+    "fix": "Replace the stockingDate Input with the CalendarPicker component and validate it parses to a real date before submit.",
+    "lens": "fe-screens-a",
+    "id": 57,
+    "note": "stockingDate is free-text Input (99-105), no format validation (handleSave only checks name+stockingCount); PondSetupScreen uses CalendarPicker. Real gap, but field is prefilled valid via todayLocalISODate() so only edited-to-malformed input escapes \u2014 LOW."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "cycles",
+    "location": "frontend/src/screens/cycles/CycleDetailScreen.tsx:134",
+    "issue": "The button labelled 'Record harvest' (cycles.btnRecordHarvest) navigates to 'HarvestHistory', the read-only history view, not the 'HarvestLog' recording screen.",
+    "fix": "Change navigation.navigate('HarvestHistory', \u2026) to navigation.navigate('HarvestLog', { pondId: cycle.pondId, pondName, cropId: cycle.id }).",
+    "lens": "fe-screens-a",
+    "id": 56,
+    "note": "Button label cycles.btnRecordHarvest navigates to 'HarvestHistory' (line 134), the list screen; the record form is 'HarvestLog' (RootNavigator:311, used directly by PondDashboard:399). Nuance: HarvestHistoryScreen has a FAB to reach HarvestLog, so recording is still reachable in 2 taps \u2014 mislabeled primary CTA, not a dead end. MEDIUM defensible."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "cycles",
+    "location": "frontend/src/screens/cycles/CycleDetailScreen.tsx:25",
+    "issue": "fetchCycle() catches errors with only console.error; on API failure isLoading becomes false while cycle stays null, and the guard `if (isLoading || !cycle) return <Text>Loading</Text>` leaves the screen stuck on \"Loading...\" forever with no error/retry UI.",
+    "fix": "Add an error state + retry button (mirror PondDashboard's ErrorState/NetworkError pattern) instead of the bare loading text.",
+    "lens": "fe-screens-a",
+    "id": 55,
+    "note": "fetchCycle catches with only console.error (line 25-26); finally sets isLoading=false while cycle stays null, so guard `if (isLoading || !cycle)` (line 60) renders loading text forever with no error/retry. Confirmed MEDIUM."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "i18n \u2014 backend content rendered raw",
+    "location": "frontend/src/screens/engines/LunarScreen.tsx:191",
+    "issue": "The Lunar Molt 'What to do now' playbook is English-only in every language. step.text (:191), playbook.headline (:156), playbook.phaseLabel (:155), playbook.note (:168) and risk.band (:142) all come from the backend as hardcoded English (e.g. lunar.service.ts:281 'Pre-molt \u2014 build reserves', :331 'Reduce feed 15\u201330% \u2026') and are rendered without any t() call, so Telugu/Tamil/etc users get English advice on a core decision-engine screen.",
+    "fix": "Return stable string codes from the lunar service and map them to t('engines.lunar.*') keys in LunarScreen, or localize the playbook text server-side by Accept-Language.",
+    "lens": "i18n-content",
+    "id": 89,
+    "note": "lunar.service.ts hardcodes English phaseLabel/headline/note/step-text/band; LunarScreen renders all raw (155,156,191,168,142) with no t()."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "farms",
+    "location": "frontend/src/screens/farms/AddWorkerScreen.tsx:57",
+    "issue": "When a scanned QR has a valid prefix but the user lookup fails (not found), resolveUser's catch never resets `scanned`, so onBarcode's `if (scanned) return` blocks all further scans and the camera silently stops working until the user toggles modes.",
+    "fix": "In resolveUser's catch (or after the not-found Alert), call setScanned(false) so the camera can rescan.",
+    "lens": "fe-screens-a",
+    "id": 58,
+    "note": "resolveUser catch (58-63) never setScanned(false); after not-found scanned stays true and onBarcode's guard blocks all rescans until mode toggle."
+  },
+  {
+    "severity": "LOW",
+    "area": "farms",
+    "location": "frontend/src/screens/farms/CreateFarmScreen.tsx:106",
+    "issue": "During pendingFarmSetup this screen (the forced first-run route) has no header, back, or logout affordance, so a freshly-registered owner cannot sign out or switch accounts without force-quitting the app.",
+    "fix": "Show a logout/sign-out action in the setup header when pendingFarmSetup is true.",
+    "lens": "fe-screens-a",
+    "id": 66,
+    "note": "pendingFarmSetup screen has only a text setup header and form, no logout/sign-out affordance on the forced first-run route."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "farms",
+    "location": "frontend/src/screens/farms/FarmMembersScreen.tsx:41",
+    "issue": "load() swallows all API errors and sets members to [], so a network/server failure renders the 'No members' empty state \u2014 the owner is misled into thinking the roster is empty with no error or retry.",
+    "fix": "Track an error state and render ErrorState/NetworkError with retry when the members request fails.",
+    "lens": "fe-screens-a",
+    "id": 59,
+    "note": "load() catch swallows every error and sets members=[], rendering the empty state with no error/retry."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "finance \u2014 pond id must be typed manually",
+    "location": "frontend/src/screens/finance/ExpensesScreen.tsx:236",
+    "issue": "The add-expense form requires formPondId as a raw text Input (placeholderPondId) and it is a required field, so a farmer has to hand-type a pond UUID to save an expense even though the screen already receives cropId/pondName from route params. Effectively unusable.",
+    "fix": "Replace the pondId text Input with a pond picker sourced from the crop/farm, or derive pondId from route params.",
+    "lens": "fe-screens-b",
+    "id": 75,
+    "note": "formPondId is a required raw text Input; route params give only cropId/pondName, so pondId must be hand-typed and cannot be derived."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "finance \u2014 invalid date crashes save silently",
+    "location": "frontend/src/screens/finance/TransactionsScreen.tsx:126",
+    "issue": "formDate is a free-text field. handleSubmit builds the payload with new Date(formDate).toISOString() at line 126, OUTSIDE the try block (which starts at 133), after setIsSubmitting(true). A malformed date makes toISOString() throw RangeError: the save spinner stays stuck true forever and no error is shown to the user.",
+    "fix": "Validate the parsed date (isNaN(new Date(formDate).getTime())) before submit, or move payload construction inside the try/catch.",
+    "lens": "fe-screens-b",
+    "id": 74,
+    "note": "payload w/ new Date(formDate).toISOString() at :126 is outside try (:133) after setIsSubmitting(true); no validity check, so a bad date throws RangeError leaving spinner stuck."
+  },
+  {
+    "severity": "LOW",
+    "area": "harvest \u2014 dead code",
+    "location": "frontend/src/screens/harvest/HarvestPlansScreen.tsx:259",
+    "issue": "Lines 259-261 are a no-op ternary (Alert.prompt !== undefined ? undefined : undefined) that does nothing.",
+    "fix": "Delete lines 259-261.",
+    "lens": "fe-screens-b",
+    "id": 78,
+    "note": "Lines 259-261 are a literal no-op ternary (Alert.prompt !== undefined ? undefined : undefined); dead code."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "harvest \u2014 no i18n",
+    "location": "frontend/src/screens/harvest/HarvestPlansScreen.tsx:378",
+    "issue": "The entire screen has no useTranslation/t() \u2014 every string ('Harvest Plans', 'Mark Complete', 'Loading harvest plans\u2026', STATUS_CONFIG labels Planned/Completed/Cancelled at lines 30/35/40, all form labels, all alert titles/messages) is hard-coded English. The app is otherwise fully i18n'd (Tamil/Hindi), so this screen never translates.",
+    "fix": "Import useTranslation and route every literal through t() with keys, as sibling screens do.",
+    "lens": "fe-screens-b",
+    "id": 73,
+    "note": "No useTranslation import in file; STATUS_CONFIG labels (30/35/40), 'Harvest Plans' (378), all form/alert strings hardcoded English while sibling screens use t(). Same defect as id 86."
+  },
+  {
+    "severity": "HIGH",
+    "area": "i18n \u2014 un-localized screen",
+    "location": "frontend/src/screens/harvest/HarvestPlansScreen.tsx:75",
+    "issue": "This live, navigable screen (routed from CycleDetailScreen and PondDashboardScreen, RootNavigator.tsx:384) has no useTranslation/t() at all \u2014 all 39 user-facing strings are hardcoded English literals: status labels 'Planned'/'Completed'/'Cancelled', alerts ('Mark as Completed', 'Delete Plan', 'Failed to load/complete/delete harvest plan', 'Validation Error'), form labels ('Planned Harvest Date', 'Target Weight (kg)', 'Expected Price per kg (\u20b9)', 'Notes'), and empty state ('No Harvest Plans'). Breaks the README 'in 6 languages' claim for the entire harvest-planning feature; Telugu/Tamil/Bengali/Odia/Hindi users see raw English here.",
+    "fix": "Add const { t } = useTranslation() and route every literal through t('harvestPlans.*'), adding the keys to all 6 locale files.",
+    "lens": "i18n-content",
+    "id": 86,
+    "note": "Duplicate of id 73 at line 75; screen has zero i18n. Language-count claim unverified but i18n absence is real; HIGH defensible for a fully un-localized live screen."
+  },
+  {
+    "severity": "HIGH",
+    "area": "harvest \u2014 mark-complete flow broken",
+    "location": "frontend/src/screens/harvest/HarvestPlansScreen.tsx:84",
+    "issue": "promptCompleteValues promises 'You will be asked for actual harvest weight and price per kg' but never collects input \u2014 onConfirm is hard-coded to actualWeightKg:'0', actualPricePerKg:'0', so completing any harvest plan always POSTs zero weight/price (data loss or backend rejection). The core 'Mark Complete' action cannot record real values.",
+    "fix": "Replace the Alert-only flow with a real modal form (two TextInputs) and pass the entered numbers to harvestPlansApi.complete.",
+    "lens": "fe-screens-b",
+    "id": 69,
+    "note": "Line 84 onConfirm hard-codes '0'/'0'; handleComplete sends Number('0')=0 for weight and price on every completion despite the prompt promising to collect them."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "inventory \u2014 stock management is a stub",
+    "location": "frontend/src/screens/inventory/InventoryDetailScreen.tsx:45",
+    "issue": "Add stock, reduce stock (lines 45-46), edit item (line 53) and stock history (line 176) are all 'coming soon' Alert stubs, even though inventoryApi.adjustStock and inventoryApi.update exist on the backend. Inventory items can be viewed but never adjusted or edited from the app.",
+    "fix": "Wire handleAdjustStock/handleEdit to inventoryApi.adjustStock / inventoryApi.update via a quantity/edit form instead of the comingSoon alert.",
+    "lens": "fe-screens-b",
+    "id": 70,
+    "note": "handleAdjustStock (45-46), handleEdit (53), stock history (176) are all comingSoon alerts though inventoryApi.adjustStock/update exist; incomplete feature, not a crash but claim accurate."
+  },
+  {
+    "severity": "HIGH",
+    "area": "inventory \u2014 Add Item is a dead button",
+    "location": "frontend/src/screens/inventory/InventoryListScreen.tsx:243",
+    "issue": "Both the FAB (line 243) and the empty-state action (line 237) only fire Alert.alert(t('inventory.addItem'), t('inventory.addItemComingSoon')). There is no way to create an inventory item from the app despite inventoryApi.create existing.",
+    "fix": "Navigate to / render an inventory create form that calls inventoryApi.create instead of the comingSoon alert.",
+    "lens": "fe-screens-b",
+    "id": 71,
+    "note": "FAB (243) and empty-state action (237) both only Alert comingSoon; inventoryApi.create exists so no create path from app."
+  },
+  {
+    "severity": "LOW",
+    "area": "logs \u2014 missing range validation on two fields",
+    "location": "frontend/src/screens/logs/WaterQualityLogScreen.tsx:112",
+    "issue": "Nitrate (line 112) and Hardness (line 115) ParameterInput are rendered without a parameterKey, while every other water-quality field passes one. Those two fields get no range/warning validation, unlike the rest of the form.",
+    "fix": "Add parameterKey=\"nitrate\" and parameterKey=\"hardness\" to match the other ParameterInput fields.",
+    "lens": "fe-screens-b",
+    "id": 79,
+    "note": "nitrate (112) and hardness (115) ParameterInput omit parameterKey; all 10 sibling inputs pass one, so those two get no range validation."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "main",
+    "location": "frontend/src/screens/main/HomeScreen.tsx:48",
+    "issue": "Dashboard summary fetch failure is swallowed (console.error) leaving summary null, so the 'No farm data / Create farm' CTA is shown even when the user already has farms and only the request failed.",
+    "fix": "Distinguish a fetch error from a truly-empty result and show a retry state instead of the create-farm CTA on error.",
+    "lens": "fe-screens-a",
+    "id": 60,
+    "note": "catch at 48 only console.errors, summary stays null \u2192 renders create-farm CTA (163-183); legit empty case returns all-zeros non-null, so CTA is effectively error-only."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "main",
+    "location": "frontend/src/screens/main/QuickLogScreen.tsx:49",
+    "issue": "load() catch sets ponds to [], so a network failure renders the 'No ponds / Create farm' empty state rather than an error \u2014 the farmer is pushed to create a farm they already have.",
+    "fix": "Add an error branch with a retry button distinct from the genuine no-ponds empty state.",
+    "lens": "fe-screens-a",
+    "id": 61,
+    "note": "Line 49-50 catch{ setPonds([]) } with no error state; network failure renders ponds.length===0 empty state (line 83) identical to genuine no-ponds. Real UX defect."
+  },
+  {
+    "severity": "LOW",
+    "area": "notifications \u2014 hardcoded string",
+    "location": "frontend/src/screens/notifications/NotificationsScreen.tsx:164",
+    "issue": "The timestamp row concatenates a literal ' at ' between date and time ({date} at {time}), which is not run through t() and won't localize.",
+    "fix": "Move the joiner into a translation key (e.g. t('common.dateAtTime', { date, time })).",
+    "lens": "fe-screens-b",
+    "id": 80,
+    "note": "Line 164 concatenates literal ' at ' between toLocaleDateString and toLocaleTimeString, outside t(); not localized."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "onboarding",
+    "location": "frontend/src/screens/onboarding/PondSetupScreen.tsx:169",
+    "issue": "handleSaveStep creates a pond then a crop in two non-atomic API calls; if cropsApi.create fails after pondsApi.create succeeds, the pond is orphaned and pressing save again re-creates a duplicate pond (non-idempotent write).",
+    "fix": "Keep the created pondId in state and skip pond re-creation on retry, or have the backend create pond+crop in one transactional endpoint.",
+    "lens": "fe-screens-a",
+    "id": 63,
+    "note": "pondsApi.create (169) then cropsApi.create (189) non-atomic; catch (210) only Alerts and keeps no pondId, so crop failure leaves orphan pond and retry re-runs create. Orphan is certain; duplicate-pond depends on backend name uniqueness."
+  },
+  {
+    "severity": "LOW",
+    "area": "ponds",
+    "location": "frontend/src/screens/ponds/CreatePondScreen.tsx:110",
+    "issue": "handleSave only validates namePrefix and depth; a rectangular/raceway/circular pond can be submitted with blank length/width/diameter (computedArea 0), relying entirely on the server to reject.",
+    "fix": "Require the relevant dimension fields (length+width, or diameter) per geometry before allowing save.",
+    "lens": "fe-screens-a",
+    "id": 68,
+    "note": "handleSave validates only namePrefix + depthM (110-121); length/width/diameter passed undefined when blank (131-133), server-only rejection."
+  },
+  {
+    "severity": "LOW",
+    "area": "ponds",
+    "location": "frontend/src/screens/ponds/PondDashboardScreen.tsx:308",
+    "issue": "DOC is computed 0-based here (calculateDOC returns floor(diff)) and in CycleDetailScreen, but PondSetupScreen.dayOfCulture is 1-based (Math.max(1, diff+1)); the same pond shows a DOC that differs by one across screens.",
+    "fix": "Pick one convention (stocking day = Day 1) and share a single dayOfCulture helper across all three screens.",
+    "lens": "fe-screens-a",
+    "id": 65,
+    "note": "PondSetup dayOfCulture=Math.max(1,diff+1) 1-based (line 30); PondDashboard calculateDOC=floor(diff) (310) and CycleDetail calculateDOC=floor(diff) (68) 0-based. Same pond differs by one on stocking day."
+  },
+  {
+    "severity": "LOW",
+    "area": "ponds",
+    "location": "frontend/src/screens/ponds/PondDimensionHistoryScreen.tsx:39",
+    "issue": "getDimensionHistory failure is swallowed to an empty list, so a network/server error renders the 'No changes yet' empty state indistinguishably from a genuinely empty history.",
+    "fix": "Add an error/retry state separate from the empty state.",
+    "lens": "fe-screens-a",
+    "id": 67,
+    "note": "Line 39 .catch(()=>setRows([])); loading:false with empty rows renders 'No changes yet' indistinguishable from real error."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "settings",
+    "location": "frontend/src/screens/settings/SettingsScreen.tsx:38",
+    "issue": "The offlineSync, pushNotifications and emailAlerts toggles only write to AsyncStorage; no code anywhere reads these keys, so they are non-functional \u2014 e.g. turning off 'Push Notifications' does nothing to actually stop notifications.",
+    "fix": "Wire each toggle to its real effect (push register/unregister, email-pref API, sync gate) or remove the toggles until backed.",
+    "lens": "fe-screens-a",
+    "id": 62,
+    "note": "grep of offlineSync/pushNotifications/emailAlerts outside SettingsScreen returns only i18n locale strings; no getItem reader of these keys anywhere. Toggles write AsyncStorage only, non-functional."
+  },
+  {
+    "severity": "LOW",
+    "area": "shop \u2014 products not interactive",
+    "location": "frontend/src/screens/shop/ShopScreen.tsx:163",
+    "issue": "The Shop lists products with price/sale-price/stock but product cards have no onPress and there is no detail, cart, or purchase action anywhere on the screen \u2014 it is a read-only catalog presented as a 'Shop'. Tapping a product does nothing (navigation dead-end).",
+    "fix": "Either add a product-detail/enquiry action on tap, or rename the surface to 'Catalog' to match what it does.",
+    "lens": "fe-screens-b",
+    "id": 76,
+    "note": "renderProductItem (ShopScreen.tsx:155+) has no onPress; onPress only on category chips (142) and back button (226). Read-only catalog is accurate, but it's a scope/UX gap, not a defect \u2014 LOW/IMPROVEMENT."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "utils / date math",
+    "location": "frontend/src/store/activeFarmStore.ts:46",
+    "issue": "computeDOC does new Date(stockingDate) where stockingDate is 'YYYY-MM-DD', which JS parses as UTC midnight, then subtracts local now and floors the ms difference. For IST (+5:30) and other positive offsets the day count is off by one in early-morning local time (and negative on the stocking day before ~05:30 local). DOC (days of culture) drives feed-rate and growth advice. The repo already has toLocalISODate (utils/localDate.ts) created to avoid exactly this UTC-vs-local bug, but computeDOC ignores it.",
+    "fix": "Compute the difference from local calendar dates (build both dates from local Y/M/D, or diff todayLocalISODate() vs stockingDate), not raw UTC-parsed timestamps.",
+    "lens": "fe-infra",
+    "id": 84,
+    "note": "Reproduced in TZ=Asia/Kolkata: new Date('YYYY-MM-DD') is UTC midnight diffed vs local now \u2192 DOC=6 vs true 7 at 03:00 IST. localDate.ts helper exists and is ignored. MEDIUM correct."
+  },
+  {
+    "severity": "HIGH",
+    "area": "permissions / store",
+    "location": "frontend/src/store/membershipStore.ts:33",
+    "issue": "roleForFarm returns null for a farm the user OWNS: backend GET /farm-members/mine (listMine) only returns explicit farm_member rows, and farms.service.create never inserts an owner membership row (backend/src/farms/farms.service.ts:84-102), so the farm creator has no row. usePermissions then denies canViewFinancials, canManageOperations, canManageMembers and all owner actions to the owner on their own farm (hidden at HomeScreen.tsx:89/222, PondDashboardScreen.tsx:456). The doc comment at membershipStore.ts:9-10 claims 'Owner is the safe default for the legacy single-user case' but the code returns null. Backend getRoleOnFarm correctly returns 'owner' via farm.userId (backend/src/farm-access/farm-access.service.ts:71); the frontend has no such fallback.",
+    "fix": "Inject 'owner' for farms the user owns \u2014 have backend listMine also return owned farms as role 'owner', or merge owned-farm ids into memberships and return 'owner' from roleForFarm.",
+    "lens": "fe-infra",
+    "id": 81,
+    "note": "farms.service.create (84-101) saves only the farm; owner farm_member row is backfilled only by one-time migration 1780300700000. Every farm created afterward has no owner row \u2192 listMine omits it \u2192 roleForFarm null \u2192 financials/ops/members hidden from owner (Home 89/222, PondDashboard 456). Frontend lacks backend's farm.userId fallback."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "offline sync",
+    "location": "frontend/src/store/syncStore.ts:163",
+    "issue": "drainQueue counts transient failures toward MAX_SYNC_RETRIES. replayQueuedOp returns 'retry' for network/timeout, 5xx, and 401/403 (recordSync.ts:75-77); only 400/422 return 'failed'. Since poison ops (400/422) are parked immediately and never ping-pong, the retry cap only ever fires on transient failures of VALID records. During an extended server outage or 5 flaky reconnects, legitimate queued records are parked in failedOperations and surfaced as 'records need attention', contradicting the SYNC-3 comment (syncStore.ts:12-15) that the cap exists for poison ops.",
+    "fix": "Only increment retryCount for 'failed'/unexpected outcomes; do not consume the cap on pure connectivity failures (outcome 'retry' with no HTTP status).",
+    "lens": "fe-infra",
+    "id": 83,
+    "note": "replayQueuedOp parks 400/422 immediately as 'failed'; only transient 'retry' outcomes consume MAX_SYNC_RETRIES, so cap only bites valid records during outage \u2014 contradicts SYNC-3 poison-op rationale. Real, but records are surfaced+user-retryable (no data loss), so MEDIUM not HIGH."
+  },
+  {
+    "severity": "LOW",
+    "area": "Doc claim vs reality",
+    "location": "LAUNCH_REMEDIATION.md:11",
+    "issue": "Doc states \"...`tsc --noEmit` clean, backend lint clean.\" tsc is clean, but backend lint is NOT clean: eslint reports 1042 errors (exit 1). The 'backend lint clean' claim is false.",
+    "fix": "Either make lint actually clean, or correct the sentence to reflect the real lint state.",
+    "lens": "gates",
+    "id": 97,
+    "note": "eslint on project glob (4GB heap) = 1063 errors, exit 1; 'backend lint clean' is false (tsc claim is true). Doc-only inaccuracy in launch doc \u2014 LOW."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Auth mirror trigger \u2014 no DELETE sync",
+    "location": "supabase_setup.sql:114",
+    "issue": "The auth->public.users mirror installs only INSERT (on_auth_user_created) and UPDATE (on_auth_user_updated) triggers. public.users.id has no FK to auth.users, so deleting a user directly in Supabase (dashboard/admin GDPR delete, bypassing the app's deleteAccount) removes auth.users but leaves an orphaned public.users row plus all their farms/ponds/crops/logs forever, and a later re-signup with the same email hits the UNIQUE(email) constraint inside the trigger INSERT (which conflicts only on id, baseline line 8/94) and fails.",
+    "fix": "Add an AFTER DELETE ON auth.users trigger that runs DELETE FROM public.users WHERE id = OLD.id.",
+    "lens": "db-data",
+    "id": 104,
+    "note": "public.users has UNIQUE(email)+PK(id), no FK to auth.users (baseline:8); setup SQL installs only INSERT/UPDATE triggers with ON CONFLICT(id). Direct auth delete orphans public.users+farms; same-email re-signup gets new id \u2192 email UNIQUE violation in trigger INSERT \u2192 signup fails. MEDIUM correct."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Dependencies / two libs same job, one unused",
+    "location": "backend/package.json:29",
+    "issue": "@getbrevo/brevo SDK is declared as a prod dependency but email.service.ts calls the Brevo REST endpoint directly with fetch and never imports the SDK; the SDK is unused dead weight alongside the also-unused nodemailer.",
+    "fix": "Remove @getbrevo/brevo from backend/package.json dependencies.",
+    "lens": "dependencies",
+    "id": 164,
+    "note": "@getbrevo/brevo (line 29) imported nowhere in backend; email.service.ts sends via Brevo REST, SDK is dead weight."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Dependencies / known vulns (backend)",
+    "location": "backend/package.json:34",
+    "issue": "npm audit --omit=dev on installed backend tree reports 18 HIGH vulns in the prod runtime, including @nestjs/core injection (GHSA-36xv-jgw5-4q75), @nestjs/platform-express (vulnerable multer + path-to-regexp ReDoS), and ws uninitialized-memory disclosure (GHSA-58qx-3vcg-4xpx); all have fixAvailable.",
+    "fix": "Run `npm audit fix` in backend/ to bump @nestjs/core, @nestjs/platform-express and ws to patched versions.",
+    "lens": "dependencies",
+    "id": 161,
+    "note": "npm audit --omit=dev: 18 high (incl. @nestjs/core path-to-regexp, @nestjs/platform-express multer+path-to-regexp, ws uninit-memory), all fixAvailable=true. GHSA for @nestjs/core is path-to-regexp ReDoS not 'injection' but count/impact hold."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Dependencies / unused heavy dep",
+    "location": "backend/package.json:42",
+    "issue": "argon2 (a native-compiled dependency) is declared but never imported in any .ts file; password hashing everywhere uses bcrypt. Unused native build cost with no runtime consumer.",
+    "fix": "Remove argon2 from backend/package.json (bcrypt is the actual hasher).",
+    "lens": "dependencies",
+    "id": 163,
+    "note": "argon2 (line 42) imported nowhere; bcrypt is the actual hasher. Unused native build."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Dependencies / unused heavy dep",
+    "location": "backend/package.json:52",
+    "issue": "nodemailer is declared as a prod dependency but is never imported anywhere in the repo (email.service.ts sends via raw fetch to the Brevo HTTP API); dead weight shipped in the production bundle.",
+    "fix": "Remove nodemailer from backend/package.json dependencies.",
+    "lens": "dependencies",
+    "id": 162,
+    "note": "nodemailer (line 52) imported nowhere in backend .ts; email goes via raw fetch to Brevo. Dead dep."
+  },
+  {
+    "severity": "LOW",
+    "area": "Dependencies / unused direct dep",
+    "location": "backend/package.json:61",
+    "issue": "ua-parser-js is a direct prod dependency (and flagged for a ReDoS advisory GHSA-9h5v-pfqq-x599) but is never imported anywhere in backend src; it ships and adds attack surface for no consumer.",
+    "fix": "Remove ua-parser-js from backend/package.json (or if device parsing is intended, wire it up and run npm audit fix).",
+    "lens": "dependencies",
+    "id": 165,
+    "note": "ua-parser-js (line 61) imported nowhere; audit confirms moderate ReDoS advisory. Unused attack surface."
+  },
+  {
+    "severity": "LOW",
+    "area": "Dependencies / unused dep + misplaced types",
+    "location": "backend/package.json:62",
+    "issue": "zxcvbn (runtime dep, line 62) and its @types/zxcvbn (line 41) are never imported in any backend .ts file, and @types/zxcvbn is additionally misplaced in dependencies instead of devDependencies.",
+    "fix": "Remove zxcvbn and @types/zxcvbn from backend/package.json.",
+    "lens": "dependencies",
+    "id": 166,
+    "note": "zxcvbn (line 62) and @types/zxcvbn (line 41) imported nowhere; @types/zxcvbn is in dependencies, misplaced (should be devDependencies)."
+  },
+  {
+    "severity": "LOW",
+    "area": "Dependencies / redundant deprecated types",
+    "location": "backend/package.json:76",
+    "issue": "@types/otplib@10.0.0 is a deprecated stub types package, but the installed otplib@12 ships its own type definitions (node_modules/otplib/index.d.ts), making @types/otplib redundant and stale against the real API.",
+    "fix": "Remove @types/otplib from backend/package.json devDependencies.",
+    "lens": "dependencies",
+    "id": 168,
+    "note": "otplib@12.0.1 declares its own types (package.json types: ./index.d.ts, node_modules/otplib/index.d.ts present); @types/otplib@10 stub is redundant/stale."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "N+1 query",
+    "location": "backend/src/alert-center/engine-alert.service.ts:145",
+    "issue": "liveBriefing (endpoint GET alert-center live briefing) sequentially awaits pondContext.getContext(p.id, userId) inside a for-of over all active ponds; each getContext fires ~6 DB queries, so an N-pond farm serializes ~6N round-trips.",
+    "fix": "Replace the for loop with await Promise.all(mine.map(p => getContext(p.id, userId))) to fan out per-pond context fetches.",
+    "lens": "resource-leaks",
+    "id": 143,
+    "note": "liveBriefing lines 145-152: for-of with per-pond `await getContext` serializes all active-pond context fetches. Note: naive Promise.all fan-out would hammer the max=5 pool; batch it."
+  },
+  {
+    "severity": "LOW",
+    "area": "Ops \u2014 silent misconfig fallback in production",
+    "location": "backend/src/app.module.ts:76",
+    "issue": "When DATABASE_URL is unset the code logs a warning via console.error and silently falls back to a localhost Postgres connection even in production, masking the misconfiguration behind a generic connection error instead of failing fast at boot.",
+    "fix": "Throw at startup when NODE_ENV==='production' and DATABASE_URL is missing, rather than falling back to localhost.",
+    "lens": "observability",
+    "id": 154,
+    "note": "app.module.ts:75-77 console.error then proceeds with url:undefined -> localhost defaults; no fail-fast in production. LOW correct."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Concurrency \u2014 single-use backup code double-use / lost update",
+    "location": "backend/src/auth/two-factor.service.ts:181",
+    "issue": "verifyCodeOrBackup reads user.backupCodes, splices the matched code in memory, and saves the whole array (findOneBy -> splice -> save). Two concurrent 2FA challenges submitting the SAME backup code both read the array, both bcrypt.compare true, both splice+save -> the single-use recovery code is accepted twice. Concurrent logins using two DIFFERENT backup codes also lose one consumption because save() overwrites the entire array with each request's stale copy, restoring an already-used code.",
+    "fix": "Consume the code atomically: run the compare+removal inside a transaction with SELECT ... FOR UPDATE on the user row (or store hashes in a backup_codes table with a unique row deleted via a single guarded DELETE returning affected>0).",
+    "lens": "concurrency",
+    "id": 126,
+    "note": "two-factor.service.ts:178-185 findOneBy->splice->save with no lock/transaction; same-code double-use and different-code lost-update both real."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Observability \u2014 no error tracking (backend)",
+    "location": "backend/src/common/filters/typeorm-exception.filter.ts:11",
+    "issue": "The only global exception filter is `@Catch(QueryFailedError)` and logs to console only; all non-DB exceptions and 500s bypass it (handled by Nest's default logger with no route/context) and nothing is reported to any external tracker, so production backend errors are invisible for a pre-launch service.",
+    "fix": "Add a catch-all `@Catch()` ExceptionFilter that logs request context and calls Sentry.captureException, and register it globally in main.ts.",
+    "lens": "observability",
+    "id": 150,
+    "note": "main.ts:50 registers only TypeORMExceptionFilter (@Catch(QueryFailedError)); no catch-all filter and no Sentry/tracker in repo."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Concurrency \u2014 double cycle close / duplicate harvest records",
+    "location": "backend/src/crops/crops.service.ts:218",
+    "issue": "closeCycle unconditionally sets status='completed' with no precheck that the crop is still open, and harvests.create (harvests.service.ts:23) triggers it for every 'full' harvest. A double-submitted or concurrently-replayed full-harvest creates two harvest rows and closes the cycle twice, double-counting yield/revenue in reports and P&L.",
+    "fix": "Make close idempotent: update with a guard `WHERE id=:id AND status <> 'completed'` and throw ConflictException when affected===0, so the second close (and its duplicate harvest) is rejected.",
+    "lens": "concurrency",
+    "id": 129,
+    "note": "closeCycle:218 unconditional update to status='completed'; harvests.service.ts:23 calls it on every 'full' harvest with no idempotency guard."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Concurrency \u2014 two active cycles per pond (check-then-act, no constraint)",
+    "location": "backend/src/crops/crops.service.ts:25",
+    "issue": "create() checks pond.activeCycleId then, later (line 78), sets it. There is no DB constraint enforcing one active crop per pond, so two concurrent CreateCycle requests for the same pond both read activeCycleId=null, both pass the ConflictException guard, both create 'active' crops, and both call pond.update (last write wins). The pond ends with two active cycles, breaking DOC/stocking-density/P&L invariants.",
+    "fix": "Add a partial unique index (one crop with status='active' per pond_id) so the second insert fails, or wrap the check+set in a transaction that locks the pond row (SELECT ... FOR UPDATE).",
+    "lens": "concurrency",
+    "id": 128,
+    "note": "create() check at :25-32, set at :77-83; no unique index in crop.entity.ts enforcing one active cycle per pond; check-then-act race real."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Unbounded array input",
+    "location": "backend/src/disease/dto/create-disease.dto.ts:18",
+    "issue": "commonNames/symptoms/preventionMeasures/treatmentRecommendations/imageUrls/photoUrls are all @IsArray() with no @ArrayMaxSize, allowing oversized arrays to be stored.",
+    "fix": "Add @ArrayMaxSize(50) plus @MaxLength on each element to every array field in this DTO.",
+    "lens": "abuse-limits",
+    "id": 135,
+    "note": "create-disease.dto.ts arrays commonNames/symptoms/preventionMeasures/treatmentRecommendations/imageUrls/photoUrls (and photoUrls in CreateDiseaseRecordDto) have @IsArray with no @ArrayMaxSize/@MaxLength."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "N+1 query",
+    "location": "backend/src/farm-access/farm-access.service.ts:122",
+    "issue": "getFarmIdsWithCapability loops over every accessible farm id and calls getRoleOnFarm(userId, farmId) per iteration, each doing 1-2 DB queries (farm_members findOne + farms findOne fallback); called by transactions list (transactions.service.ts:41) and reports, so query count scales linearly with farm count.",
+    "fix": "Load all farm_members rows for the user once and resolve roles from that map instead of a per-farm getRoleOnFarm call.",
+    "lens": "resource-leaks",
+    "id": 142,
+    "note": "getFarmIdsWithCapability (lines 120-126) loops accessibleIds and calls getRoleOnFarm per farm, each doing membersRepo.findOne + fallback farmsRepo.findOne; getAccessibleFarmIds already loaded the member rows, so this re-queries redundantly. Called by transactions.service.ts:41. Real N+1."
+  },
+  {
+    "severity": "LOW",
+    "area": "Missing string length limit",
+    "location": "backend/src/farms/dto/create-farm.dto.ts:16",
+    "issue": "name (and other string fields at lines 19/27/50/57) have no @MaxLength; a 1MB farm name is accepted and stored, and re-served in every farm list.",
+    "fix": "Add @MaxLength(120) on name and reasonable caps on the other string fields.",
+    "lens": "abuse-limits",
+    "id": 138,
+    "note": "name (line 16) and other string fields have no @MaxLength \u2014 confirmed. But default ~100kb body limit caps input, so the '1MB name' figure is overstated; genuine missing field cap, LOW."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Unbounded array input (DoS)",
+    "location": "backend/src/farms/dto/create-farm.dto.ts:54",
+    "issue": "boundary: {latitude,longitude}[] is @IsArray() with no size cap and no @ValidateNested, so a huge coordinate array is accepted, validated loosely, and stored as JSON on the farm row.",
+    "fix": "Add @ArrayMaxSize(1000) and @ValidateNested({each:true}) with a typed coordinate class.",
+    "lens": "abuse-limits",
+    "id": 133,
+    "note": "boundary (lines 54-55) is @IsArray with no @ArrayMaxSize and no @ValidateNested \u2014 confirmed. DoS bounded by default ~100kb body limit, so HIGH is overstated; nested objects pass unvalidated into stored JSON. MEDIUM."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "missing index",
+    "location": "backend/src/feeding-tray-checks/feeding-tray-check.entity.ts:18",
+    "issue": "cropId column has no @Index, but it is the query filter in feeding-tray-checks.service.ts:60 (WHERE ftc.cropId) and pond-context.service.ts (trayRepo.findOne WHERE cropId ORDER BY checkDate), unindexed on a per-request hot path.",
+    "fix": "Add @Index() to the cropId column of feeding_tray_checks.",
+    "lens": "resource-leaks",
+    "id": 146,
+    "note": "cropId column (line 17) has no @Index; ManyToOne/FK does not auto-index in Postgres. Used as filter predicate in feeding-tray-checks.service.ts:60 (andWhere ftc.cropId) and pond-context findOne. Legitimate missing index, MEDIUM."
+  },
+  {
+    "severity": "LOW",
+    "area": "Unbounded array input",
+    "location": "backend/src/india/dto/compute-economics.dto.ts:33",
+    "issue": "priceBands array feeds an economics computation but has no @ArrayMaxSize; a large array forces an unbounded compute loop per request.",
+    "fix": "Add @ArrayMaxSize(50) to priceBands.",
+    "lens": "abuse-limits",
+    "id": 136,
+    "note": "priceBands (line 33) has @ValidateNested + @Type but no @ArrayMaxSize \u2014 confirmed. Unbounded loop is real but bounded by ~100kb body limit (thousands of entries max), so MEDIUM overstated. LOW."
+  },
+  {
+    "severity": "LOW",
+    "area": "Widespread missing input caps",
+    "location": "backend/src/main.ts:44",
+    "issue": "Only 3 of 88 DTOs use @MaxLength and the global ValidationPipe sets no default length or array bound, so every unlisted string/array field is an unbounded-input surface; whitelist:true only strips unknown keys, it does not cap sizes.",
+    "fix": "Adopt a shared base DTO or a project rule adding @MaxLength/@ArrayMaxSize to every string/array field; audit the remaining 85 DTOs.",
+    "lens": "abuse-limits",
+    "id": 141,
+    "note": "Verified: 3 DTO files use @MaxLength, 1 uses @ArrayMaxSize, out of 88 DTO files; ValidationPipe (main.ts:42-48) sets whitelist/transform only, no default length/array caps. whitelist strips unknown keys, does not cap sizes. Systemic observation accurate. LOW."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "N+1 query",
+    "location": "backend/src/measurement/measurement.service.ts:118",
+    "issue": "createBatch (offline-sync ingest) processes items in a sequential for loop; each item's create() re-runs pondsService.findOne ownership check + deriveDoc + dictionary.validate, plus a duplicate findOne in the loop, so a batch of N readings for the same pond issues ~4N sequential queries with repeated identical ownership lookups.",
+    "fix": "Resolve pond ownership once per distinct pondId across the batch (cache the findOne result) instead of re-verifying inside every create().",
+    "lens": "resource-leaks",
+    "id": 144,
+    "note": "createBatch loops sequentially; create() re-runs pondsService.findOne ownership + dictionary.validate + deriveDoc per item, plus redundant findOne at line 122. Real per-batch repeated ownership lookups."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Unbounded array input (DoS)",
+    "location": "backend/src/mortality/dto/create-mortality-record.dto.ts:43",
+    "issue": "images: string[] has @IsArray()/@IsString({each:true}) but no @ArrayMaxSize, so a request can carry an unbounded number of unbounded strings that are persisted to the row.",
+    "fix": "Add @ArrayMaxSize(20) and @MaxLength(500,{each:true}).",
+    "lens": "abuse-limits",
+    "id": 132,
+    "note": "images has no @ArrayMaxSize/@MaxLength, persisted to jsonb. Real, but no custom body limit means Express default ~100KB caps worst-case payload -> MEDIUM not HIGH."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Unbounded array input (DoS)",
+    "location": "backend/src/ponds/dto/create-pond.dto.ts:111",
+    "issue": "boundary array on pond creation has no @ArrayMaxSize and no element validation; unbounded polygon points can be posted and persisted.",
+    "fix": "Add @ArrayMaxSize(1000) and @ValidateNested({each:true}).",
+    "lens": "abuse-limits",
+    "id": 134,
+    "note": "boundary has only @IsArray; no @ArrayMaxSize and no @ValidateNested (element shape unvalidated), persisted to jsonb col (pond.entity.ts:143). ~100KB default body cap bounds DoS -> MEDIUM."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "missing index",
+    "location": "backend/src/ponds/pond-dimension-history.entity.ts:17",
+    "issue": "pondId column has no @Index, but getDimensionHistory (ponds.service.ts:374) queries findAndCount WHERE pondId ORDER BY changedAt on this table, forcing a full scan as history grows.",
+    "fix": "Add @Index(['pondId','changedAt']) (or @Index() on pondId) to pond_dimension_history.",
+    "lens": "resource-leaks",
+    "id": 145,
+    "note": "pond_dimension_history.pond_id has FK only (Postgres does not auto-index FKs) and no @Index; getDimensionHistory does findAndCount WHERE pondId ORDER BY changedAt (ponds.service.ts:384). Confirmed missing index."
+  },
+  {
+    "severity": "LOW",
+    "area": "Account deletion \u2014 no re-authentication",
+    "location": "backend/src/profiles/profiles.controller.ts:85",
+    "issue": "DeleteAccountDto (backend/src/auth/dto/delete-account.dto.ts) defines an optional password field intended for re-auth before this destructive action, but deleteMe() takes no @Body and never verifies a password or re-checks the session \u2014 any live session token silently permanently deletes the account with no confirmation step server-side.",
+    "fix": "Either accept @Body() DeleteAccountDto and verify the password/recent-login via supabaseAuthService before deleting, or delete the unused DeleteAccountDto to avoid implying a guard that does not exist.",
+    "lens": "lifecycle",
+    "id": 172,
+    "note": "DeleteAccountDto (optional password) exists but deleteMe() takes no @Body and does no password/re-auth check before destructive delete. Confirmed LOW."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Account deletion \u2014 residual user data",
+    "location": "backend/src/profiles/profiles.service.ts:119",
+    "issue": "deleteAccount only runs DELETE FROM users + DELETE FROM profiles and relies on ON DELETE CASCADE, but the credit_ledgers table (dealer name, principal, interest, repaid amounts, keyed by user_id) has NO foreign key at all \u2014 the migration explicitly states \"No foreign keys (user-scoped)\" (backend/src/migrations/1780300500000-CreateCreditLedgers.ts:4, entity backend/src/credit/credit-ledger.entity.ts:21). So every deleted user's financial/debt records survive indefinitely as orphaned rows, contradicting ACCOUNT_DELETION.md:12 (\"permanently deletes... all farm data you own\") and PRIVACY_POLICY.md:42 (\"permanently removes your account and owned data\").",
+    "fix": "Add `await manager.query('DELETE FROM credit_ledgers WHERE user_id = $1', [userId])` inside the deletion transaction (or add a user_id FK with ON DELETE CASCADE to credit_ledgers).",
+    "lens": "lifecycle",
+    "id": 170,
+    "note": "deleteAccount deletes only users+profiles; credit_ledgers has NO FK (entity + migration confirm) and is never deleted -> orphaned financial rows survive. Confirmed HIGH."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Account deletion \u2014 zombie auth identity",
+    "location": "backend/src/profiles/profiles.service.ts:126",
+    "issue": "Supabase auth-user deletion is wrapped in a try/catch that only logs on failure, so the endpoint returns 204 and the frontend clears the session even when the auth identity was NOT removed. The local users row is already gone, but the surviving auth.users record still permits sign-in; the next login updates auth.users (last_sign_in_at), firing the on_auth_user_updated trigger (supabase_setup.sql:114) which re-INSERTs a fresh empty public.users row. Result: data wiped but the account is still signable \u2014 violating the doc promise that deletion is \"immediate and irreversible\" and removes the \"authentication identity\" (docs/legal/ACCOUNT_DELETION.md).",
+    "fix": "Delete the Supabase auth user FIRST and let its failure propagate (throw) so the request fails before local data is wiped, or re-throw on auth deletion failure so the client learns the account was not fully deleted.",
+    "lens": "lifecycle",
+    "id": 171,
+    "note": "Supabase deleteUser wrapped in try/catch that only logs, endpoint returns 204 after local wipe; on_auth_user_updated trigger (AFTER UPDATE auth.users) re-INSERTs public.users on next sign-in. Account still signable. Confirmed HIGH."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Unvalidated request body",
+    "location": "backend/src/push/push.controller.ts:16",
+    "issue": "register uses @Body() body: { token: string } \u2014 an inline TS type, not a class, so the global ValidationPipe skips it entirely; token is completely unvalidated (missing, huge string, array, or object) and passed straight to registerToken and stored.",
+    "fix": "Introduce a RegisterTokenDto class with @IsString() @IsNotEmpty() @MaxLength(256) token and use it as the @Body type.",
+    "lens": "abuse-limits",
+    "id": 140,
+    "note": "Inline type {token:string} has no class-validator metadata; ValidationPipe (whitelist/transform) cannot validate it. token flows unchecked into usersRepository.update pushToken."
+  },
+  {
+    "severity": "CRITICAL",
+    "area": "Caching & staleness (cross-tenant read on cached endpoint)",
+    "location": "backend/src/reports/reports.controller.ts:22",
+    "issue": "getDashboardSummary passes an arbitrary client-supplied farmId straight into the service with no farm-access check (reports.service.ts:33 also omits assertCanAccessFarm). Any authenticated user can request any farmId and read that farm's activePondsCount/totalPondsCount/lowStockAlerts/todayFeedUsage \u2014 a cross-tenant leak, and the result is then cached under dashboard_summary:<attackerUserId>:<victimFarmId>.",
+    "fix": "Call this.farmAccess.assertCanAccessFarm(userId, farmId, 'VIEW_DASHBOARD') at the top of getDashboardSummary before querying or caching.",
+    "lens": "caching-state",
+    "id": 156,
+    "note": "getDashboardSummary omits assertCanAccessFarm; countActivePonds/countTotalPonds/countLowStock/getDailyFeedUsage all query by farmId with no access check. Sibling getFinancialReport has the check. Real cross-tenant leak."
+  },
+  {
+    "severity": "LOW",
+    "area": "Caching & staleness (stale cache after writes)",
+    "location": "backend/src/reports/reports.service.ts:67",
+    "issue": "getDashboardSummary caches the summary for 300s but no write path (feed record create, pond create/status change, inventory adjustment) invalidates dashboard_summary:<userId>:<farmId>. After a farmer logs feed or adds a pond, the home dashboard keeps showing stale activePondsCount/lowStockAlerts/todayFeedUsage for up to 5 minutes.",
+    "fix": "On feed/pond/inventory writes for a farm, call redisService.del(`dashboard_summary:${userId}:${farmId}`) (or key the cache without userId and invalidate on write).",
+    "lens": "caching-state",
+    "id": 158,
+    "note": "Only dashboard_summary reference is the set; no del/invalidation exists. But this is an intentional 300s TTL cache \u2014 staleness within TTL is expected, not a defect; severity overstated."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Missing string length limit",
+    "location": "backend/src/sampling/dto/create-sampling.dto.ts:57",
+    "issue": "notes is @IsString() @IsOptional() with no @MaxLength, allowing arbitrarily large notes blobs per sampling record.",
+    "fix": "Add @MaxLength(2000) on notes.",
+    "lens": "abuse-limits",
+    "id": 139,
+    "note": "notes is @IsString() @IsOptional() with no @MaxLength at line 56-58."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Unbounded array input (DoS)",
+    "location": "backend/src/sampling/dto/create-sampling.dto.ts:60",
+    "issue": "photoUrls is @IsArray() with no @ArrayMaxSize and no per-element validation; an authenticated client can POST a multi-million-element array (and arbitrary-typed elements) that gets held in memory and persisted, OOM-ing the Node process.",
+    "fix": "Add @ArrayMaxSize(20) and @IsString({each:true}) @MaxLength(500,{each:true}) like measurement's create DTO already does.",
+    "lens": "abuse-limits",
+    "id": 131,
+    "note": "photoUrls has no @ArrayMaxSize/each-element validation (real gap). But no raised body limit in main.ts, so Express default 100kb cap prevents multi-million-element OOM; HIGH DoS overstated."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Missing string length limit",
+    "location": "backend/src/tasks/dto/create-task.dto.ts:30",
+    "issue": "title and description are @IsString() with no @MaxLength; a client can persist multi-MB task titles/descriptions, bloating storage and list responses. Global ValidationPipe does not enforce any default length.",
+    "fix": "Add @MaxLength(200) on title and @MaxLength(2000) on description.",
+    "lens": "abuse-limits",
+    "id": 137,
+    "note": "title and description (lines 29-34) are @IsString() with no @MaxLength."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Observability \u2014 error logged then swallowed",
+    "location": "backend/src/water-quality/water-quality.service.ts:149",
+    "issue": "Water-quality alert creation failures are caught and written with raw `console.error` then swallowed (no injected Logger, no re-raise, no alerting), so critical pH/DO/ammonia alerts can silently never fire and no one is notified.",
+    "fix": "Replace console.error with the injected Nest Logger, report via the crash tracker, and surface a counter/metric so silent alert-creation failures are visible.",
+    "lens": "observability",
+    "id": 153,
+    "note": "Alert-creation errors caught and console.error'd then swallowed (line 148-150); WaterQualityService injects no Logger, no re-raise, no metric. Alerts can silently fail to fire."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Dependencies / known vulns (frontend)",
+    "location": "frontend/package.json:13",
+    "issue": "npm audit --omit=dev on installed frontend tree reports 33 vulns including 1 CRITICAL shell-quote (GHSA-w7jw-789q-3m8p, via expo tooling) and multiple HIGH @xmldom/xmldom XML-injection/DoS advisories (GHSA-wh4c-j3r5-mjhp et al) pulled in through the pinned @dhana-cs/react-native-truecaller fork's bundled @expo/config-plugins/@expo/plist subtree; all show fixAvailable.",
+    "fix": "Run `npm audit fix` in frontend/, and drop or replace @dhana-cs/react-native-truecaller with an npm registry package that does not vendor an ancient @expo/config-plugins.",
+    "lens": "dependencies",
+    "id": 160,
+    "note": "npm audit --omit=dev returns exactly 33 vulns incl. critical shell-quote and high @xmldom/xmldom, @expo/config-plugins, @expo/plist, @dhana-cs fork; all fixAvailable. Location package.json:13 correct."
+  },
+  {
+    "severity": "LOW",
+    "area": "bundle bloat",
+    "location": "frontend/package.json:51",
+    "issue": "react-native-linear-gradient@2.8.3 is unused (no imports in frontend/src); expo-linear-gradient is the one actually used in 4 files, so this is a redundant duplicate gradient library.",
+    "fix": "Remove react-native-linear-gradient from dependencies.",
+    "lens": "resource-leaks",
+    "id": 148,
+    "note": "react-native-linear-gradient (line 51) has zero importers in src; expo-linear-gradient used in 4 files. Redundant."
+  },
+  {
+    "severity": "LOW",
+    "area": "Dependencies / duplicate lib same job",
+    "location": "frontend/package.json:51",
+    "issue": "react-native-linear-gradient is a prod dependency but every gradient usage in src imports LinearGradient from expo-linear-gradient (line 38); react-native-linear-gradient has zero importers, duplicating the same job with an extra native module.",
+    "fix": "Remove react-native-linear-gradient from frontend/package.json.",
+    "lens": "dependencies",
+    "id": 167,
+    "note": "Duplicate of 148; same fact verified \u2014 no react-native-linear-gradient imports, expo-linear-gradient (line 38) is the one used."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "bundle bloat",
+    "location": "frontend/package.json:52",
+    "issue": "react-native-maps@1.20.1 (heavyweight native module requiring Google Maps SDK linkage) is declared as a dependency but has zero imports/MapView usages anywhere under frontend/src, adding native binary size and build config for nothing.",
+    "fix": "Remove react-native-maps from dependencies.",
+    "lens": "resource-leaks",
+    "id": 147,
+    "note": "react-native-maps (line 52) has no imports/MapView usage anywhere in src; heavyweight native dep for nothing."
+  },
+  {
+    "severity": "LOW",
+    "area": "Dependencies / fragile patched fork",
+    "location": "frontend/patches/@dhana-cs+react-native-truecaller+1.0.3.patch:15",
+    "issue": "The patch-package patch hard-removes the TurboModule code path (`isTurboModuleEnabled ? require('./NativeTrueCallerSDK') : NativeModules...` replaced with a bare NativeModules lookup) in a third-party module, pinning the app to the legacy bridge; on RN 0.81 New Architecture builds this silently drops the native module and Truecaller login throws the LINKING_ERROR proxy.",
+    "fix": "Replace the vendored fork with a maintained Truecaller package or add a real TurboModule spec instead of deleting the branch via patch.",
+    "lens": "dependencies",
+    "id": 169,
+    "note": "Patch line 15 hardcodes NativeModules.TrueCallerModule, deleting the turbo branch; app.config.ts:13 newArchEnabled:true corroborates the risk. Exact device-build LINKING_ERROR outcome not runtime-verified but premise holds."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Concurrency \u2014 offline measurement queue lost write",
+    "location": "frontend/src/api/measurementSync.ts:54",
+    "issue": "flush() reads the queue snapshot, awaits the batch POST (seconds on mobile), then rewrites the queue with remaining = snapshot.filter(not-ok). Any reading captured during the in-flight POST is enqueued into the current store but is silently discarded when flush overwrites the queue with its stale snapshot. enqueue() (line 29) has the same read-push-write race against a concurrent flush or a second rapid capture.",
+    "fix": "After the POST, re-read the queue fresh and remove only the synced ids from it (writeQueue(freshQueue.filter(q => !syncedIds.has(q.id)))) instead of rewriting from the pre-POST snapshot; serialize flush/enqueue behind a mutex.",
+    "lens": "concurrency",
+    "id": 127,
+    "note": "flush reads snapshot (l45), awaits POST (l48), then writeQueue(remaining from stale snapshot) at l55 \u2014 any enqueue during the await is overwritten. Real lost-write TOCTOU."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Error boundary recovery",
+    "location": "frontend/src/components/ErrorBoundary.tsx:29",
+    "issue": "A single global ErrorBoundary wraps the whole NavigationContainer, and its \"Try Again\" only clears `hasError` without navigating away. A render crash in any deep screen tears down the entire nav stack, and resetting re-mounts the same crashing subtree, so the user is stuck in an immediate crash loop with no route to a safe screen.",
+    "fix": "On reset, reset navigation to a safe root route (e.g. call a passed `onReset` that navigates Home) instead of only clearing state, and/or add finer-grained boundaries around screen content.",
+    "lens": "ux-states",
+    "id": 178,
+    "note": "App.tsx:115 wraps whole NavigationContainer in one ErrorBoundary; handleReset (l30) only clears state, re-mounting the same route/subtree that crashes again \u2192 loop."
+  },
+  {
+    "severity": "LOW",
+    "area": "UI overlap \u2014 status banners",
+    "location": "frontend/src/components/ui/OfflineIndicator.tsx:129",
+    "issue": "OfflineIndicator (top: insets.top, zIndex 999) and SyncAttentionBanner (top: insets.top, zIndex 999) are both absolutely positioned at the identical top offset; when the device is offline AND records have failed to sync, the two banners render stacked on top of each other at the same coordinates.",
+    "fix": "Offset SyncAttentionBanner below the offline banner (or render only one at a time) when both conditions are active.",
+    "lens": "ux-states",
+    "id": 180,
+    "note": "Both mounted together in ScreenWrapper (lines 54-55); container top:insets.top zIndex999 and attention top:insets.top zIndex999 \u2014 offline+failed ops overlaps them exactly."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Offline / error state \u2014 main dashboard",
+    "location": "frontend/src/screens/main/HomeScreen.tsx:163",
+    "issue": "When the dashboard-summary fetch fails (offline or API error), `summary` stays null and the screen renders the first-run \"You have no farms \u2014 Create your first farm\" CTA. An existing owner who is offline or hits a transient API error is shown the onboarding empty state, indistinguishable from a genuinely empty account, and can be pushed to create a duplicate farm. Directly contradicts the README \"offline-tolerant\" claim for the primary screen.",
+    "fix": "Track a separate `error` state in the catch at line 48 and render an error/retry card (not the empty CTA) when the fetch failed rather than when the account is truly empty.",
+    "lens": "ux-states",
+    "id": 173,
+    "note": "Catch at 48-52 only console.error, summary stays null \u2192 else branch (163) shows owner 'create your first farm' CTA on any fetch failure. Real UX defect; downgraded to MEDIUM (no data loss, farm creation is a deliberate multi-step action)."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Pull-to-refresh \u2014 main dashboard",
+    "location": "frontend/src/screens/main/HomeScreen.tsx:55",
+    "issue": "The dashboard useEffect fetches once on mount / selectedFarm change with no focus listener and no RefreshControl, so after logging water quality/feed the home stats stay stale with no way to manually refresh \u2014 unlike FarmsList/History screens which all offer pull-to-refresh.",
+    "fix": "Wrap ScreenWrapper content refetch in a RefreshControl (or re-fetch on `navigation` focus) so the primary screen can be refreshed.",
+    "lens": "ux-states",
+    "id": 175,
+    "note": "fetchSummary runs only in useEffect deps [selectedFarm?.id]; ScreenWrapper ScrollView has no RefreshControl and no focus listener, so stats stay stale after logging."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Silent failure / error state",
+    "location": "frontend/src/screens/simulation/SimulationListScreen.tsx:22",
+    "issue": "fetchSimulations catches errors with only `console.log` and leaves the list empty, so a network/API failure renders the \"Create your first simulation\" empty state identical to a truly-empty list. No error surfaced to the user.",
+    "fix": "Add an `error` state in the catch and render an error+retry block in place of ListEmptyComponent when the load failed.",
+    "lens": "ux-states",
+    "id": 174,
+    "note": "Lines 22-23 catch only console.log; empty simulations renders same ListEmptyComponent as a truly-empty list. No error surfaced."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Accessibility \u2014 missing labels",
+    "location": "frontend/src/screens/simulation/SimulationListScreen.tsx:80",
+    "issue": "Icon-only controls (e.g. the arrow-left back button here) carry no accessibilityRole/accessibilityLabel; only 15 of ~77 interactive screens set any a11y props, so a screen reader announces nothing for back buttons, list rows and action icons app-wide.",
+    "fix": "Add `accessibilityRole=\"button\"` + a translated `accessibilityLabel` to icon-only TouchableOpacity controls, starting with the shared back-button pattern.",
+    "lens": "ux-states",
+    "id": 177,
+    "note": "Back-button TouchableOpacity lines 80-82 has no accessibilityRole/Label; icon-only control announces nothing."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Pull-to-refresh consistency",
+    "location": "frontend/src/screens/simulation/SimulationListScreen.tsx:92",
+    "issue": "SimulationListScreen, FeedingTrayChecksScreen and PondDimensionHistoryScreen render FlatLists of remotely-fetched data with no RefreshControl, while ~24 sibling list/history screens all provide pull-to-refresh \u2014 inconsistent gesture affordance across the app.",
+    "fix": "Add a RefreshControl bound to the existing fetch function on these three FlatLists to match the rest of the app.",
+    "lens": "ux-states",
+    "id": 176,
+    "note": "Confirmed none of the 3 named screens import RefreshControl while 29 sibling screens do \u2014 inconsistent affordance."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Caching & staleness (in-memory store not cleared on logout)",
+    "location": "frontend/src/store/authStore.ts:312",
+    "issue": "logout() never resets the in-memory notificationStore. notifications/unreadCount/unreadCriticalCount of user A persist after logout; on a shared device user B sees user A's notification list and unread badge (pond names, cycle IDs, bodies) until a refetch overwrites them.",
+    "fix": "In logout() call useNotificationStore.getState().clearAll().",
+    "lens": "caching-state",
+    "id": 157,
+    "note": "clearAll() has zero callers repo-wide; logout() (312) calls only clearSession(). notificationStore is in-memory zustand (no persist), so user A's notifications/badges survive logout until a refetch."
+  },
+  {
+    "severity": "CRITICAL",
+    "area": "Caching & staleness (frontend persisted/in-memory store)",
+    "location": "frontend/src/store/authStore.ts:327",
+    "issue": "logout() only calls clearSession() + TruecallerAuth.clear(); it never resets the in-memory activeFarmStore. selectedFarm/selectedPond/activeCycle/currentDOC (farm name, pond, species, seed count, feed price) survive logout. On a shared device, when user B logs in without an app restart, HomeScreen.tsx:37 reuses the still-truthy selectedFarm?.id (it only auto-picks a farm when unset) and calls getDashboardSummary with user A's farmId \u2014 user A's farm data is shown to user B.",
+    "fix": "In logout() (and clearSession()) call useActiveFarmStore.getState().clearAll() to drop the previous user's farm/pond/cycle context.",
+    "lens": "caching-state",
+    "id": 155,
+    "note": "logout()->clearSession() never clears in-memory activeFarmStore (clearAll exists at :78 but unused); HomeScreen:37 reuses stale selectedFarm.id, and backend getDashboardSummary (reports.service.ts:33) has NO farm-ownership check, so user B actually receives user A's farm data. Real cross-user leak, compounded by backend IDOR."
+  },
+  {
+    "severity": "LOW",
+    "area": "Caching & staleness (in-memory store not cleared on logout)",
+    "location": "frontend/src/store/uploadStore.ts:30",
+    "issue": "uploadStore has no reset and is never cleared on logout; user A's pending/failed photo-upload jobs (localUri + entityLocalId) carry into user B's session and can be retried/uploaded under user B's token, mis-attributing user A's local images.",
+    "fix": "Add a reset action to uploadStore and call it from authStore.logout().",
+    "lens": "caching-state",
+    "id": 159,
+    "note": "uploadStore is in-memory (no persist), has no reset action, and is not cleared by authStore.logout(); pending jobs (localUri/entityLocalId) survive into next user's session. LOW correct."
+  },
+  {
+    "severity": "IMPROVEMENT",
+    "area": "Dark mode \u2014 dead code / false support",
+    "location": "frontend/src/theme/colorRoles.ts:45",
+    "issue": "A full `dark` color-role palette is exported but never referenced anywhere; all 118 screens/components hardcode `theme.roles.light.*`, StatusBar is hardcoded `barStyle=\"dark-content\"`, and no `useColorScheme`/`Appearance` hook exists. index.ts:13's comment admits dark mode is not wired. The dark palette is unreachable dead flexibility.",
+    "fix": "Either delete the unused `dark` export or introduce a `useTheme()` hook driven by `useColorScheme()` and replace `roles.light` references with it.",
+    "lens": "ux-states",
+    "id": 179,
+    "note": "dark palette is dead for rendering: no useColorScheme/Appearance, StatusBar hardcoded dark-content, index.ts TODO admits not wired. Minor factual nit: it IS referenced in theme/index.ts (import + roles.dark), so 'never referenced anywhere' is inaccurate; it's unused dead flexibility, a cleanup not a defect."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Observability \u2014 no crash reporting (app)",
+    "location": "frontend/src/utils/reportError.ts:10",
+    "issue": "The single crash-report choke-point is console-only for a pre-launch consumer app; ErrorBoundary.componentDidCatch and every reportError() call just console.error, so no Sentry/Crashlytics DSN is wired and every crash on a real user device is invisible to the team.",
+    "fix": "Wire `Sentry.captureException(error, { extra: context })` here behind an EXPO_PUBLIC_SENTRY_DSN and add @sentry/react-native init before launch.",
+    "lens": "observability",
+    "id": 149,
+    "note": "reportError.ts:9-11 is console.error only; ErrorBoundary.componentDidCatch routes through reportError; no Sentry/Crashlytics DSN wired. Single choke-point confirmed. HIGH defensible for pre-launch consumer app."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Ops \u2014 no backend CI gate before auto-deploy",
+    "location": "render.yaml:11",
+    "issue": "`autoDeploy: true` ships every master commit straight to production, but no GitHub workflow runs backend tests, lint, or typecheck (the four workflows only build the APK and check doc links), so untested/broken backend code auto-deploys to prod.",
+    "fix": "Add a CI workflow that runs `cd backend && npm ci && npm run build && npm test` on push to master and require it before deploy.",
+    "lens": "observability",
+    "id": 152,
+    "note": "render.yaml:11 autoDeploy:true; backend has jest unit + e2e specs but the 4 workflows only build APKs and check doc links \u2014 none run backend build/test/lint before deploy."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Ops \u2014 free plan cold starts undocumented/unmitigated",
+    "location": "render.yaml:6",
+    "issue": "Service runs on Render `plan: free`, which spins the instance down after ~15 min idle so the first mobile request eats a ~50s cold-start boot; there is no keep-alive cron in render.yaml and OPERATIONS.md never mentions cold starts or a warm- up ping despite the app.module.ts DB comments acknowledging spin-down.",
+    "fix": "Add an external uptime ping (UptimeRobot/cron-job.org) hitting /api/health/liveness every ~10 min and document the cold-start behavior + mitigation in OPERATIONS \u00a71.",
+    "lens": "observability",
+    "id": 151,
+    "note": "render.yaml:6 plan:free with no cron/keep-alive; grep of docs/OPERATIONS.md returns zero cold-start/spin-down/warm-up mention. Confirmed unmitigated + undocumented."
+  },
+  {
+    "severity": "LOW",
+    "area": "CI / build workflow",
+    "location": ".github/workflows/android-build.yml:23",
+    "issue": "The APK build workflow runs `npm install -g expo-cli` (the legacy global CLI, deprecated and dropped for Expo SDK 46+) before `npx expo prebuild` on an SDK 54 project; the deprecated global CLI is unnecessary and its install/postinstall can fail the job.",
+    "fix": "Delete the `npm install -g expo-cli` step; `npx expo prebuild` already uses the local SDK-54 CLI.",
+    "lens": "completeness-critic",
+    "id": 212,
+    "note": "Redundant `npm install -g expo-cli` (legacy deprecated CLI) present at line 23 on an Expo SDK ~54.0.32 project; `npx expo prebuild` uses the local CLI. Real but low-impact CI hygiene/risk; location was 23 not 20."
+  },
+  {
+    "severity": "IMPROVEMENT",
+    "area": "git hygiene / IDE artifacts",
+    "location": ".kiro/specs/truecaller-auth/design.md:1",
+    "issue": "A Kiro IDE working-spec tree (11 files under .kiro/specs, including .config.kiro dotfiles and qa/gate-*.md) is committed to the repo; these are per-tool authoring artifacts, not shared docs, and duplicate the truecaller material already in docs/reference/.",
+    "fix": "Add `.kiro/` to .gitignore and git rm the tree, or fold any still-relevant content into docs/.",
+    "lens": "completeness-critic",
+    "id": 218,
+    "note": "11 .kiro/specs files are git-tracked (design.md:1 exists); .config.kiro dotfiles + qa/gate-*.md are per-tool authoring artifacts, .kiro not in .gitignore. IMPROVEMENT stands."
+  },
+  {
+    "severity": "LOW",
+    "area": "git hygiene / debris",
+    "location": "backend/output.txt:1",
+    "issue": "Captured run-output and one-off debug scripts are committed to the repo: backend/output.txt, backend/output_regression.txt (identical 2FA test logs), frontend/web_output.log (a Metro boot log), backend/test-email.js, backend/verify_2fa.mjs, backend/verify_link_endpoint.mjs \u2014 all localhost throwaway artifacts; .gitignore ignores auth-smoke.sh but leaves these tracked.",
+    "fix": "git rm these files and add `*output*.txt`, `web_output.log`, `verify_*.mjs`, `test-email.js` to .gitignore.",
+    "lens": "completeness-critic",
+    "id": 215,
+    "note": "backend/output.txt, output_regression.txt (differ only in a random TOTP secret), frontend/web_output.log, backend/test-email.js, verify_2fa.mjs, verify_link_endpoint.mjs all git-tracked; .gitignore ignores auth-smoke.sh but not these."
+  },
+  {
+    "severity": "LOW",
+    "area": "git hygiene / duplication",
+    "location": "backend/scripts/verify_2fa.ts:1",
+    "issue": "backend/scripts/verify_2fa.ts and backend/verify_2fa.mjs are the same manual 2FA smoke script duplicated in two locations, both pointing at hardcoded http://localhost:8080; only one (or neither) is needed.",
+    "fix": "Delete backend/verify_2fa.mjs and keep the scripts/ copy (or delete both \u2014 auth-smoke.sh already covers this).",
+    "lens": "completeness-critic",
+    "id": 216,
+    "note": "backend/scripts/verify_2fa.ts and backend/verify_2fa.mjs are the same 2FA smoke script (identical lines, both hardcode http://localhost:8080); both tracked. Duplicate confirmed."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Content & copy \u2014 untranslated core surface",
+    "location": "backend/src/alert-center/engine-alert.service.ts:60",
+    "issue": "App offers 6 languages (Hindi/Tamil/Telugu/Bengali/Odia) and localizes all UI strings, but the engine/Morning-Briefing alert titles, bodies and step lists ('Toxic ammonia', 'Stop or sharply reduce feeding', etc.) are hardcoded English in the backend and never pass through i18n, so a Tamil/Hindi user gets English alerts on a headline feature.",
+    "fix": "Return stable i18n keys + interpolation data from the alert engine and translate client-side, or localize per the user's language preference server-side.",
+    "lens": "copy-content",
+    "id": 185,
+    "note": "MorningBriefingScreen.tsx renders it.topTitle and it.steps raw (only chrome uses t()); alert titles/bodies/steps hardcoded English in engine-alert.service.ts; app ships en+hi/ta/te/bn/or. Localized users get English alerts."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Time & timezone \u2014 DOC day boundary",
+    "location": "backend/src/crops/crop.entity.ts:152",
+    "issue": "The `computedDOC` entity getter duplicates the same UTC-vs-IST DOC bug as crops.service.computeDOC (new Date(stockingDate) at UTC midnight vs now, floored), so any response serialized from the entity undercounts DOC by 1 during 00:00\u201305:30 IST \u2014 inconsistent with, and buggy alongside, the service path.",
+    "fix": "Delete the entity getter and use the (IST-corrected) service computeDOC as the single source, or apply the same toIstDateString-based calendar diff here.",
+    "lens": "time-timezone",
+    "id": 209,
+    "note": "crop.entity.ts computedDOC (used at pond-context.service.ts:382) floors UTC-instant minus UTC-midnight date; undercounts DOC by 1 during 00:00-05:30 IST, ignoring toIstDateString. Bug real; but finding's claim that service computeDOC is 'IST-corrected' is false \u2014 crops.service.computeDOC has the identical bug."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Time & timezone \u2014 DOC convention mismatch",
+    "location": "backend/src/crops/crop.entity.ts:156",
+    "issue": "Crop/entity DOC uses stocking-day = 0 (`diffDays + initialAgeDays`), but measurement.service.deriveDoc (backend/src/measurement/measurement.service.ts:248) uses stocking-day = 1 (`diffDays + 1`). The same pond therefore shows DOC N on the crop card and DOC N+1 in measurement history for the same day, a user-facing inconsistency.",
+    "fix": "Pick one convention (stocking day = 1 is standard for DOC) and apply it in both crops and measurement DOC computations.",
+    "lens": "time-timezone",
+    "id": 211,
+    "note": "crop/entity DOC = diffDays + initialAgeDays (stocking day 0); measurement.service.deriveDoc = diffDays + 1 (stocking day 1) and ignores initialAgeDays. Same pond/day shows differing DOC across surfaces. Confirmed user-facing inconsistency."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Time & timezone \u2014 DOC day boundary",
+    "location": "backend/src/crops/crops.service.ts:150",
+    "issue": "computeDOC parses the DATE column `stockingDate` ('YYYY-MM-DD') as UTC midnight and diffs it against `now` (absolute instant), then floors by 24h. For IST farmers this returns the UTC calendar-day count, so between 00:00\u201305:30 IST it undercounts DOC by 1 \u2014 exactly during the dawn pond check that drives feed tables and dosing. The repo already has `toIstDateString` for this but DOC was never migrated.",
+    "fix": "Compute DOC from IST calendar dates: `Math.floor((Date.parse(toIstDateString(now)) - Date.parse(String(crop.stockingDate))) / 86400000) + (crop.initialAgeDays||0)`.",
+    "lens": "time-timezone",
+    "id": 208,
+    "note": "crops.service.ts:149-153 parses DATE-typed stockingDate ('YYYY-MM-DD') as UTC midnight (=05:30 IST) and floors (now-stocked)/86400000; DOC ticks at 05:30 IST so 00:00-05:30 IST undercounts by 1. toIstDateString exists in common/ist-date.ts but DOC was never migrated. Same bug duplicated in crop.entity.ts:150-156."
+  },
+  {
+    "severity": "LOW",
+    "area": "backend DTO / crop name shape",
+    "location": "backend/src/crops/dto/create-crop.dto.ts:17",
+    "issue": "name is @IsString() only \u2014 an empty string '' (and unbounded 1000-char / emoji / RTL text) is accepted as a crop name, producing blank-named cycles in lists and reports.",
+    "fix": "Add @IsNotEmpty() and @MaxLength(120) to name.",
+    "lens": "edge-data",
+    "id": 195,
+    "note": "create-crop.dto.ts:16-17 name is @IsString() only; '' and unbounded/emoji/RTL accepted. LOW correct."
+  },
+  {
+    "severity": "HIGH",
+    "area": "backend DTO / crop stocking count",
+    "location": "backend/src/crops/dto/create-crop.dto.ts:37",
+    "issue": "stockingCount is @IsInt() @IsOptional() with NO @Min(0) (unlike totalSeed which has @Min(0)); a negative stockingCount is accepted and becomes the denominator for survival rate, stocking density and biomass back-estimates, yielding negative/garbage KPIs.",
+    "fix": "Add @Min(1) to stockingCount (and @Min(0) to stockingDensity on line 33).",
+    "lens": "edge-data",
+    "id": 190,
+    "note": "line 35-37 stockingCount @IsInt @IsOptional, no @Min; totalSeed (55) does have @Min(0). Negative value flows to stockingDensity=count/area (crops.service:39) and biomass=count*sr/100 (shrimp-calculations:85), yielding negative KPIs. pond-context:161 clamps its own use to >=0 but density/biomass paths do not."
+  },
+  {
+    "severity": "LOW",
+    "area": "backend DTO / SR upper bound",
+    "location": "backend/src/crops/dto/create-crop.dto.ts:81",
+    "issue": "targetSrPercent is @Min(0) with no @Max(100); a survival-rate target of 150% is accepted and propagates into expected-harvest/biomass projections as >100% survival.",
+    "fix": "Add @Max(100) to targetSrPercent.",
+    "lens": "edge-data",
+    "id": 196,
+    "note": "line 78-81 targetSrPercent @Min(0) with no @Max(100); 150% accepted. LOW correct."
+  },
+  {
+    "severity": "LOW",
+    "area": "Content & copy \u2014 date formatting for Indian users",
+    "location": "backend/src/email.service.ts:222",
+    "issue": "Password-changed security email interpolates `new Date().toLocaleString()` with no locale or timezone, so it renders the server's default (US 'M/D/YYYY, h:MM AM' in UTC) to Indian users instead of DD/MM/YYYY IST.",
+    "fix": "Use `new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })`.",
+    "lens": "copy-content",
+    "id": 183,
+    "note": "email.service.ts:222 new Date().toLocaleString() with no locale/timeZone args; renders server default (UTC on Render). Cosmetic-on-security-email; MEDIUM slightly high but defect is real."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Time & timezone \u2014 daily feed bucket",
+    "location": "backend/src/feed-records/feed-records.service.ts:171",
+    "issue": "getDailyFeedUsage builds the day window with `setHours(0,0,0,0)`/`setHours(23,59,59,999)`, which uses the server's local timezone. On Render the backend runs in UTC (no TZ env set), so the 'today' window is 05:30 IST\u219205:30 IST. Feed logged 00:00\u201305:30 IST (early-morning feeding) lands in yesterday, so the HomeScreen 'todayFeedUsage' stat (reports.service.ts:56) undercounts on dawn visits.",
+    "fix": "Bucket by IST: derive the day from `toIstDateString(date)` and query `recordedAt BETWEEN dayStartUTC AND dayEndUTC` where dayStartUTC = that IST date minus the 5:30 offset.",
+    "lens": "time-timezone",
+    "id": 210,
+    "note": "getDailyFeedUsage (feed-records.service.ts:168-187) builds window with setHours(0/23...) in server-local tz; called with new Date() from reports.service.ts:56. On UTC server the 'today' window is 05:30 IST->05:30 IST, so 00:00-05:30 IST feed undercounts todayFeedUsage."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "backend DTO / date bounds",
+    "location": "backend/src/harvests/dto/create-harvest.dto.ts:14",
+    "issue": "harvestDate is only @IsDateString with no upper bound or ordering against the crop's stockingDate; a future harvestDate is accepted and, for harvestType='full', written as actualHarvestDate by closeCycle \u2192 negative/absurd cycle length and DOC-based metrics.",
+    "fix": "Reject harvestDate in the future and before the crop stockingDate in HarvestsService.create (compare against crop.stockingDate / now).",
+    "lens": "edge-data",
+    "id": 193,
+    "note": "create-harvest.dto.ts:14 harvestDate @IsDateString only; HarvestsService.create (harvests.service.ts:19-31) does no future/ordering guard and passes harvestDate straight to closeCycle for harvestType='full'. Future/pre-stocking date accepted."
+  },
+  {
+    "severity": "HIGH",
+    "area": "backend DTO / harvest data-shape",
+    "location": "backend/src/harvests/dto/create-harvest.dto.ts:18",
+    "issue": "weightKg (and count, averageSize, salePriceTotal) are @IsNumber() with no @Min(0); POST /harvests with weightKg:-500 or 0 is persisted and, for harvestType='full', flows into closeCycle \u2192 corrupts FCR (feed/harvest), survival rate, biomass and P&L (negative/absurd yield). UpdateHarvestDto.weightKg is likewise unbounded.",
+    "fix": "Add @Min(0) to weightKg/count/averageSize/salePriceTotal in both create and update DTOs (weightKg @Min(0.01)).",
+    "lens": "edge-data",
+    "id": 189,
+    "note": "create-harvest.dto.ts weightKg/count/averageSize/salePriceTotal are @IsNumber with no @Min (update DTO same). Corruption path is via persisted weightKg feeding calculateFcr()/runningFcr()/biomass \u2014 NOT via closeCycle(), which only sets status=completed and unlinks the pond and never reads weightKg. Mechanism in the finding is inaccurate but the missing-bound defect and downstream FCR/analytics corruption are real. HIGH stands."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "backend calc / DOC derivation",
+    "location": "backend/src/measurement/measurement.service.ts:242",
+    "issue": "deriveDoc returns Math.floor((measuredAt - stocking)/day)+1 with no floor at 1; a measurement dated before the crop stockingDate (or a future stockingDate) yields a zero/negative DOC that mislabels every downstream trend/engine bucket.",
+    "fix": "Return diffDays < 0 ? null : diffDays + 1 (or clamp to 1).",
+    "lens": "edge-data",
+    "id": 194,
+    "note": "measurement.service.ts:248 returns diffDays+1 with no clamp; measuredAt before stockingDate yields zero/negative DOC. No caller guard."
+  },
+  {
+    "severity": "LOW",
+    "area": "backend DTO / sampling date & text bounds",
+    "location": "backend/src/sampling/dto/create-sampling.dto.ts:24 + sampling.service.ts:20",
+    "issue": "samplingDate is only @IsDateString (future dates accepted) and mbwG/notes have no @Max/@MaxLength, so a mid-cycle sampling can be dated in the future and notes can carry unbounded 1000-char/emoji text into reports.",
+    "fix": "Reject future samplingDate in SamplingService.create and add @MaxLength to notes / a sane @Max to mbwG.",
+    "lens": "edge-data",
+    "id": 198,
+    "note": "samplingDate is @IsDateString only, no future-date reject in SamplingService.create; notes has no @MaxLength; mbwG has @Min(0) but no @Max. All three sub-claims hold."
+  },
+  {
+    "severity": "LOW",
+    "area": "backend calc DTO / survival over 100%",
+    "location": "backend/src/shrimp-calculations/dto/calculation.dto.ts:22",
+    "issue": "CalculateSurvivalRateDto has no @Min and no cross-check that harvestedCount <= initialStock; POST /shrimp-calculations/survival-rate {initialStock:100, harvestedCount:250} returns survivalRatePercent:250, and negative inputs return negative SR.",
+    "fix": "Add @Min(0) to both fields and clamp survivalRate to <=100 (or reject harvestedCount > initialStock) in calculateSurvivalRate.",
+    "lens": "edge-data",
+    "id": 197,
+    "note": "CalculateSurvivalRateDto fields are @IsNumber with no @Min; calculateSurvivalRate (service:59) does (harvested/initial)*100 with no clamp \u2014 100/250 returns 250, negatives return negative."
+  },
+  {
+    "severity": "HIGH",
+    "area": "backend DTO / finance amount",
+    "location": "backend/src/transactions/dto/create-transaction.dto.ts:24",
+    "issue": "amount is @IsNumber() with no @Min, while type is constrained to income/expense (sign carried by type). A negative or 0 amount (e.g. type:'income', amount:-5000) is accepted and corrupts P&L totals. Inconsistent with CreateExpenseDto which correctly has @Min(0.01).",
+    "fix": "Add @Min(0.01) to amount.",
+    "lens": "edge-data",
+    "id": 191,
+    "note": "create-transaction.dto.ts amount is @IsNumber no @Min; sign carried by type income/expense. finances/dto/create-expense.dto.ts:27 has @Min(0.01), confirming the inconsistency. Negative/zero amount corrupts P&L totals."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "CI coverage",
+    "location": "CONTRIBUTING.md:66",
+    "issue": "CONTRIBUTING promises 'Green CI/local gates' and the security/test checklist, but the only CI workflows are docs link-check and on-demand APK builds \u2014 no workflow runs backend jest, frontend jest, or tsc, so test/typecheck regressions merge with nothing enforcing them.",
+    "fix": "Add a PR workflow that runs `cd backend && npm ci && npx tsc --noEmit && npm test` and `cd frontend && npm ci && npx tsc --noEmit && npx jest`.",
+    "lens": "completeness-critic",
+    "id": 213,
+    "note": "grep confirms no workflow runs jest/tsc/--noEmit. android-build*.y*ml are workflow_dispatch (on-demand APK), docs.yml runs on push to master only. No PR gate for backend/frontend tests or typecheck."
+  },
+  {
+    "severity": "LOW",
+    "area": "docs accuracy",
+    "location": "docs/reference/UPCHECK_FEATURE_MATRIX.md:30",
+    "issue": "The reference feature matrix cites specific source lines that have drifted and are now wrong: it claims delete-account cascade at profiles.service.ts:83 (actually username generation), migrations-don't-run at app.module.ts:120 (actually keepConnectionAlive; file is only 184 lines), and email verification at supabase-auth.controller.ts:434 (actually a Google-OAuth response block) \u2014 a live-looking reference doc with stale pointers.",
+    "fix": "Drop the hardcoded :line references (or move this Jun-16 teardown into docs/archive/ where FEATURES-legacy.md already lives).",
+    "lens": "completeness-critic",
+    "id": 214,
+    "note": "All three pointers are stale: doc :30 cites profiles.service.ts:83 for delete cascade but :83 is username generation; doc :129 cites app.module.ts:120 for migrations but :120 is keepConnectionAlive (migrationsRun:false is :117), file is 184 lines; doc :22 cites supabase-auth.controller.ts:434 for email verification but :434 is an OAuth/session response block. Purely docs line-drift with no runtime impact \u2014 LOW, not MEDIUM."
+  },
+  {
+    "severity": "HIGH",
+    "area": "Connection & wiring \u2014 response shape",
+    "location": "frontend/src/components/dashboard/FarmGlanceCards.tsx:116",
+    "issue": "feedApi.getAll returns the backend PageDto envelope {data, meta} (feed-records.service.ts:131), not an array. `[...r.data].sort(...)` spreads a plain non-iterable object and throws TypeError, which is swallowed by the surrounding `.catch(() => null)`, so the dashboard 'last feed' glance card is permanently blank.",
+    "fix": "Unwrap first: `[...(r.data.data ?? [])].sort(...)`.",
+    "lens": "wiring",
+    "id": 203,
+    "note": "GET /feed-records returns PageDto {data,meta} (feed-records.service.ts returns PageDto; controller findAll passes it through). feedApi.getAll mistypes it as FeedRecord[], so r.data is the {data,meta} object; [...r.data] spreads a non-iterable object \u2192 TypeError \u2192 swallowed by .catch(()=>null). Sibling FeedStatsScreen.tsx:55 explicitly unwraps with toRecords and a comment noting the PageDto shape, proving the bug. Card stays blank."
+  },
+  {
+    "severity": "LOW",
+    "area": "Content & copy \u2014 chemical formula formatting",
+    "location": "frontend/src/i18n/locales/en/calculators.ts:19",
+    "issue": "The calculator hub card title reads 'Free Ammonia (NH3)' with a plain digit, while the calculator screen and every result/message use the subscript form 'NH\u2083' (calculators.ts:105,112,113,117,119,121).",
+    "fix": "Change the hub title to 'Free Ammonia (NH\u2083)' for consistency.",
+    "lens": "copy-content",
+    "id": 187,
+    "note": "calculators.ts:19 hub title 'Free Ammonia (NH3)' plain digit; screen strings (105/112/113 etc.) use 'NH\u2083' subscript. Inconsistent."
+  },
+  {
+    "severity": "IMPROVEMENT",
+    "area": "Content & copy \u2014 inconsistent example dates",
+    "location": "frontend/src/i18n/locales/en/cycles.ts:6",
+    "issue": "Date-field example/placeholder years are inconsistent across the app: stocking date example is '2026-01-01' (cycles.ts:6) while transactions use '2025-01-01' (finance.ts:66) and harvest uses 'e.g. 2025-04-18' (logs.ts:72), mixing past and current years as guidance.",
+    "fix": "Use a single consistent example year (2026) across all date placeholders.",
+    "lens": "copy-content",
+    "id": 188,
+    "note": "cycles.ts:6 '2026-01-01', finance.ts:66 '2025-01-01', logs.ts:72 'e.g. 2025-04-18' \u2014 inconsistent example years."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Content & copy \u2014 terminology (crop vs cycle)",
+    "location": "frontend/src/i18n/locales/en/home.ts:119",
+    "issue": "The same production batch is labeled 'Crop' and 'Cycle' interchangeably across the UI: home dashboard 'Crop P&L'/'No active crop' (home.ts:119,121), feedStats 'this crop' (feedStats.ts:8), pondSetup 'Crop 1'/'Ready for the next crop cycle' (pondSetup.ts:41; ponds.ts idleSubtitle) vs 'Cycle' everywhere else (cycles.ts, farms.ts, 'Start New Cycle'). Adjacent cards can read 'Start New Cycle' and 'No active crop'.",
+    "fix": "Pick one term (Cycle) and use it in home cards, engines hub cropPnl, feedStats, and pondSetup.",
+    "lens": "copy-content",
+    "id": 184,
+    "note": "Confirmed mix: home.ts:119/121 'Crop P&L'/'No active crop', feedStats.ts:8 'this crop', pondSetup.ts:41 'Crop 1', ponds.ts:40 'Ready for the next crop cycle' adjacent to ponds.ts:41 'Start New Cycle'."
+  },
+  {
+    "severity": "LOW",
+    "area": "Content & copy \u2014 inconsistent severity vocabulary",
+    "location": "frontend/src/i18n/locales/en/logs.ts:28",
+    "issue": "The disease log severity field placeholder suggests 'Mild, Moderate, Severe' (logs.ts:28) while the Disease Encyclopedia severity badges use 'Low/Medium/High' (content.ts:31-33), so users are prompted to type one vocabulary but see another.",
+    "fix": "Unify on one severity scale (e.g. Low/Medium/High) in both the log placeholder and the encyclopedia badges.",
+    "lens": "copy-content",
+    "id": 186,
+    "note": "logs.ts:28 placeholder 'e.g. Mild, Moderate, Severe' vs content.ts:31-33 badges Low/Medium/High. Divergent vocabulary."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Content & copy \u2014 misleading feature promise",
+    "location": "frontend/src/i18n/locales/en/settings.ts:13",
+    "issue": "Settings shows an 'Email Summaries \u2014 Weekly performance reports' toggle, but no weekly-summary email exists: EmailService only sends verification/reset/welcome/otp/invite/password-changed, there is no @nestjs/schedule cron, and the toggle handler (SettingsScreen.tsx:38) only writes AsyncStorage and never calls the backend. Users enable it and no report is ever sent.",
+    "fix": "Remove the Email Summaries row (and pushNotifications/emailAlerts if unwired), or implement and schedule the weekly report email before shipping the copy.",
+    "lens": "copy-content",
+    "id": 182,
+    "note": "email.service.ts exposes only verification/reset/welcome/passwordChanged/invite/otp \u2014 no weekly summary. No @Cron decorator anywhere (dep @nestjs/schedule present but unused for this). SettingsScreen handleSettingChange only writes AsyncStorage, never calls backend. Toggle is a dead promise."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Content & copy \u2014 brand naming",
+    "location": "frontend/src/i18n/locales/en/settings.ts:65",
+    "issue": "Product name is spelled two ways in user-facing copy: 'UpCheck' (settings.ts:41,65,71,80,82; auth.ts:3,39; home.ts:26,61; members.ts:35) vs the canonical 'Upcheck' (common.ts:2 appName, home.ts:98, settings.ts:16, email.service default APP_NAME, legal docs). settings.ts even contradicts itself: line 16 'About Upcheck' vs line 65 'About UpCheck'.",
+    "fix": "Standardize every string to the canonical 'Upcheck' (matches common.appName and backend APP_NAME).",
+    "lens": "copy-content",
+    "id": 181,
+    "note": "common.ts:2 appName='Upcheck' (canonical) but 'UpCheck' at settings.ts:41/65/71/80/82, home.ts:26/61, auth.ts:3/39, members.ts:35. settings.ts self-contradicts: line 16 'About Upcheck' vs line 65 'About UpCheck'."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Google Sign-In web divergence",
+    "location": "frontend/src/screens/auth/LoginScreen.tsx:129",
+    "issue": "Same ungated GoogleLoginButton on the Login screen: rendered on web while Truecaller is Platform-gated at :136. On web signInWithGoogle -> GoogleSignin native module throws; the button is dead/broken on the web target.",
+    "fix": "Wrap GoogleLoginButton in `Platform.OS !== 'web'` or add a react-native-web Google OAuth path.",
+    "lens": "platform-divergence",
+    "id": 200,
+    "note": "GoogleLoginButton at :129 ungated while Truecaller gated at :136; useGoogleAuth imports native-only @react-native-google-signin (no web build, no .web.ts variant) and runs GoogleSignin.configure() at module load. Non-functional on web. Minor: signInWithGoogle's try/catch turns the runtime throw into a setError message rather than an uncaught crash, but the button is still dead on web."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Google Sign-In web divergence",
+    "location": "frontend/src/screens/auth/RegisterScreen.tsx:203",
+    "issue": "The GoogleLoginButton is rendered unconditionally on every platform, but signInWithGoogle() calls the native-only @react-native-google-signin module (useGoogleAuth.ts:34 GoogleSignin.hasPlayServices / :35 signIn), which throws on web. Truecaller right below it is correctly gated to Platform.OS==='android' (:211) but Google is not, so on the listed `npm run web` target the primary social login throws a native-module error instead of working or being hidden.",
+    "fix": "Gate GoogleLoginButton with `Platform.OS !== 'web'` (mirroring the Truecaller gate) or implement the web OAuth flow with googleClientIdWeb.",
+    "lens": "platform-divergence",
+    "id": 199,
+    "note": "Same as 200: GoogleLoginButton at :203 ungated, Truecaller gated at :211. Native-only module throws on web (caught by signInWithGoogle's try/catch -> error message), button non-functional on web target."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "frontend form / stocking count validation",
+    "location": "frontend/src/screens/cycles/CreateCycleScreen.tsx:56",
+    "issue": "Client validation is only `!stockingCount || isNaN(parseInt(stockingCount))`; `parseInt('-500')`=-500 and `parseInt('500abc')`=500 both pass, so negative counts and trailing-garbage numbers reach the API (which also lacks @Min on stockingCount).",
+    "fix": "const n = Number(stockingCount); if (!Number.isInteger(n) || n <= 0) newErrors.stockingCount = ...",
+    "lens": "edge-data",
+    "id": 192,
+    "note": "Client check at :54 is !stockingCount||isNaN(parseInt(...)); parseInt('-500')=-500 and parseInt('500abc')=500 pass. Backend create-crop.dto.ts:35-37 has only @IsInt()/@IsOptional(), no @Min/@IsPositive, so negatives reach the DB. Confirmed."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Connection & wiring \u2014 pagination truncation",
+    "location": "frontend/src/screens/farms/FarmDetailScreen.tsx:71",
+    "issue": "pondsApi.getAll(farmId) is called with no take param; backend /ponds is paginated with default take:10 (ponds.controller.ts:49 + PageOptionsDto), so a farm with more than 10 ponds silently shows only 10 in the farm detail list.",
+    "fix": "Pass {take:100} to pondsApi.getAll or add pagination controls.",
+    "lens": "wiring",
+    "id": 207,
+    "note": "pondsApi.getAll passes no take. Verified plainToInstance applies DTO default take=10 for absent param; ponds.service.ts:221 `take||50` is dead code since take is already 10, so effective cap is 10. Farm with >10 ponds truncated in FarmDetailScreen (reads result.data)."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Connection & wiring \u2014 pagination truncation",
+    "location": "frontend/src/screens/feed/FeedStatsScreen.tsx:65",
+    "issue": "Crop total feed is computed by summing feedApi.getByCrop(cropId), but /feed-records defaults to take:10 (page-options.dto.ts), so the total silently only sums the latest 10 feed records for any crop with more entries.",
+    "fix": "Pass a high take (e.g. getByCrop(cropId,{take:100})) or add a getTotalByCrop endpoint like getTotalByPond.",
+    "lens": "wiring",
+    "id": 204,
+    "note": "FeedStatsScreen:65 getByCrop(cropId) sends no take; backend returns PageDto capped at DTO default 10; the .reduce() sums only the latest 10 feed records for the crop total. getTotalByPond path is server-side and fine; crop path is truncated."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Connection & wiring \u2014 pagination truncation",
+    "location": "frontend/src/screens/logs/History/FeedHistoryScreen.tsx:27",
+    "issue": "feedApi.getByCrop/getAll are called once with no take param and the screen has no pagination UI; backend defaults to take:10 (feed-records.service.ts:101), so the feed history list silently shows at most 10 records.",
+    "fix": "Pass {take:100} (and/or add load-more) so the full history renders.",
+    "lens": "wiring",
+    "id": 205,
+    "note": "FeedHistoryScreen:26-27 getByCrop/getAll with no take, no pagination UI, unwraps .data; capped at DTO default 10 (feed-records.service.ts:101)."
+  },
+  {
+    "severity": "MEDIUM",
+    "area": "Connection & wiring \u2014 pagination truncation",
+    "location": "frontend/src/screens/logs/History/WaterQualityHistoryScreen.tsx:70",
+    "issue": "waterQualityApi.getAll(pondId) is called once with no take param and no pagination UI; backend water-quality findAll returns PageDto with default take:10 (water-quality.service.ts:184), so the water-quality history silently caps at 10 records.",
+    "fix": "Pass {take:100} (or add pagination) to fetch the full history.",
+    "lens": "wiring",
+    "id": 206,
+    "note": "WaterQualityHistoryScreen:70 getAll(pondId) no take, no pagination UI, unwraps .data; water-quality.service.ts:170 default take 10, returns PageDto. Capped at 10."
+  },
+  {
+    "severity": "IMPROVEMENT",
+    "area": "Android native SDK in shared bundle",
+    "location": "frontend/src/store/authStore.ts:7",
+    "issue": "authStore (loaded on every platform at startup) imports TruecallerAuth, whose module top-level unconditionally imports the Android-only native SDK `@dhana-cs/react-native-truecaller` (TruecallerAuth.ts:17). This pulls an Android-only native module into the iOS and web bundle graphs even though every call site guards on isAndroid; runtime is safe on iOS (clear() is a pure no-op) but the module and its side-effects still bundle/evaluate off-Android.",
+    "fix": "Lazy-require trueCallerService inside the isUsable/initialize/authenticate methods (behind the isAndroid guard) so non-Android bundles never load the native SDK.",
+    "lens": "platform-divergence",
+    "id": 202,
+    "note": "TruecallerAuth.ts:17 has unconditional top-level import of @dhana-cs/react-native-truecaller; authStore.ts:7 imports it eagerly, so native SDK enters iOS/web bundle graphs. Runtime guarded by isAndroid. IMPROVEMENT correct."
+  },
+  {
+    "severity": "LOW",
+    "area": "Local notifications web divergence",
+    "location": "frontend/src/utils/notifications.ts:86",
+    "issue": "scheduleDailyWaterQualityReminders/scheduleWeeklyChemistryReminder (the 'continuous-data loop' reminders the header comment calls core, 'works offline, no server needed') call Notifications.scheduleNotificationAsync, which is unsupported on web and throws \u2014 caught and only console.warn'd. Combined with registerForPushNotificationsAsync returning undefined on web (Device.isDevice false), web users get zero reminders and zero push, silently.",
+    "fix": "Early-return on Platform.OS==='web' with a user-visible note, or drop web from supported platforms so the feature gap is explicit.",
+    "lens": "platform-divergence",
+    "id": 201,
+    "note": "scheduleNotificationAsync calls (l.90,135) wrapped in try/catch\u2192console.warn only; registerForPushNotificationsAsync returns undefined when !Device.isDevice (web). Silent web reminder gap confirmed; LOW correct."
+  },
+  {
+    "severity": "LOW",
+    "area": "git hygiene / debris",
+    "location": "package-lock.json:1",
+    "issue": "The repo-root package-lock.json is an empty stub ({name:'Upcheckapp', packages:{}}) with no accompanying root package.json \u2014 it locks nothing and only exists as leftover noise (real lockfiles live in backend/ and frontend/).",
+    "fix": "git rm the root package-lock.json.",
+    "lens": "completeness-critic",
+    "id": 217,
+    "note": "Root package-lock.json is empty stub {name:Upcheckapp,packages:{}}, no root package.json exists. Locks nothing; debris."
+  }
+]

@@ -14,8 +14,8 @@ import { FarmAccessService } from './farm-access.service';
  */
 @Global()
 @Module({
-    imports: [TypeOrmModule.forFeature([FarmMember, Farm, Pond])],
-    providers: [FarmAccessService],
-    exports: [FarmAccessService, TypeOrmModule],
+  imports: [TypeOrmModule.forFeature([FarmMember, Farm, Pond])],
+  providers: [FarmAccessService],
+  exports: [FarmAccessService, TypeOrmModule],
 })
 export class FarmAccessModule {}

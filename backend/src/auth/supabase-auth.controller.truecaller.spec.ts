@@ -20,7 +20,11 @@
  */
 
 import 'reflect-metadata';
-import { INestApplication, UnauthorizedException, ValidationPipe } from '@nestjs/common';
+import {
+  INestApplication,
+  UnauthorizedException,
+  ValidationPipe,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 
@@ -91,8 +95,14 @@ describe('SupabaseAuthController — POST /auth/supabase/oauth/truecaller', () =
       providers: [
         { provide: TruecallerService, useValue: truecallerServiceMock },
         { provide: SupabaseAuthService, useValue: supabaseAuthServiceMock },
-        { provide: TwoFactorService, useValue: { isEnabled: jest.fn().mockResolvedValue(false) } },
-        { provide: RedisService, useValue: { get: jest.fn(), set: jest.fn(), del: jest.fn() } },
+        {
+          provide: TwoFactorService,
+          useValue: { isEnabled: jest.fn().mockResolvedValue(false) },
+        },
+        {
+          provide: RedisService,
+          useValue: { get: jest.fn(), set: jest.fn(), del: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -151,18 +161,22 @@ describe('SupabaseAuthController — POST /auth/supabase/oauth/truecaller', () =
       expect(res.body.message.length).toBeGreaterThan(0);
 
       // Flow A → verifySignedPayload, never verifyAccessToken.
-      expect(truecallerServiceMock.verifySignedPayload).toHaveBeenCalledTimes(1);
+      expect(truecallerServiceMock.verifySignedPayload).toHaveBeenCalledTimes(
+        1,
+      );
       expect(truecallerServiceMock.verifyAccessToken).not.toHaveBeenCalled();
 
       // Requirement 11.1 — the controller forwards the *verified* profile
       // values, not the request body's firstName/lastName/phoneNumber.
-      expect(supabaseAuthServiceMock.signInWithTruecaller).toHaveBeenCalledWith({
-        phoneNumber: verifiedProfile.phoneNumber,
-        firstName: verifiedProfile.firstName,
-        lastName: verifiedProfile.lastName,
-        email: verifiedProfile.email,
-        avatarUrl: verifiedProfile.avatarUrl,
-      });
+      expect(supabaseAuthServiceMock.signInWithTruecaller).toHaveBeenCalledWith(
+        {
+          phoneNumber: verifiedProfile.phoneNumber,
+          firstName: verifiedProfile.firstName,
+          lastName: verifiedProfile.lastName,
+          email: verifiedProfile.email,
+          avatarUrl: verifiedProfile.avatarUrl,
+        },
+      );
     });
 
     it('Flow B (access token) returns 200 with { message, user, session }', async () => {
@@ -263,9 +277,7 @@ describe('SupabaseAuthController — POST /auth/supabase/oauth/truecaller', () =
 
       // Belt-and-suspenders: validation must short-circuit before the
       // verifier is ever called.
-      expect(
-        truecallerServiceMock.verifySignedPayload,
-      ).not.toHaveBeenCalled();
+      expect(truecallerServiceMock.verifySignedPayload).not.toHaveBeenCalled();
       expect(truecallerServiceMock.verifyAccessToken).not.toHaveBeenCalled();
       expect(
         supabaseAuthServiceMock.signInWithTruecaller,
@@ -296,9 +308,7 @@ describe('SupabaseAuthController — POST /auth/supabase/oauth/truecaller', () =
       // Neither verifier should run when validation fails. This guards
       // the controller's "verified profile, never request body"
       // contract from Requirement 11.1.
-      expect(
-        truecallerServiceMock.verifySignedPayload,
-      ).not.toHaveBeenCalled();
+      expect(truecallerServiceMock.verifySignedPayload).not.toHaveBeenCalled();
       expect(truecallerServiceMock.verifyAccessToken).not.toHaveBeenCalled();
       expect(
         supabaseAuthServiceMock.signInWithTruecaller,

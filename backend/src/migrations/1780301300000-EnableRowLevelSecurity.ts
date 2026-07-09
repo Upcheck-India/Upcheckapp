@@ -19,10 +19,10 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * migration must enable RLS itself (or re-run this dynamic block).
  */
 export class EnableRowLevelSecurity1780301300000 implements MigrationInterface {
-    name = 'EnableRowLevelSecurity1780301300000';
+  name = 'EnableRowLevelSecurity1780301300000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             DO $$
             DECLARE r RECORD;
             BEGIN
@@ -34,10 +34,10 @@ export class EnableRowLevelSecurity1780301300000 implements MigrationInterface {
                 END LOOP;
             END $$;
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             DO $$
             DECLARE r RECORD;
             BEGIN
@@ -49,5 +49,5 @@ export class EnableRowLevelSecurity1780301300000 implements MigrationInterface {
                 END LOOP;
             END $$;
         `);
-    }
+  }
 }

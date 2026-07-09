@@ -63,6 +63,15 @@ export const authApi = {
     forgotPassword: (email: string) =>
         apiClient.post('/auth/supabase/forgot-password', { email }),
 
+    // AUTH-2: after a password reset the client holds a live recovery session.
+    // This asks the backend whether 2FA gates entry; if so it returns a
+    // tempToken to complete via twoFactor.login (same as the login path).
+    reset2faCheck: (accessToken: string, refreshToken: string) =>
+        apiClient.post<{ requires2FA: boolean; tempToken?: string }>(
+            '/auth/supabase/reset-2fa-check',
+            { accessToken, refreshToken },
+        ),
+
     updatePassword: (newPassword: string) =>
         apiClient.post('/auth/supabase/update-password', { newPassword }),
 
@@ -88,9 +97,11 @@ export const authApi = {
     // ── TOTP two-factor authentication ──
     twoFactor: {
         setup: () => apiClient.post<TwoFactorSetup>('/auth/supabase/2fa/setup'),
-        enable: (token: string) => apiClient.post<{ enabled: true }>('/auth/supabase/2fa/enable', { token }),
+        enable: (token: string) => apiClient.post<{ enabled: true; backupCodes: string[] }>('/auth/supabase/2fa/enable', { token }),
         disable: (token: string) => apiClient.post<{ enabled: false }>('/auth/supabase/2fa/disable', { token }),
         status: () => apiClient.get<{ enabled: boolean }>('/auth/supabase/2fa/status'),
+        regenerateBackupCodes: (token: string) =>
+            apiClient.post<{ backupCodes: string[] }>('/auth/supabase/2fa/backup-codes/regenerate', { token }),
         login: (tempToken: string, token: string) =>
             apiClient.post<AuthResponse>('/auth/supabase/2fa/login', { tempToken, token }),
     },

@@ -10,10 +10,10 @@ import { FarmsModule } from '../farms/farms.module';
   imports: [
     TypeOrmModule.forFeature([InventoryItem]),
     AlertsModule,
-    FarmsModule
+    FarmsModule,
   ],
   controllers: [InventoryController],
   providers: [InventoryService],
   exports: [InventoryService],
 })
-export class InventoryModule { }
+export class InventoryModule {}

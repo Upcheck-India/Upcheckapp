@@ -7,104 +7,122 @@ import { Farm } from '../farms/farm.entity';
 import { Pond } from '../ponds/pond.entity';
 
 describe('FarmAccessService', () => {
-    let service: FarmAccessService;
-    let membersRepo: any;
-    let farmsRepo: any;
-    let pondsRepo: any;
+  let service: FarmAccessService;
+  let membersRepo: any;
+  let farmsRepo: any;
+  let pondsRepo: any;
 
-    const OWNER = 'owner-1';
-    const WORKER = 'worker-1';
-    const STRANGER = 'stranger-1';
-    const FARM = 'farm-1';
+  const OWNER = 'owner-1';
+  const WORKER = 'worker-1';
+  const STRANGER = 'stranger-1';
+  const FARM = 'farm-1';
 
-    beforeEach(async () => {
-        membersRepo = { findOne: jest.fn(), find: jest.fn() };
-        farmsRepo = { findOne: jest.fn(), find: jest.fn() };
-        pondsRepo = { findOne: jest.fn() };
+  beforeEach(async () => {
+    membersRepo = { findOne: jest.fn(), find: jest.fn() };
+    farmsRepo = { findOne: jest.fn(), find: jest.fn() };
+    pondsRepo = { findOne: jest.fn() };
 
-        const module: TestingModule = await Test.createTestingModule({
-            providers: [
-                FarmAccessService,
-                { provide: getRepositoryToken(FarmMember), useValue: membersRepo },
-                { provide: getRepositoryToken(Farm), useValue: farmsRepo },
-                { provide: getRepositoryToken(Pond), useValue: pondsRepo },
-            ],
-        }).compile();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FarmAccessService,
+        { provide: getRepositoryToken(FarmMember), useValue: membersRepo },
+        { provide: getRepositoryToken(Farm), useValue: farmsRepo },
+        { provide: getRepositoryToken(Pond), useValue: pondsRepo },
+      ],
+    }).compile();
 
-        service = module.get(FarmAccessService);
+    service = module.get(FarmAccessService);
+  });
+
+  describe('getRoleOnFarm', () => {
+    it('returns the membership role when a row exists', async () => {
+      membersRepo.findOne.mockResolvedValue({ role: 'worker' });
+      expect(await service.getRoleOnFarm(WORKER, FARM)).toBe('worker');
     });
 
-    describe('getRoleOnFarm', () => {
-        it('returns the membership role when a row exists', async () => {
-            membersRepo.findOne.mockResolvedValue({ role: 'worker' });
-            expect(await service.getRoleOnFarm(WORKER, FARM)).toBe('worker');
-        });
-
-        it('falls back to owner when the legacy farm.userId matches', async () => {
-            membersRepo.findOne.mockResolvedValue(null);
-            farmsRepo.findOne.mockResolvedValue({ id: FARM, userId: OWNER });
-            expect(await service.getRoleOnFarm(OWNER, FARM)).toBe('owner');
-        });
-
-        it('returns null for a non-member', async () => {
-            membersRepo.findOne.mockResolvedValue(null);
-            farmsRepo.findOne.mockResolvedValue({ id: FARM, userId: OWNER });
-            expect(await service.getRoleOnFarm(STRANGER, FARM)).toBeNull();
-        });
-
-        it('degrades to owner-only when farm_members is missing (42P01)', async () => {
-            // Simulate the migration not being run yet.
-            membersRepo.findOne.mockRejectedValue({ code: '42P01' });
-            farmsRepo.findOne.mockResolvedValue({ id: FARM, userId: OWNER });
-            expect(await service.getRoleOnFarm(OWNER, FARM)).toBe('owner'); // owner still works
-            expect(await service.getRoleOnFarm(STRANGER, FARM)).toBeNull(); // non-owner denied
-        });
-
-        it('re-throws non-missing-table errors', async () => {
-            membersRepo.findOne.mockRejectedValue({ code: '08006' }); // connection failure
-            await expect(service.getRoleOnFarm(OWNER, FARM)).rejects.toBeDefined();
-        });
+    it('falls back to owner when the legacy farm.userId matches', async () => {
+      membersRepo.findOne.mockResolvedValue(null);
+      farmsRepo.findOne.mockResolvedValue({ id: FARM, userId: OWNER });
+      expect(await service.getRoleOnFarm(OWNER, FARM)).toBe('owner');
     });
 
-    describe('getAccessibleFarmIds', () => {
-        it('lists owned farms when farm_members is missing (42P01)', async () => {
-            membersRepo.find.mockRejectedValue({ code: '42P01' });
-            farmsRepo.find
-                .mockResolvedValueOnce([{ id: FARM }]) // owned
-                .mockResolvedValueOnce([{ id: FARM }]); // live
-            expect(await service.getAccessibleFarmIds(OWNER)).toEqual([FARM]);
-        });
+    it('returns null for a non-member', async () => {
+      membersRepo.findOne.mockResolvedValue(null);
+      farmsRepo.findOne.mockResolvedValue({ id: FARM, userId: OWNER });
+      expect(await service.getRoleOnFarm(STRANGER, FARM)).toBeNull();
     });
 
-    describe('assertCanAccessFarm', () => {
-        beforeEach(() => {
-            farmsRepo.findOne.mockResolvedValue({ id: FARM, userId: OWNER, deletedAt: null });
-        });
-
-        it('allows a worker to WRITE_OPERATIONAL', async () => {
-            membersRepo.findOne.mockResolvedValue({ role: 'worker' });
-            await expect(service.assertCanAccessFarm(WORKER, FARM, 'WRITE_OPERATIONAL')).resolves.toBeDefined();
-        });
-
-        it('denies a worker OWNER_ONLY', async () => {
-            membersRepo.findOne.mockResolvedValue({ role: 'worker' });
-            await expect(service.assertCanAccessFarm(WORKER, FARM, 'OWNER_ONLY')).rejects.toThrow(ForbiddenException);
-        });
-
-        it('allows the owner OWNER_ONLY', async () => {
-            membersRepo.findOne.mockResolvedValue({ role: 'owner' });
-            await expect(service.assertCanAccessFarm(OWNER, FARM, 'OWNER_ONLY')).resolves.toBeDefined();
-        });
-
-        it('denies a stranger any capability', async () => {
-            membersRepo.findOne.mockResolvedValue(null);
-            await expect(service.assertCanAccessFarm(STRANGER, FARM, 'READ')).rejects.toThrow(ForbiddenException);
-        });
-
-        it('treats a soft-deleted farm as not found', async () => {
-            farmsRepo.findOne.mockResolvedValue({ id: FARM, userId: OWNER, deletedAt: new Date() });
-            membersRepo.findOne.mockResolvedValue({ role: 'owner' });
-            await expect(service.assertCanAccessFarm(OWNER, FARM, 'READ')).rejects.toThrow(NotFoundException);
-        });
+    it('degrades to owner-only when farm_members is missing (42P01)', async () => {
+      // Simulate the migration not being run yet.
+      membersRepo.findOne.mockRejectedValue({ code: '42P01' });
+      farmsRepo.findOne.mockResolvedValue({ id: FARM, userId: OWNER });
+      expect(await service.getRoleOnFarm(OWNER, FARM)).toBe('owner'); // owner still works
+      expect(await service.getRoleOnFarm(STRANGER, FARM)).toBeNull(); // non-owner denied
     });
+
+    it('re-throws non-missing-table errors', async () => {
+      membersRepo.findOne.mockRejectedValue({ code: '08006' }); // connection failure
+      await expect(service.getRoleOnFarm(OWNER, FARM)).rejects.toBeDefined();
+    });
+  });
+
+  describe('getAccessibleFarmIds', () => {
+    it('lists owned farms when farm_members is missing (42P01)', async () => {
+      membersRepo.find.mockRejectedValue({ code: '42P01' });
+      farmsRepo.find
+        .mockResolvedValueOnce([{ id: FARM }]) // owned
+        .mockResolvedValueOnce([{ id: FARM }]); // live
+      expect(await service.getAccessibleFarmIds(OWNER)).toEqual([FARM]);
+    });
+  });
+
+  describe('assertCanAccessFarm', () => {
+    beforeEach(() => {
+      farmsRepo.findOne.mockResolvedValue({
+        id: FARM,
+        userId: OWNER,
+        deletedAt: null,
+      });
+    });
+
+    it('allows a worker to WRITE_OPERATIONAL', async () => {
+      membersRepo.findOne.mockResolvedValue({ role: 'worker' });
+      await expect(
+        service.assertCanAccessFarm(WORKER, FARM, 'WRITE_OPERATIONAL'),
+      ).resolves.toBeDefined();
+    });
+
+    it('denies a worker OWNER_ONLY', async () => {
+      membersRepo.findOne.mockResolvedValue({ role: 'worker' });
+      await expect(
+        service.assertCanAccessFarm(WORKER, FARM, 'OWNER_ONLY'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows the owner OWNER_ONLY', async () => {
+      membersRepo.findOne.mockResolvedValue({ role: 'owner' });
+      await expect(
+        service.assertCanAccessFarm(OWNER, FARM, 'OWNER_ONLY'),
+      ).resolves.toBeDefined();
+    });
+
+    it('denies a stranger any capability', async () => {
+      membersRepo.findOne.mockResolvedValue(null);
+      await expect(
+        service.assertCanAccessFarm(STRANGER, FARM, 'READ'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('treats a soft-deleted farm as not found', async () => {
+      farmsRepo.findOne.mockResolvedValue({
+        id: FARM,
+        userId: OWNER,
+        deletedAt: new Date(),
+      });
+      membersRepo.findOne.mockResolvedValue({ role: 'owner' });
+      await expect(
+        service.assertCanAccessFarm(OWNER, FARM, 'READ'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });

@@ -1,22 +1,33 @@
-import { IsUUID, IsString, IsOptional, IsNumber, IsDateString } from 'class-validator';
+import {
+  IsUUID,
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsDateString,
+} from 'class-validator';
 
 export class CreateFeedingTrayCheckDto {
-    @IsUUID()
-    cropId: string;
+  // Client-minted idempotency key — lets offline replays be safe (insert-or-return).
+  @IsUUID()
+  @IsOptional()
+  id?: string;
 
-    @IsUUID()
-    @IsOptional()
-    feedRecordId?: string;
+  @IsUUID()
+  cropId: string;
 
-    @IsDateString()
-    checkDate: string;
+  @IsUUID()
+  @IsOptional()
+  feedRecordId?: string;
 
-    @IsString()
-    checkTime: string;
+  @IsDateString()
+  checkDate: string;
 
-    @IsNumber()
-    trayNumber: number;
+  @IsString()
+  checkTime: string;
 
-    @IsString()
-    remainingFeedStatus: string; // 'empty' | 'few_left' | 'a_lot_left'
+  @IsNumber()
+  trayNumber: number;
+
+  @IsString()
+  remainingFeedStatus: string; // 'empty' | 'few_left' | 'a_lot_left'
 }

@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /**
  * Additive, idempotent migration: creates the `tasks` table for the Task Board.
@@ -10,10 +10,10 @@ import { MigrationInterface, QueryRunner } from "typeorm";
  *  - Fully reversible via `down` (drops only what it created).
  */
 export class CreateTasks1771597800000 implements MigrationInterface {
-    name = 'CreateTasks1771597800000'
+  name = 'CreateTasks1771597800000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             CREATE TABLE IF NOT EXISTS "tasks" (
                 "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
                 "farm_id" uuid NOT NULL,
@@ -33,8 +33,8 @@ export class CreateTasks1771597800000 implements MigrationInterface {
             )
         `);
 
-        // Foreign keys (guarded so re-running is safe).
-        await queryRunner.query(`
+    // Foreign keys (guarded so re-running is safe).
+    await queryRunner.query(`
             DO $$ BEGIN
                 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_tasks_farm') THEN
                     ALTER TABLE "tasks" ADD CONSTRAINT "FK_tasks_farm"
@@ -51,14 +51,24 @@ export class CreateTasks1771597800000 implements MigrationInterface {
             END $$;
         `);
 
-        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_tasks_farm_id" ON "tasks" ("farm_id")`);
-        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_tasks_pond_id" ON "tasks" ("pond_id")`);
-        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_tasks_crop_id" ON "tasks" ("crop_id")`);
-        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_tasks_status" ON "tasks" ("status")`);
-        await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_tasks_assigned_to_id" ON "tasks" ("assigned_to_id")`);
-    }
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS "IDX_tasks_farm_id" ON "tasks" ("farm_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS "IDX_tasks_pond_id" ON "tasks" ("pond_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS "IDX_tasks_crop_id" ON "tasks" ("crop_id")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS "IDX_tasks_status" ON "tasks" ("status")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS "IDX_tasks_assigned_to_id" ON "tasks" ("assigned_to_id")`,
+    );
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE IF EXISTS "tasks"`);
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE IF EXISTS "tasks"`);
+  }
 }

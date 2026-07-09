@@ -1,50 +1,60 @@
-import { IsString, IsOptional, IsNumber, IsInt, Min, Max, IsLatitude, IsLongitude, IsIn, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsInt,
+  Min,
+  Max,
+  IsLatitude,
+  IsLongitude,
+  IsIn,
+  IsArray,
+} from 'class-validator';
 
 export class CreateFarmDto {
-    @IsString()
-    name: string;
+  @IsString()
+  name: string;
 
-    @IsOptional()
-    @IsString()
-    farmCode?: string;
+  @IsOptional()
+  @IsString()
+  farmCode?: string;
 
-    @IsOptional()
-    @IsNumber()
-    areaHectares?: number;
+  @IsOptional()
+  @IsNumber()
+  areaHectares?: number;
 
-    @IsOptional()
-    @IsString()
-    address?: string;
+  @IsOptional()
+  @IsString()
+  address?: string;
 
-    @IsOptional()
-    @IsLongitude()
-    longitude?: number;
+  @IsOptional()
+  @IsLongitude()
+  longitude?: number;
 
-    @IsOptional()
-    @IsLatitude()
-    latitude?: number;
+  @IsOptional()
+  @IsLatitude()
+  latitude?: number;
 
-    @IsOptional()
-    @IsIn(['tidal', 'river', 'borehole', 'reservoir', 'recycled'])
-    waterSourceType?: string;
+  @IsOptional()
+  @IsIn(['tidal', 'river', 'borehole', 'reservoir', 'recycled'])
+  waterSourceType?: string;
 
-    // Number of ponds the owner declares at first-run setup (planning target).
-    @IsOptional()
-    @IsInt()
-    @Min(1)
-    @Max(1000)
-    plannedPondCount?: number;
+  // Number of ponds the owner declares at first-run setup (planning target).
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  plannedPondCount?: number;
 
-    @IsOptional()
-    @IsString()
-    privacySetting?: string;
+  @IsOptional()
+  @IsString()
+  privacySetting?: string;
 
-    @IsOptional()
-    @IsArray()
-    boundary?: { latitude: number, longitude: number }[];
+  @IsOptional()
+  @IsArray()
+  boundary?: { latitude: number; longitude: number }[];
 
-    @IsString()
-    @IsOptional()
-    qrCodeUrl?: string;
-
+  @IsString()
+  @IsOptional()
+  qrCodeUrl?: string;
 }

@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { reportError } from '../utils/reportError';
 
 interface Props {
     children: ReactNode;
@@ -22,7 +23,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-        console.error('[ErrorBoundary] Uncaught error:', error, errorInfo);
+        reportError(error, { componentStack: errorInfo.componentStack });
     }
 
     handleReset = () => {
@@ -46,7 +47,7 @@ export class ErrorBoundary extends Component<Props, State> {
                             </ScrollView>
                         )}
 
-                        <TouchableOpacity style={styles.button} onPress={this.handleReset} activeOpacity={0.8}>
+                        <TouchableOpacity style={styles.button} onPress={this.handleReset} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Try again">
                             <MaterialCommunityIcons name="refresh" size={20} color="#FFFFFF" />
                             <Text style={styles.buttonText}>Try Again</Text>
                         </TouchableOpacity>

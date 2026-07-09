@@ -1,242 +1,631 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class BaselineSchema1700000000000 implements MigrationInterface {
-    name = 'BaselineSchema1700000000000'
+  name = 'BaselineSchema1700000000000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`CREATE TABLE "users" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "email" character varying NOT NULL, "username" character varying, "password_hash" character varying, "first_name" character varying(100), "last_name" character varying(100), "phone" character varying(20), "avatar_url" character varying(500), "email_verified" boolean NOT NULL DEFAULT false, "phone_verified" boolean NOT NULL DEFAULT false, "is_active" boolean NOT NULL DEFAULT true, "verification_level" character varying(20) NOT NULL DEFAULT 'basic', "auth_provider" character varying(20) NOT NULL DEFAULT 'email', "preferences" jsonb NOT NULL DEFAULT '{}', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "last_login_at" TIMESTAMP WITH TIME ZONE, "failed_login_attempts" integer NOT NULL DEFAULT '0', "locked_until" TIMESTAMP WITH TIME ZONE, "roles" text NOT NULL DEFAULT '[]', "google_id" character varying, CONSTRAINT "UQ_97672ac88f789774dd47f7c8be3" UNIQUE ("email"), CONSTRAINT "UQ_fe0bb3f6520ee0469504521e710" UNIQUE ("username"), CONSTRAINT "UQ_0bd5012aeb82628e07f6a1be53b" UNIQUE ("google_id"), CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "farms" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "name" text NOT NULL, "farm_code" character varying(8), "area_hectares" numeric, "address" text, "longitude" numeric, "latitude" numeric, "water_source_type" character varying(20), "qr_code_url" text, "privacy_setting" text NOT NULL DEFAULT 'private', "boundary" jsonb, "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "UQ_e2e95519248673eb889e3a8b17d" UNIQUE ("farm_code"), CONSTRAINT "PK_39aff9c35006b14025bba5a43d9" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_7bf65ce0749585b87ac2a7ce42" ON "farms" ("user_id") `);
-        await queryRunner.query(`CREATE TABLE "hatcheries" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" text NOT NULL, "location" text, "contact_info" jsonb, "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_c177af4c8a9604add28ea7d228c" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "species" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "scientific_name" text NOT NULL, "common_name" text, "optimal_ph_min" numeric, "optimal_ph_max" numeric, "optimal_salinity_min" numeric, "optimal_salinity_max" numeric, "optimal_temp_min" numeric, "optimal_temp_max" numeric, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_ae6a87f2423ba6c25dc43c32770" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "broodstocks" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "supplier" text NOT NULL, "line_code" text, "origin" text, "specifications" jsonb, "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_a8d1f907c871f10aa76c8d0690a" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "crops" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "pond_id" uuid NOT NULL, "farm_id" uuid, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "name" text NOT NULL, "crop_code" text, "total_seed" integer, "seed_type" text, "stocking_date" date, "initial_age_days" integer NOT NULL DEFAULT '0', "preparation_days" integer NOT NULL DEFAULT '0', "total_feeding_trays" integer NOT NULL DEFAULT '4', "hatchery_id" uuid, "species_id" uuid, "broodstock_id" uuid, "species_type" text, "stocking_density" numeric, "stocking_count" integer, "feed_price_rp_per_kg" integer, "carrying_capacity_kg_m2" numeric NOT NULL DEFAULT '1.25', "target_cultivation_days" integer NOT NULL DEFAULT '120', "target_size" integer, "target_sr_percent" numeric NOT NULL DEFAULT '75', "sr_prediction_method" text NOT NULL DEFAULT 'feed_ratio', "doc" integer NOT NULL DEFAULT '0', "is_active" boolean NOT NULL DEFAULT true, "expected_harvest_date" TIMESTAMP WITH TIME ZONE, "actual_harvest_date" TIMESTAMP WITH TIME ZONE, "harvest_weight_kg" numeric, "status" text NOT NULL DEFAULT 'active', CONSTRAINT "PK_098dbeb7c803dc7c08a7f02b805" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_f9b0217bc2e5c6ef23b3c02ef2" ON "crops" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_b02d00d3b2e915d81078ae10df" ON "crops" ("farm_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_0f2185c5526c63298bb1b34633" ON "crops" ("hatchery_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_730e9b0ef342c72ff1621feb06" ON "crops" ("species_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_52594b3ababf5219c61c343914" ON "crops" ("broodstock_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_909e9463611fe32a33f1cc83da" ON "crops" ("is_active") `);
-        await queryRunner.query(`CREATE TABLE "ponds" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "farm_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "name" text NOT NULL, "name_prefix" character varying(4), "sequence_number" integer, "pond_code" character varying(20), "display_name" character varying(100), "geometry_type" character varying(20), "construction_type" character varying(20), "length_m" numeric, "width_m" numeric, "diameter_m" numeric, "depth_m" numeric, "channel_count" integer, "calculated_area_m2" numeric, "override_area_m2" numeric, "gps_lat" numeric, "gps_lng" numeric, "status" character varying(20) NOT NULL DEFAULT 'fallow', "archived_at" TIMESTAMP WITH TIME ZONE, "active_cycle_id" uuid, "boundary" jsonb, CONSTRAINT "UQ_5e352f8f2b1553c40ead2e1f9c2" UNIQUE ("pond_code"), CONSTRAINT "REL_0c4e50a46f97b5db35473b496c" UNIQUE ("active_cycle_id"), CONSTRAINT "PK_98593ba3923a9edc0ddefd425ee" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_ee74014c78c9bd5a81f3bba44e" ON "ponds" ("farm_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_a6637b3208bc3341208349c02c" ON "ponds" ("status") `);
-        await queryRunner.query(`CREATE INDEX "IDX_0c4e50a46f97b5db35473b496c" ON "ponds" ("active_cycle_id") `);
-        await queryRunner.query(`CREATE TABLE "water_quality_records" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "pond_id" uuid NOT NULL, "recorded_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "ph" numeric, "temperature" numeric, "dissolved_oxygen" numeric, "salinity" numeric, "ammonia" numeric, "nitrite" numeric, "nitrate" numeric, "alkalinity" numeric, "hardness" numeric, "transparency" numeric, "notes" text, "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_935d0ed46db276e53fe8a212280" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_b2980a4a0b319ac5459ffafcaa" ON "water_quality_records" ("pond_id") `);
-        await queryRunner.query(`CREATE TABLE "products" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "name" text NOT NULL, "description" text, "category" text NOT NULL, "price" numeric NOT NULL, "sale_price" numeric, "image_url" text, "stock" integer NOT NULL DEFAULT '0', "sku" text, "isActive" boolean NOT NULL DEFAULT true, CONSTRAINT "PK_0806c755e0aca124e67c0cf6d7d" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "treatments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "treatment_date" date NOT NULL, "based_on" text, "description" text NOT NULL, "product_id" uuid, "dosage_kg" numeric, "notes" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_133f26d52c70b9fa3c2dbb3c89e" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_851a1f590d9b1a6f65b0446537" ON "treatments" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_18616b9af47be9b4007fc32f43" ON "treatments" ("product_id") `);
-        await queryRunner.query(`CREATE TABLE "tasks" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "farm_id" uuid NOT NULL, "pond_id" uuid, "crop_id" uuid, "title" text NOT NULL, "description" text, "status" text NOT NULL DEFAULT 'open', "priority" text NOT NULL DEFAULT 'medium', "due_date" date, "assigned_to_id" uuid, "created_by_id" uuid, "completed_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_8d12ff38fcc62aaba2cab748772" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_de6bc40427829c17882507886f" ON "tasks" ("farm_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_3759aa48296bcd6ad5a3140842" ON "tasks" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_3c81f71ce1e9dcbc338ae4543f" ON "tasks" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_6086c8dafbae729a930c04d865" ON "tasks" ("status") `);
-        await queryRunner.query(`CREATE INDEX "IDX_9430f12c5a1604833f64595a57" ON "tasks" ("assigned_to_id") `);
-        await queryRunner.query(`CREATE TABLE "transactions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "farm_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "transaction_date" TIMESTAMP WITH TIME ZONE NOT NULL, "type" text NOT NULL, "category" text NOT NULL, "amount" numeric NOT NULL, "description" text, "payment_method" text, "reference_number" text, CONSTRAINT "PK_a219afd8dd77ed80f5a862f1db9" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "simulations" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid, "pond_id" uuid NOT NULL, "scenario_type" text NOT NULL, "input_feed_price" numeric, "input_growth_rate" numeric, "input_selling_price" numeric, "input_stocking_density" numeric, "result_projected_biomass" numeric, "result_projected_fcr" numeric, "result_total_revenue" numeric, "result_total_cost" numeric, "result_net_profit" numeric, "result_profit_diff" numeric, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_c6d15083257a1c84ecd67423c30" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_530c1c5e6ec7252a9a4ca93e26" ON "simulations" ("user_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_9cac959cc14ada01ed021ba552" ON "simulations" ("pond_id") `);
-        await queryRunner.query(`CREATE TABLE "sampling_data" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "pond_id" uuid NOT NULL, "crop_id" uuid, "sampling_date" date NOT NULL, "mbw_g" numeric, "total_samples" integer, "std_deviation" numeric, "biomass_estimation_kg" numeric, "sr_estimation_percent" numeric, "notes" text, "photo_urls" text array DEFAULT '{}', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_98c268b803c243c49830b33a319" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_fc972d049118fb6b1a4a651f8e" ON "sampling_data" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_c261811c82b2a2f49650f272cf" ON "sampling_data" ("crop_id") `);
-        await queryRunner.query(`CREATE TABLE "profiles" ("id" uuid NOT NULL, "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "email" text, "username" text, "full_name" text, "avatar_url" text, "website" text, "language_preference" text DEFAULT 'en', CONSTRAINT "UQ_d1ea35db5be7c08520d70dc03f8" UNIQUE ("username"), CONSTRAINT "PK_8e520eb4da7dc01d0e190447c8e" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "pond_dimension_history" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "pond_id" uuid NOT NULL, "changed_by_user_id" uuid NOT NULL, "length_m_before" numeric, "width_m_before" numeric, "diameter_m_before" numeric, "depth_m_before" numeric, "calculated_area_m2_before" numeric, "override_area_m2_before" numeric, "changed_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "change_reason" character varying(255), CONSTRAINT "PK_718b553d6f8018a89f8eac1fa45" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "plankton_data" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "measurement_date" date NOT NULL, "measurement_time" TIME NOT NULL, "green_algae_ga_cell_ml" bigint, "blue_green_algae_bga_cell_ml" bigint, "dinoflagellata_cell_ml" bigint, "diatom_cell_ml" bigint, "protozoa_cell_ml" bigint, "floc_cell_ml" bigint, "golden_brown_algae_cell_ml" bigint, "euglenophyta_cell_ml" bigint, "zoo_cell_ml" bigint, "haptoyphyta_cell_ml" bigint, "golden_green_algae_cell_ml" bigint, "yellow_green_algae_cell_ml" bigint, "other_plankton_cell_ml" bigint, "total_plankton_cell_ml" bigint, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_f44602f88cdd0a495a35168ebde" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_5120c8a8b304f861742d97566b" ON "plankton_data" ("crop_id") `);
-        await queryRunner.query(`CREATE TABLE "news_articles" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "title" text NOT NULL, "content" text NOT NULL, "summary" text, "category" text, "image_url" text, "author" text, "published_at" TIMESTAMP WITH TIME ZONE, "isActive" boolean NOT NULL DEFAULT true, CONSTRAINT "PK_ca1b67b1b6b2c382317bbd769dc" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "mortality_records" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "record_date" date NOT NULL, "quantity" integer NOT NULL DEFAULT '0', "estimated_weight_kg" numeric, "estimated_total" integer, "note" text, "images" text array DEFAULT '{}', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_c81b8c5cabb6218133b9e667c45" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_be40a6ca08639ed964233b9f8e" ON "mortality_records" ("crop_id") `);
-        await queryRunner.query(`CREATE TABLE "microbiology_data" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "measurement_date" date NOT NULL, "total_bacillus_cfu_ml" numeric, "total_vibrio_count_tvc_cfu_ml" numeric, "yellow_vibrio_count_tvc_cfu_ml" numeric, "green_vibrio_count_tvc_cfu_ml" numeric, "luminescent_bacteria_lb_cfu_ml" numeric, "note" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_95f3ed879c7c1f573ef1847d7b8" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_436334b688688c551a4111d08d" ON "microbiology_data" ("crop_id") `);
-        await queryRunner.query(`CREATE TABLE "inventory" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "farm_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "name" text NOT NULL, "category" text NOT NULL, "quantity" numeric NOT NULL DEFAULT '0', "unit" text, "unit_price" numeric, "reorder_level" numeric, "supplier" text, "expiry_date" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_82aa5da437c5bbfb80703b08309" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_6c890c62e345a46f48af40ca4f" ON "inventory" ("farm_id") `);
-        await queryRunner.query(`CREATE TYPE "public"."harvests_harvest_type_enum" AS ENUM('partial', 'full')`);
-        await queryRunner.query(`CREATE TYPE "public"."harvests_status_enum" AS ENUM('pending', 'sold', 'discarded')`);
-        await queryRunner.query(`CREATE TABLE "harvests" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "harvest_date" date NOT NULL, "weight_kg" double precision NOT NULL, "count" integer, "average_size" double precision, "sale_price_total" numeric(15,2), "buyer_name" character varying, "harvest_type" "public"."harvests_harvest_type_enum" NOT NULL DEFAULT 'partial', "status" "public"."harvests_status_enum" NOT NULL DEFAULT 'sold', "notes" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_fb748ae28bc0000875b1949a0a6" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_4dc96d2cf0330404241d42d74b" ON "harvests" ("crop_id") `);
-        await queryRunner.query(`CREATE TABLE "harvest_records" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "harvest_date" date NOT NULL, "harvest_type" text, "total_weight_kg" numeric NOT NULL, "count_per_kg" integer, "price_per_kg_rp" integer, "buyer_name" text, "notes" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_9f66ce6ac369c8d70df208557d8" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "harvest_plans" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "pond_id" uuid NOT NULL, "crop_id" uuid, "planned_harvest_date" TIMESTAMP WITH TIME ZONE, "target_weight_kg" numeric, "expected_price_per_kg" numeric, "expected_revenue" numeric, "actual_harvest_date" TIMESTAMP WITH TIME ZONE, "actual_weight_kg" numeric, "actual_price_per_kg" numeric, "actual_revenue" numeric, "notes" text, "status" text NOT NULL DEFAULT 'planned', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_75a5995b178c98bd291a01ff3c0" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TYPE "public"."expenses_category_enum" AS ENUM('Feed', 'Chemicals/Probiotics', 'Seed (Fry)', 'Labor', 'Energy (Fuel/Electricity)', 'Maintenance', 'Other')`);
-        await queryRunner.query(`CREATE TABLE "expenses" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid, "pond_id" uuid NOT NULL, "date" date NOT NULL, "category" "public"."expenses_category_enum" NOT NULL, "amount" numeric(15,2) NOT NULL, "description" text, "user_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_94c3ceb17e3140abc9282c20610" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_cd89d0124b33237a63984aac84" ON "expenses" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_9c9fb030372b5f6a6861963bec" ON "expenses" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_49a0ca239d34e74fdc4e0625a7" ON "expenses" ("user_id") `);
-        await queryRunner.query(`CREATE TABLE "feed_records" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "pond_id" uuid NOT NULL, "crop_id" uuid, "inventory_item_id" uuid, "recorded_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "feed_type" text NOT NULL, "feed_brand" text, "quantity_kg" numeric NOT NULL, "feeding_time" text, "feeding_method" text, "water_temperature" numeric, "notes" text, "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_d1da1693cb4631f043ee0986e1b" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_f28ac4256740f51fc3f6382bdb" ON "feed_records" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_1dc181a41a068323a6fb0230fb" ON "feed_records" ("crop_id") `);
-        await queryRunner.query(`CREATE TABLE "feeding_tray_checks" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "feed_record_id" uuid, "check_date" date NOT NULL, "check_time" TIME NOT NULL, "tray_number" integer NOT NULL, "remaining_feed_status" text NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_8aaac2ff292782ae7f759014d81" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "feed_products" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "brand" text NOT NULL, "code" text NOT NULL, "name" text, "type" text, "size_range_mm" text, "protein_percent" numeric, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_0951e4b487703c7a341459bf0bc" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "disease_library" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" text NOT NULL, "scientific_name" text, "common_names" text array DEFAULT '{}', "symptoms" text array DEFAULT '{}', "prevention_measures" text array DEFAULT '{}', "treatment_recommendations" text array DEFAULT '{}', "image_urls" text array DEFAULT '{}', "severity_level" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_4ba17181ebac296e73ba342c92d" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "disease_records" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "disease_id" uuid NOT NULL, "recorded_date" date NOT NULL, "severity_at_detection" text, "photo_urls" text array DEFAULT '{}', "notes" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_13542dc8e158478fa4d71618663" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_a0cb25f9279309372dee580e1c" ON "disease_records" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_23db30d1ea638a4db231c4ed7f" ON "disease_records" ("disease_id") `);
-        await queryRunner.query(`CREATE TABLE "chemical_data" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "measurement_date" date NOT NULL, "measurement_time" TIME NOT NULL, "ammonia_nh3_ppm" numeric, "nitrite_no2_ppm" numeric, "alkalinity_ppm" numeric, "nitrate_no3_ppm" numeric, "hardness_ppm" numeric, "calcium_ca_ppm" numeric, "magnesium_mg_ppm" numeric, "carbonate_co3_ppm" numeric, "bicarbonate_hco3_ppm" numeric, "tom_ppm" numeric, "ammonium_nh4_ppm" numeric, "phosphate_po4_ppm" numeric, "total_ammonia_ppm" numeric, "potassium_ppm" numeric, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_9f17ad8cccc02d709a191339a69" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_14202fd5e95e067ac586b323a7" ON "chemical_data" ("crop_id") `);
-        await queryRunner.query(`CREATE TABLE "alerts" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "type" text NOT NULL, "title" text NOT NULL, "message" text NOT NULL, "severity" text NOT NULL DEFAULT 'info', "is_read" boolean NOT NULL DEFAULT false, "pond_id" uuid, "farm_id" uuid, "data" jsonb, "is_push_sent" boolean NOT NULL DEFAULT false, "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_60f895662df096bfcdfab7f4b96" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "IDX_f1eba840c1761991f142affee6" ON "alerts" ("user_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_8c3da464fb11595c86c3b6e4bc" ON "alerts" ("is_read") `);
-        await queryRunner.query(`CREATE INDEX "IDX_85f99b1dbee6f39c253b25de6d" ON "alerts" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_15950e7f91abf5dce081f1a3ac" ON "alerts" ("farm_id") `);
-        await queryRunner.query(`ALTER TABLE "disease_library" DROP COLUMN "common_names"`);
-        await queryRunner.query(`ALTER TABLE "disease_library" ADD "common_names" text array DEFAULT '{}'`);
-        await queryRunner.query(`ALTER TABLE "disease_library" ADD "commonNames" text array DEFAULT '{}'`);
-        await queryRunner.query(`ALTER TABLE "farms" ADD CONSTRAINT "FK_7bf65ce0749585b87ac2a7ce429" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "crops" ADD CONSTRAINT "FK_f9b0217bc2e5c6ef23b3c02ef21" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "crops" ADD CONSTRAINT "FK_0f2185c5526c63298bb1b346337" FOREIGN KEY ("hatchery_id") REFERENCES "hatcheries"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "crops" ADD CONSTRAINT "FK_730e9b0ef342c72ff1621feb063" FOREIGN KEY ("species_id") REFERENCES "species"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "crops" ADD CONSTRAINT "FK_52594b3ababf5219c61c343914f" FOREIGN KEY ("broodstock_id") REFERENCES "broodstocks"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "ponds" ADD CONSTRAINT "FK_ee74014c78c9bd5a81f3bba44eb" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "ponds" ADD CONSTRAINT "FK_0c4e50a46f97b5db35473b496c5" FOREIGN KEY ("active_cycle_id") REFERENCES "crops"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "water_quality_records" ADD CONSTRAINT "FK_b2980a4a0b319ac5459ffafcaa0" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "treatments" ADD CONSTRAINT "FK_851a1f590d9b1a6f65b0446537c" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "treatments" ADD CONSTRAINT "FK_18616b9af47be9b4007fc32f43d" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "tasks" ADD CONSTRAINT "FK_de6bc40427829c17882507886fb" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "transactions" ADD CONSTRAINT "FK_66d11a02ced150a9c521cee2aea" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "simulations" ADD CONSTRAINT "FK_530c1c5e6ec7252a9a4ca93e266" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "simulations" ADD CONSTRAINT "FK_9cac959cc14ada01ed021ba5520" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "sampling_data" ADD CONSTRAINT "FK_fc972d049118fb6b1a4a651f8ec" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "sampling_data" ADD CONSTRAINT "FK_c261811c82b2a2f49650f272cfb" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "pond_dimension_history" ADD CONSTRAINT "FK_0ec1c855693386081961c3a3950" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "plankton_data" ADD CONSTRAINT "FK_5120c8a8b304f861742d97566bd" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "mortality_records" ADD CONSTRAINT "FK_be40a6ca08639ed964233b9f8e8" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "microbiology_data" ADD CONSTRAINT "FK_436334b688688c551a4111d08d8" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "inventory" ADD CONSTRAINT "FK_6c890c62e345a46f48af40ca4fd" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "harvests" ADD CONSTRAINT "FK_4dc96d2cf0330404241d42d74b8" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "harvest_records" ADD CONSTRAINT "FK_b866e92ee231a431ad51f4750f4" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "harvest_plans" ADD CONSTRAINT "FK_a0ed46a453925cd714ed07797fe" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "expenses" ADD CONSTRAINT "FK_cd89d0124b33237a63984aac84b" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "expenses" ADD CONSTRAINT "FK_9c9fb030372b5f6a6861963beca" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "expenses" ADD CONSTRAINT "FK_49a0ca239d34e74fdc4e0625a78" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "feed_records" ADD CONSTRAINT "FK_f28ac4256740f51fc3f6382bdbe" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "feed_records" ADD CONSTRAINT "FK_1dc181a41a068323a6fb0230fb1" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "feed_records" ADD CONSTRAINT "FK_24624ea1b2dfc997a47749612ea" FOREIGN KEY ("inventory_item_id") REFERENCES "inventory"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "feeding_tray_checks" ADD CONSTRAINT "FK_c4728a5451f28e8618f343d0da3" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "feeding_tray_checks" ADD CONSTRAINT "FK_0f4c43fd2fb9156b9b3d5001964" FOREIGN KEY ("feed_record_id") REFERENCES "feed_records"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "disease_records" ADD CONSTRAINT "FK_a0cb25f9279309372dee580e1c9" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "disease_records" ADD CONSTRAINT "FK_23db30d1ea638a4db231c4ed7f9" FOREIGN KEY ("disease_id") REFERENCES "disease_library"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "chemical_data" ADD CONSTRAINT "FK_14202fd5e95e067ac586b323a71" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "alerts" ADD CONSTRAINT "FK_f1eba840c1761991f142affee66" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "alerts" ADD CONSTRAINT "FK_85f99b1dbee6f39c253b25de6d5" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "alerts" ADD CONSTRAINT "FK_15950e7f91abf5dce081f1a3ac7" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-    }
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `CREATE TABLE "users" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "email" character varying NOT NULL, "username" character varying, "password_hash" character varying, "first_name" character varying(100), "last_name" character varying(100), "phone" character varying(20), "avatar_url" character varying(500), "email_verified" boolean NOT NULL DEFAULT false, "phone_verified" boolean NOT NULL DEFAULT false, "is_active" boolean NOT NULL DEFAULT true, "verification_level" character varying(20) NOT NULL DEFAULT 'basic', "auth_provider" character varying(20) NOT NULL DEFAULT 'email', "preferences" jsonb NOT NULL DEFAULT '{}', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "last_login_at" TIMESTAMP WITH TIME ZONE, "failed_login_attempts" integer NOT NULL DEFAULT '0', "locked_until" TIMESTAMP WITH TIME ZONE, "roles" text NOT NULL DEFAULT '[]', "google_id" character varying, CONSTRAINT "UQ_97672ac88f789774dd47f7c8be3" UNIQUE ("email"), CONSTRAINT "UQ_fe0bb3f6520ee0469504521e710" UNIQUE ("username"), CONSTRAINT "UQ_0bd5012aeb82628e07f6a1be53b" UNIQUE ("google_id"), CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "farms" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "name" text NOT NULL, "farm_code" character varying(8), "area_hectares" numeric, "address" text, "longitude" numeric, "latitude" numeric, "water_source_type" character varying(20), "qr_code_url" text, "privacy_setting" text NOT NULL DEFAULT 'private', "boundary" jsonb, "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "UQ_e2e95519248673eb889e3a8b17d" UNIQUE ("farm_code"), CONSTRAINT "PK_39aff9c35006b14025bba5a43d9" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_7bf65ce0749585b87ac2a7ce42" ON "farms" ("user_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "hatcheries" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" text NOT NULL, "location" text, "contact_info" jsonb, "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_c177af4c8a9604add28ea7d228c" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "species" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "scientific_name" text NOT NULL, "common_name" text, "optimal_ph_min" numeric, "optimal_ph_max" numeric, "optimal_salinity_min" numeric, "optimal_salinity_max" numeric, "optimal_temp_min" numeric, "optimal_temp_max" numeric, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_ae6a87f2423ba6c25dc43c32770" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "broodstocks" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "supplier" text NOT NULL, "line_code" text, "origin" text, "specifications" jsonb, "is_active" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_a8d1f907c871f10aa76c8d0690a" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "crops" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "pond_id" uuid NOT NULL, "farm_id" uuid, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "name" text NOT NULL, "crop_code" text, "total_seed" integer, "seed_type" text, "stocking_date" date, "initial_age_days" integer NOT NULL DEFAULT '0', "preparation_days" integer NOT NULL DEFAULT '0', "total_feeding_trays" integer NOT NULL DEFAULT '4', "hatchery_id" uuid, "species_id" uuid, "broodstock_id" uuid, "species_type" text, "stocking_density" numeric, "stocking_count" integer, "feed_price_rp_per_kg" integer, "carrying_capacity_kg_m2" numeric NOT NULL DEFAULT '1.25', "target_cultivation_days" integer NOT NULL DEFAULT '120', "target_size" integer, "target_sr_percent" numeric NOT NULL DEFAULT '75', "sr_prediction_method" text NOT NULL DEFAULT 'feed_ratio', "doc" integer NOT NULL DEFAULT '0', "is_active" boolean NOT NULL DEFAULT true, "expected_harvest_date" TIMESTAMP WITH TIME ZONE, "actual_harvest_date" TIMESTAMP WITH TIME ZONE, "harvest_weight_kg" numeric, "status" text NOT NULL DEFAULT 'active', CONSTRAINT "PK_098dbeb7c803dc7c08a7f02b805" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_f9b0217bc2e5c6ef23b3c02ef2" ON "crops" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_b02d00d3b2e915d81078ae10df" ON "crops" ("farm_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_0f2185c5526c63298bb1b34633" ON "crops" ("hatchery_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_730e9b0ef342c72ff1621feb06" ON "crops" ("species_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_52594b3ababf5219c61c343914" ON "crops" ("broodstock_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_909e9463611fe32a33f1cc83da" ON "crops" ("is_active") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "ponds" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "farm_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "name" text NOT NULL, "name_prefix" character varying(4), "sequence_number" integer, "pond_code" character varying(20), "display_name" character varying(100), "geometry_type" character varying(20), "construction_type" character varying(20), "length_m" numeric, "width_m" numeric, "diameter_m" numeric, "depth_m" numeric, "channel_count" integer, "calculated_area_m2" numeric, "override_area_m2" numeric, "gps_lat" numeric, "gps_lng" numeric, "status" character varying(20) NOT NULL DEFAULT 'fallow', "archived_at" TIMESTAMP WITH TIME ZONE, "active_cycle_id" uuid, "boundary" jsonb, CONSTRAINT "UQ_5e352f8f2b1553c40ead2e1f9c2" UNIQUE ("pond_code"), CONSTRAINT "REL_0c4e50a46f97b5db35473b496c" UNIQUE ("active_cycle_id"), CONSTRAINT "PK_98593ba3923a9edc0ddefd425ee" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_ee74014c78c9bd5a81f3bba44e" ON "ponds" ("farm_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_a6637b3208bc3341208349c02c" ON "ponds" ("status") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_0c4e50a46f97b5db35473b496c" ON "ponds" ("active_cycle_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "water_quality_records" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "pond_id" uuid NOT NULL, "recorded_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "ph" numeric, "temperature" numeric, "dissolved_oxygen" numeric, "salinity" numeric, "ammonia" numeric, "nitrite" numeric, "nitrate" numeric, "alkalinity" numeric, "hardness" numeric, "transparency" numeric, "notes" text, "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_935d0ed46db276e53fe8a212280" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_b2980a4a0b319ac5459ffafcaa" ON "water_quality_records" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "products" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "name" text NOT NULL, "description" text, "category" text NOT NULL, "price" numeric NOT NULL, "sale_price" numeric, "image_url" text, "stock" integer NOT NULL DEFAULT '0', "sku" text, "isActive" boolean NOT NULL DEFAULT true, CONSTRAINT "PK_0806c755e0aca124e67c0cf6d7d" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "treatments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "treatment_date" date NOT NULL, "based_on" text, "description" text NOT NULL, "product_id" uuid, "dosage_kg" numeric, "notes" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_133f26d52c70b9fa3c2dbb3c89e" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_851a1f590d9b1a6f65b0446537" ON "treatments" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_18616b9af47be9b4007fc32f43" ON "treatments" ("product_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "tasks" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "farm_id" uuid NOT NULL, "pond_id" uuid, "crop_id" uuid, "title" text NOT NULL, "description" text, "status" text NOT NULL DEFAULT 'open', "priority" text NOT NULL DEFAULT 'medium', "due_date" date, "assigned_to_id" uuid, "created_by_id" uuid, "completed_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_8d12ff38fcc62aaba2cab748772" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_de6bc40427829c17882507886f" ON "tasks" ("farm_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_3759aa48296bcd6ad5a3140842" ON "tasks" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_3c81f71ce1e9dcbc338ae4543f" ON "tasks" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_6086c8dafbae729a930c04d865" ON "tasks" ("status") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_9430f12c5a1604833f64595a57" ON "tasks" ("assigned_to_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "transactions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "farm_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "transaction_date" TIMESTAMP WITH TIME ZONE NOT NULL, "type" text NOT NULL, "category" text NOT NULL, "amount" numeric NOT NULL, "description" text, "payment_method" text, "reference_number" text, CONSTRAINT "PK_a219afd8dd77ed80f5a862f1db9" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "simulations" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid, "pond_id" uuid NOT NULL, "scenario_type" text NOT NULL, "input_feed_price" numeric, "input_growth_rate" numeric, "input_selling_price" numeric, "input_stocking_density" numeric, "result_projected_biomass" numeric, "result_projected_fcr" numeric, "result_total_revenue" numeric, "result_total_cost" numeric, "result_net_profit" numeric, "result_profit_diff" numeric, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_c6d15083257a1c84ecd67423c30" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_530c1c5e6ec7252a9a4ca93e26" ON "simulations" ("user_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_9cac959cc14ada01ed021ba552" ON "simulations" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "sampling_data" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "pond_id" uuid NOT NULL, "crop_id" uuid, "sampling_date" date NOT NULL, "mbw_g" numeric, "total_samples" integer, "std_deviation" numeric, "biomass_estimation_kg" numeric, "sr_estimation_percent" numeric, "notes" text, "photo_urls" text array DEFAULT '{}', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_98c268b803c243c49830b33a319" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_fc972d049118fb6b1a4a651f8e" ON "sampling_data" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_c261811c82b2a2f49650f272cf" ON "sampling_data" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "profiles" ("id" uuid NOT NULL, "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "email" text, "username" text, "full_name" text, "avatar_url" text, "website" text, "language_preference" text DEFAULT 'en', CONSTRAINT "UQ_d1ea35db5be7c08520d70dc03f8" UNIQUE ("username"), CONSTRAINT "PK_8e520eb4da7dc01d0e190447c8e" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "pond_dimension_history" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "pond_id" uuid NOT NULL, "changed_by_user_id" uuid NOT NULL, "length_m_before" numeric, "width_m_before" numeric, "diameter_m_before" numeric, "depth_m_before" numeric, "calculated_area_m2_before" numeric, "override_area_m2_before" numeric, "changed_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "change_reason" character varying(255), CONSTRAINT "PK_718b553d6f8018a89f8eac1fa45" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "plankton_data" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "measurement_date" date NOT NULL, "measurement_time" TIME NOT NULL, "green_algae_ga_cell_ml" bigint, "blue_green_algae_bga_cell_ml" bigint, "dinoflagellata_cell_ml" bigint, "diatom_cell_ml" bigint, "protozoa_cell_ml" bigint, "floc_cell_ml" bigint, "golden_brown_algae_cell_ml" bigint, "euglenophyta_cell_ml" bigint, "zoo_cell_ml" bigint, "haptoyphyta_cell_ml" bigint, "golden_green_algae_cell_ml" bigint, "yellow_green_algae_cell_ml" bigint, "other_plankton_cell_ml" bigint, "total_plankton_cell_ml" bigint, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_f44602f88cdd0a495a35168ebde" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_5120c8a8b304f861742d97566b" ON "plankton_data" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "news_articles" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "title" text NOT NULL, "content" text NOT NULL, "summary" text, "category" text, "image_url" text, "author" text, "published_at" TIMESTAMP WITH TIME ZONE, "isActive" boolean NOT NULL DEFAULT true, CONSTRAINT "PK_ca1b67b1b6b2c382317bbd769dc" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "mortality_records" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "record_date" date NOT NULL, "quantity" integer NOT NULL DEFAULT '0', "estimated_weight_kg" numeric, "estimated_total" integer, "note" text, "images" text array DEFAULT '{}', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_c81b8c5cabb6218133b9e667c45" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_be40a6ca08639ed964233b9f8e" ON "mortality_records" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "microbiology_data" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "measurement_date" date NOT NULL, "total_bacillus_cfu_ml" numeric, "total_vibrio_count_tvc_cfu_ml" numeric, "yellow_vibrio_count_tvc_cfu_ml" numeric, "green_vibrio_count_tvc_cfu_ml" numeric, "luminescent_bacteria_lb_cfu_ml" numeric, "note" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_95f3ed879c7c1f573ef1847d7b8" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_436334b688688c551a4111d08d" ON "microbiology_data" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "inventory" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "farm_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "name" text NOT NULL, "category" text NOT NULL, "quantity" numeric NOT NULL DEFAULT '0', "unit" text, "unit_price" numeric, "reorder_level" numeric, "supplier" text, "expiry_date" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_82aa5da437c5bbfb80703b08309" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_6c890c62e345a46f48af40ca4f" ON "inventory" ("farm_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."harvests_harvest_type_enum" AS ENUM('partial', 'full')`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."harvests_status_enum" AS ENUM('pending', 'sold', 'discarded')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "harvests" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "harvest_date" date NOT NULL, "weight_kg" double precision NOT NULL, "count" integer, "average_size" double precision, "sale_price_total" numeric(15,2), "buyer_name" character varying, "harvest_type" "public"."harvests_harvest_type_enum" NOT NULL DEFAULT 'partial', "status" "public"."harvests_status_enum" NOT NULL DEFAULT 'sold', "notes" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_fb748ae28bc0000875b1949a0a6" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_4dc96d2cf0330404241d42d74b" ON "harvests" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "harvest_records" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "harvest_date" date NOT NULL, "harvest_type" text, "total_weight_kg" numeric NOT NULL, "count_per_kg" integer, "price_per_kg_rp" integer, "buyer_name" text, "notes" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_9f66ce6ac369c8d70df208557d8" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "harvest_plans" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "pond_id" uuid NOT NULL, "crop_id" uuid, "planned_harvest_date" TIMESTAMP WITH TIME ZONE, "target_weight_kg" numeric, "expected_price_per_kg" numeric, "expected_revenue" numeric, "actual_harvest_date" TIMESTAMP WITH TIME ZONE, "actual_weight_kg" numeric, "actual_price_per_kg" numeric, "actual_revenue" numeric, "notes" text, "status" text NOT NULL DEFAULT 'planned', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_75a5995b178c98bd291a01ff3c0" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TYPE "public"."expenses_category_enum" AS ENUM('Feed', 'Chemicals/Probiotics', 'Seed (Fry)', 'Labor', 'Energy (Fuel/Electricity)', 'Maintenance', 'Other')`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "expenses" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid, "pond_id" uuid NOT NULL, "date" date NOT NULL, "category" "public"."expenses_category_enum" NOT NULL, "amount" numeric(15,2) NOT NULL, "description" text, "user_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_94c3ceb17e3140abc9282c20610" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_cd89d0124b33237a63984aac84" ON "expenses" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_9c9fb030372b5f6a6861963bec" ON "expenses" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_49a0ca239d34e74fdc4e0625a7" ON "expenses" ("user_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "feed_records" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "pond_id" uuid NOT NULL, "crop_id" uuid, "inventory_item_id" uuid, "recorded_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "feed_type" text NOT NULL, "feed_brand" text, "quantity_kg" numeric NOT NULL, "feeding_time" text, "feeding_method" text, "water_temperature" numeric, "notes" text, "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_d1da1693cb4631f043ee0986e1b" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_f28ac4256740f51fc3f6382bdb" ON "feed_records" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_1dc181a41a068323a6fb0230fb" ON "feed_records" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "feeding_tray_checks" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "feed_record_id" uuid, "check_date" date NOT NULL, "check_time" TIME NOT NULL, "tray_number" integer NOT NULL, "remaining_feed_status" text NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_8aaac2ff292782ae7f759014d81" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "feed_products" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "brand" text NOT NULL, "code" text NOT NULL, "name" text, "type" text, "size_range_mm" text, "protein_percent" numeric, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_0951e4b487703c7a341459bf0bc" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "disease_library" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" text NOT NULL, "scientific_name" text, "common_names" text array DEFAULT '{}', "symptoms" text array DEFAULT '{}', "prevention_measures" text array DEFAULT '{}', "treatment_recommendations" text array DEFAULT '{}', "image_urls" text array DEFAULT '{}', "severity_level" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_4ba17181ebac296e73ba342c92d" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "disease_records" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "disease_id" uuid NOT NULL, "recorded_date" date NOT NULL, "severity_at_detection" text, "photo_urls" text array DEFAULT '{}', "notes" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_13542dc8e158478fa4d71618663" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_a0cb25f9279309372dee580e1c" ON "disease_records" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_23db30d1ea638a4db231c4ed7f" ON "disease_records" ("disease_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "chemical_data" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "crop_id" uuid NOT NULL, "measurement_date" date NOT NULL, "measurement_time" TIME NOT NULL, "ammonia_nh3_ppm" numeric, "nitrite_no2_ppm" numeric, "alkalinity_ppm" numeric, "nitrate_no3_ppm" numeric, "hardness_ppm" numeric, "calcium_ca_ppm" numeric, "magnesium_mg_ppm" numeric, "carbonate_co3_ppm" numeric, "bicarbonate_hco3_ppm" numeric, "tom_ppm" numeric, "ammonium_nh4_ppm" numeric, "phosphate_po4_ppm" numeric, "total_ammonia_ppm" numeric, "potassium_ppm" numeric, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_9f17ad8cccc02d709a191339a69" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_14202fd5e95e067ac586b323a7" ON "chemical_data" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "alerts" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "type" text NOT NULL, "title" text NOT NULL, "message" text NOT NULL, "severity" text NOT NULL DEFAULT 'info', "is_read" boolean NOT NULL DEFAULT false, "pond_id" uuid, "farm_id" uuid, "data" jsonb, "is_push_sent" boolean NOT NULL DEFAULT false, "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), CONSTRAINT "PK_60f895662df096bfcdfab7f4b96" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_f1eba840c1761991f142affee6" ON "alerts" ("user_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_8c3da464fb11595c86c3b6e4bc" ON "alerts" ("is_read") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_85f99b1dbee6f39c253b25de6d" ON "alerts" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_15950e7f91abf5dce081f1a3ac" ON "alerts" ("farm_id") `,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "disease_library" DROP COLUMN "common_names"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "disease_library" ADD "common_names" text array DEFAULT '{}'`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "disease_library" ADD "commonNames" text array DEFAULT '{}'`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "farms" ADD CONSTRAINT "FK_7bf65ce0749585b87ac2a7ce429" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" ADD CONSTRAINT "FK_f9b0217bc2e5c6ef23b3c02ef21" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" ADD CONSTRAINT "FK_0f2185c5526c63298bb1b346337" FOREIGN KEY ("hatchery_id") REFERENCES "hatcheries"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" ADD CONSTRAINT "FK_730e9b0ef342c72ff1621feb063" FOREIGN KEY ("species_id") REFERENCES "species"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" ADD CONSTRAINT "FK_52594b3ababf5219c61c343914f" FOREIGN KEY ("broodstock_id") REFERENCES "broodstocks"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ADD CONSTRAINT "FK_ee74014c78c9bd5a81f3bba44eb" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ADD CONSTRAINT "FK_0c4e50a46f97b5db35473b496c5" FOREIGN KEY ("active_cycle_id") REFERENCES "crops"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "water_quality_records" ADD CONSTRAINT "FK_b2980a4a0b319ac5459ffafcaa0" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "treatments" ADD CONSTRAINT "FK_851a1f590d9b1a6f65b0446537c" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "treatments" ADD CONSTRAINT "FK_18616b9af47be9b4007fc32f43d" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasks" ADD CONSTRAINT "FK_de6bc40427829c17882507886fb" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "transactions" ADD CONSTRAINT "FK_66d11a02ced150a9c521cee2aea" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "simulations" ADD CONSTRAINT "FK_530c1c5e6ec7252a9a4ca93e266" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "simulations" ADD CONSTRAINT "FK_9cac959cc14ada01ed021ba5520" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "sampling_data" ADD CONSTRAINT "FK_fc972d049118fb6b1a4a651f8ec" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "sampling_data" ADD CONSTRAINT "FK_c261811c82b2a2f49650f272cfb" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "pond_dimension_history" ADD CONSTRAINT "FK_0ec1c855693386081961c3a3950" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "plankton_data" ADD CONSTRAINT "FK_5120c8a8b304f861742d97566bd" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "mortality_records" ADD CONSTRAINT "FK_be40a6ca08639ed964233b9f8e8" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "microbiology_data" ADD CONSTRAINT "FK_436334b688688c551a4111d08d8" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "inventory" ADD CONSTRAINT "FK_6c890c62e345a46f48af40ca4fd" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "harvests" ADD CONSTRAINT "FK_4dc96d2cf0330404241d42d74b8" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "harvest_records" ADD CONSTRAINT "FK_b866e92ee231a431ad51f4750f4" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "harvest_plans" ADD CONSTRAINT "FK_a0ed46a453925cd714ed07797fe" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "expenses" ADD CONSTRAINT "FK_cd89d0124b33237a63984aac84b" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "expenses" ADD CONSTRAINT "FK_9c9fb030372b5f6a6861963beca" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "expenses" ADD CONSTRAINT "FK_49a0ca239d34e74fdc4e0625a78" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "feed_records" ADD CONSTRAINT "FK_f28ac4256740f51fc3f6382bdbe" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "feed_records" ADD CONSTRAINT "FK_1dc181a41a068323a6fb0230fb1" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "feed_records" ADD CONSTRAINT "FK_24624ea1b2dfc997a47749612ea" FOREIGN KEY ("inventory_item_id") REFERENCES "inventory"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "feeding_tray_checks" ADD CONSTRAINT "FK_c4728a5451f28e8618f343d0da3" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "feeding_tray_checks" ADD CONSTRAINT "FK_0f4c43fd2fb9156b9b3d5001964" FOREIGN KEY ("feed_record_id") REFERENCES "feed_records"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "disease_records" ADD CONSTRAINT "FK_a0cb25f9279309372dee580e1c9" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "disease_records" ADD CONSTRAINT "FK_23db30d1ea638a4db231c4ed7f9" FOREIGN KEY ("disease_id") REFERENCES "disease_library"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "chemical_data" ADD CONSTRAINT "FK_14202fd5e95e067ac586b323a71" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "alerts" ADD CONSTRAINT "FK_f1eba840c1761991f142affee66" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "alerts" ADD CONSTRAINT "FK_85f99b1dbee6f39c253b25de6d5" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "alerts" ADD CONSTRAINT "FK_15950e7f91abf5dce081f1a3ac7" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "alerts" DROP CONSTRAINT "FK_15950e7f91abf5dce081f1a3ac7"`);
-        await queryRunner.query(`ALTER TABLE "alerts" DROP CONSTRAINT "FK_85f99b1dbee6f39c253b25de6d5"`);
-        await queryRunner.query(`ALTER TABLE "alerts" DROP CONSTRAINT "FK_f1eba840c1761991f142affee66"`);
-        await queryRunner.query(`ALTER TABLE "chemical_data" DROP CONSTRAINT "FK_14202fd5e95e067ac586b323a71"`);
-        await queryRunner.query(`ALTER TABLE "disease_records" DROP CONSTRAINT "FK_23db30d1ea638a4db231c4ed7f9"`);
-        await queryRunner.query(`ALTER TABLE "disease_records" DROP CONSTRAINT "FK_a0cb25f9279309372dee580e1c9"`);
-        await queryRunner.query(`ALTER TABLE "feeding_tray_checks" DROP CONSTRAINT "FK_0f4c43fd2fb9156b9b3d5001964"`);
-        await queryRunner.query(`ALTER TABLE "feeding_tray_checks" DROP CONSTRAINT "FK_c4728a5451f28e8618f343d0da3"`);
-        await queryRunner.query(`ALTER TABLE "feed_records" DROP CONSTRAINT "FK_24624ea1b2dfc997a47749612ea"`);
-        await queryRunner.query(`ALTER TABLE "feed_records" DROP CONSTRAINT "FK_1dc181a41a068323a6fb0230fb1"`);
-        await queryRunner.query(`ALTER TABLE "feed_records" DROP CONSTRAINT "FK_f28ac4256740f51fc3f6382bdbe"`);
-        await queryRunner.query(`ALTER TABLE "expenses" DROP CONSTRAINT "FK_49a0ca239d34e74fdc4e0625a78"`);
-        await queryRunner.query(`ALTER TABLE "expenses" DROP CONSTRAINT "FK_9c9fb030372b5f6a6861963beca"`);
-        await queryRunner.query(`ALTER TABLE "expenses" DROP CONSTRAINT "FK_cd89d0124b33237a63984aac84b"`);
-        await queryRunner.query(`ALTER TABLE "harvest_plans" DROP CONSTRAINT "FK_a0ed46a453925cd714ed07797fe"`);
-        await queryRunner.query(`ALTER TABLE "harvest_records" DROP CONSTRAINT "FK_b866e92ee231a431ad51f4750f4"`);
-        await queryRunner.query(`ALTER TABLE "harvests" DROP CONSTRAINT "FK_4dc96d2cf0330404241d42d74b8"`);
-        await queryRunner.query(`ALTER TABLE "inventory" DROP CONSTRAINT "FK_6c890c62e345a46f48af40ca4fd"`);
-        await queryRunner.query(`ALTER TABLE "microbiology_data" DROP CONSTRAINT "FK_436334b688688c551a4111d08d8"`);
-        await queryRunner.query(`ALTER TABLE "mortality_records" DROP CONSTRAINT "FK_be40a6ca08639ed964233b9f8e8"`);
-        await queryRunner.query(`ALTER TABLE "plankton_data" DROP CONSTRAINT "FK_5120c8a8b304f861742d97566bd"`);
-        await queryRunner.query(`ALTER TABLE "pond_dimension_history" DROP CONSTRAINT "FK_0ec1c855693386081961c3a3950"`);
-        await queryRunner.query(`ALTER TABLE "sampling_data" DROP CONSTRAINT "FK_c261811c82b2a2f49650f272cfb"`);
-        await queryRunner.query(`ALTER TABLE "sampling_data" DROP CONSTRAINT "FK_fc972d049118fb6b1a4a651f8ec"`);
-        await queryRunner.query(`ALTER TABLE "simulations" DROP CONSTRAINT "FK_9cac959cc14ada01ed021ba5520"`);
-        await queryRunner.query(`ALTER TABLE "simulations" DROP CONSTRAINT "FK_530c1c5e6ec7252a9a4ca93e266"`);
-        await queryRunner.query(`ALTER TABLE "transactions" DROP CONSTRAINT "FK_66d11a02ced150a9c521cee2aea"`);
-        await queryRunner.query(`ALTER TABLE "tasks" DROP CONSTRAINT "FK_de6bc40427829c17882507886fb"`);
-        await queryRunner.query(`ALTER TABLE "treatments" DROP CONSTRAINT "FK_18616b9af47be9b4007fc32f43d"`);
-        await queryRunner.query(`ALTER TABLE "treatments" DROP CONSTRAINT "FK_851a1f590d9b1a6f65b0446537c"`);
-        await queryRunner.query(`ALTER TABLE "water_quality_records" DROP CONSTRAINT "FK_b2980a4a0b319ac5459ffafcaa0"`);
-        await queryRunner.query(`ALTER TABLE "ponds" DROP CONSTRAINT "FK_0c4e50a46f97b5db35473b496c5"`);
-        await queryRunner.query(`ALTER TABLE "ponds" DROP CONSTRAINT "FK_ee74014c78c9bd5a81f3bba44eb"`);
-        await queryRunner.query(`ALTER TABLE "crops" DROP CONSTRAINT "FK_52594b3ababf5219c61c343914f"`);
-        await queryRunner.query(`ALTER TABLE "crops" DROP CONSTRAINT "FK_730e9b0ef342c72ff1621feb063"`);
-        await queryRunner.query(`ALTER TABLE "crops" DROP CONSTRAINT "FK_0f2185c5526c63298bb1b346337"`);
-        await queryRunner.query(`ALTER TABLE "crops" DROP CONSTRAINT "FK_f9b0217bc2e5c6ef23b3c02ef21"`);
-        await queryRunner.query(`ALTER TABLE "farms" DROP CONSTRAINT "FK_7bf65ce0749585b87ac2a7ce429"`);
-        await queryRunner.query(`ALTER TABLE "disease_library" DROP COLUMN "commonNames"`);
-        await queryRunner.query(`ALTER TABLE "disease_library" DROP COLUMN "common_names"`);
-        await queryRunner.query(`ALTER TABLE "disease_library" ADD "common_names" text array DEFAULT '{}'`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_15950e7f91abf5dce081f1a3ac"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_85f99b1dbee6f39c253b25de6d"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_8c3da464fb11595c86c3b6e4bc"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_f1eba840c1761991f142affee6"`);
-        await queryRunner.query(`DROP TABLE "alerts"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_14202fd5e95e067ac586b323a7"`);
-        await queryRunner.query(`DROP TABLE "chemical_data"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_23db30d1ea638a4db231c4ed7f"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_a0cb25f9279309372dee580e1c"`);
-        await queryRunner.query(`DROP TABLE "disease_records"`);
-        await queryRunner.query(`DROP TABLE "disease_library"`);
-        await queryRunner.query(`DROP TABLE "feed_products"`);
-        await queryRunner.query(`DROP TABLE "feeding_tray_checks"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_1dc181a41a068323a6fb0230fb"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_f28ac4256740f51fc3f6382bdb"`);
-        await queryRunner.query(`DROP TABLE "feed_records"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_49a0ca239d34e74fdc4e0625a7"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_9c9fb030372b5f6a6861963bec"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_cd89d0124b33237a63984aac84"`);
-        await queryRunner.query(`DROP TABLE "expenses"`);
-        await queryRunner.query(`DROP TYPE "public"."expenses_category_enum"`);
-        await queryRunner.query(`DROP TABLE "harvest_plans"`);
-        await queryRunner.query(`DROP TABLE "harvest_records"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_4dc96d2cf0330404241d42d74b"`);
-        await queryRunner.query(`DROP TABLE "harvests"`);
-        await queryRunner.query(`DROP TYPE "public"."harvests_status_enum"`);
-        await queryRunner.query(`DROP TYPE "public"."harvests_harvest_type_enum"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_6c890c62e345a46f48af40ca4f"`);
-        await queryRunner.query(`DROP TABLE "inventory"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_436334b688688c551a4111d08d"`);
-        await queryRunner.query(`DROP TABLE "microbiology_data"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_be40a6ca08639ed964233b9f8e"`);
-        await queryRunner.query(`DROP TABLE "mortality_records"`);
-        await queryRunner.query(`DROP TABLE "news_articles"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_5120c8a8b304f861742d97566b"`);
-        await queryRunner.query(`DROP TABLE "plankton_data"`);
-        await queryRunner.query(`DROP TABLE "pond_dimension_history"`);
-        await queryRunner.query(`DROP TABLE "profiles"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_c261811c82b2a2f49650f272cf"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_fc972d049118fb6b1a4a651f8e"`);
-        await queryRunner.query(`DROP TABLE "sampling_data"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_9cac959cc14ada01ed021ba552"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_530c1c5e6ec7252a9a4ca93e26"`);
-        await queryRunner.query(`DROP TABLE "simulations"`);
-        await queryRunner.query(`DROP TABLE "transactions"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_9430f12c5a1604833f64595a57"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_6086c8dafbae729a930c04d865"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_3c81f71ce1e9dcbc338ae4543f"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_3759aa48296bcd6ad5a3140842"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_de6bc40427829c17882507886f"`);
-        await queryRunner.query(`DROP TABLE "tasks"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_18616b9af47be9b4007fc32f43"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_851a1f590d9b1a6f65b0446537"`);
-        await queryRunner.query(`DROP TABLE "treatments"`);
-        await queryRunner.query(`DROP TABLE "products"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_b2980a4a0b319ac5459ffafcaa"`);
-        await queryRunner.query(`DROP TABLE "water_quality_records"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_0c4e50a46f97b5db35473b496c"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_a6637b3208bc3341208349c02c"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_ee74014c78c9bd5a81f3bba44e"`);
-        await queryRunner.query(`DROP TABLE "ponds"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_909e9463611fe32a33f1cc83da"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_52594b3ababf5219c61c343914"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_730e9b0ef342c72ff1621feb06"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_0f2185c5526c63298bb1b34633"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_b02d00d3b2e915d81078ae10df"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_f9b0217bc2e5c6ef23b3c02ef2"`);
-        await queryRunner.query(`DROP TABLE "crops"`);
-        await queryRunner.query(`DROP TABLE "broodstocks"`);
-        await queryRunner.query(`DROP TABLE "species"`);
-        await queryRunner.query(`DROP TABLE "hatcheries"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_7bf65ce0749585b87ac2a7ce42"`);
-        await queryRunner.query(`DROP TABLE "farms"`);
-        await queryRunner.query(`DROP TABLE "users"`);
-    }
-
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "alerts" DROP CONSTRAINT "FK_15950e7f91abf5dce081f1a3ac7"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "alerts" DROP CONSTRAINT "FK_85f99b1dbee6f39c253b25de6d5"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "alerts" DROP CONSTRAINT "FK_f1eba840c1761991f142affee66"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "chemical_data" DROP CONSTRAINT "FK_14202fd5e95e067ac586b323a71"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "disease_records" DROP CONSTRAINT "FK_23db30d1ea638a4db231c4ed7f9"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "disease_records" DROP CONSTRAINT "FK_a0cb25f9279309372dee580e1c9"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "feeding_tray_checks" DROP CONSTRAINT "FK_0f4c43fd2fb9156b9b3d5001964"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "feeding_tray_checks" DROP CONSTRAINT "FK_c4728a5451f28e8618f343d0da3"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "feed_records" DROP CONSTRAINT "FK_24624ea1b2dfc997a47749612ea"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "feed_records" DROP CONSTRAINT "FK_1dc181a41a068323a6fb0230fb1"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "feed_records" DROP CONSTRAINT "FK_f28ac4256740f51fc3f6382bdbe"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "expenses" DROP CONSTRAINT "FK_49a0ca239d34e74fdc4e0625a78"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "expenses" DROP CONSTRAINT "FK_9c9fb030372b5f6a6861963beca"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "expenses" DROP CONSTRAINT "FK_cd89d0124b33237a63984aac84b"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "harvest_plans" DROP CONSTRAINT "FK_a0ed46a453925cd714ed07797fe"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "harvest_records" DROP CONSTRAINT "FK_b866e92ee231a431ad51f4750f4"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "harvests" DROP CONSTRAINT "FK_4dc96d2cf0330404241d42d74b8"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "inventory" DROP CONSTRAINT "FK_6c890c62e345a46f48af40ca4fd"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "microbiology_data" DROP CONSTRAINT "FK_436334b688688c551a4111d08d8"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "mortality_records" DROP CONSTRAINT "FK_be40a6ca08639ed964233b9f8e8"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "plankton_data" DROP CONSTRAINT "FK_5120c8a8b304f861742d97566bd"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "pond_dimension_history" DROP CONSTRAINT "FK_0ec1c855693386081961c3a3950"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "sampling_data" DROP CONSTRAINT "FK_c261811c82b2a2f49650f272cfb"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "sampling_data" DROP CONSTRAINT "FK_fc972d049118fb6b1a4a651f8ec"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "simulations" DROP CONSTRAINT "FK_9cac959cc14ada01ed021ba5520"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "simulations" DROP CONSTRAINT "FK_530c1c5e6ec7252a9a4ca93e266"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "transactions" DROP CONSTRAINT "FK_66d11a02ced150a9c521cee2aea"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasks" DROP CONSTRAINT "FK_de6bc40427829c17882507886fb"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "treatments" DROP CONSTRAINT "FK_18616b9af47be9b4007fc32f43d"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "treatments" DROP CONSTRAINT "FK_851a1f590d9b1a6f65b0446537c"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "water_quality_records" DROP CONSTRAINT "FK_b2980a4a0b319ac5459ffafcaa0"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" DROP CONSTRAINT "FK_0c4e50a46f97b5db35473b496c5"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" DROP CONSTRAINT "FK_ee74014c78c9bd5a81f3bba44eb"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" DROP CONSTRAINT "FK_52594b3ababf5219c61c343914f"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" DROP CONSTRAINT "FK_730e9b0ef342c72ff1621feb063"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" DROP CONSTRAINT "FK_0f2185c5526c63298bb1b346337"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" DROP CONSTRAINT "FK_f9b0217bc2e5c6ef23b3c02ef21"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "farms" DROP CONSTRAINT "FK_7bf65ce0749585b87ac2a7ce429"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "disease_library" DROP COLUMN "commonNames"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "disease_library" DROP COLUMN "common_names"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "disease_library" ADD "common_names" text array DEFAULT '{}'`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_15950e7f91abf5dce081f1a3ac"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_85f99b1dbee6f39c253b25de6d"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_8c3da464fb11595c86c3b6e4bc"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_f1eba840c1761991f142affee6"`,
+    );
+    await queryRunner.query(`DROP TABLE "alerts"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_14202fd5e95e067ac586b323a7"`,
+    );
+    await queryRunner.query(`DROP TABLE "chemical_data"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_23db30d1ea638a4db231c4ed7f"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_a0cb25f9279309372dee580e1c"`,
+    );
+    await queryRunner.query(`DROP TABLE "disease_records"`);
+    await queryRunner.query(`DROP TABLE "disease_library"`);
+    await queryRunner.query(`DROP TABLE "feed_products"`);
+    await queryRunner.query(`DROP TABLE "feeding_tray_checks"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_1dc181a41a068323a6fb0230fb"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_f28ac4256740f51fc3f6382bdb"`,
+    );
+    await queryRunner.query(`DROP TABLE "feed_records"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_49a0ca239d34e74fdc4e0625a7"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_9c9fb030372b5f6a6861963bec"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_cd89d0124b33237a63984aac84"`,
+    );
+    await queryRunner.query(`DROP TABLE "expenses"`);
+    await queryRunner.query(`DROP TYPE "public"."expenses_category_enum"`);
+    await queryRunner.query(`DROP TABLE "harvest_plans"`);
+    await queryRunner.query(`DROP TABLE "harvest_records"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_4dc96d2cf0330404241d42d74b"`,
+    );
+    await queryRunner.query(`DROP TABLE "harvests"`);
+    await queryRunner.query(`DROP TYPE "public"."harvests_status_enum"`);
+    await queryRunner.query(`DROP TYPE "public"."harvests_harvest_type_enum"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_6c890c62e345a46f48af40ca4f"`,
+    );
+    await queryRunner.query(`DROP TABLE "inventory"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_436334b688688c551a4111d08d"`,
+    );
+    await queryRunner.query(`DROP TABLE "microbiology_data"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_be40a6ca08639ed964233b9f8e"`,
+    );
+    await queryRunner.query(`DROP TABLE "mortality_records"`);
+    await queryRunner.query(`DROP TABLE "news_articles"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_5120c8a8b304f861742d97566b"`,
+    );
+    await queryRunner.query(`DROP TABLE "plankton_data"`);
+    await queryRunner.query(`DROP TABLE "pond_dimension_history"`);
+    await queryRunner.query(`DROP TABLE "profiles"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_c261811c82b2a2f49650f272cf"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_fc972d049118fb6b1a4a651f8e"`,
+    );
+    await queryRunner.query(`DROP TABLE "sampling_data"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_9cac959cc14ada01ed021ba552"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_530c1c5e6ec7252a9a4ca93e26"`,
+    );
+    await queryRunner.query(`DROP TABLE "simulations"`);
+    await queryRunner.query(`DROP TABLE "transactions"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_9430f12c5a1604833f64595a57"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_6086c8dafbae729a930c04d865"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_3c81f71ce1e9dcbc338ae4543f"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_3759aa48296bcd6ad5a3140842"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_de6bc40427829c17882507886f"`,
+    );
+    await queryRunner.query(`DROP TABLE "tasks"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_18616b9af47be9b4007fc32f43"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_851a1f590d9b1a6f65b0446537"`,
+    );
+    await queryRunner.query(`DROP TABLE "treatments"`);
+    await queryRunner.query(`DROP TABLE "products"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_b2980a4a0b319ac5459ffafcaa"`,
+    );
+    await queryRunner.query(`DROP TABLE "water_quality_records"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_0c4e50a46f97b5db35473b496c"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_a6637b3208bc3341208349c02c"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_ee74014c78c9bd5a81f3bba44e"`,
+    );
+    await queryRunner.query(`DROP TABLE "ponds"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_909e9463611fe32a33f1cc83da"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_52594b3ababf5219c61c343914"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_730e9b0ef342c72ff1621feb06"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_0f2185c5526c63298bb1b34633"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_b02d00d3b2e915d81078ae10df"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_f9b0217bc2e5c6ef23b3c02ef2"`,
+    );
+    await queryRunner.query(`DROP TABLE "crops"`);
+    await queryRunner.query(`DROP TABLE "broodstocks"`);
+    await queryRunner.query(`DROP TABLE "species"`);
+    await queryRunner.query(`DROP TABLE "hatcheries"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_7bf65ce0749585b87ac2a7ce42"`,
+    );
+    await queryRunner.query(`DROP TABLE "farms"`);
+    await queryRunner.query(`DROP TABLE "users"`);
+  }
 }

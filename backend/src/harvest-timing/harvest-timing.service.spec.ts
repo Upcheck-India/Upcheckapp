@@ -1,4 +1,7 @@
-import { HarvestTimingService, HarvestTimingInput } from './harvest-timing.service';
+import {
+  HarvestTimingService,
+  HarvestTimingInput,
+} from './harvest-timing.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
 import { CountPriceBand } from '../india/economics.service';
 
@@ -88,15 +91,34 @@ describe('HarvestTimingService.optimize (farmer_features_spec §1)', () => {
   it('slows growth as the pond fills toward carrying capacity (density cap)', () => {
     // Same cohort, same ADG; only the carrying capacity differs. The crowded
     // pond (near capacity) must grow LESS than the roomy one over the horizon.
-    const crowded = svc.optimizeCore({ ...base, nNow: 300_000, abwNow: 25, carryingCapacityKgM2: 2.0, horizon: 10 });
-    const roomy = svc.optimizeCore({ ...base, nNow: 300_000, abwNow: 25, carryingCapacityKgM2: 20.0, horizon: 10 });
+    const crowded = svc.optimizeCore({
+      ...base,
+      nNow: 300_000,
+      abwNow: 25,
+      carryingCapacityKgM2: 2.0,
+      horizon: 10,
+    });
+    const roomy = svc.optimizeCore({
+      ...base,
+      nNow: 300_000,
+      abwNow: 25,
+      carryingCapacityKgM2: 20.0,
+      horizon: 10,
+    });
     expect(crowded.projections[10].abw).toBeLessThan(roomy.projections[10].abw);
   });
 
   it('treats disease risk as a compounding hold cost (zero now, growing with days)', () => {
-    const r = svc.optimizeCore({ ...base, adgNow: 1.2, diseaseRisk: 0.5, horizon: 30 });
+    const r = svc.optimizeCore({
+      ...base,
+      adgNow: 1.2,
+      diseaseRisk: 0.5,
+      horizon: 30,
+    });
     expect(r.projections[0].riskLoss).toBe(0); // harvesting now carries no exposure
     expect(r.projections[10].riskLoss).toBeGreaterThan(0);
-    expect(r.projections[30].riskLoss).toBeGreaterThan(r.projections[10].riskLoss);
+    expect(r.projections[30].riskLoss).toBeGreaterThan(
+      r.projections[10].riskLoss,
+    );
   });
 });

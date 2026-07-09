@@ -9,7 +9,11 @@ import { SupabaseAuthService } from '../auth/supabase-auth.service';
 // Mock repository factory
 const createMockRepository = () => ({
   create: jest.fn().mockImplementation((dto) => dto),
-  save: jest.fn().mockImplementation((entity) => Promise.resolve({ ...entity, id: 'test-id' })),
+  save: jest
+    .fn()
+    .mockImplementation((entity) =>
+      Promise.resolve({ ...entity, id: 'test-id' }),
+    ),
   find: jest.fn().mockResolvedValue([]),
   findOneBy: jest.fn().mockResolvedValue(null),
   update: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -22,9 +26,15 @@ describe('ProfilesService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
+        },
         { provide: DataSource, useValue: { transaction: jest.fn() } },
-        { provide: SupabaseAuthService, useValue: { deleteUser: jest.fn().mockResolvedValue(undefined) } },
+        {
+          provide: SupabaseAuthService,
+          useValue: { deleteUser: jest.fn().mockResolvedValue(undefined) },
+        },
         ProfilesService,
         {
           provide: getRepositoryToken(Profile),
@@ -34,7 +44,9 @@ describe('ProfilesService', () => {
     }).compile();
 
     service = module.get<ProfilesService>(ProfilesService);
-    mockRepository = module.get<Repository<Profile>>(getRepositoryToken(Profile));
+    mockRepository = module.get<Repository<Profile>>(
+      getRepositoryToken(Profile),
+    );
   });
 
   it('should be defined', () => {
@@ -48,7 +60,7 @@ describe('ProfilesService', () => {
         fullName: 'John Doe',
         avatarUrl: 'https://example.com/avatar.jpg',
         website: 'https://johndoe.com',
-        languagePreference: 'en'
+        languagePreference: 'en',
       };
 
       const result = await service.create(createDto);
@@ -59,22 +71,14 @@ describe('ProfilesService', () => {
     });
   });
 
-  describe('findAll', () => {
-    it('should return all profiles', async () => {
-      const mockProfiles = [{ id: '1', username: 'johndoe' }];
-      mockRepository.find.mockResolvedValue(mockProfiles);
-
-      const result = await service.findAll();
-
-      expect(mockRepository.find).toHaveBeenCalled();
-      expect(result).toEqual(mockProfiles);
-    });
-  });
-
   describe('findOne', () => {
     it('should return a profile by id', async () => {
       const profileId = 'user-1';
-      const mockProfile = { id: profileId, username: 'johndoe', fullName: 'John Doe' };
+      const mockProfile = {
+        id: profileId,
+        username: 'johndoe',
+        fullName: 'John Doe',
+      };
       mockRepository.findOneBy.mockResolvedValue(mockProfile);
 
       const result = await service.findOne(profileId);
@@ -88,7 +92,11 @@ describe('ProfilesService', () => {
     it('should update a profile', async () => {
       const profileId = 'user-1';
       const updateDto = { fullName: 'Jane Doe' };
-      const updatedProfile = { id: profileId, username: 'johndoe', fullName: 'Jane Doe' };
+      const updatedProfile = {
+        id: profileId,
+        username: 'johndoe',
+        fullName: 'Jane Doe',
+      };
 
       mockRepository.findOneBy.mockResolvedValue(updatedProfile);
 

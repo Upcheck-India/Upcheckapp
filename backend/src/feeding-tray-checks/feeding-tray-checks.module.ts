@@ -5,9 +5,9 @@ import { FeedingTrayChecksController } from './feeding-tray-checks.controller';
 import { FeedingTrayCheck } from './feeding-tray-check.entity';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([FeedingTrayCheck])],
-    controllers: [FeedingTrayChecksController],
-    providers: [FeedingTrayChecksService],
-    exports: [FeedingTrayChecksService],
+  imports: [TypeOrmModule.forFeature([FeedingTrayCheck])],
+  controllers: [FeedingTrayChecksController],
+  providers: [FeedingTrayChecksService],
+  exports: [FeedingTrayChecksService],
 })
-export class FeedingTrayChecksModule { }
+export class FeedingTrayChecksModule {}

@@ -73,7 +73,7 @@ export const QuickLogScreen = ({ navigation }: any) => {
                     <Text style={styles.title}>{t('home.quickLogTitle')}</Text>
                     <Text style={styles.subtitle} numberOfLines={1}>{t('home.quickLogSubtitle')}</Text>
                 </View>
-                <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t('common.close', 'Close')}>
                     <MaterialCommunityIcons name="close" size={26} color={theme.roles.light.textSecondary} />
                 </TouchableOpacity>
             </View>

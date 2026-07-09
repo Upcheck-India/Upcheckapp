@@ -5,8 +5,8 @@ import { ChemicalData } from './chemical-data.entity';
 import { ChemicalService } from './chemical.service';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([ChemicalData])],
-    controllers: [ChemicalController],
-    providers: [ChemicalService],
+  imports: [TypeOrmModule.forFeature([ChemicalData])],
+  controllers: [ChemicalController],
+  providers: [ChemicalService],
 })
-export class ChemicalModule { }
+export class ChemicalModule {}

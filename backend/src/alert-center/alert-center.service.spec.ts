@@ -17,15 +17,34 @@ describe('AlertCenterService', () => {
     expect(arg.type).toBe('disease');
     expect(arg.severity).toBe('critical');
     expect(arg.message).toBe('Temperature dropped 4°C');
-    expect(arg.data).toEqual({ source: 'disease', steps: ['Raise biosecurity'], status: 'open' });
+    expect(arg.data).toEqual({
+      source: 'disease',
+      steps: ['Raise biosecurity'],
+      status: 'open',
+    });
   });
 
   it('buildBriefing picks the top-severity alert per pond, ordered by severity', () => {
     const svc = new AlertCenterService({} as any);
     const briefing = svc.buildBriefing([
-      { pondId: 'A', severity: 'watch', title: 'Feed', data: { source: 'feed', steps: [] } },
-      { pondId: 'A', severity: 'critical', title: 'WSSV', data: { source: 'disease', steps: ['x'] } },
-      { pondId: 'B', severity: 'info', title: 'News', data: { source: 'news' } },
+      {
+        pondId: 'A',
+        severity: 'watch',
+        title: 'Feed',
+        data: { source: 'feed', steps: [] },
+      },
+      {
+        pondId: 'A',
+        severity: 'critical',
+        title: 'WSSV',
+        data: { source: 'disease', steps: ['x'] },
+      },
+      {
+        pondId: 'B',
+        severity: 'info',
+        title: 'News',
+        data: { source: 'news' },
+      },
     ]);
     expect(briefing).toHaveLength(2); // one card per pond
     expect(briefing[0].pondId).toBe('A'); // critical sorts first
@@ -39,7 +58,12 @@ describe('AlertCenterService', () => {
   it('morningBriefing reads the user unread alerts', async () => {
     const alerts = {
       findByUser: jest.fn().mockResolvedValue([
-        { pondId: 'A', severity: 'critical', title: 'WSSV', data: { source: 'disease', steps: [] } },
+        {
+          pondId: 'A',
+          severity: 'critical',
+          title: 'WSSV',
+          data: { source: 'disease', steps: [] },
+        },
       ]),
     };
     const svc = new AlertCenterService(alerts as any);

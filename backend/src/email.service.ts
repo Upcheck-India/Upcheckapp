@@ -14,7 +14,9 @@ export class EmailService {
     this.isConfigured = !!this.apiKey;
 
     if (!this.isConfigured) {
-      this.logger.warn('BREVO_API_KEY not set — emails will be logged but not sent.');
+      this.logger.warn(
+        'BREVO_API_KEY not set — emails will be logged but not sent.',
+      );
     } else {
       this.logger.log('Brevo HTTP API email service ready.');
     }
@@ -32,9 +34,15 @@ export class EmailService {
     return this.configService.get('APP_NAME', 'Upcheck');
   }
 
-  private async sendEmail(to: string, subject: string, html: string): Promise<void> {
+  private async sendEmail(
+    to: string,
+    subject: string,
+    html: string,
+  ): Promise<void> {
     if (!this.isConfigured) {
-      this.logger.warn(`Email not sent (BREVO_API_KEY missing): to=${to} subject=${subject}`);
+      this.logger.warn(
+        `Email not sent (BREVO_API_KEY missing): to=${to} subject=${subject}`,
+      );
       return;
     }
 
@@ -51,14 +59,16 @@ export class EmailService {
         headers: {
           'api-key': this.apiKey,
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const text = await res.text();
-        this.logger.error(`Brevo API error ${res.status} sending to ${to}: ${text}`);
+        this.logger.error(
+          `Brevo API error ${res.status} sending to ${to}: ${text}`,
+        );
       } else {
         this.logger.log(`Email sent via Brevo API to ${to}: ${subject}`);
       }
@@ -106,7 +116,11 @@ export class EmailService {
         </body>
       </html>`;
 
-    await this.sendEmail(email, `Verify your email address - ${this.appName}`, html);
+    await this.sendEmail(
+      email,
+      `Verify your email address - ${this.appName}`,
+      html,
+    );
   }
 
   async sendPasswordResetEmail(email: string, token: string, name?: string) {
@@ -218,7 +232,11 @@ export class EmailService {
         </body>
       </html>`;
 
-    await this.sendEmail(email, `Your password has been changed - ${this.appName}`, html);
+    await this.sendEmail(
+      email,
+      `Your password has been changed - ${this.appName}`,
+      html,
+    );
   }
 
   async sendInviteEmail(toEmail: string, inviterName: string) {
@@ -264,7 +282,11 @@ export class EmailService {
         </body>
       </html>`;
 
-    await this.sendEmail(toEmail, `${inviterName} invited you to join ${this.appName}!`, html);
+    await this.sendEmail(
+      toEmail,
+      `${inviterName} invited you to join ${this.appName}!`,
+      html,
+    );
   }
 
   async sendOtpEmail(email: string, code: string, name?: string) {
@@ -298,6 +320,10 @@ export class EmailService {
         </body>
       </html>`;
 
-    await this.sendEmail(email, `Your Verification Code - ${this.appName}`, html);
+    await this.sendEmail(
+      email,
+      `Your Verification Code - ${this.appName}`,
+      html,
+    );
   }
 }

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import * as Clipboard from 'expo-clipboard';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -20,6 +21,9 @@ export const TwoFactorScreen = ({ navigation }: any) => {
     const [setup, setSetup] = useState<TwoFactorSetup | null>(null);
     const [code, setCode] = useState('');
     const [busy, setBusy] = useState(false);
+    // Backup codes are shown ONCE, right after enable/regenerate. Held in
+    // memory only; never re-fetchable (the server stores hashes).
+    const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
 
     const loadStatus = async () => {
         setLoading(true);
@@ -56,16 +60,40 @@ export const TwoFactorScreen = ({ navigation }: any) => {
         }
         setBusy(true);
         try {
-            await authApi.twoFactor.enable(code.trim());
+            const { data } = await authApi.twoFactor.enable(code.trim());
             setSetup(null);
             setCode('');
             setEnabled(true);
+            setBackupCodes(data.backupCodes ?? null);
             Alert.alert(t('common.ok'), t('settings.twoFactorEnabledSuccess'));
         } catch (err: any) {
             Alert.alert(t('common.error'), err.response?.data?.message || t('common.error'));
         } finally {
             setBusy(false);
         }
+    };
+
+    const regenerate = async () => {
+        if (code.trim().length !== 6) {
+            Alert.alert(t('common.error'), t('settings.twoFactorCodeRequired'));
+            return;
+        }
+        setBusy(true);
+        try {
+            const { data } = await authApi.twoFactor.regenerateBackupCodes(code.trim());
+            setCode('');
+            setBackupCodes(data.backupCodes ?? null);
+        } catch (err: any) {
+            Alert.alert(t('common.error'), err.response?.data?.message || t('common.error'));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const copyBackupCodes = async () => {
+        if (!backupCodes) return;
+        await Clipboard.setStringAsync(backupCodes.join('\n'));
+        Alert.alert(t('common.ok'), t('settings.twoFactorBackupCopied'));
     };
 
     const disable = async () => {
@@ -134,7 +162,39 @@ export const TwoFactorScreen = ({ navigation }: any) => {
                         </Card>
                     )}
 
-                    {enabled && (
+                    {backupCodes && (
+                        <Card style={styles.card}>
+                            <View style={styles.statusRow}>
+                                <MaterialCommunityIcons name="key-variant" size={22} color={theme.roles.light.primary} />
+                                <Text style={styles.statusText}>{t('settings.twoFactorBackupTitle')}</Text>
+                            </View>
+                            <Text style={styles.help}>{t('settings.twoFactorBackupHelp')}</Text>
+                            <View style={styles.codesBox}>
+                                {backupCodes.map((bc) => (
+                                    <Text key={bc} style={styles.codeText} selectable>{bc}</Text>
+                                ))}
+                            </View>
+                            <Button title={t('settings.twoFactorBackupCopy')} onPress={copyBackupCodes} variant="outlined" style={styles.btn} />
+                            <Button title={t('settings.twoFactorBackupAck')} onPress={() => setBackupCodes(null)} style={styles.btn} />
+                        </Card>
+                    )}
+
+                    {enabled && !backupCodes && (
+                        <Card style={styles.card}>
+                            <Text style={styles.help}>{t('settings.twoFactorRegenerateHelp')}</Text>
+                            <Input
+                                label={t('settings.twoFactorAuthCodeLabel')}
+                                value={code}
+                                onChangeText={setCode}
+                                placeholder="123456"
+                                keyboardType="number-pad"
+                                maxLength={6}
+                            />
+                            <Button title={t('settings.twoFactorRegenerate')} onPress={regenerate} loading={busy} variant="outlined" style={styles.btn} />
+                        </Card>
+                    )}
+
+                    {enabled && !backupCodes && (
                         <Card style={styles.card}>
                             <Text style={styles.help}>{t('settings.twoFactorDisableHelp')}</Text>
                             <Input
@@ -186,4 +246,18 @@ const styles = StyleSheet.create({
     },
     btn: { marginTop: theme.spacing[3] },
     dangerBtn: { borderColor: theme.roles.light.dangerText },
+    codesBox: {
+        backgroundColor: theme.roles.light.surfaceVariant ?? theme.roles.light.background,
+        borderRadius: 8,
+        padding: theme.spacing[3],
+        marginBottom: theme.spacing[2],
+    },
+    codeText: {
+        ...theme.typeScale.bodyLarge,
+        fontFamily: 'monospace',
+        letterSpacing: 2,
+        textAlign: 'center',
+        color: theme.roles.light.textPrimary,
+        paddingVertical: 2,
+    },
 });

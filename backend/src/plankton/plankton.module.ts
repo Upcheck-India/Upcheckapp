@@ -5,8 +5,8 @@ import { PlanktonData } from './plankton-data.entity';
 import { PlanktonService } from './plankton.service';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([PlanktonData])],
-    controllers: [PlanktonController],
-    providers: [PlanktonService],
+  imports: [TypeOrmModule.forFeature([PlanktonData])],
+  controllers: [PlanktonController],
+  providers: [PlanktonService],
 })
-export class PlanktonModule { }
+export class PlanktonModule {}

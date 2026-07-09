@@ -1,39 +1,51 @@
-import { IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class UpdateHarvestDto {
-    @IsOptional()
-    @IsDateString()
-    harvestDate?: string;
+  @IsOptional()
+  @IsDateString()
+  harvestDate?: string;
 
-    @IsOptional()
-    @IsNumber()
-    weightKg?: number;
+  @IsOptional()
+  @IsNumber()
+  @Min(0.01)
+  weightKg?: number;
 
-    @IsOptional()
-    @IsInt()
-    count?: number;
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  count?: number;
 
-    @IsOptional()
-    @IsNumber()
-    averageSize?: number;
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  averageSize?: number;
 
-    @IsOptional()
-    @IsNumber()
-    salePriceTotal?: number;
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  salePriceTotal?: number;
 
-    @IsOptional()
-    @IsString()
-    buyerName?: string;
+  @IsOptional()
+  @IsString()
+  buyerName?: string;
 
-    @IsOptional()
-    @IsIn(['partial', 'full'])
-    harvestType?: 'partial' | 'full';
+  @IsOptional()
+  @IsIn(['partial', 'full'])
+  harvestType?: 'partial' | 'full';
 
-    @IsOptional()
-    @IsIn(['pending', 'sold', 'discarded'])
-    status?: 'pending' | 'sold' | 'discarded';
+  @IsOptional()
+  @IsIn(['pending', 'sold', 'discarded'])
+  status?: 'pending' | 'sold' | 'discarded';
 
-    @IsOptional()
-    @IsString()
-    notes?: string;
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

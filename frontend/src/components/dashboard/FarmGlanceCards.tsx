@@ -112,11 +112,17 @@ export const FarmGlanceCards: React.FC<Props> = ({ farmId, farmName, navigation 
           chosen
             ? feedApi
                 .getAll(chosen.id)
-                .then((r) =>
-                  [...r.data].sort(
-                    (a, b) => Date.parse(b.recordedAt || '') - Date.parse(a.recordedAt || ''),
-                  )[0] ?? null,
-                )
+                .then((r) => {
+                  // getAll returns a PageDto envelope ({ data, meta }), not a
+                  // bare array — spreading the object threw and left this card
+                  // permanently blank. Unwrap like the other feed callers.
+                  const items = Array.isArray(r.data) ? r.data : (r.data as any).data ?? [];
+                  return (
+                    [...items].sort(
+                      (a, b) => Date.parse(b.recordedAt || '') - Date.parse(a.recordedAt || ''),
+                    )[0] ?? null
+                  );
+                })
                 .catch(() => null)
             : Promise.resolve(null),
           inventoryApi.getAll(farmId).then((r) => r.data).catch(() => []),

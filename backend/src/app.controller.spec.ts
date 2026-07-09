@@ -10,7 +10,12 @@ describe('AppController', () => {
     const app: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
       providers: [
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },AppService],
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
+        },
+        AppService,
+      ],
     }).compile();
 
     appController = app.get<AppController>(AppController);

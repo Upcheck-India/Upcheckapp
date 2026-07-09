@@ -5,6 +5,7 @@ export * from './verify-otp.dto';
 export * from './enable-2fa.dto';
 export * from './disable-2fa.dto';
 export * from './login-2fa.dto';
+export * from './reset-2fa-check.dto';
 export * from './forgot-password.dto';
 export * from './reset-password.dto';
 export * from './change-password.dto';

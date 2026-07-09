@@ -100,6 +100,17 @@ const settings = {
   twoFactorDisabledSuccess: 'ଦ୍ୱି-ଘଟକ ପ୍ରମାଣୀକରଣ ବର୍ତ୍ତମାନ ବନ୍ଦ ଅଛି।',
   twoFactorSetupError: '2FA ସ୍ଥାପନ ଆରମ୍ଭ ହୋଇପାରିଲା ନାହିଁ',
 
+  // ── Backup codes (AUTH-4) ──
+  twoFactorBackupTitle: 'ଆପଣଙ୍କ ବ୍ୟାକଅପ୍ କୋଡ଼ ସଞ୍ଚୟ କରନ୍ତୁ',
+  twoFactorBackupHelp:
+    'ଏହି ଏକ-ଥର କୋଡ଼ଗୁଡ଼ିକୁ ନିରାପଦ ସ୍ଥାନରେ ରଖନ୍ତୁ। ଆପଣ ଆପଣଙ୍କ ପ୍ରାମାଣିକ ଆପ୍ ପ୍ରବେଶ ହରାଇଲେ ପ୍ରତ୍ୟେକ ଥରେ କାମ କରେ। ଏଗୁଡ଼ିକ ପୁନର୍ବାର ଦେଖାଯିବ ନାହିଁ।',
+  twoFactorBackupCopy: 'କୋଡ଼ କପି କରନ୍ତୁ',
+  twoFactorBackupAck: 'ମୁଁ ସେଗୁଡ଼ିକ ସଞ୍ଚୟ କରିଛି',
+  twoFactorBackupCopied: 'ବ୍ୟାକଅପ୍ କୋଡ଼ କ୍ଲିପବୋର୍ଡକୁ କପି ହୋଇଛି।',
+  twoFactorRegenerateHelp:
+    'ବ୍ୟାକଅପ୍ କୋଡ଼ର ଏକ ନୂଆ ସେଟ୍ ସୃଷ୍ଟି କରନ୍ତୁ। ଆପଣଙ୍କ ପୁରୁଣା କୋଡ଼ କାମ କରିବା ବନ୍ଦ କରିବ।',
+  twoFactorRegenerate: 'ବ୍ୟାକଅପ୍ କୋଡ଼ ପୁନଃସୃଷ୍ଟି କରନ୍ତୁ',
+
   // ── NotificationsScreen ───────────────────────────────────────────────────
   notificationsTitle: 'ବିଜ୍ଞପ୍ତି',
   notificationsEmpty: 'ସବୁ ଦେଖି ସାରିଲେ!',

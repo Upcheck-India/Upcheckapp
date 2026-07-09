@@ -1,7 +1,12 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { PondsService } from './ponds.service';
 import { Pond } from './pond.entity';
@@ -64,13 +69,19 @@ describe('PondsService', () => {
     createdAt: new Date(),
     updatedAt: new Date(),
     farm: mockFarm,
-    get effectiveAreaM2() { return this.overrideAreaM2 ?? this.calculatedAreaM2; },
-    get volumeM3() { return (this.effectiveAreaM2 ?? 0) * (this.depthM ?? 0); },
+    get effectiveAreaM2() {
+      return this.overrideAreaM2 ?? this.calculatedAreaM2;
+    },
+    get volumeM3() {
+      return (this.effectiveAreaM2 ?? 0) * (this.depthM ?? 0);
+    },
   };
 
   beforeEach(async () => {
     pondsRepository = {
-      create: jest.fn().mockImplementation(data => ({ ...data, id: 'pond-new' })),
+      create: jest
+        .fn()
+        .mockImplementation((data) => ({ ...data, id: 'pond-new' })),
       save: jest.fn(),
       find: jest.fn(),
       findOne: jest.fn(),
@@ -81,7 +92,7 @@ describe('PondsService', () => {
     };
 
     historyRepository = {
-      create: jest.fn().mockImplementation(data => data),
+      create: jest.fn().mockImplementation((data) => data),
       save: jest.fn(),
       find: jest.fn(),
       findAndCount: jest.fn().mockResolvedValue([[], 0]),
@@ -104,16 +115,25 @@ describe('PondsService', () => {
     namingService = {
       validatePrefix: jest.fn(),
       validatePondLimit: jest.fn(),
-      generateBatchNames: jest.fn().mockResolvedValue([
-        { name: 'A01', pondCode: 'TF001234:A01', sequenceNumber: 1 },
-      ]),
+      generateBatchNames: jest
+        .fn()
+        .mockResolvedValue([
+          { name: 'A01', pondCode: 'TF001234:A01', sequenceNumber: 1 },
+        ]),
     };
 
     const mockTransactionManager = {
-      save: jest.fn().mockImplementation(entities => entities),
+      save: jest.fn().mockImplementation((entities) => entities),
     };
     dataSource = {
-      transaction: jest.fn().mockImplementation(async cb => cb(mockTransactionManager)),
+      transaction: jest
+        .fn()
+        .mockImplementation(async (cb) => cb(mockTransactionManager)),
+      // remove() counts crops for the pond via getRepository(Crop).count;
+      // default to 0 (no history → deletable).
+      getRepository: jest
+        .fn()
+        .mockReturnValue({ count: jest.fn().mockResolvedValue(0) }),
     };
 
     farmAccess = {
@@ -123,10 +143,16 @@ describe('PondsService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
+        },
         PondsService,
         { provide: getRepositoryToken(Pond), useValue: pondsRepository },
-        { provide: getRepositoryToken(PondDimensionHistory), useValue: historyRepository },
+        {
+          provide: getRepositoryToken(PondDimensionHistory),
+          useValue: historyRepository,
+        },
         { provide: FarmsService, useValue: farmsService },
         { provide: PondDimensionService, useValue: dimensionService },
         { provide: PondNamingService, useValue: namingService },
@@ -158,7 +184,11 @@ describe('PondsService', () => {
     it('should create a single pond with calculated area', async () => {
       const result = await service.create(dto, 'user-1');
 
-      expect(farmAccess.assertCanAccessFarm).toHaveBeenCalledWith('user-1', 'farm-1', 'WRITE_MANAGEMENT');
+      expect(farmAccess.assertCanAccessFarm).toHaveBeenCalledWith(
+        'user-1',
+        'farm-1',
+        'WRITE_MANAGEMENT',
+      );
       expect(namingService.validatePrefix).toHaveBeenCalledWith('A');
       expect(dimensionService.validateDimensions).toHaveBeenCalled();
       expect(dimensionService.calculateArea).toHaveBeenCalled();
@@ -188,8 +218,12 @@ describe('PondsService', () => {
     });
 
     it('should throw when farm access fails', async () => {
-      farmAccess.assertCanAccessFarm.mockRejectedValue(new ForbiddenException());
-      await expect(service.create(dto, 'user-2')).rejects.toThrow(ForbiddenException);
+      farmAccess.assertCanAccessFarm.mockRejectedValue(
+        new ForbiddenException(),
+      );
+      await expect(service.create(dto, 'user-2')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -204,7 +238,9 @@ describe('PondsService', () => {
 
     it('should throw NotFoundException when not found', async () => {
       pondsRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne('bad-id', 'user-1')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('bad-id', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -219,7 +255,9 @@ describe('PondsService', () => {
       await service.update('pond-1', { displayName: 'Pond Alpha' }, 'user-1');
 
       expect(historyRepository.save).not.toHaveBeenCalled();
-      expect(pondsRepository.update).toHaveBeenCalledWith('pond-1', { displayName: 'Pond Alpha' });
+      expect(pondsRepository.update).toHaveBeenCalledWith('pond-1', {
+        displayName: 'Pond Alpha',
+      });
     });
 
     it('should log history and recalculate when dimensions change', async () => {
@@ -228,17 +266,26 @@ describe('PondsService', () => {
       dimensionService.calculateArea.mockReturnValue(250);
       pondsRepository.update.mockResolvedValue(undefined);
 
-      await service.update('pond-1', { lengthM: 25, changeReason: 'Measured again' }, 'user-1');
+      await service.update(
+        'pond-1',
+        { lengthM: 25, changeReason: 'Measured again' },
+        'user-1',
+      );
 
-      expect(historyRepository.create).toHaveBeenCalledWith(expect.objectContaining({
-        pondId: 'pond-1',
-        lengthMBefore: 20,
-        changeReason: 'Measured again',
-      }));
+      expect(historyRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pondId: 'pond-1',
+          lengthMBefore: 20,
+          changeReason: 'Measured again',
+        }),
+      );
       expect(historyRepository.save).toHaveBeenCalled();
-      expect(pondsRepository.update).toHaveBeenCalledWith('pond-1', expect.objectContaining({
-        calculatedAreaM2: 250,
-      }));
+      expect(pondsRepository.update).toHaveBeenCalledWith(
+        'pond-1',
+        expect.objectContaining({
+          calculatedAreaM2: 250,
+        }),
+      );
     });
   });
 
@@ -251,20 +298,33 @@ describe('PondsService', () => {
 
       const result = await service.archive('pond-1', 'user-1');
       expect(result.message).toContain('archived');
-      expect(pondsRepository.update).toHaveBeenCalledWith('pond-1', expect.objectContaining({
-        status: 'archived',
-        archivedAt: expect.any(Date),
-      }));
+      expect(pondsRepository.update).toHaveBeenCalledWith(
+        'pond-1',
+        expect.objectContaining({
+          status: 'archived',
+          archivedAt: expect.any(Date),
+        }),
+      );
     });
 
     it('should throw 409 when pond has active cycle', async () => {
-      pondsRepository.findOne.mockResolvedValue({ ...mockPond, activeCycleId: 'cycle-1' });
-      await expect(service.archive('pond-1', 'user-1')).rejects.toThrow(ConflictException);
+      pondsRepository.findOne.mockResolvedValue({
+        ...mockPond,
+        activeCycleId: 'cycle-1',
+      });
+      await expect(service.archive('pond-1', 'user-1')).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('should throw when already archived', async () => {
-      pondsRepository.findOne.mockResolvedValue({ ...mockPond, status: 'archived' });
-      await expect(service.archive('pond-1', 'user-1')).rejects.toThrow(BadRequestException);
+      pondsRepository.findOne.mockResolvedValue({
+        ...mockPond,
+        status: 'archived',
+      });
+      await expect(service.archive('pond-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -280,8 +340,24 @@ describe('PondsService', () => {
     });
 
     it('should throw when active cycle exists', async () => {
-      pondsRepository.findOne.mockResolvedValue({ ...mockPond, activeCycleId: 'cycle-1' });
-      await expect(service.remove('pond-1', 'user-1')).rejects.toThrow(ConflictException);
+      pondsRepository.findOne.mockResolvedValue({
+        ...mockPond,
+        activeCycleId: 'cycle-1',
+      });
+      await expect(service.remove('pond-1', 'user-1')).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('should throw when pond has crop history (prevent cascade data loss)', async () => {
+      pondsRepository.findOne.mockResolvedValue(mockPond);
+      dataSource.getRepository.mockReturnValue({
+        count: jest.fn().mockResolvedValue(3),
+      });
+      await expect(service.remove('pond-1', 'user-1')).rejects.toThrow(
+        ConflictException,
+      );
+      expect(pondsRepository.delete).not.toHaveBeenCalled();
     });
   });
 

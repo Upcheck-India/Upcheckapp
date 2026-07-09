@@ -1,10 +1,10 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class SeedDiseaseLibrary1746000000000 implements MigrationInterface {
-    name = 'SeedDiseaseLibrary1746000000000';
+  name = 'SeedDiseaseLibrary1746000000000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             DO $$ BEGIN
                 IF (SELECT COUNT(*) FROM "disease_library") = 0 THEN
                     INSERT INTO "disease_library" ("id", "name", "scientific_name", "common_names", "symptoms", "prevention_measures", "treatment_recommendations", "image_urls", "severity_level", "created_at") VALUES
@@ -21,10 +21,10 @@ export class SeedDiseaseLibrary1746000000000 implements MigrationInterface {
                 END IF;
             END $$
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             DELETE FROM "disease_library" WHERE "scientific_name" IN (
                 'Acute Hepatopancreatic Necrosis Disease',
                 'White Spot Syndrome Virus',
@@ -38,5 +38,5 @@ export class SeedDiseaseLibrary1746000000000 implements MigrationInterface {
                 'Yellow Head Virus'
             )
         `);
-    }
+  }
 }

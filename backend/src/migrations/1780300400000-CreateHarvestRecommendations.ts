@@ -4,9 +4,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Additive, idempotent migration: `harvest_recommendations` for the
  * Harvest-Timing engine (farmer_features_spec.md §1). References only `ponds`.
  */
-export class CreateHarvestRecommendations1780300400000
-  implements MigrationInterface
-{
+export class CreateHarvestRecommendations1780300400000 implements MigrationInterface {
   name = 'CreateHarvestRecommendations1780300400000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

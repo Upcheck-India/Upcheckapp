@@ -52,15 +52,18 @@ import { AerationModule } from './aeration/aeration.module';
 import { PnlModule } from './pnl/pnl.module';
 import { CreditModule } from './credit/credit.module';
 import { AlertCenterModule } from './alert-center/alert-center.module';
+import { BannedSubstancesModule } from './banned-substances/banned-substances.module';
 import { PondContextModule } from './pond-context/pond-context.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 60,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 60,
+      },
+    ]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
@@ -163,6 +166,7 @@ import { PondContextModule } from './pond-context/pond-context.module';
     CreditModule,
     AlertCenterModule,
     PondContextModule,
+    BannedSubstancesModule,
   ],
   controllers: [AppController],
   providers: [
@@ -177,4 +181,4 @@ import { PondContextModule } from './pond-context/pond-context.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

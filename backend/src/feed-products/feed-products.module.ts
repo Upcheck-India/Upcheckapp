@@ -5,9 +5,9 @@ import { FeedProductsController } from './feed-products.controller';
 import { FeedProduct } from './feed-product.entity';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([FeedProduct])],
-    controllers: [FeedProductsController],
-    providers: [FeedProductsService],
-    exports: [FeedProductsService],
+  imports: [TypeOrmModule.forFeature([FeedProduct])],
+  controllers: [FeedProductsController],
+  providers: [FeedProductsService],
+  exports: [FeedProductsService],
 })
-export class FeedProductsModule { }
+export class FeedProductsModule {}

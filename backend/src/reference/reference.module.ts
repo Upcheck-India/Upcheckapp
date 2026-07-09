@@ -12,4 +12,4 @@ import { Broodstock } from './entities/broodstock.entity';
   controllers: [ReferenceController],
   exports: [TypeOrmModule],
 })
-export class ReferenceModule { }
+export class ReferenceModule {}

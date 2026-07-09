@@ -5,7 +5,9 @@ const SENTINELS = ['users', 'farms', 'farm_members', 'ponds', 'crops'];
 
 function dsReturning(tableNames: string[]): DataSource {
   return {
-    query: jest.fn().mockResolvedValue(tableNames.map((t) => ({ table_name: t }))),
+    query: jest
+      .fn()
+      .mockResolvedValue(tableNames.map((t) => ({ table_name: t }))),
   } as unknown as DataSource;
 }
 
@@ -17,7 +19,9 @@ describe('assertSchemaReady', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('resolves when all core tables are present', async () => {
-    await expect(assertSchemaReady(dsReturning(SENTINELS))).resolves.toBeUndefined();
+    await expect(
+      assertSchemaReady(dsReturning(SENTINELS)),
+    ).resolves.toBeUndefined();
   });
 
   it('throws listing the missing tables', async () => {

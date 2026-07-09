@@ -17,4 +17,4 @@ import { FarmsModule } from '../farms/farms.module';
   providers: [PondsService, PondDimensionService, PondNamingService],
   exports: [PondsService],
 })
-export class PondsModule { }
+export class PondsModule {}

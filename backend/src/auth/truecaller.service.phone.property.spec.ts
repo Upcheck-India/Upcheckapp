@@ -122,14 +122,10 @@ describe('TruecallerService.normalizePhone — Property 10', () => {
   it('keeps distinct 10-digit local numbers distinct after normalization', () => {
     const svc = buildService();
     fc.assert(
-      fc.property(
-        localPhoneArb,
-        localPhoneArb,
-        (a, b) => {
-          fc.pre(a !== b);
-          expect(svc.normalizePhone(a)).not.toBe(svc.normalizePhone(b));
-        },
-      ),
+      fc.property(localPhoneArb, localPhoneArb, (a, b) => {
+        fc.pre(a !== b);
+        expect(svc.normalizePhone(a)).not.toBe(svc.normalizePhone(b));
+      }),
       { numRuns: 100 },
     );
   });

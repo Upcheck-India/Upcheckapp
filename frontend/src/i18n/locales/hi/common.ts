@@ -41,5 +41,10 @@ const common = {
   serverErrorMessage: 'हमारे सर्वर में समस्या आ रही है। कृपया बाद में प्रयास करें।',
   showPassword: 'पासवर्ड दिखाएं',
   hidePassword: 'पासवर्ड छिपाएं',
+  settings: 'सेटिंग्स',
+  syncFailedTitle: 'कुछ रिकॉर्ड पर ध्यान देने की आवश्यकता है',
+  syncFailedBody: '{{count}} रिकॉर्ड सिंक नहीं हो सके। अभी पुनः प्रयास करें?',
+  syncFailedBanner: 'रिकॉर्ड पर ध्यान दें',
+  syncFailedA11y: '{{count}} रिकॉर्ड सिंक नहीं हुए, पुनः प्रयास के लिए टैप करें',
 };
 export default common;

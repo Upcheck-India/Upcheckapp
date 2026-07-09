@@ -1,212 +1,240 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Crop } from './crop.entity';
 import { CreateCropDto } from './dto/create-crop.dto';
 import { UpdateCropDto } from './dto/update-crop.dto';
+import { HarvestCropDto } from './dto/harvest-crop.dto';
 import { PondsService } from '../ponds/ponds.service';
 
 @Injectable()
 export class CropsService {
-    constructor(
-        @InjectRepository(Crop)
-        private cropsRepository: Repository<Crop>,
-        private pondsService: PondsService,
-    ) { }
+  constructor(
+    @InjectRepository(Crop)
+    private cropsRepository: Repository<Crop>,
+    private pondsService: PondsService,
+  ) {}
 
-    async create(createCropDto: CreateCropDto, userId: string) {
-        // Verify user owns the pond
-        const pond = await this.pondsService.findOne(createCropDto.pondId, userId);
+  async create(createCropDto: CreateCropDto, userId: string) {
+    // Verify user owns the pond
+    const pond = await this.pondsService.findOne(createCropDto.pondId, userId);
 
-        if (pond.activeCycleId && (createCropDto.status === 'active' || !createCropDto.status)) {
-            throw new ConflictException('Pond already has an active cycle. Close it first before starting a new one.');
-        }
-
-
-        // Calculate Stocking Density
-        let stockingDensity = createCropDto.stockingDensity;
-        if (pond.calculatedAreaM2 || pond.overrideAreaM2) {
-            const area = pond.overrideAreaM2 || pond.calculatedAreaM2;
-            if (area > 0 && createCropDto.stockingCount) {
-                stockingDensity = Math.round(createCropDto.stockingCount / area);
-            }
-        }
-
-        // Default status to 'active' — and use the SAME resolved value below so a
-        // cycle created without an explicit status still links to the pond.
-        const finalStatus = createCropDto.status || 'active';
-
-        const crop = this.cropsRepository.create({
-            pondId: createCropDto.pondId,
-            name: createCropDto.name,
-            cropCode: createCropDto.cropCode,
-            speciesType: createCropDto.speciesType,
-            seedType: createCropDto.seedType,
-            stockingCount: createCropDto.stockingCount,
-            stockingDate: createCropDto.stockingDate,
-            expectedHarvestDate: createCropDto.expectedHarvestDate,
-            status: finalStatus,
-            stockingDensity,
-            // Stocking detail + cycle targets — undefined values fall back to the
-            // entity column defaults (carrying capacity 1.25, target SR 75, etc.).
-            totalSeed: createCropDto.totalSeed,
-            feedPriceRpPerKg: createCropDto.feedPriceRpPerKg,
-            carryingCapacityKgM2: createCropDto.carryingCapacityKgM2,
-            targetCultivationDays: createCropDto.targetCultivationDays,
-            targetSize: createCropDto.targetSize,
-            targetSrPercent: createCropDto.targetSrPercent,
-            srPredictionMethod: createCropDto.srPredictionMethod,
-            initialAgeDays: createCropDto.initialAgeDays,
-            preparationDays: createCropDto.preparationDays,
-            totalFeedingTrays: createCropDto.totalFeedingTrays,
-            hatcheryId: createCropDto.hatcheryId,
-            speciesId: createCropDto.speciesId,
-            broodstockId: createCropDto.broodstockId,
-        });
-        const savedCrop = await this.cropsRepository.save(crop);
-
-        // If the cycle is active, link it as the pond's active cycle.
-        if (finalStatus === 'active') {
-            await this.pondsService.update(pond.id, { activeCycleId: savedCrop.id } as any, userId);
-        }
-
-        return savedCrop;
+    if (
+      pond.activeCycleId &&
+      (createCropDto.status === 'active' || !createCropDto.status)
+    ) {
+      throw new ConflictException(
+        'Pond already has an active cycle. Close it first before starting a new one.',
+      );
     }
 
-    async findAll(pondId: string, userId: string) {
-        if (!pondId) {
-            // Similar to WaterQuality, return empty or implement user-based filtering if needed
-            return [];
-        }
-
-        // Verify user owns the pond
-        await this.pondsService.verifyOwner(pondId, userId);
-
-        return this.cropsRepository.find({
-            where: { pondId },
-            order: { createdAt: 'DESC' }
-        });
+    // Calculate Stocking Density
+    let stockingDensity = createCropDto.stockingDensity;
+    if (pond.calculatedAreaM2 || pond.overrideAreaM2) {
+      const area = pond.overrideAreaM2 || pond.calculatedAreaM2;
+      if (area > 0 && createCropDto.stockingCount) {
+        stockingDensity = Math.round(createCropDto.stockingCount / area);
+      }
     }
 
-    async findByPond(pondId: string, userId: string) {
-        // Verify user owns the pond
-        await this.pondsService.verifyOwner(pondId, userId);
-        return this.cropsRepository.find({
-            where: { pondId },
-            order: { createdAt: 'DESC' }
-        });
+    // Default status to 'active' — and use the SAME resolved value below so a
+    // cycle created without an explicit status still links to the pond.
+    const finalStatus = createCropDto.status || 'active';
+
+    const crop = this.cropsRepository.create({
+      pondId: createCropDto.pondId,
+      name: createCropDto.name,
+      cropCode: createCropDto.cropCode,
+      speciesType: createCropDto.speciesType,
+      seedType: createCropDto.seedType,
+      stockingCount: createCropDto.stockingCount,
+      stockingDate: createCropDto.stockingDate,
+      expectedHarvestDate: createCropDto.expectedHarvestDate,
+      status: finalStatus,
+      stockingDensity,
+      // Stocking detail + cycle targets — undefined values fall back to the
+      // entity column defaults (carrying capacity 1.25, target SR 75, etc.).
+      totalSeed: createCropDto.totalSeed,
+      feedPriceRpPerKg: createCropDto.feedPriceRpPerKg,
+      carryingCapacityKgM2: createCropDto.carryingCapacityKgM2,
+      targetCultivationDays: createCropDto.targetCultivationDays,
+      targetSize: createCropDto.targetSize,
+      targetSrPercent: createCropDto.targetSrPercent,
+      srPredictionMethod: createCropDto.srPredictionMethod,
+      initialAgeDays: createCropDto.initialAgeDays,
+      preparationDays: createCropDto.preparationDays,
+      totalFeedingTrays: createCropDto.totalFeedingTrays,
+      hatcheryId: createCropDto.hatcheryId,
+      speciesId: createCropDto.speciesId,
+      broodstockId: createCropDto.broodstockId,
+    });
+    const savedCrop = await this.cropsRepository.save(crop);
+
+    // If the cycle is active, link it as the pond's active cycle.
+    if (finalStatus === 'active') {
+      await this.pondsService.update(
+        pond.id,
+        { activeCycleId: savedCrop.id } as any,
+        userId,
+      );
     }
 
-    async findOne(id: string, userId: string) {
-        const crop = await this.cropsRepository.findOneBy({ id });
-        if (!crop) {
-            throw new NotFoundException(`Crop with ID ${id} not found`);
-        }
-        // Verify ownership via pond (STRICT — this path feeds economics/PNL)
-        await this.pondsService.findOne(crop.pondId, userId);
-        return this.enrichWithDOC(crop);
+    return savedCrop;
+  }
+
+  async findAll(pondId: string, userId: string) {
+    if (!pondId) {
+      // Similar to WaterQuality, return empty or implement user-based filtering if needed
+      return [];
     }
 
-    /** Member-aware crop read (owner or worker). Does NOT feed economics. */
-    async findOneAccessible(id: string, userId: string) {
-        const crop = await this.cropsRepository.findOneBy({ id });
-        if (!crop) {
-            throw new NotFoundException(`Crop with ID ${id} not found`);
-        }
-        await this.pondsService.verifyAccess(crop.pondId, userId, 'READ');
-        return this.enrichWithDOC(crop);
+    // Verify user owns the pond
+    await this.pondsService.verifyOwner(pondId, userId);
+
+    return this.cropsRepository.find({
+      where: { pondId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findByPond(pondId: string, userId: string) {
+    // Verify user owns the pond
+    await this.pondsService.verifyOwner(pondId, userId);
+    return this.cropsRepository.find({
+      where: { pondId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findOne(id: string, userId: string) {
+    const crop = await this.cropsRepository.findOneBy({ id });
+    if (!crop) {
+      throw new NotFoundException(`Crop with ID ${id} not found`);
+    }
+    // Verify ownership via pond (STRICT — this path feeds economics/PNL)
+    await this.pondsService.findOne(crop.pondId, userId);
+    return this.enrichWithDOC(crop);
+  }
+
+  /** Member-aware crop read (owner or worker). Does NOT feed economics. */
+  async findOneAccessible(id: string, userId: string) {
+    const crop = await this.cropsRepository.findOneBy({ id });
+    if (!crop) {
+      throw new NotFoundException(`Crop with ID ${id} not found`);
+    }
+    await this.pondsService.verifyAccess(crop.pondId, userId, 'READ');
+    return this.enrichWithDOC(crop);
+  }
+
+  /** Member-aware crop list for a pond (owner or worker). */
+  async findAllAccessible(pondId: string, userId: string) {
+    if (!pondId) return [];
+    await this.pondsService.verifyAccess(pondId, userId, 'READ');
+    return this.cropsRepository.find({
+      where: { pondId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Compute Day of Culture (DOC) dynamically based on stockingDate vs current date.
+   * Accounts for initialAgeDays at stocking time.
+   * Returns 0 if stockingDate is not set or is in the future.
+   */
+  computeDOC(crop: Crop): number {
+    if (!crop.stockingDate) return 0;
+    const stocked = new Date(crop.stockingDate);
+    const now = new Date();
+    const diffMs = now.getTime() - stocked.getTime();
+    if (diffMs <= 0) return 0;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return diffDays + (crop.initialAgeDays || 0);
+  }
+
+  /**
+   * Attach computed DOC to a crop object for API responses.
+   * The stored `doc` column is not updated — DOC is always computed dynamically.
+   */
+  private enrichWithDOC(crop: Crop) {
+    return {
+      ...crop,
+      computedDOC: this.computeDOC(crop),
+    };
+  }
+
+  async update(id: string, updateCropDto: UpdateCropDto, userId: string) {
+    await this.findOne(id, userId); // Verify ownership
+    await this.cropsRepository.update(id, updateCropDto);
+    return this.findOne(id, userId);
+  }
+
+  async remove(id: string, userId: string) {
+    const crop = await this.findOne(id, userId); // Verify ownership
+
+    // If deleting the active cycle, clear it from pond
+    const pond = await this.pondsService.findOne(crop.pondId, userId);
+    if (pond.activeCycleId === id) {
+      await this.pondsService.update(
+        pond.id,
+        { activeCycleId: null } as any,
+        userId,
+      );
     }
 
-    /** Member-aware crop list for a pond (owner or worker). */
-    async findAllAccessible(pondId: string, userId: string) {
-        if (!pondId) return [];
-        await this.pondsService.verifyAccess(pondId, userId, 'READ');
-        return this.cropsRepository.find({
-            where: { pondId },
-            order: { createdAt: 'DESC' },
-        });
+    return this.cropsRepository.delete(id);
+  }
+
+  async harvest(id: string, harvestData: HarvestCropDto, userId: string) {
+    const crop = await this.findOne(id, userId); // Verify ownership
+
+    // Assign only the two whitelisted fields — never spread the raw body, which
+    // would let a caller overwrite arbitrary crop columns.
+    await this.cropsRepository.update(id, {
+      actualHarvestDate: new Date(harvestData.actualHarvestDate),
+      harvestWeightKg: harvestData.harvestWeightKg,
+      status: 'harvested',
+    });
+
+    // Unlink from ponds activeCycleId
+    const pond = await this.pondsService.findOne(crop.pondId, userId);
+    if (pond.activeCycleId === id) {
+      await this.pondsService.update(
+        pond.id,
+        { activeCycleId: null } as any,
+        userId,
+      );
     }
 
-    /**
-     * Compute Day of Culture (DOC) dynamically based on stockingDate vs current date.
-     * Accounts for initialAgeDays at stocking time.
-     * Returns 0 if stockingDate is not set or is in the future.
-     */
-    computeDOC(crop: Crop): number {
-        if (!crop.stockingDate) return 0;
-        const stocked = new Date(crop.stockingDate);
-        const now = new Date();
-        const diffMs = now.getTime() - stocked.getTime();
-        if (diffMs <= 0) return 0;
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        return diffDays + (crop.initialAgeDays || 0);
+    return this.findOne(id, userId);
+  }
+
+  async closeCycle(id: string, actualHarvestDate: string, userId: string) {
+    const crop = await this.findOne(id, userId); // Verify ownership
+
+    await this.cropsRepository.update(id, {
+      actualHarvestDate,
+      status: 'completed',
+    });
+
+    // Unlink from ponds activeCycleId
+    // We can't just set to null blindly, we should check if THIS crop is the active one.
+    // But findOne verified ownership via pond.
+    // Let's get the pond first to be safe?
+    // findOne already calls pondService.findOne(crop.pondId), but doesn't return pond.
+
+    const pond = await this.pondsService.findOne(crop.pondId, userId);
+    if (pond.activeCycleId === id) {
+      await this.pondsService.update(
+        pond.id,
+        { activeCycleId: null } as any,
+        userId,
+      );
     }
 
-    /**
-     * Attach computed DOC to a crop object for API responses.
-     * The stored `doc` column is not updated — DOC is always computed dynamically.
-     */
-    private enrichWithDOC(crop: Crop) {
-        return {
-            ...crop,
-            computedDOC: this.computeDOC(crop),
-        };
-    }
-
-    async update(id: string, updateCropDto: UpdateCropDto, userId: string) {
-        await this.findOne(id, userId); // Verify ownership
-        await this.cropsRepository.update(id, updateCropDto);
-        return this.findOne(id, userId);
-    }
-
-    async remove(id: string, userId: string) {
-        const crop = await this.findOne(id, userId); // Verify ownership
-
-        // If deleting the active cycle, clear it from pond
-        const pond = await this.pondsService.findOne(crop.pondId, userId);
-        if (pond.activeCycleId === id) {
-            await this.pondsService.update(pond.id, { activeCycleId: null } as any, userId);
-        }
-
-        return this.cropsRepository.delete(id);
-    }
-
-    async harvest(id: string, harvestData: { actualHarvestDate: Date; harvestWeightKg: number }, userId: string) {
-        const crop = await this.findOne(id, userId); // Verify ownership
-
-        await this.cropsRepository.update(id, {
-            ...harvestData,
-            status: 'harvested',
-        });
-
-        // Unlink from ponds activeCycleId
-        const pond = await this.pondsService.findOne(crop.pondId, userId);
-        if (pond.activeCycleId === id) {
-            await this.pondsService.update(pond.id, { activeCycleId: null } as any, userId);
-        }
-
-        return this.findOne(id, userId);
-    }
-
-    async closeCycle(id: string, actualHarvestDate: string, userId: string) {
-        const crop = await this.findOne(id, userId); // Verify ownership
-
-        await this.cropsRepository.update(id, {
-            actualHarvestDate,
-            status: 'completed',
-        });
-
-        // Unlink from ponds activeCycleId
-        // We can't just set to null blindly, we should check if THIS crop is the active one.
-        // But findOne verified ownership via pond.
-        // Let's get the pond first to be safe? 
-        // findOne already calls pondService.findOne(crop.pondId), but doesn't return pond.
-
-        const pond = await this.pondsService.findOne(crop.pondId, userId);
-        if (pond.activeCycleId === id) {
-            await this.pondsService.update(pond.id, { activeCycleId: null } as any, userId);
-        }
-
-        return this.findOne(id, userId);
-    }
+    return this.findOne(id, userId);
+  }
 }

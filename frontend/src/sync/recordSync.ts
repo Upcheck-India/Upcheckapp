@@ -1,6 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import apiClient from '../api/client';
-import { useSyncStore, type QueuedOperation } from '../store/syncStore';
+import { useSyncStore, type QueuedOperation, type DrainOutcome } from '../store/syncStore';
+import { useAuthStore } from '../store/authStore';
 
 /**
  * Shared offline-aware save path for operational records (feed, water quality,
@@ -33,9 +34,12 @@ export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs):
     const id = (payload.id as string) || Crypto.randomUUID();
     const body = { ...payload, id };
     const sync = useSyncStore.getState();
+    // Stamp the owning user so a shared-device replay only runs under this
+    // account (SYNC-4).
+    const userId = useAuthStore.getState().user?.id;
 
     const queue = () =>
-        sync.enqueue({ type: 'CREATE', entity, endpoint, method: 'POST', payload: body, localId: id });
+        sync.enqueue({ type: 'CREATE', entity, endpoint, method: 'POST', payload: body, localId: id, userId });
 
     if (!sync.isConnected) {
         queue();
@@ -55,29 +59,35 @@ export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs):
 }
 
 /**
- * Replay one queued op. 2xx => done. A 4xx is a permanent rejection (or a
- * duplicate the backend already has) → drop it. Network errors / 5xx are
- * transient → keep for the next reconnect.
+ * Replay one queued op and classify the result — the drain uses the outcome to
+ * remove, retry, or park the op. Auth failures are NEVER treated as permanent:
+ * losing the access token while offline must not discard the farmer's backlog
+ * (SYNC-1). The apiClient interceptor refreshes on 401 and retries once; a
+ * still-failing auth/permission error is retried up to the cap, then parked
+ * visibly — never silently dropped.
  */
-export async function replayQueuedOp(op: QueuedOperation): Promise<boolean> {
+export async function replayQueuedOp(op: QueuedOperation): Promise<DrainOutcome> {
     try {
         await apiClient.request({ method: op.method, url: op.endpoint, data: op.payload });
-        return true;
+        return 'done';
     } catch (err: any) {
         const status = err?.response?.status;
-        if (status && status >= 400 && status < 500) return true; // permanent → drop
-        return false; // transient → retry later
+        if (!status) return 'retry';                    // network / timeout → transient
+        if (status === 409) return 'done';              // idempotent duplicate the server already has
+        if (status === 401 || status === 403) return 'retry'; // recoverable: refresh + retry, never drop
+        if (status >= 500) return 'retry';              // server-side transient
+        return 'failed';                                // 400/422/etc — permanent, park as visible
     }
 }
 
 /**
- * Flush pending writes — call on reconnect and on app start. Moves any
- * transient-failed ops back into the queue, then drains. No-op when offline or
- * the queue is empty.
+ * Flush pending writes — call on reconnect and on app start. Drains ops owned by
+ * the current user (SYNC-4); in-queue transient failures are retried by the
+ * drain itself. No-op when offline or the queue is empty.
  */
 export async function drainRecordQueue(): Promise<void> {
     const sync = useSyncStore.getState();
     if (!sync.isConnected) return;
-    sync.retryFailed();
-    await sync.drainQueue(replayQueuedOp);
+    const userId = useAuthStore.getState().user?.id;
+    await sync.drainQueue(replayQueuedOp, userId);
 }

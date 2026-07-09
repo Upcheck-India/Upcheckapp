@@ -151,22 +151,22 @@ export class DiseaseWarningService {
    * high→low. score = 100 × Σ(weight where indicator matched).
    */
   computeRisks(indicators: DiseaseIndicators): DiseaseRisk[] {
-    const risks: DiseaseRisk[] = (
-      Object.keys(SIGNATURES) as DiseaseName[]
-    ).map((disease) => {
-      const triggers: Array<keyof DiseaseIndicators> = [];
-      let sum = 0;
-      for (const { indicator, weight } of SIGNATURES[disease]) {
-        if (indicators[indicator]) {
-          sum += weight;
-          triggers.push(indicator);
+    const risks: DiseaseRisk[] = (Object.keys(SIGNATURES) as DiseaseName[]).map(
+      (disease) => {
+        const triggers: Array<keyof DiseaseIndicators> = [];
+        let sum = 0;
+        for (const { indicator, weight } of SIGNATURES[disease]) {
+          if (indicators[indicator]) {
+            sum += weight;
+            triggers.push(indicator);
+          }
         }
-      }
-      const score = round1(100 * sum);
-      const band: DiseaseRisk['band'] =
-        score >= 60 ? 'Critical' : score >= 30 ? 'Watch' : 'Low';
-      return { disease, score, band, triggers, steps: STEPS[disease] };
-    });
+        const score = round1(100 * sum);
+        const band: DiseaseRisk['band'] =
+          score >= 60 ? 'Critical' : score >= 30 ? 'Watch' : 'Low';
+        return { disease, score, band, triggers, steps: STEPS[disease] };
+      },
+    );
     return risks.sort((a, b) => b.score - a.score);
   }
 
@@ -218,7 +218,11 @@ export class DiseaseWarningService {
 
   async recent(pondId: string, userId: string): Promise<DiseaseRiskSnapshot[]> {
     await this.pondsService.findOne(pondId, userId);
-    return this.repo.find({ where: { pondId }, order: { date: 'DESC' }, take: 30 });
+    return this.repo.find({
+      where: { pondId },
+      order: { date: 'DESC' },
+      take: 30,
+    });
   }
 
   async latest(pondId: string, userId: string): Promise<DiseaseRiskSnapshot> {

@@ -100,6 +100,17 @@ const settings = {
   twoFactorDisabledSuccess: 'Two-factor authentication is now off.',
   twoFactorSetupError: 'Could not start 2FA setup',
 
+  // ── Backup codes (AUTH-4) ──
+  twoFactorBackupTitle: 'Save your backup codes',
+  twoFactorBackupHelp:
+    'Store these one-time codes somewhere safe. Each works once if you lose access to your authenticator app. They will not be shown again.',
+  twoFactorBackupCopy: 'Copy codes',
+  twoFactorBackupAck: "I've saved them",
+  twoFactorBackupCopied: 'Backup codes copied to clipboard.',
+  twoFactorRegenerateHelp:
+    'Generate a new set of backup codes. Your old codes will stop working.',
+  twoFactorRegenerate: 'Regenerate backup codes',
+
   // ── NotificationsScreen ───────────────────────────────────────────────────
   notificationsTitle: 'Notifications',
   notificationsEmpty: 'All Caught Up!',

@@ -41,5 +41,10 @@ const common = {
   serverErrorMessage: 'আমাদের সার্ভারে সমস্যা হচ্ছে। অনুগ্রহ করে পরে চেষ্টা করুন।',
   showPassword: 'পাসওয়ার্ড দেখান',
   hidePassword: 'পাসওয়ার্ড লুকান',
+  settings: 'সেটিংস',
+  syncFailedTitle: 'কিছু রেকর্ডে মনোযোগ প্রয়োজন',
+  syncFailedBody: '{{count}}টি রেকর্ড সিঙ্ক করা যায়নি। এখন আবার চেষ্টা করবেন?',
+  syncFailedBanner: 'রেকর্ডে মনোযোগ দিন',
+  syncFailedA11y: '{{count}}টি রেকর্ড সিঙ্ক হয়নি, আবার চেষ্টা করতে ট্যাপ করুন',
 };
 export default common;

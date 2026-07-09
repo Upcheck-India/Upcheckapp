@@ -124,7 +124,9 @@ export class PondContextService {
    * measured — so a 4-day-old ammonia reading still reaches the engines instead
    * of being hidden behind today's probe-only entry.
    */
-  resolveWaterQuality(records: WaterQualityRecord[]): PondContext['waterQuality'] {
+  resolveWaterQuality(
+    records: WaterQualityRecord[],
+  ): PondContext['waterQuality'] {
     if (!records.length) return null;
     const latest = <K extends keyof WaterQualityRecord>(key: K) => {
       for (const r of records) {
@@ -143,7 +145,9 @@ export class PondContextService {
       nitrite: latest('nitrite').value,
       nitrate: latest('nitrate').value,
       alkalinity: latest('alkalinity').value,
-      recordedAt: records[0].recordedAt ? new Date(records[0].recordedAt).toISOString() : null,
+      recordedAt: records[0].recordedAt
+        ? new Date(records[0].recordedAt).toISOString()
+        : null,
       chemistryAsOf: amm.at ? new Date(amm.at).toISOString() : null,
     };
   }
@@ -164,7 +168,10 @@ export class PondContextService {
   }
 
   /** Running FCR = cumulative feed / standing biomass (jala §10). */
-  runningFcr(cumulativeFeedKg: number, biomassKg: number | null): number | null {
+  runningFcr(
+    cumulativeFeedKg: number,
+    biomassKg: number | null,
+  ): number | null {
     if (biomassKg == null || biomassKg <= 0) return null;
     return round2(cumulativeFeedKg / biomassKg);
   }
@@ -196,54 +203,64 @@ export class PondContextService {
       if (fr < 1) stale.push(f.key);
     }
     const score = total > 0 ? Math.round((got / total) * 100) : 0;
-    const band: DataConfidence['band'] = score >= 75 ? 'high' : score >= 50 ? 'medium' : 'low';
+    const band: DataConfidence['band'] =
+      score >= 75 ? 'high' : score >= 50 ? 'medium' : 'low';
     return { score, band, missing, stale };
   }
 
   async getContext(pondId: string, userId: string): Promise<PondContext> {
     const pond = await this.pondsService.findOne(pondId, userId); // ownership
     const areaM2 = Number(pond.overrideAreaM2 ?? pond.calculatedAreaM2) || null;
-    const installedAeratorHp = pond.installedAeratorHp != null ? Number(pond.installedAeratorHp) : null;
+    const installedAeratorHp =
+      pond.installedAeratorHp != null ? Number(pond.installedAeratorHp) : null;
     const cropId = pond.activeCycleId ?? null;
 
     // Everything below only depends on pondId/cropId (known once the pond is
     // fetched), not on each other — fan out instead of awaiting one-by-one.
     // Mortality and feed use a SQL SUM instead of loading every row into JS.
-    const [crop, wqRecords, sampling, mortalityAgg, feedAgg, tray] = await Promise.all([
-      cropId ? this.cropsService.findOne(cropId, userId) : Promise.resolve(null),
-      // Latest non-null value per WQ parameter across recent records.
-      this.wqRepo.find({
-        where: { pondId },
-        order: { recordedAt: 'DESC' },
-        take: 60,
-      }),
-      // Latest sampling for this pond (prefer the active crop).
-      this.samplingRepo.findOne({
-        where: cropId ? { pondId, cropId } : { pondId },
-        order: { samplingDate: 'DESC' },
-      }),
-      cropId
-        ? this.mortalityRepo
-            .createQueryBuilder('m')
-            .select('SUM(m.estimatedTotal)', 'total')
-            .where('m.cropId = :cropId', { cropId })
-            .getRawOne()
-        : Promise.resolve(null),
-      cropId
-        ? this.feedRepo
-            .createQueryBuilder('feed')
-            .select('SUM(feed.quantityKg)', 'totalFeed')
-            .addSelect('MAX(feed.recordedAt)', 'lastFeedAt')
-            .where('feed.cropId = :cropId', { cropId })
-            .getRawOne()
-        : Promise.resolve(null),
-      cropId
-        ? this.trayRepo.findOne({ where: { cropId }, order: { checkDate: 'DESC' } })
-        : Promise.resolve(null),
-    ]);
+    const [crop, wqRecords, sampling, mortalityAgg, feedAgg, tray] =
+      await Promise.all([
+        cropId
+          ? this.cropsService.findOne(cropId, userId)
+          : Promise.resolve(null),
+        // Latest non-null value per WQ parameter across recent records.
+        this.wqRepo.find({
+          where: { pondId },
+          order: { recordedAt: 'DESC' },
+          take: 60,
+        }),
+        // Latest sampling for this pond (prefer the active crop).
+        this.samplingRepo.findOne({
+          where: cropId ? { pondId, cropId } : { pondId },
+          order: { samplingDate: 'DESC' },
+        }),
+        cropId
+          ? this.mortalityRepo
+              .createQueryBuilder('m')
+              .select('SUM(m.estimatedTotal)', 'total')
+              .where('m.cropId = :cropId', { cropId })
+              .getRawOne()
+          : Promise.resolve(null),
+        cropId
+          ? this.feedRepo
+              .createQueryBuilder('feed')
+              .select('SUM(feed.quantityKg)', 'totalFeed')
+              .addSelect('MAX(feed.recordedAt)', 'lastFeedAt')
+              .where('feed.cropId = :cropId', { cropId })
+              .getRawOne()
+          : Promise.resolve(null),
+        cropId
+          ? this.trayRepo.findOne({
+              where: { cropId },
+              order: { checkDate: 'DESC' },
+            })
+          : Promise.resolve(null),
+      ]);
     const wq = this.resolveWaterQuality(wqRecords);
     const abwG = sampling?.mbwG != null ? Number(sampling.mbwG) : null;
-    const samplingAt = sampling?.samplingDate ? new Date(sampling.samplingDate).toISOString() : null;
+    const samplingAt = sampling?.samplingDate
+      ? new Date(sampling.samplingDate).toISOString()
+      : null;
 
     // Cumulative estimated mortality for the active crop.
     const cumulativeMortality = Number(mortalityAgg?.total) || 0;
@@ -271,16 +288,26 @@ export class PondContextService {
     let lastTrayAt: string | null = null;
     if (cropId) {
       cumulativeFeedKg = round2(Number(feedAgg?.totalFeed) || 0);
-      lastFeedAt = feedAgg?.lastFeedAt ? new Date(feedAgg.lastFeedAt).toISOString() : null;
+      lastFeedAt = feedAgg?.lastFeedAt
+        ? new Date(feedAgg.lastFeedAt).toISOString()
+        : null;
 
       const status = tray?.remainingFeedStatus;
-      if (status === 'empty' || status === 'few_left' || status === 'a_lot_left') {
+      if (
+        status === 'empty' ||
+        status === 'few_left' ||
+        status === 'a_lot_left'
+      ) {
         latestTrayResidue = status;
       }
-      lastTrayAt = tray?.checkDate ? new Date(tray.checkDate).toISOString() : null;
+      lastTrayAt = tray?.checkDate
+        ? new Date(tray.checkDate).toISOString()
+        : null;
     }
     const runningFcr =
-      cumulativeFeedKg != null ? this.runningFcr(cumulativeFeedKg, biomassKg) : null;
+      cumulativeFeedKg != null
+        ? this.runningFcr(cumulativeFeedKg, biomassKg)
+        : null;
 
     // Confidence from input completeness + freshness. Daily probe params have a
     // 1-day window; weekly chemistry ~10d; ABW ~14d.
@@ -288,20 +315,68 @@ export class PondContextService {
     const ageDays = (iso: string | null) =>
       iso ? (now - new Date(iso).getTime()) / 86400000 : null;
     const confidence = this.computeConfidence([
-      { key: 'DO', present: wq?.dissolvedOxygen != null, ageDays: ageDays(wq?.recordedAt ?? null), weight: 2, freshWindowDays: 1 },
-      { key: 'pH', present: wq?.ph != null, ageDays: ageDays(wq?.recordedAt ?? null), weight: 1.5, freshWindowDays: 1 },
-      { key: 'Temperature', present: wq?.temperature != null, ageDays: ageDays(wq?.recordedAt ?? null), weight: 1.5, freshWindowDays: 1 },
-      { key: 'Salinity', present: wq?.salinity != null, ageDays: ageDays(wq?.recordedAt ?? null), weight: 1, freshWindowDays: 1 },
-      { key: 'Ammonia', present: wq?.ammonia != null, ageDays: ageDays(wq?.chemistryAsOf ?? null), weight: 2, freshWindowDays: 10 },
-      { key: 'Alkalinity', present: wq?.alkalinity != null, ageDays: ageDays(wq?.chemistryAsOf ?? null), weight: 1, freshWindowDays: 14 },
-      { key: 'Body weight', present: abwG != null, ageDays: ageDays(samplingAt), weight: 2, freshWindowDays: 14 },
-      { key: 'Population', present: livePopulation != null, ageDays: 0, weight: 1, freshWindowDays: 9999 },
+      {
+        key: 'DO',
+        present: wq?.dissolvedOxygen != null,
+        ageDays: ageDays(wq?.recordedAt ?? null),
+        weight: 2,
+        freshWindowDays: 1,
+      },
+      {
+        key: 'pH',
+        present: wq?.ph != null,
+        ageDays: ageDays(wq?.recordedAt ?? null),
+        weight: 1.5,
+        freshWindowDays: 1,
+      },
+      {
+        key: 'Temperature',
+        present: wq?.temperature != null,
+        ageDays: ageDays(wq?.recordedAt ?? null),
+        weight: 1.5,
+        freshWindowDays: 1,
+      },
+      {
+        key: 'Salinity',
+        present: wq?.salinity != null,
+        ageDays: ageDays(wq?.recordedAt ?? null),
+        weight: 1,
+        freshWindowDays: 1,
+      },
+      {
+        key: 'Ammonia',
+        present: wq?.ammonia != null,
+        ageDays: ageDays(wq?.chemistryAsOf ?? null),
+        weight: 2,
+        freshWindowDays: 10,
+      },
+      {
+        key: 'Alkalinity',
+        present: wq?.alkalinity != null,
+        ageDays: ageDays(wq?.chemistryAsOf ?? null),
+        weight: 1,
+        freshWindowDays: 14,
+      },
+      {
+        key: 'Body weight',
+        present: abwG != null,
+        ageDays: ageDays(samplingAt),
+        weight: 2,
+        freshWindowDays: 14,
+      },
+      {
+        key: 'Population',
+        present: livePopulation != null,
+        ageDays: 0,
+        weight: 1,
+        freshWindowDays: 9999,
+      },
     ]);
 
     return {
       pondId,
       cropId,
-      species: (crop?.species?.scientificName ?? crop?.speciesType) ?? null,
+      species: crop?.species?.scientificName ?? crop?.speciesType ?? null,
       areaM2,
       installedAeratorHp,
       doc: crop?.computedDOC ?? null,
@@ -312,12 +387,26 @@ export class PondContextService {
       biomassKg,
       crop: crop
         ? {
-            stockingCount: crop.stockingCount != null ? Number(crop.stockingCount) : null,
-            carryingCapacityKgM2: crop.carryingCapacityKgM2 != null ? Number(crop.carryingCapacityKgM2) : null,
-            feedPriceRpPerKg: crop.feedPriceRpPerKg != null ? Number(crop.feedPriceRpPerKg) : null,
-            targetSrPercent: crop.targetSrPercent != null ? Number(crop.targetSrPercent) : null,
-            targetSize: crop.targetSize != null ? Number(crop.targetSize) : null,
-            targetCultivationDays: crop.targetCultivationDays != null ? Number(crop.targetCultivationDays) : null,
+            stockingCount:
+              crop.stockingCount != null ? Number(crop.stockingCount) : null,
+            carryingCapacityKgM2:
+              crop.carryingCapacityKgM2 != null
+                ? Number(crop.carryingCapacityKgM2)
+                : null,
+            feedPriceRpPerKg:
+              crop.feedPriceRpPerKg != null
+                ? Number(crop.feedPriceRpPerKg)
+                : null,
+            targetSrPercent:
+              crop.targetSrPercent != null
+                ? Number(crop.targetSrPercent)
+                : null,
+            targetSize:
+              crop.targetSize != null ? Number(crop.targetSize) : null,
+            targetCultivationDays:
+              crop.targetCultivationDays != null
+                ? Number(crop.targetCultivationDays)
+                : null,
           }
         : null,
       cumulativeFeedKg,

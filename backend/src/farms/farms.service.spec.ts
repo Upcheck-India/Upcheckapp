@@ -40,7 +40,10 @@ describe('FarmsService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
+        },
         FarmsService,
         { provide: getRepositoryToken(Farm), useValue: repository },
         {
@@ -68,10 +71,12 @@ describe('FarmsService', () => {
 
       const result = await service.create({ name: 'New Farm' }, 'user-1');
       expect(result).toEqual(mockFarm);
-      expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({
-        name: 'New Farm',
-        userId: 'user-1',
-      }));
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'New Farm',
+          userId: 'user-1',
+        }),
+      );
     });
 
     it('should use provided farm code if given', async () => {
@@ -79,9 +84,11 @@ describe('FarmsService', () => {
       repository.save.mockResolvedValue(mockFarm);
 
       await service.create({ name: 'Farm', farmCode: 'CUSTOM01' }, 'user-1');
-      expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({
-        farmCode: 'CUSTOM01',
-      }));
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          farmCode: 'CUSTOM01',
+        }),
+      );
     });
   });
 
@@ -91,7 +98,9 @@ describe('FarmsService', () => {
       const result = await service.findAll('user-1');
       expect(result).toEqual([mockFarm]);
       // Now scoped to the farm ids the user can access (owner or worker).
-      expect(repository.find).toHaveBeenCalledWith({ where: { id: In(['farm-1']) } });
+      expect(repository.find).toHaveBeenCalledWith({
+        where: { id: In(['farm-1']) },
+      });
     });
   });
 
@@ -100,7 +109,9 @@ describe('FarmsService', () => {
       repository.find.mockResolvedValue([mockFarm]);
       const result = await service.findOwnedByUser('user-1');
       expect(result).toEqual([mockFarm]);
-      expect(repository.find).toHaveBeenCalledWith({ where: { userId: 'user-1' } });
+      expect(repository.find).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+      });
     });
   });
 
@@ -113,12 +124,19 @@ describe('FarmsService', () => {
 
     it('should throw NotFoundException when farm not found', async () => {
       repository.findOneBy.mockResolvedValue(null);
-      await expect(service.findOne('bad-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('bad-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw NotFoundException for soft-deleted farm', async () => {
-      repository.findOneBy.mockResolvedValue({ ...mockFarm, deletedAt: new Date() });
-      await expect(service.findOne('farm-1')).rejects.toThrow(NotFoundException);
+      repository.findOneBy.mockResolvedValue({
+        ...mockFarm,
+        deletedAt: new Date(),
+      });
+      await expect(service.findOne('farm-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -128,7 +146,9 @@ describe('FarmsService', () => {
       repository.update.mockResolvedValue(undefined);
 
       const result = await service.update('farm-1', { name: 'Updated' });
-      expect(repository.update).toHaveBeenCalledWith('farm-1', { name: 'Updated' });
+      expect(repository.update).toHaveBeenCalledWith('farm-1', {
+        name: 'Updated',
+      });
     });
   });
 
@@ -138,9 +158,12 @@ describe('FarmsService', () => {
       repository.update.mockResolvedValue(undefined);
 
       const result = await service.remove('farm-1');
-      expect(repository.update).toHaveBeenCalledWith('farm-1', expect.objectContaining({
-        deletedAt: expect.any(Date),
-      }));
+      expect(repository.update).toHaveBeenCalledWith(
+        'farm-1',
+        expect.objectContaining({
+          deletedAt: expect.any(Date),
+        }),
+      );
       expect(result.message).toContain('archived');
     });
   });

@@ -385,6 +385,12 @@ const RootNavigator = () => {
 
                     {/* Security */}
                     <Stack.Screen name="TwoFactor" component={TwoFactorScreen} />
+                    {/* DEEPLINK-1: the reset link must open even when a session
+                        already exists, so ResetPassword is reachable from the
+                        authenticated stack too — and TwoFactorChallenge so the
+                        AUTH-2 reset→2FA hand-off can complete from here. */}
+                    <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+                    <Stack.Screen name="TwoFactorChallenge" component={TwoFactorChallengeScreen} />
 
                     {/* Additional calculators + feed products */}
                     <Stack.Screen name="GrowthAndHarvest" component={GrowthAndHarvestScreen} />

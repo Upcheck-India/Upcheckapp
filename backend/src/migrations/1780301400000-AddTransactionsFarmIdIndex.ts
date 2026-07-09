@@ -8,15 +8,15 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * idempotent, reversible.
  */
 export class AddTransactionsFarmIdIndex1780301400000 implements MigrationInterface {
-    name = 'AddTransactionsFarmIdIndex1780301400000';
+  name = 'AddTransactionsFarmIdIndex1780301400000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(
-            `CREATE INDEX IF NOT EXISTS "IDX_transactions_farm_id" ON "transactions" ("farm_id")`,
-        );
-    }
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS "IDX_transactions_farm_id" ON "transactions" ("farm_id")`,
+    );
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP INDEX IF EXISTS "IDX_transactions_farm_id"`);
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_transactions_farm_id"`);
+  }
 }

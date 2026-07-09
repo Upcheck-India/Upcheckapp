@@ -24,4 +24,4 @@ import { User } from './user.entity';
   ],
   exports: [SupabaseAuthService],
 })
-export class AuthModule { }
+export class AuthModule {}

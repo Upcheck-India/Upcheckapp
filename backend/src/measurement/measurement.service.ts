@@ -1,6 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, In, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
+import {
+  Repository,
+  Between,
+  In,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+} from 'typeorm';
 import { Measurement } from './measurement.entity';
 import { Crop } from '../crops/crop.entity';
 import { DataDictionaryService } from './data-dictionary.service';
@@ -35,14 +41,23 @@ export class MeasurementService {
    * validation → DOC derivation → persist. Idempotent on a client-supplied
    * `id` (re-sending returns the stored row untouched).
    */
-  async create(dto: CreateMeasurementDto, userId: string): Promise<Measurement> {
+  async create(
+    dto: CreateMeasurementDto,
+    userId: string,
+  ): Promise<Measurement> {
     // Ownership — throws if the user does not own the pond.
     await this.pondsService.findOne(dto.pondId, userId);
 
-    // Idempotency — a re-synced offline row is a no-op.
+    // Idempotency — a re-synced offline row is a no-op. Verify ownership of the
+    // found row's OWN pond before returning it: a replayed op with a guessed id
+    // must not leak another tenant's measurement (dto.pondId ownership above does
+    // not cover a record that belongs to a different pond).
     if (dto.id) {
       const existing = await this.repo.findOne({ where: { id: dto.id } });
-      if (existing) return existing;
+      if (existing) {
+        await this.pondsService.findOne(existing.pondId, userId);
+        return existing;
+      }
     }
 
     const isMissing = !!dto.isMissingReason;
@@ -62,8 +77,7 @@ export class MeasurementService {
 
     const source = dto.source ?? 'manual';
     const confidence =
-      dto.confidence ??
-      (source === 'manual' || source === 'lab' ? 1 : null);
+      dto.confidence ?? (source === 'manual' || source === 'lab' ? 1 : null);
 
     const entity = this.repo.create({
       id: dto.id,
@@ -71,8 +85,8 @@ export class MeasurementService {
       cropId: dto.cropId ?? null,
       doc,
       param: dto.param,
-      valueNum: isMissing ? null : dto.valueNum ?? null,
-      valueText: isMissing ? null : dto.valueText ?? null,
+      valueNum: isMissing ? null : (dto.valueNum ?? null),
+      valueText: isMissing ? null : (dto.valueText ?? null),
       unit: dto.unit ?? canonicalUnit ?? '',
       measuredAt,
       timeOfDay: dto.timeOfDay ?? null,
@@ -104,7 +118,8 @@ export class MeasurementService {
     for (let i = 0; i < items.length; i++) {
       const dto = items[i];
       try {
-        const wasDuplicate = !!dto.id && !!(await this.repo.findOne({ where: { id: dto.id } }));
+        const wasDuplicate =
+          !!dto.id && !!(await this.repo.findOne({ where: { id: dto.id } }));
         const saved = await this.create(dto, userId);
         results.push({
           index: i,
@@ -175,7 +190,11 @@ export class MeasurementService {
    * the original keeps its value and is flagged `isSuperseded`; a new row is
    * stored with `editedFrom` pointing at it.
    */
-  async edit(id: string, dto: EditMeasurementDto, userId: string): Promise<Measurement> {
+  async edit(
+    id: string,
+    dto: EditMeasurementDto,
+    userId: string,
+  ): Promise<Measurement> {
     const original = await this.findOne(id, userId);
 
     const isMissing = !!dto.isMissingReason;
@@ -192,8 +211,8 @@ export class MeasurementService {
       cropId: original.cropId,
       doc: original.doc,
       param: original.param,
-      valueNum: isMissing ? null : dto.valueNum ?? null,
-      valueText: isMissing ? null : dto.valueText ?? null,
+      valueNum: isMissing ? null : (dto.valueNum ?? null),
+      valueText: isMissing ? null : (dto.valueText ?? null),
       unit: original.unit || canonicalUnit || '',
       measuredAt: original.measuredAt,
       timeOfDay: original.timeOfDay,

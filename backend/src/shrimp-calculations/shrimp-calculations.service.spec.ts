@@ -1,6 +1,9 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { ShrimpCalculationsService, normalizeShrimpSpecies } from './shrimp-calculations.service';
+import {
+  ShrimpCalculationsService,
+  normalizeShrimpSpecies,
+} from './shrimp-calculations.service';
 
 describe('ShrimpCalculationsService', () => {
   let service: ShrimpCalculationsService;
@@ -8,7 +11,12 @@ describe('ShrimpCalculationsService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },ShrimpCalculationsService],
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
+        },
+        ShrimpCalculationsService,
+      ],
     }).compile();
 
     service = module.get<ShrimpCalculationsService>(ShrimpCalculationsService);
@@ -42,7 +50,9 @@ describe('ShrimpCalculationsService', () => {
     it('accepts free-text / scientific names via normalization', () => {
       expect(service.getRecommendedFeedingRate(30, 'Penaeus monodon')).toBe(2);
       expect(service.getRecommendedFeedingRate(2, 'Giant Tiger Prawn')).toBe(9);
-      expect(service.getRecommendedFeedingRate(2, 'Macrobrachium rosenbergii')).toBe(8);
+      expect(
+        service.getRecommendedFeedingRate(2, 'Macrobrachium rosenbergii'),
+      ).toBe(8);
     });
   });
 

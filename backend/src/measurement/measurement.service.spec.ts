@@ -36,7 +36,9 @@ function fakeRepo<T extends { id?: string }>(seed: T[] = []) {
       return null;
     },
     find: async ({ where }: any) =>
-      [...store.values()].filter((v) => matches(v, where)).map((v) => ({ ...v })),
+      [...store.values()]
+        .filter((v) => matches(v, where))
+        .map((v) => ({ ...v })),
     count: async () => store.size,
   };
   return api;
@@ -139,7 +141,12 @@ describe('MeasurementService', () => {
     // A missing reading that still carries a value is rejected.
     await expect(
       service.create(
-        { pondId: POND, param: 'do', valueNum: 4.2, isMissingReason: 'not_measured' },
+        {
+          pondId: POND,
+          param: 'do',
+          valueNum: 4.2,
+          isMissingReason: 'not_measured',
+        },
         USER,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -148,12 +155,43 @@ describe('MeasurementService', () => {
   it('is idempotent on a client-supplied id', async () => {
     const { service, measRepo } = makeService();
     const id = '11111111-1111-4111-8111-111111111111';
-    const a = await service.create({ id, pondId: POND, param: 'ph', valueNum: 7.5 }, USER);
-    const b = await service.create({ id, pondId: POND, param: 'ph', valueNum: 9.9 }, USER);
+    const a = await service.create(
+      { id, pondId: POND, param: 'ph', valueNum: 7.5 },
+      USER,
+    );
+    const b = await service.create(
+      { id, pondId: POND, param: 'ph', valueNum: 9.9 },
+      USER,
+    );
     expect(a.id).toBe(id);
     expect(b.id).toBe(id);
     expect(b.valueNum).toBe(7.5); // second call returns the stored row, not the new value
     expect(measRepo.store.size).toBe(1);
+  });
+
+  it('IDOR-1: rejects a replayed id whose stored row is on a pond the caller does not own', async () => {
+    const { service, measRepo, pondsService } = makeService();
+    const id = '22222222-2222-4222-8222-222222222222';
+    // Seed a row owned by another tenant on a foreign pond.
+    measRepo.store.set(id, {
+      id,
+      pondId: 'foreign-pond',
+      param: 'ph',
+      valueNum: 7.0,
+    });
+
+    // Ownership check passes for the caller's own pond (dto.pondId) but MUST be
+    // re-run against the found row's own pond — which the caller does not own.
+    pondsService.findOne
+      .mockImplementationOnce(async () => ({ id: POND })) // dto.pondId ownership OK
+      .mockImplementationOnce(async () => {
+        throw new BadRequestException('not your pond'); // existing.pondId ownership fails
+      });
+
+    await expect(
+      service.create({ id, pondId: POND, param: 'ph', valueNum: 1 }, USER),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(pondsService.findOne).toHaveBeenCalledWith('foreign-pond', USER);
   });
 
   it('derives DOC from the crop stocking date (stocking day = DOC 1)', async () => {

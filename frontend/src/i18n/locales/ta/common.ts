@@ -41,5 +41,10 @@ const common = {
   serverErrorMessage: 'எங்கள் சர்வர்களில் சிக்கல் உள்ளது. பின்னர் முயற்சிக்கவும்.',
   showPassword: 'கடவுச்சொல்லைக் காட்டு',
   hidePassword: 'கடவுச்சொல்லை மறை',
+  settings: 'அமைப்புகள்',
+  syncFailedTitle: 'சில பதிவுகளுக்கு கவனம் தேவை',
+  syncFailedBody: '{{count}} பதிவு(கள்) ஒத்திசைக்க முடியவில்லை. இப்போது மீண்டும் முயற்சிக்கவா?',
+  syncFailedBanner: 'பதிவுகளுக்கு கவனம் தேவை',
+  syncFailedA11y: '{{count}} பதிவுகள் ஒத்திசைக்கத் தவறியது, மீண்டும் முயற்சிக்க தட்டவும்',
 };
 export default common;

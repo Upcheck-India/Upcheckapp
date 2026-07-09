@@ -1,8 +1,22 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToOne, Index } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  OneToOne,
+  Index,
+} from 'typeorm';
 import { Farm } from '../farms/farm.entity';
 import { Crop } from '../crops/crop.entity';
 
-export type PondGeometryType = 'rectangular' | 'circular' | 'irregular' | 'raceway';
+export type PondGeometryType =
+  | 'rectangular'
+  | 'circular'
+  | 'irregular'
+  | 'raceway';
 export type PondConstructionType = 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
 export type PondStatus = 'fallow' | 'active' | 'harvesting' | 'archived';
 
@@ -11,111 +25,136 @@ export type PondStatus = 'fallow' | 'active' | 'harvesting' | 'archived';
 
 @Entity('ponds')
 export class Pond {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Index()
-    @Column({ name: 'farm_id', type: 'uuid' })
-    farmId: string;
+  @Index()
+  @Column({ name: 'farm_id', type: 'uuid' })
+  farmId: string;
 
-    @ManyToOne(() => Farm, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'farm_id' })
-    farm: Farm;
+  @ManyToOne(() => Farm, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'farm_id' })
+  farm: Farm;
 
-    @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
-    createdAt: Date;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
+  createdAt: Date;
 
-    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
-    updatedAt: Date;
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
+  updatedAt: Date;
 
-    @Column({ type: 'text' })
-    name: string;
+  @Column({ type: 'text' })
+  name: string;
 
-    @Column({ name: 'name_prefix', type: 'varchar', length: 4, nullable: true })
-    namePrefix: string;
+  @Column({ name: 'name_prefix', type: 'varchar', length: 4, nullable: true })
+  namePrefix: string;
 
-    @Column({ name: 'sequence_number', type: 'int', nullable: true })
-    sequenceNumber: number;
+  @Column({ name: 'sequence_number', type: 'int', nullable: true })
+  sequenceNumber: number;
 
-    @Column({ name: 'pond_code', type: 'varchar', length: 20, unique: true, nullable: true })
-    pondCode: string;
+  @Column({
+    name: 'pond_code',
+    type: 'varchar',
+    length: 20,
+    unique: true,
+    nullable: true,
+  })
+  pondCode: string;
 
-    @Column({ name: 'display_name', type: 'varchar', length: 100, nullable: true })
-    displayName: string;
+  @Column({
+    name: 'display_name',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  displayName: string;
 
-    @Column({ name: 'geometry_type', type: 'varchar', length: 20, nullable: true })
-    geometryType: string;
+  @Column({
+    name: 'geometry_type',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  geometryType: string;
 
-    @Column({ name: 'construction_type', type: 'varchar', length: 20, nullable: true })
-    constructionType: string;
+  @Column({
+    name: 'construction_type',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  constructionType: string;
 
-    @Column({ name: 'length_m', type: 'numeric', nullable: true })
-    lengthM: number;
+  @Column({ name: 'length_m', type: 'numeric', nullable: true })
+  lengthM: number;
 
-    @Column({ name: 'width_m', type: 'numeric', nullable: true })
-    widthM: number;
+  @Column({ name: 'width_m', type: 'numeric', nullable: true })
+  widthM: number;
 
-    @Column({ name: 'diameter_m', type: 'numeric', nullable: true })
-    diameterM: number;
+  @Column({ name: 'diameter_m', type: 'numeric', nullable: true })
+  diameterM: number;
 
-    @Column({ name: 'depth_m', type: 'numeric', nullable: true })
-    depthM: number;
+  @Column({ name: 'depth_m', type: 'numeric', nullable: true })
+  depthM: number;
 
-    // Total installed aerator power (HP) on this pond — the Aeration & Power
-    // optimizer's core input, captured once at setup instead of re-asked each use.
-    @Column({ name: 'installed_aerator_hp', type: 'numeric', nullable: true })
-    installedAeratorHp: number;
+  // Total installed aerator power (HP) on this pond — the Aeration & Power
+  // optimizer's core input, captured once at setup instead of re-asked each use.
+  @Column({ name: 'installed_aerator_hp', type: 'numeric', nullable: true })
+  installedAeratorHp: number;
 
-    // Number of aerator units installed — complements installed_aerator_hp so the
-    // Aeration optimizer knows both unit count and total capacity.
-    @Column({ name: 'aerator_count', type: 'int', nullable: true })
-    aeratorCount: number;
+  // Number of aerator units installed — complements installed_aerator_hp so the
+  // Aeration optimizer knows both unit count and total capacity.
+  @Column({ name: 'aerator_count', type: 'int', nullable: true })
+  aeratorCount: number;
 
-    @Column({ name: 'channel_count', type: 'int', nullable: true })
-    channelCount: number;
+  @Column({ name: 'channel_count', type: 'int', nullable: true })
+  channelCount: number;
 
-    @Column({ name: 'calculated_area_m2', type: 'numeric', nullable: true })
-    calculatedAreaM2: number;
+  @Column({ name: 'calculated_area_m2', type: 'numeric', nullable: true })
+  calculatedAreaM2: number;
 
-    @Column({ name: 'override_area_m2', type: 'numeric', nullable: true })
-    overrideAreaM2: number;
+  @Column({ name: 'override_area_m2', type: 'numeric', nullable: true })
+  overrideAreaM2: number;
 
-    @Column({ name: 'gps_lat', type: 'numeric', nullable: true })
-    gpsLat: number;
+  @Column({ name: 'gps_lat', type: 'numeric', nullable: true })
+  gpsLat: number;
 
-    @Column({ name: 'gps_lng', type: 'numeric', nullable: true })
-    gpsLng: number;
+  @Column({ name: 'gps_lng', type: 'numeric', nullable: true })
+  gpsLng: number;
 
-    @Index()
-    @Column({ type: 'varchar', length: 20, default: 'fallow' })
-    status: string;
+  @Index()
+  @Column({ type: 'varchar', length: 20, default: 'fallow' })
+  status: string;
 
-    @Column({ name: 'archived_at', type: 'timestamp with time zone', nullable: true })
-    archivedAt: Date;
+  @Column({
+    name: 'archived_at',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  archivedAt: Date;
 
-    @Index()
-    @Column({ name: 'active_cycle_id', type: 'uuid', nullable: true })
-    activeCycleId: string | null;
+  @Index()
+  @Column({ name: 'active_cycle_id', type: 'uuid', nullable: true })
+  activeCycleId: string | null;
 
-    @OneToOne(() => Crop)
-    @JoinColumn({ name: 'active_cycle_id' })
-    activeCycle: Crop;
+  @OneToOne(() => Crop)
+  @JoinColumn({ name: 'active_cycle_id' })
+  activeCycle: Crop;
 
-    @Column({ type: 'jsonb', nullable: true })
-    boundary: { latitude: number, longitude: number }[];
+  @Column({ type: 'jsonb', nullable: true })
+  boundary: { latitude: number; longitude: number }[];
 
-    /**
-     * Returns the effective area: override if set, otherwise calculated.
-     * All downstream consumers (cycles, dashboards) should use this.
-     */
-    get effectiveAreaM2(): number {
-        return this.overrideAreaM2 ?? this.calculatedAreaM2;
-    }
+  /**
+   * Returns the effective area: override if set, otherwise calculated.
+   * All downstream consumers (cycles, dashboards) should use this.
+   */
+  get effectiveAreaM2(): number {
+    return this.overrideAreaM2 ?? this.calculatedAreaM2;
+  }
 
-    /**
-     * Returns the calculated volume from effective area and depth.
-     */
-    get volumeM3(): number {
-        return (this.effectiveAreaM2 ?? 0) * (this.depthM ?? 0);
-    }
+  /**
+   * Returns the calculated volume from effective area and depth.
+   */
+  get volumeM3(): number {
+    return (this.effectiveAreaM2 ?? 0) * (this.depthM ?? 0);
+  }
 }

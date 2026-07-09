@@ -7,15 +7,17 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Reversible.
  */
 export class AddPondAeratorCount1780301100000 implements MigrationInterface {
-    name = 'AddPondAeratorCount1780301100000';
+  name = 'AddPondAeratorCount1780301100000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(
-            `ALTER TABLE "ponds" ADD COLUMN IF NOT EXISTS "aerator_count" integer`,
-        );
-    }
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ADD COLUMN IF NOT EXISTS "aerator_count" integer`,
+    );
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "ponds" DROP COLUMN IF EXISTS "aerator_count"`);
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "ponds" DROP COLUMN IF EXISTS "aerator_count"`,
+    );
+  }
 }

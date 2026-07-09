@@ -12,4 +12,4 @@ import { Crop } from '../crops/crop.entity';
   providers: [HarvestPlansService],
   exports: [HarvestPlansService],
 })
-export class HarvestPlansModule { }
+export class HarvestPlansModule {}

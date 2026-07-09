@@ -10,4 +10,4 @@ import { NewsArticle } from './news-article.entity';
   providers: [NewsService],
   exports: [NewsService],
 })
-export class NewsModule { }
+export class NewsModule {}

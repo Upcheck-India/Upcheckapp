@@ -59,23 +59,89 @@ describe('recordSync.saveRecord', () => {
     });
 });
 
-describe('recordSync.replayQueuedOp', () => {
+describe('recordSync.replayQueuedOp classifies outcomes (SYNC-1)', () => {
     const op = { method: 'POST', endpoint: '/feed-records', payload: { id: 'x' } } as any;
 
     beforeEach(() => jest.clearAllMocks());
 
-    it('returns true (done) on success', async () => {
+    it("returns 'done' on success", async () => {
         mockedRequest.mockResolvedValue({ data: {} });
-        await expect(replayQueuedOp(op)).resolves.toBe(true);
+        await expect(replayQueuedOp(op)).resolves.toBe('done');
     });
 
-    it('returns true (drop) on a 4xx permanent rejection', async () => {
+    it("returns 'done' on 409 (idempotent duplicate already stored)", async () => {
+        mockedRequest.mockRejectedValue({ response: { status: 409 } });
+        await expect(replayQueuedOp(op)).resolves.toBe('done');
+    });
+
+    it("NEVER drops on 401 — returns 'retry' so the backlog is preserved", async () => {
+        mockedRequest.mockRejectedValue({ response: { status: 401 } });
+        await expect(replayQueuedOp(op)).resolves.toBe('retry');
+    });
+
+    it("NEVER drops on 403 — returns 'retry'", async () => {
         mockedRequest.mockRejectedValue({ response: { status: 403 } });
-        await expect(replayQueuedOp(op)).resolves.toBe(true);
+        await expect(replayQueuedOp(op)).resolves.toBe('retry');
     });
 
-    it('returns false (keep) on a network/5xx error', async () => {
+    it("returns 'failed' (park, not drop) on a 422 permanent rejection", async () => {
+        mockedRequest.mockRejectedValue({ response: { status: 422 } });
+        await expect(replayQueuedOp(op)).resolves.toBe('failed');
+    });
+
+    it("returns 'retry' on a 5xx", async () => {
+        mockedRequest.mockRejectedValue({ response: { status: 500 } });
+        await expect(replayQueuedOp(op)).resolves.toBe('retry');
+    });
+
+    it("returns 'retry' on a network error (no response)", async () => {
         mockedRequest.mockRejectedValue({ message: 'Network Error' });
-        await expect(replayQueuedOp(op)).resolves.toBe(false);
+        await expect(replayQueuedOp(op)).resolves.toBe('retry');
+    });
+});
+
+describe('syncStore.drainQueue behaviour', () => {
+    beforeEach(() => {
+        useSyncStore.getState().clearQueue();
+        useSyncStore.getState().setConnected(true);
+        jest.clearAllMocks();
+    });
+
+    const enqueue = (over: Partial<{ userId: string }> = {}) =>
+        useSyncStore.getState().enqueue({
+            type: 'CREATE', entity: 'feed', endpoint: '/feed-records', method: 'POST', payload: { id: 'x' }, ...over,
+        } as any);
+
+    it('a 401 during drain preserves the queue (nothing lost)', async () => {
+        enqueue();
+        await useSyncStore.getState().drainQueue(async () => 'retry');
+        expect(useSyncStore.getState().queue).toHaveLength(1);          // kept
+        expect(useSyncStore.getState().failedOperations).toHaveLength(0);
+        expect(useSyncStore.getState().queue[0].retryCount).toBe(1);    // counted
+    });
+
+    it('a 422 parks the op as visible-failed, never dropped', async () => {
+        enqueue();
+        await useSyncStore.getState().drainQueue(async () => 'failed');
+        expect(useSyncStore.getState().queue).toHaveLength(0);
+        expect(useSyncStore.getState().failedOperations).toHaveLength(1);
+    });
+
+    it('caps retries — a poison op is parked after MAX_SYNC_RETRIES (SYNC-3)', async () => {
+        enqueue();
+        for (let i = 0; i < 10; i++) {
+            useSyncStore.getState().setStatus('online');
+            await useSyncStore.getState().drainQueue(async () => 'retry');
+        }
+        expect(useSyncStore.getState().queue).toHaveLength(0);          // no infinite ping-pong
+        expect(useSyncStore.getState().failedOperations).toHaveLength(1); // parked, visible
+    });
+
+    it('only replays ops owned by the current user (SYNC-4)', async () => {
+        enqueue({ userId: 'userA' });
+        const handled: string[] = [];
+        await useSyncStore.getState().drainQueue(async (o) => { handled.push(o.userId!); return 'done'; }, 'userB');
+        expect(handled).toHaveLength(0);                                // A's op not replayed under B
+        expect(useSyncStore.getState().queue).toHaveLength(1);          // still A's, untouched
     });
 });

@@ -6,15 +6,17 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * next step (guided pond creation) knows how many ponds to scaffold. Reversible.
  */
 export class AddFarmPlannedPondCount1780301000000 implements MigrationInterface {
-    name = 'AddFarmPlannedPondCount1780301000000';
+  name = 'AddFarmPlannedPondCount1780301000000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(
-            `ALTER TABLE "farms" ADD COLUMN IF NOT EXISTS "planned_pond_count" integer`,
-        );
-    }
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "farms" ADD COLUMN IF NOT EXISTS "planned_pond_count" integer`,
+    );
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "farms" DROP COLUMN IF EXISTS "planned_pond_count"`);
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "farms" DROP COLUMN IF EXISTS "planned_pond_count"`,
+    );
+  }
 }

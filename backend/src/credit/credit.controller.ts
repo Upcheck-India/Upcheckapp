@@ -1,7 +1,15 @@
-import { Controller, Get, Post, Patch, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CreditService } from './credit.service';
-import { CreditLedger } from './credit-ledger.entity';
+import { CreateCreditDto } from './dto/create-credit.dto';
 
 interface RepaymentBody {
   amount: number;
@@ -13,7 +21,7 @@ export class CreditController {
   constructor(private readonly service: CreditService) {}
 
   @Post()
-  create(@Body() body: Partial<CreditLedger>, @CurrentUser() user) {
+  create(@Body() body: CreateCreditDto, @CurrentUser() user) {
     return this.service.create(body, user.id);
   }
 
@@ -28,7 +36,11 @@ export class CreditController {
   }
 
   @Patch(':id/repay')
-  repay(@Param('id') id: string, @Body() body: RepaymentBody, @CurrentUser() user) {
+  repay(
+    @Param('id') id: string,
+    @Body() body: RepaymentBody,
+    @CurrentUser() user,
+  ) {
     return this.service.recordRepayment(id, body.amount, user.id);
   }
 

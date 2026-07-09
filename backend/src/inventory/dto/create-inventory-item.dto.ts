@@ -1,40 +1,46 @@
-import { IsString, IsOptional, IsNumber, IsUUID, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsUUID,
+  IsDateString,
+} from 'class-validator';
 
 export class CreateInventoryItemDto {
-    @IsUUID()
-    farmId: string;
+  @IsUUID()
+  farmId: string;
 
-    @IsString()
-    name: string;
+  @IsString()
+  name: string;
 
-    @IsString()
-    category: string;
+  @IsString()
+  category: string;
 
-    @IsNumber()
-    @IsOptional()
-    quantity?: number;
+  @IsNumber()
+  @IsOptional()
+  quantity?: number;
 
-    @IsString()
-    @IsOptional()
-    unit?: string;
+  @IsString()
+  @IsOptional()
+  unit?: string;
 
-    @IsNumber()
-    @IsOptional()
-    unitPrice?: number;
+  @IsNumber()
+  @IsOptional()
+  unitPrice?: number;
 
-    @IsNumber()
-    @IsOptional()
-    reorderLevel?: number;
+  @IsNumber()
+  @IsOptional()
+  reorderLevel?: number;
 
-    @IsString()
-    @IsOptional()
-    supplier?: string;
+  @IsString()
+  @IsOptional()
+  supplier?: string;
 
-    @IsDateString()
-    @IsOptional()
-    expiryDate?: string;
+  @IsDateString()
+  @IsOptional()
+  expiryDate?: string;
 
-    @IsString()
-    @IsOptional()
-    notes?: string;
+  @IsString()
+  @IsOptional()
+  notes?: string;
 }

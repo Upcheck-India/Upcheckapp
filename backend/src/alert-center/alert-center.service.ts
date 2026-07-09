@@ -24,7 +24,12 @@ export interface BriefingItem {
 }
 
 /** Higher severity sorts first. */
-const SEVERITY_RANK: Record<string, number> = { critical: 3, watch: 2, warning: 2, info: 1 };
+const SEVERITY_RANK: Record<string, number> = {
+  critical: 3,
+  watch: 2,
+  warning: 2,
+  info: 1,
+};
 const rank = (s: string) => SEVERITY_RANK[s] ?? 0;
 
 /**
@@ -66,7 +71,9 @@ export class AlertCenterService {
     }
     const items: BriefingItem[] = [];
     for (const [pondId, list] of byPond) {
-      const top = [...list].sort((x, y) => rank(y.severity) - rank(x.severity))[0];
+      const top = [...list].sort(
+        (x, y) => rank(y.severity) - rank(x.severity),
+      )[0];
       const data = top.data ?? {};
       items.push({
         pondId,

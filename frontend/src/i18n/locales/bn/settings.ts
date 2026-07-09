@@ -100,6 +100,17 @@ const settings = {
   twoFactorDisabledSuccess: 'দ্বি-স্তরীয় প্রমাণীকরণ এখন বন্ধ আছে।',
   twoFactorSetupError: '2FA সেটআপ শুরু করা যায়নি',
 
+  // ── Backup codes (AUTH-4) ──
+  twoFactorBackupTitle: 'আপনার ব্যাকআপ কোড সংরক্ষণ করুন',
+  twoFactorBackupHelp:
+    'এই এককালীন কোডগুলি নিরাপদ কোথাও রাখুন। আপনি যদি আপনার অথেন্টিকেটর অ্যাপে অ্যাক্সেস হারান তবে প্রতিটি একবার কাজ করে। এগুলি আর দেখানো হবে না।',
+  twoFactorBackupCopy: 'কোড কপি করুন',
+  twoFactorBackupAck: 'আমি এগুলি সংরক্ষণ করেছি',
+  twoFactorBackupCopied: 'ব্যাকআপ কোড ক্লিপবোর্ডে কপি করা হয়েছে।',
+  twoFactorRegenerateHelp:
+    'ব্যাকআপ কোডের একটি নতুন সেট তৈরি করুন। আপনার পুরানো কোডগুলি কাজ করা বন্ধ করবে।',
+  twoFactorRegenerate: 'ব্যাকআপ কোড পুনরায় তৈরি করুন',
+
   // ── NotificationsScreen ───────────────────────────────────────────────────
   notificationsTitle: 'বিজ্ঞপ্তি',
   notificationsEmpty: 'সব পড়া হয়ে গেছে!',

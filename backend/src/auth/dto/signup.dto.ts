@@ -1,4 +1,12 @@
-import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MinLength,
+} from 'class-validator';
 
 /**
  * Server-side validation for POST /auth/supabase/signup.
@@ -10,30 +18,35 @@ import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Matches, MinLength } f
  * what the app sends (whitelist:true strips anything extra).
  */
 export class SignupDto {
-    @IsEmail()
-    email: string;
+  @IsEmail()
+  email: string;
 
-    @IsString()
-    @MinLength(8)
-    @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
-        message:
-            'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
-    })
-    password: string;
+  // Requires ≥1 lowercase, ≥1 uppercase, ≥1 digit, and ≥1 special character.
+  // "Special" = any character that is not an ASCII letter or digit ([^A-Za-z0-9])
+  // — the broadest printable-symbol set, so common passwords like "MyPass#123"
+  // (# was previously rejected) are accepted. The frontend validator must mirror
+  // this exact rule. (min length is enforced separately by @MinLength(8).)
+  @IsString()
+  @MinLength(8)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/, {
+    message:
+      'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (any non-letter, non-digit character such as # - _ . @ ! etc.)',
+  })
+  password: string;
 
-    @IsOptional()
-    @IsString()
-    firstName?: string;
+  @IsOptional()
+  @IsString()
+  firstName?: string;
 
-    @IsOptional()
-    @IsString()
-    lastName?: string;
+  @IsOptional()
+  @IsString()
+  lastName?: string;
 
-    @IsOptional()
-    @IsString()
-    username?: string;
+  @IsOptional()
+  @IsString()
+  username?: string;
 
-    @IsOptional()
-    @IsIn(['owner', 'worker'])
-    accountType?: 'owner' | 'worker';
+  @IsOptional()
+  @IsIn(['owner', 'worker'])
+  accountType?: 'owner' | 'worker';
 }

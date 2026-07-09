@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsNumber, IsDateString, IsUUID, Min } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsDateString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
 /**
  * Body for POST /credit. Deliberately has NO `id` field — the ledger row's
@@ -8,35 +15,35 @@ import { IsString, IsOptional, IsNumber, IsDateString, IsUUID, Min } from 'class
  * it from the authenticated user.
  */
 export class CreateCreditDto {
-    @IsUUID()
-    @IsOptional()
-    cropId?: string;
+  @IsUUID()
+  @IsOptional()
+  cropId?: string;
 
-    @IsString()
-    dealerName: string;
+  @IsString()
+  dealerName: string;
 
-    @IsNumber()
-    @Min(0)
-    principal: number;
+  @IsNumber()
+  @Min(0)
+  principal: number;
 
-    @IsNumber()
-    @IsOptional()
-    @Min(0)
-    interestPct?: number;
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  interestPct?: number;
 
-    @IsDateString()
-    startDate: string;
+  @IsDateString()
+  startDate: string;
 
-    @IsDateString()
-    @IsOptional()
-    dueDate?: string;
+  @IsDateString()
+  @IsOptional()
+  dueDate?: string;
 
-    @IsNumber()
-    @IsOptional()
-    @Min(0)
-    repaid?: number;
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  repaid?: number;
 
-    @IsString()
-    @IsOptional()
-    notes?: string;
+  @IsString()
+  @IsOptional()
+  notes?: string;
 }

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, ScrollView, StyleSheet, ViewStyle, StatusBar, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../../theme';
-import { OfflineIndicator } from '../ui/OfflineIndicator';
+import { OfflineIndicator, SyncAttentionBanner } from '../ui/OfflineIndicator';
 
 interface ScreenWrapperProps {
     children: React.ReactNode;
@@ -52,6 +52,7 @@ export const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
         <Container style={[styles.flex, { backgroundColor }]}>
             <StatusBar barStyle="dark-content" backgroundColor={backgroundColor} />
             <OfflineIndicator />
+            <SyncAttentionBanner />
             {wrappedContent}
         </Container>
     );

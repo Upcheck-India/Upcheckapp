@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, IsNull, In } from 'typeorm';
 import { Pond } from '../ponds/pond.entity';
-import { PondContextService, PondContext } from '../pond-context/pond-context.service';
+import {
+  PondContextService,
+  PondContext,
+} from '../pond-context/pond-context.service';
 import { LunarService } from '../lunar/lunar.service';
 import { AlertCenterService, BriefingItem } from './alert-center.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
@@ -40,39 +43,65 @@ export class EngineAlertService {
   evaluate(ctx: PondContext, now = new Date()): AlertDraft[] {
     const drafts: AlertDraft[] = [];
     const wq = ctx.waterQuality;
-    const push = (severity: AlertDraft['severity'], source: string, title: string, body: string, steps: string[]) =>
+    const push = (
+      severity: AlertDraft['severity'],
+      source: string,
+      title: string,
+      body: string,
+      steps: string[],
+    ) =>
       drafts.push({ pondId: ctx.pondId, source, severity, title, body, steps });
 
     // Free ammonia (toxic fraction).
     if (ctx.freeAmmoniaMgL != null) {
       if (ctx.freeAmmoniaMgL > 0.3) {
-        push('critical', 'water', 'Toxic ammonia', `Free NH₃ ${ctx.freeAmmoniaMgL} mg/L`, [
-          'Stop or sharply reduce feeding',
-          'Partial water exchange',
-          'Add probiotics; verify pH is not spiking',
-        ]);
+        push(
+          'critical',
+          'water',
+          'Toxic ammonia',
+          `Free NH₃ ${ctx.freeAmmoniaMgL} mg/L`,
+          [
+            'Stop or sharply reduce feeding',
+            'Partial water exchange',
+            'Add probiotics; verify pH is not spiking',
+          ],
+        );
       } else if (ctx.freeAmmoniaMgL > 0.1) {
-        push('watch', 'water', 'Ammonia rising', `Free NH₃ ${ctx.freeAmmoniaMgL} mg/L`, [
-          'Reduce ration', 'Increase aeration',
-        ]);
+        push(
+          'watch',
+          'water',
+          'Ammonia rising',
+          `Free NH₃ ${ctx.freeAmmoniaMgL} mg/L`,
+          ['Reduce ration', 'Increase aeration'],
+        );
       }
     }
 
     // Dissolved oxygen.
     if (wq?.dissolvedOxygen != null && wq.dissolvedOxygen < 4) {
       const severity = wq.dissolvedOxygen < 3 ? 'critical' : 'watch';
-      push(severity, 'aeration', 'Low dissolved oxygen', `DO ${wq.dissolvedOxygen} mg/L`, [
-        'Run all aerators now',
-        'Hold feeding until DO recovers',
-        'Avoid handling/stocking stress',
-      ]);
+      push(
+        severity,
+        'aeration',
+        'Low dissolved oxygen',
+        `DO ${wq.dissolvedOxygen} mg/L`,
+        [
+          'Run all aerators now',
+          'Hold feeding until DO recovers',
+          'Avoid handling/stocking stress',
+        ],
+      );
     }
 
     // Feed efficiency.
     if (ctx.runningFcr != null && ctx.runningFcr > 1.8) {
-      push('watch', 'feed', 'Feed efficiency dropping', `Running FCR ${ctx.runningFcr}`, [
-        'Check feeding-tray residue', 'Trim the ration to avoid overfeeding',
-      ]);
+      push(
+        'watch',
+        'feed',
+        'Feed efficiency dropping',
+        `Running FCR ${ctx.runningFcr}`,
+        ['Check feeding-tray residue', 'Trim the ration to avoid overfeeding'],
+      );
     }
 
     // Lunar molt risk (needs latest ABW).
@@ -90,9 +119,13 @@ export class EngineAlertService {
           'No handling, sampling or treatments',
         ]);
       } else if (risk.band === 'Watch' && phase.inMoltWindow) {
-        push('watch', 'lunar', 'Molt window approaching', `Molt risk ${risk.score}`, [
-          'Raise alkalinity ≥120 ppm', 'Top up Ca/Mg/K before the molt',
-        ]);
+        push(
+          'watch',
+          'lunar',
+          'Molt window approaching',
+          `Molt risk ${risk.score}`,
+          ['Raise alkalinity ≥120 ppm', 'Top up Ca/Mg/K before the molt'],
+        );
       }
     }
 

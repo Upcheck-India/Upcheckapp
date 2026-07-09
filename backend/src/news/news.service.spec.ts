@@ -8,7 +8,11 @@ import { NewsArticle } from './news-article.entity';
 // Mock repository factory
 const createMockRepository = () => ({
   create: jest.fn().mockImplementation((dto) => dto),
-  save: jest.fn().mockImplementation((entity) => Promise.resolve({ ...entity, id: 'test-id' })),
+  save: jest
+    .fn()
+    .mockImplementation((entity) =>
+      Promise.resolve({ ...entity, id: 'test-id' }),
+    ),
   find: jest.fn().mockResolvedValue([]),
   findOneBy: jest.fn().mockResolvedValue(null),
   update: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -22,7 +26,10 @@ describe('NewsService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
+        },
         NewsService,
         {
           provide: getRepositoryToken(NewsArticle),
@@ -32,7 +39,9 @@ describe('NewsService', () => {
     }).compile();
 
     service = module.get<NewsService>(NewsService);
-    mockRepository = module.get<Repository<NewsArticle>>(getRepositoryToken(NewsArticle));
+    mockRepository = module.get<Repository<NewsArticle>>(
+      getRepositoryToken(NewsArticle),
+    );
   });
 
   it('should be defined', () => {
@@ -48,7 +57,7 @@ describe('NewsService', () => {
         category: 'technology',
         imageUrl: 'https://example.com/image.jpg',
         author: 'Dr. Smith',
-        publishedAt: new Date().toISOString()
+        publishedAt: new Date().toISOString(),
       };
 
       const result = await service.create(createDto);
@@ -102,7 +111,7 @@ describe('NewsService', () => {
       const articleId = 'article-1';
       const updateDto = { title: 'Updated Title' };
       const updatedArticle = { id: articleId, title: 'Updated Title' };
-      
+
       mockRepository.findOneBy.mockResolvedValue(updatedArticle);
 
       const result = await service.update(articleId, updateDto);

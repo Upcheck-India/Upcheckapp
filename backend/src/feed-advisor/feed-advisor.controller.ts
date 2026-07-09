@@ -24,7 +24,13 @@ export class FeedAdvisorController {
   /** Generate and persist today's plan for a pond the caller owns. */
   @Post()
   generate(@Body() dto: GenerateFeedPlanDto, @CurrentUser() user) {
-    return this.service.generate(dto.pondId, dto.date, dto.input, user.id, dto.cropId);
+    return this.service.generate(
+      dto.pondId,
+      dto.date,
+      dto.input,
+      user.id,
+      dto.cropId,
+    );
   }
 
   @Get('pond/:pondId')
@@ -34,7 +40,11 @@ export class FeedAdvisorController {
 
   /** Log what was actually fed → adherence + rolling-FCR feedback. */
   @Patch(':id/actual')
-  logActual(@Param('id') id: string, @Body() dto: LogActualDto, @CurrentUser() user) {
+  logActual(
+    @Param('id') id: string,
+    @Body() dto: LogActualDto,
+    @CurrentUser() user,
+  ) {
     return this.service.logActual(id, dto.actualKg, user.id);
   }
 }

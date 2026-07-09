@@ -9,8 +9,13 @@ import { CreateCropDto } from '../crops/dto/create-crop.dto';
  * realistic payload through the real pipe and assert (a) validation passes and
  * (b) NO field is silently dropped by the whitelist.
  */
-const pipe = new ValidationPipe({ whitelist: true, forbidNonWhitelisted: false, transform: true });
-const run = (metatype: any, value: any) => pipe.transform(value, { type: 'body', metatype });
+const pipe = new ValidationPipe({
+  whitelist: true,
+  forbidNonWhitelisted: false,
+  transform: true,
+});
+const run = (metatype: any, value: any) =>
+  pipe.transform(value, { type: 'body', metatype });
 
 const UUID = '11111111-1111-4111-8111-111111111111';
 
@@ -79,12 +84,24 @@ describe('Create-DTO acceptance through the global ValidationPipe', () => {
 
   it('rejects an invalid field value (validation actually runs)', async () => {
     await expect(
-      run(CreatePondDto, { farmId: 'not-a-uuid', namePrefix: 'P1', geometryType: 'rectangular', constructionType: 'lined', lengthM: 50, widthM: 100, depthM: 1.5 }),
+      run(CreatePondDto, {
+        farmId: 'not-a-uuid',
+        namePrefix: 'P1',
+        geometryType: 'rectangular',
+        constructionType: 'lined',
+        lengthM: 50,
+        widthM: 100,
+        depthM: 1.5,
+      }),
     ).rejects.toBeDefined();
   });
 
   it('strips an unknown/extra field (whitelist works — extra data cannot sneak in)', async () => {
-    const out = await run(CreateFarmDto, { name: 'X', hacker: 'DROP TABLE', isAdmin: true });
+    const out = await run(CreateFarmDto, {
+      name: 'X',
+      hacker: 'DROP TABLE',
+      isAdmin: true,
+    });
     expect(out).toEqual({ name: 'X' });
   });
 });

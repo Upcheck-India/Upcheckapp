@@ -1,4 +1,7 @@
-import { DiseaseWarningService, DiseaseIndicators } from './disease-warning.service';
+import {
+  DiseaseWarningService,
+  DiseaseIndicators,
+} from './disease-warning.service';
 
 const svc = new DiseaseWarningService(null as any, null as any);
 
@@ -9,19 +12,34 @@ describe('DiseaseWarningService — signatures (farmer_features_spec §2)', () =
   it('each full signature scores 100 and bands Critical', () => {
     const full: DiseaseIndicators = {
       // WSSV
-      tempDrop3in48h: true, doBelow4: true, seasonWinter: true, regionalWssv: true, redBody: true,
+      tempDrop3in48h: true,
+      doBelow4: true,
+      seasonWinter: true,
+      regionalWssv: true,
+      redBody: true,
       // AHPND
-      docBelow35: true, yellowVibrioUp: true, emptyGut: true, paleHp: true,
+      docBelow35: true,
+      yellowVibrioUp: true,
+      emptyGut: true,
+      paleHp: true,
       // EHP
-      sizeCvUp: true, adgBelowExpected: true, whiteFecesTray: true, regionWfd: true,
+      sizeCvUp: true,
+      adgBelowExpected: true,
+      whiteFecesTray: true,
+      regionWfd: true,
       // WFD
-      vibrioUp: true, ehpRiskUp: true,
+      vibrioUp: true,
+      ehpRiskUp: true,
       // Luminous
-      luminousVibrioUp: true, nightGlow: true,
+      luminousVibrioUp: true,
+      nightGlow: true,
       // RMS
-      chronicDailyMortality: true, multiStress: true,
+      chronicDailyMortality: true,
+      multiStress: true,
       // LSS
-      looseShellObs: true, mineralDeficit: true, hpStress: true,
+      looseShellObs: true,
+      mineralDeficit: true,
+      hpStress: true,
     };
     const risks = svc.computeRisks(full);
     for (const r of risks) {
@@ -32,7 +50,10 @@ describe('DiseaseWarningService — signatures (farmer_features_spec §2)', () =
 
   it('scores partial WSSV from its weighted indicators', () => {
     // tempDrop(.3) + season(.2) = .5 → 50, Watch
-    const risks = svc.computeRisks({ tempDrop3in48h: true, seasonWinter: true });
+    const risks = svc.computeRisks({
+      tempDrop3in48h: true,
+      seasonWinter: true,
+    });
     const wssv = find(risks, 'WSSV');
     expect(wssv.score).toBe(50);
     expect(wssv.band).toBe('Watch');

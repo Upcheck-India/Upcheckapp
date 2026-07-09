@@ -1,451 +1,487 @@
-import { Injectable, Logger, UnauthorizedException, BadRequestException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  UnauthorizedException,
+  BadRequestException,
+  ConflictException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import * as crypto from 'crypto';
 
 @Injectable()
 export class SupabaseAuthService {
-    private supabase: SupabaseClient;
-    private readonly logger = new Logger(SupabaseAuthService.name);
+  private supabase: SupabaseClient;
+  private readonly logger = new Logger(SupabaseAuthService.name);
 
-    constructor(private configService: ConfigService) {
-        const supabaseUrl = this.configService.get('SUPABASE_URL');
-        // L5: the anon key is required for config parity with the frontend and
-        // to fail fast on an incomplete deployment. The server intentionally
-        // uses a single service-role client for both admin and public auth
-        // calls (signInWithPassword/verifyOtp) — those are auth operations, not
-        // RLS-bearing data queries, so the elevated key is not a data-exposure
-        // risk here.
-        const supabaseAnonKey = this.configService.get('SUPABASE_ANON_KEY');
-        const supabaseKey = this.configService.get('SUPABASE_SERVICE_ROLE_KEY');
+  constructor(private configService: ConfigService) {
+    const supabaseUrl = this.configService.get('SUPABASE_URL');
+    // L5: the anon key is required for config parity with the frontend and
+    // to fail fast on an incomplete deployment. The server intentionally
+    // uses a single service-role client for both admin and public auth
+    // calls (signInWithPassword/verifyOtp) — those are auth operations, not
+    // RLS-bearing data queries, so the elevated key is not a data-exposure
+    // risk here.
+    const supabaseAnonKey = this.configService.get('SUPABASE_ANON_KEY');
+    const supabaseKey = this.configService.get('SUPABASE_SERVICE_ROLE_KEY');
 
-        if (!supabaseUrl || !supabaseAnonKey || !supabaseKey) {
-            throw new Error(
-                `Missing Supabase env vars.\n` +
-                `SUPABASE_URL: ${!!supabaseUrl}\n` +
-                `SUPABASE_ANON_KEY: ${!!supabaseAnonKey}\n` +
-                `SUPABASE_SERVICE_ROLE_KEY: ${!!supabaseKey}`
-            );
-        }
-
-        this.supabase = createClient(supabaseUrl, supabaseKey, {
-            auth: {
-                autoRefreshToken: false,
-                persistSession: false,
-            },
-        });
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseKey) {
+      throw new Error(
+        `Missing Supabase env vars.\n` +
+          `SUPABASE_URL: ${!!supabaseUrl}\n` +
+          `SUPABASE_ANON_KEY: ${!!supabaseAnonKey}\n` +
+          `SUPABASE_SERVICE_ROLE_KEY: ${!!supabaseKey}`,
+      );
     }
 
-    // ==================== Email/Password Auth ====================
+    this.supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+  }
 
-    async signUp(email: string, password: string, metadata?: { firstName?: string; lastName?: string; username?: string; account_type?: 'owner' | 'worker' }) {
-        const { data, error } = await this.supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: metadata || {},
-            },
-        });
+  // ==================== Email/Password Auth ====================
 
-        if (error) {
-            if (error.message.includes('already registered')) {
-                throw new ConflictException('Email already registered');
-            }
-            throw new BadRequestException(error.message);
-        }
+  async signUp(
+    email: string,
+    password: string,
+    metadata?: {
+      firstName?: string;
+      lastName?: string;
+      username?: string;
+      account_type?: 'owner' | 'worker';
+    },
+  ) {
+    const { data, error } = await this.supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: metadata || {},
+      },
+    });
 
-        return {
-            user: data.user,
-            session: data.session,
-        };
+    if (error) {
+      if (error.message.includes('already registered')) {
+        throw new ConflictException('Email already registered');
+      }
+      throw new BadRequestException(error.message);
     }
 
-    async signIn(email: string, password: string) {
-        const { data, error } = await this.supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+    return {
+      user: data.user,
+      session: data.session,
+    };
+  }
 
-        if (error) {
-            throw new UnauthorizedException(error.message);
-        }
+  async signIn(email: string, password: string) {
+    const { data, error } = await this.supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-        return {
-            user: data.user,
-            session: data.session,
-        };
+    if (error) {
+      throw new UnauthorizedException(error.message);
     }
 
-    // ==================== Passwordless email OTP ====================
+    return {
+      user: data.user,
+      session: data.session,
+    };
+  }
 
-    /**
-     * Send a one-time login code to an existing user's email (Supabase native
-     * OTP). `shouldCreateUser: false` keeps this a *login* flow — it will not
-     * silently provision a new account for an unknown email.
-     */
-    async sendEmailOtp(email: string) {
-        const { error } = await this.supabase.auth.signInWithOtp({
-            email,
-            options: { shouldCreateUser: false },
-        });
-        if (error) {
-            // L1 (anti-enumeration): do NOT surface the error. A distinct
-            // failure for unregistered emails would let an attacker discover
-            // which accounts exist. Log server-side; return the same generic
-            // response whether or not the email is registered.
-            this.logger.warn(`sendEmailOtp for a login-otp request failed: ${error.message}`);
-        }
-        return { message: 'If an account exists for that email, a login code has been sent.' };
+  // ==================== Passwordless email OTP ====================
+
+  /**
+   * Send a one-time login code to an existing user's email (Supabase native
+   * OTP). `shouldCreateUser: false` keeps this a *login* flow — it will not
+   * silently provision a new account for an unknown email.
+   */
+  async sendEmailOtp(email: string) {
+    const { error } = await this.supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    });
+    if (error) {
+      // L1 (anti-enumeration): do NOT surface the error. A distinct
+      // failure for unregistered emails would let an attacker discover
+      // which accounts exist. Log server-side; return the same generic
+      // response whether or not the email is registered.
+      this.logger.warn(
+        `sendEmailOtp for a login-otp request failed: ${error.message}`,
+      );
+    }
+    return {
+      message:
+        'If an account exists for that email, a login code has been sent.',
+    };
+  }
+
+  /** Verify an emailed OTP and return a full session. */
+  async verifyEmailOtp(email: string, token: string) {
+    const { data, error } = await this.supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'email',
+    });
+    if (error) {
+      throw new UnauthorizedException(error.message);
+    }
+    return { user: data.user, session: data.session };
+  }
+
+  // ==================== OAuth ====================
+
+  /**
+   * Verify OAuth token from frontend (id_token from Google)
+   * Note: Frontend should use Supabase Auth UI or handle OAuth flow with deep linking
+   */
+  async signInWithIdToken(provider: 'google', idToken: string) {
+    const { data, error } = await this.supabase.auth.signInWithIdToken({
+      provider,
+      token: idToken,
+    });
+
+    if (error) {
+      throw new UnauthorizedException(error.message);
     }
 
-    /** Verify an emailed OTP and return a full session. */
-    async verifyEmailOtp(email: string, token: string) {
-        const { data, error } = await this.supabase.auth.verifyOtp({
-            email,
-            token,
-            type: 'email',
-        });
-        if (error) {
-            throw new UnauthorizedException(error.message);
-        }
-        return { user: data.user, session: data.session };
+    return {
+      user: data.user,
+      session: data.session,
+    };
+  }
+
+  // ==================== Token Validation ====================
+
+  async verifyAccessToken(token: string): Promise<User> {
+    const { data, error } = await this.supabase.auth.getUser(token);
+
+    if (error || !data.user) {
+      throw new UnauthorizedException('Invalid or expired token');
     }
 
-    // ==================== OAuth ====================
+    return data.user;
+  }
 
-    /**
-     * Verify OAuth token from frontend (id_token from Google)
-     * Note: Frontend should use Supabase Auth UI or handle OAuth flow with deep linking
-     */
-    async signInWithIdToken(provider: 'google', idToken: string) {
-        const { data, error } = await this.supabase.auth.signInWithIdToken({
-            provider,
-            token: idToken,
-        });
+  // ==================== Session Management ====================
 
-        if (error) {
-            throw new UnauthorizedException(error.message);
-        }
+  async refreshSession(refreshToken: string) {
+    const { data, error } = await this.supabase.auth.refreshSession({
+      refresh_token: refreshToken,
+    });
 
-        return {
-            user: data.user,
-            session: data.session,
-        };
+    if (error) {
+      throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // ==================== Token Validation ====================
+    return {
+      user: data.user,
+      session: data.session,
+    };
+  }
 
-    async verifyAccessToken(token: string): Promise<User> {
-        const { data, error } = await this.supabase.auth.getUser(token);
+  async signOut(accessToken: string) {
+    // Revoke the session
+    const { error } = await this.supabase.auth.admin.signOut(accessToken);
 
-        if (error || !data.user) {
-            throw new UnauthorizedException('Invalid or expired token');
-        }
-
-        return data.user;
+    if (error) {
+      throw new BadRequestException(error.message);
     }
 
-    // ==================== Session Management ====================
+    return { message: 'Signed out successfully' };
+  }
 
-    async refreshSession(refreshToken: string) {
-        const { data, error } = await this.supabase.auth.refreshSession({
-            refresh_token: refreshToken,
-        });
+  // ==================== User Management ====================
 
-        if (error) {
-            throw new UnauthorizedException('Invalid refresh token');
-        }
+  async updateUser(
+    userId: string,
+    updates: { email?: string; password?: string; data?: any },
+  ) {
+    const { data, error } = await this.supabase.auth.admin.updateUserById(
+      userId,
+      updates,
+    );
 
-        return {
-            user: data.user,
-            session: data.session,
-        };
+    if (error) {
+      throw new BadRequestException(error.message);
     }
 
-    async signOut(accessToken: string) {
-        // Revoke the session
-        const { error } = await this.supabase.auth.admin.signOut(accessToken);
+    return data.user;
+  }
 
-        if (error) {
-            throw new BadRequestException(error.message);
-        }
+  async getUserById(userId: string) {
+    const { data, error } = await this.supabase.auth.admin.getUserById(userId);
 
-        return { message: 'Signed out successfully' };
+    if (error) {
+      throw new BadRequestException(error.message);
     }
 
-    // ==================== User Management ====================
+    return data.user;
+  }
 
-    async updateUser(userId: string, updates: { email?: string; password?: string; data?: any }) {
-        const { data, error } = await this.supabase.auth.admin.updateUserById(userId, updates);
+  async deleteUser(userId: string) {
+    const { error } = await this.supabase.auth.admin.deleteUser(userId);
 
-        if (error) {
-            throw new BadRequestException(error.message);
-        }
-
-        return data.user;
+    if (error) {
+      throw new BadRequestException(error.message);
     }
 
-    async getUserById(userId: string) {
-        const { data, error } = await this.supabase.auth.admin.getUserById(userId);
+    return { message: 'User deleted successfully' };
+  }
 
-        if (error) {
-            throw new BadRequestException(error.message);
-        }
+  // ==================== Password Management ====================
 
-        return data.user;
+  async sendPasswordResetEmail(email: string) {
+    const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${this.configService.get('FRONTEND_URL')}/reset-password`,
+    });
+
+    if (error) {
+      throw new BadRequestException(error.message);
     }
 
-    async deleteUser(userId: string) {
-        const { error } = await this.supabase.auth.admin.deleteUser(userId);
+    return { message: 'Password reset email sent' };
+  }
 
-        if (error) {
-            throw new BadRequestException(error.message);
-        }
+  async updatePassword(
+    accessToken: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    // First verify the token
+    const user = await this.verifyAccessToken(accessToken);
 
-        return { message: 'User deleted successfully' };
+    if (!user.email) {
+      throw new BadRequestException('This account has no password to change.');
     }
 
-    // ==================== Password Management ====================
-
-    async sendPasswordResetEmail(email: string) {
-        const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${this.configService.get('FRONTEND_URL')}/reset-password`,
-        });
-
-        if (error) {
-            throw new BadRequestException(error.message);
-        }
-
-        return { message: 'Password reset email sent' };
+    // Re-authenticate with the CURRENT password before allowing a change.
+    // A stolen/leaked access token must not be enough to silently reset the
+    // password and lock the owner out.
+    const { error: pwError } = await this.supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+    if (pwError) {
+      throw new UnauthorizedException('Current password is incorrect');
     }
 
-    async updatePassword(accessToken: string, currentPassword: string, newPassword: string) {
-        // First verify the token
-        const user = await this.verifyAccessToken(accessToken);
+    // Update password
+    const { error } = await this.supabase.auth.admin.updateUserById(user.id, {
+      password: newPassword,
+    });
 
-        if (!user.email) {
-            throw new BadRequestException('This account has no password to change.');
-        }
-
-        // Re-authenticate with the CURRENT password before allowing a change.
-        // A stolen/leaked access token must not be enough to silently reset the
-        // password and lock the owner out.
-        const { error: pwError } = await this.supabase.auth.signInWithPassword({
-            email: user.email,
-            password: currentPassword,
-        });
-        if (pwError) {
-            throw new UnauthorizedException('Current password is incorrect');
-        }
-
-        // Update password
-        const { error } = await this.supabase.auth.admin.updateUserById(user.id, {
-            password: newPassword,
-        });
-
-        if (error) {
-            throw new BadRequestException(error.message);
-        }
-
-        return { message: 'Password updated successfully' };
+    if (error) {
+      throw new BadRequestException(error.message);
     }
 
-    // ==================== Email Verification ====================
+    return { message: 'Password updated successfully' };
+  }
 
-    async sendVerificationEmail(email: string) {
-        const { error } = await this.supabase.auth.resend({
-            type: 'signup',
-            email,
-        });
+  // ==================== Email Verification ====================
 
-        if (error) {
-            throw new BadRequestException(error.message);
-        }
+  async sendVerificationEmail(email: string) {
+    const { error } = await this.supabase.auth.resend({
+      type: 'signup',
+      email,
+    });
 
-        return { message: 'Verification email sent' };
+    if (error) {
+      throw new BadRequestException(error.message);
     }
 
-    // ==================== Truecaller Auth ====================
+    return { message: 'Verification email sent' };
+  }
 
-    async signInWithTruecaller(profile: {
-        phoneNumber: string;
-        firstName: string;
-        lastName?: string;
-        email?: string;
-        avatarUrl?: string;
-    }) {
-        // 1. Check if user exists by phone number
-        const { data: existingUser, error: lookupError } = await this.supabase
-            .from('users')
-            .select('*')
-            .eq('phone', profile.phoneNumber)
-            .single();
+  // ==================== Truecaller Auth ====================
 
-        if (existingUser) {
-            // 2a. Existing user - update phone_verified and create session
-            await this.supabase
-                .from('users')
-                .update({ phone_verified: true, auth_provider: 'truecaller' })
-                .eq('id', existingUser.id);
+  async signInWithTruecaller(profile: {
+    phoneNumber: string;
+    firstName: string;
+    lastName?: string;
+    email?: string;
+    avatarUrl?: string;
+  }) {
+    // 1. Check if user exists by phone number
+    const { data: existingUser, error: lookupError } = await this.supabase
+      .from('users')
+      .select('*')
+      .eq('phone', profile.phoneNumber)
+      .single();
 
-            return this.createSessionForUser(existingUser.id, profile);
-        }
+    if (existingUser) {
+      // 2a. Existing user - update phone_verified and create session
+      await this.supabase
+        .from('users')
+        .update({ phone_verified: true, auth_provider: 'truecaller' })
+        .eq('id', existingUser.id);
 
-        // SECURITY (account-takeover fix): we intentionally do NOT link a
-        // Truecaller login to an existing account by email. Truecaller profile
-        // emails are self-asserted and NOT ownership-verified, so matching on
-        // them would let an attacker set their profile email to a victim's
-        // address and be handed the victim's session. Truecaller identity is
-        // the *verified phone number* only (branch 1 above). A user who wants
-        // their phone linked to an existing email account must do so through an
-        // authenticated, email-verified flow — never implicitly here.
-
-        // 3. Create new user, keyed on the verified phone (Requirement 11.4).
-        // Always use a phone-derived internal email — never the profile's
-        // unverified email — so an attacker can't pre-squat a victim's address
-        // in auth.users (which enforces email uniqueness regardless of
-        // confirmation) and lock them out of a future signup.
-        const tempEmail = `${profile.phoneNumber.replace(/[^0-9]/g, '')}@truecaller.temp`;
-
-        const { data: newUser, error: createError } = await this.supabase.auth.admin.createUser({
-            email: tempEmail,
-            phone: profile.phoneNumber,
-            password: crypto.randomUUID(),
-            email_confirm: false,
-            phone_confirm: true,
-            user_metadata: {
-                first_name: profile.firstName,
-                last_name: profile.lastName,
-                avatar_url: profile.avatarUrl,
-                provider: 'truecaller',
-                phone_verified: true,
-            },
-        });
-
-        if (createError) {
-            // Supabase infra failure (outage, rate limit, etc.), not a client
-            // validation error — a 5xx here keeps it visible to monitoring
-            // instead of being remapped to a misleading 401 by
-            // TruecallerInvalidRequestFilter (which only catches
-            // BadRequestException).
-            throw new ServiceUnavailableException(createError.message);
-        }
-
-        // The auth user now exists. From this point on, ANY failure must
-        // delete it via supabase.auth.admin.deleteUser(authUserId) so the
-        // system never holds an auth user without a corresponding users
-        // row. This rollback is required by the design's
-        // "Failure-mode considerations" section and is a corollary of
-        // Property 8 (idempotence): leaving an orphan auth user would
-        // break the next call's phone-match branch because Supabase
-        // would reject re-creation of the same phone or email.
-        const newAuthUserId = newUser.user.id;
-        try {
-            // Create user record in our DB
-            const { error: dbError } = await this.supabase.from('users').insert({
-                id: newAuthUserId,
-                // Store the phone-derived internal email, not the unverified
-                // profile email (public.users.email is NOT NULL). The real
-                // email stays unset until the user verifies one.
-                email: tempEmail,
-                phone: profile.phoneNumber,
-                first_name: profile.firstName,
-                last_name: profile.lastName,
-                avatar_url: profile.avatarUrl,
-                auth_provider: 'truecaller',
-                phone_verified: true,
-                email_verified: false,
-            });
-
-            if (dbError) {
-                // Same reasoning as createError above — surface DB outages as
-                // 5xx, not a masked 401.
-                throw new ServiceUnavailableException(dbError.message);
-            }
-        } catch (insertErr) {
-            // Best-effort rollback. We deliberately swallow rollback
-            // failures: the original insert error is more useful to the
-            // caller, and any leftover orphan auth user can be reaped by
-            // a follow-up admin job. We do NOT log the failed delete in
-            // production at the phone-number level — Requirement 13.1.
-            try {
-                await this.supabase.auth.admin.deleteUser(newAuthUserId);
-            } catch {
-                // Intentionally ignored — see comment above.
-            }
-            throw insertErr;
-        }
-
-        // The auth user + users row both exist now — mint a real session the
-        // same way the existing-user branches do.
-        const session = await this.mintSession(tempEmail);
-        return { user: newUser.user, session };
+      return this.createSessionForUser(existingUser.id, profile);
     }
 
-    /**
-     * Redeem an admin-generated magic link into a real session server-side.
-     * `admin.generateLink` never returns a live session (its `action_link` is
-     * always populated), so the only way to mint one out-of-band is to verify
-     * the link's `hashed_token` through the public `verifyOtp` API — the
-     * documented Supabase pattern for admin-issued sign-in.
-     */
-    private async mintSession(email: string) {
-        const { data: linkData, error: linkError } =
-            await this.supabase.auth.admin.generateLink({
-                type: 'magiclink',
-                email,
-            });
+    // SECURITY (account-takeover fix): we intentionally do NOT link a
+    // Truecaller login to an existing account by email. Truecaller profile
+    // emails are self-asserted and NOT ownership-verified, so matching on
+    // them would let an attacker set their profile email to a victim's
+    // address and be handed the victim's session. Truecaller identity is
+    // the *verified phone number* only (branch 1 above). A user who wants
+    // their phone linked to an existing email account must do so through an
+    // authenticated, email-verified flow — never implicitly here.
 
-        if (linkError) {
-            throw new ServiceUnavailableException(linkError.message);
-        }
+    // 3. Create new user, keyed on the verified phone (Requirement 11.4).
+    // Always use a phone-derived internal email — never the profile's
+    // unverified email — so an attacker can't pre-squat a victim's address
+    // in auth.users (which enforces email uniqueness regardless of
+    // confirmation) and lock them out of a future signup.
+    const tempEmail = `${profile.phoneNumber.replace(/[^0-9]/g, '')}@truecaller.temp`;
 
-        const { data: verifyData, error: verifyError } = await this.supabase.auth.verifyOtp({
-            token_hash: linkData.properties.hashed_token,
-            type: 'magiclink',
-        });
+    const { data: newUser, error: createError } =
+      await this.supabase.auth.admin.createUser({
+        email: tempEmail,
+        phone: profile.phoneNumber,
+        password: crypto.randomUUID(),
+        email_confirm: false,
+        phone_confirm: true,
+        user_metadata: {
+          first_name: profile.firstName,
+          last_name: profile.lastName,
+          avatar_url: profile.avatarUrl,
+          provider: 'truecaller',
+          phone_verified: true,
+        },
+      });
 
-        if (verifyError || !verifyData.session) {
-            throw new ServiceUnavailableException(
-                verifyError?.message ?? 'Failed to create session',
-            );
-        }
-
-        return verifyData.session;
+    if (createError) {
+      // Supabase infra failure (outage, rate limit, etc.), not a client
+      // validation error — a 5xx here keeps it visible to monitoring
+      // instead of being remapped to a misleading 401 by
+      // TruecallerInvalidRequestFilter (which only catches
+      // BadRequestException).
+      throw new ServiceUnavailableException(createError.message);
     }
 
-    private async createSessionForUser(
-        userId: string,
-        profile: { firstName: string; lastName?: string; avatarUrl?: string },
-    ) {
-        // Update user metadata
-        const { data, error } = await this.supabase.auth.admin.updateUserById(userId, {
-            user_metadata: {
-                first_name: profile.firstName,
-                last_name: profile.lastName,
-                avatar_url: profile.avatarUrl,
-                provider: 'truecaller',
-            },
-        });
+    // The auth user now exists. From this point on, ANY failure must
+    // delete it via supabase.auth.admin.deleteUser(authUserId) so the
+    // system never holds an auth user without a corresponding users
+    // row. This rollback is required by the design's
+    // "Failure-mode considerations" section and is a corollary of
+    // Property 8 (idempotence): leaving an orphan auth user would
+    // break the next call's phone-match branch because Supabase
+    // would reject re-creation of the same phone or email.
+    const newAuthUserId = newUser.user.id;
+    try {
+      // Create user record in our DB
+      const { error: dbError } = await this.supabase.from('users').insert({
+        id: newAuthUserId,
+        // Store the phone-derived internal email, not the unverified
+        // profile email (public.users.email is NOT NULL). The real
+        // email stays unset until the user verifies one.
+        email: tempEmail,
+        phone: profile.phoneNumber,
+        first_name: profile.firstName,
+        last_name: profile.lastName,
+        avatar_url: profile.avatarUrl,
+        auth_provider: 'truecaller',
+        phone_verified: true,
+        email_verified: false,
+      });
 
-        if (error) {
-            // Supabase infra failure, not client validation — surface as 5xx
-            // (see createError/dbError above).
-            throw new ServiceUnavailableException(error.message);
-        }
-
-        const userEmail = data.user.email ?? '';
-        if (!userEmail) {
-            throw new BadRequestException('User email is required to create session');
-        }
-
-        const session = await this.mintSession(userEmail);
-        return { user: data.user, session };
+      if (dbError) {
+        // Same reasoning as createError above — surface DB outages as
+        // 5xx, not a masked 401.
+        throw new ServiceUnavailableException(dbError.message);
+      }
+    } catch (insertErr) {
+      // Best-effort rollback. We deliberately swallow rollback
+      // failures: the original insert error is more useful to the
+      // caller, and any leftover orphan auth user can be reaped by
+      // a follow-up admin job. We do NOT log the failed delete in
+      // production at the phone-number level — Requirement 13.1.
+      try {
+        await this.supabase.auth.admin.deleteUser(newAuthUserId);
+      } catch {
+        // Intentionally ignored — see comment above.
+      }
+      throw insertErr;
     }
 
-    // ==================== Helpers ====================
+    // The auth user + users row both exist now — mint a real session the
+    // same way the existing-user branches do.
+    const session = await this.mintSession(tempEmail);
+    return { user: newUser.user, session };
+  }
 
-    getClient(): SupabaseClient {
-        return this.supabase;
+  /**
+   * Redeem an admin-generated magic link into a real session server-side.
+   * `admin.generateLink` never returns a live session (its `action_link` is
+   * always populated), so the only way to mint one out-of-band is to verify
+   * the link's `hashed_token` through the public `verifyOtp` API — the
+   * documented Supabase pattern for admin-issued sign-in.
+   */
+  private async mintSession(email: string) {
+    const { data: linkData, error: linkError } =
+      await this.supabase.auth.admin.generateLink({
+        type: 'magiclink',
+        email,
+      });
+
+    if (linkError) {
+      throw new ServiceUnavailableException(linkError.message);
     }
+
+    const { data: verifyData, error: verifyError } =
+      await this.supabase.auth.verifyOtp({
+        token_hash: linkData.properties.hashed_token,
+        type: 'magiclink',
+      });
+
+    if (verifyError || !verifyData.session) {
+      throw new ServiceUnavailableException(
+        verifyError?.message ?? 'Failed to create session',
+      );
+    }
+
+    return verifyData.session;
+  }
+
+  private async createSessionForUser(
+    userId: string,
+    profile: { firstName: string; lastName?: string; avatarUrl?: string },
+  ) {
+    // Update user metadata
+    const { data, error } = await this.supabase.auth.admin.updateUserById(
+      userId,
+      {
+        user_metadata: {
+          first_name: profile.firstName,
+          last_name: profile.lastName,
+          avatar_url: profile.avatarUrl,
+          provider: 'truecaller',
+        },
+      },
+    );
+
+    if (error) {
+      // Supabase infra failure, not client validation — surface as 5xx
+      // (see createError/dbError above).
+      throw new ServiceUnavailableException(error.message);
+    }
+
+    const userEmail = data.user.email ?? '';
+    if (!userEmail) {
+      throw new BadRequestException('User email is required to create session');
+    }
+
+    const session = await this.mintSession(userEmail);
+    return { user: data.user, session };
+  }
+
+  // ==================== Helpers ====================
+
+  getClient(): SupabaseClient {
+    return this.supabase;
+  }
 }

@@ -100,8 +100,12 @@ describe('LunarService — signed days + action playbook (spec §5)', () => {
 
   it('signedDaysToSpringTide: ~0 at new, +2 just after full, −2 just before full', () => {
     expect(svc.moonPhase(NEW_MOON).signedDaysToSpringTide).toBeCloseTo(0, 3);
-    expect(svc.moonPhase(TWO_DAYS_AFTER_FULL).signedDaysToSpringTide).toBeCloseTo(2, 1);
-    expect(svc.moonPhase(TWO_DAYS_BEFORE_FULL).signedDaysToSpringTide).toBeCloseTo(-2, 1);
+    expect(
+      svc.moonPhase(TWO_DAYS_AFTER_FULL).signedDaysToSpringTide,
+    ).toBeCloseTo(2, 1);
+    expect(
+      svc.moonPhase(TWO_DAYS_BEFORE_FULL).signedDaysToSpringTide,
+    ).toBeCloseTo(-2, 1);
   });
 
   it('phase classification: peak at spring tide, pre before, post after, inter at quarter', () => {
@@ -112,7 +116,12 @@ describe('LunarService — signed days + action playbook (spec §5)', () => {
   });
 
   it('every phase yields at least one management step', () => {
-    for (const d of [NEW_MOON, TWO_DAYS_BEFORE_FULL, TWO_DAYS_AFTER_FULL, FIRST_QUARTER]) {
+    for (const d of [
+      NEW_MOON,
+      TWO_DAYS_BEFORE_FULL,
+      TWO_DAYS_AFTER_FULL,
+      FIRST_QUARTER,
+    ]) {
       expect(playbookFor(d).steps.length).toBeGreaterThan(0);
     }
   });
@@ -132,8 +141,14 @@ describe('LunarService — signed days + action playbook (spec §5)', () => {
   });
 
   it('mineral deficit drives a mineral top-up step in pre-molt', () => {
-    const pb = playbookFor(TWO_DAYS_BEFORE_FULL, 25, { mineralDeficitFrac: 0.5 });
-    expect(pb.steps.some((s) => s.category === 'mineral' && s.trigger === 'mineralDeficit')).toBe(true);
+    const pb = playbookFor(TWO_DAYS_BEFORE_FULL, 25, {
+      mineralDeficitFrac: 0.5,
+    });
+    expect(
+      pb.steps.some(
+        (s) => s.category === 'mineral' && s.trigger === 'mineralDeficit',
+      ),
+    ).toBe(true);
   });
 
   it('post-molt leads with restoring feed for compensatory growth', () => {

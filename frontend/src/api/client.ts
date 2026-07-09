@@ -87,14 +87,19 @@ apiClient.interceptors.response.use(
         isRefreshing = true;
 
         try {
-            const { session } = getAuthState();
-            if (!session?.refresh_token) {
+            const authState = getAuthState();
+            // Fall back to the persisted refresh token: after an offline cold-start
+            // (AUTH-1) the store holds a reconstructed user with no `session` object,
+            // only the persisted `refreshToken`. Without this fallback the first
+            // 401 on reconnect would wrongly log the farmer out.
+            const refreshToken = authState.session?.refresh_token || authState.refreshToken;
+            if (!refreshToken) {
                 throw new Error('No refresh token available');
             }
 
             // Call the refresh endpoint
             const { data } = await axios.post(`${API_URL}/auth/supabase/refresh`, {
-                refreshToken: session.refresh_token,
+                refreshToken,
             });
 
             const newSession = data.session;

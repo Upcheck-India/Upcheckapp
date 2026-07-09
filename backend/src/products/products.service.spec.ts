@@ -8,7 +8,11 @@ import { Product } from './product.entity';
 // Mock repository factory
 const createMockRepository = () => ({
   create: jest.fn().mockImplementation((dto) => dto),
-  save: jest.fn().mockImplementation((entity) => Promise.resolve({ ...entity, id: 'test-id' })),
+  save: jest
+    .fn()
+    .mockImplementation((entity) =>
+      Promise.resolve({ ...entity, id: 'test-id' }),
+    ),
   find: jest.fn().mockResolvedValue([]),
   findOneBy: jest.fn().mockResolvedValue(null),
   update: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -22,7 +26,10 @@ describe('ProductsService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
+        },
         ProductsService,
         {
           provide: getRepositoryToken(Product),
@@ -32,7 +39,9 @@ describe('ProductsService', () => {
     }).compile();
 
     service = module.get<ProductsService>(ProductsService);
-    mockRepository = module.get<Repository<Product>>(getRepositoryToken(Product));
+    mockRepository = module.get<Repository<Product>>(
+      getRepositoryToken(Product),
+    );
   });
 
   it('should be defined', () => {
@@ -47,7 +56,7 @@ describe('ProductsService', () => {
         description: 'High protein fish feed',
         price: 50,
         stock: 100,
-        unit: 'kg'
+        unit: 'kg',
       };
 
       const result = await service.create(createDto);
@@ -65,7 +74,9 @@ describe('ProductsService', () => {
 
       const result = await service.findAll();
 
-      expect(mockRepository.find).toHaveBeenCalledWith({ where: { isActive: true } });
+      expect(mockRepository.find).toHaveBeenCalledWith({
+        where: { isActive: true },
+      });
       expect(result).toEqual(mockProducts);
     });
 
@@ -73,8 +84,8 @@ describe('ProductsService', () => {
       const category = 'medicine';
       await service.findAll(category);
 
-      expect(mockRepository.find).toHaveBeenCalledWith({ 
-        where: { isActive: true, category } 
+      expect(mockRepository.find).toHaveBeenCalledWith({
+        where: { isActive: true, category },
       });
     });
   });
@@ -97,7 +108,7 @@ describe('ProductsService', () => {
       const productId = 'prod-1';
       const updateDto = { price: 55 };
       const updatedProduct = { id: productId, name: 'Aquatic Feed', price: 55 };
-      
+
       mockRepository.findOneBy.mockResolvedValue(updatedProduct);
 
       const result = await service.update(productId, updateDto);
@@ -122,13 +133,19 @@ describe('ProductsService', () => {
     it('should update product stock', async () => {
       const productId = 'prod-1';
       const newStock = 150;
-      const updatedProduct = { id: productId, name: 'Aquatic Feed', stock: newStock };
-      
+      const updatedProduct = {
+        id: productId,
+        name: 'Aquatic Feed',
+        stock: newStock,
+      };
+
       mockRepository.findOneBy.mockResolvedValue(updatedProduct);
 
       const result = await service.updateStock(productId, newStock);
 
-      expect(mockRepository.update).toHaveBeenCalledWith(productId, { stock: newStock });
+      expect(mockRepository.update).toHaveBeenCalledWith(productId, {
+        stock: newStock,
+      });
       expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: productId });
       expect(result).toEqual(updatedProduct);
     });

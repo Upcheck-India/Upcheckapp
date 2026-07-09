@@ -11,4 +11,4 @@ import { PondsModule } from '../ponds/ponds.module';
   providers: [CropsService],
   exports: [CropsService],
 })
-export class CropsModule { }
+export class CropsModule {}

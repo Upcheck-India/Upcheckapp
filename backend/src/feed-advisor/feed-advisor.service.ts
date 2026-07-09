@@ -60,9 +60,12 @@ export class FeedAdvisorService {
    * Engines never branch on data source; all inputs are plain numbers.
    */
   computeRation(input: RationInput): RationResult {
-    const mealsPerDay = input.mealsPerDay && input.mealsPerDay > 0 ? input.mealsPerDay : 4;
+    const mealsPerDay =
+      input.mealsPerDay && input.mealsPerDay > 0 ? input.mealsPerDay : 4;
     const biomassKg = (input.livePopulation * input.abwG) / 1000;
-    const frPct = input.fr ?? this.calc.getRecommendedFeedingRate(input.abwG, input.species);
+    const frPct =
+      input.fr ??
+      this.calc.getRecommendedFeedingRate(input.abwG, input.species);
     const baseRationKg = (biomassKg * frPct) / 100;
 
     const reasons: string[] = [];
@@ -125,7 +128,9 @@ export class FeedAdvisorService {
     // per-meal amounts sum back to recommendedKg exactly (no daily drift).
     const mealSize = round2(recommendedKg / mealsPerDay);
     const perMeal = Array.from({ length: mealsPerDay }, () => mealSize);
-    perMeal[mealsPerDay - 1] = round2(recommendedKg - mealSize * (mealsPerDay - 1));
+    perMeal[mealsPerDay - 1] = round2(
+      recommendedKg - mealSize * (mealsPerDay - 1),
+    );
 
     return {
       biomassKg: round2(biomassKg),
@@ -180,12 +185,18 @@ export class FeedAdvisorService {
     });
   }
 
-  async logActual(id: string, actualKg: number, userId: string): Promise<FeedPlan> {
+  async logActual(
+    id: string,
+    actualKg: number,
+    userId: string,
+  ): Promise<FeedPlan> {
     const plan = await this.repo.findOne({ where: { id } });
     if (!plan) throw new NotFoundException('Feed plan not found');
     await this.pondsService.findOne(plan.pondId, userId);
     plan.actualKg = actualKg;
-    plan.adherence = round2(this.adherence(actualKg, Number(plan.recommendedKg)));
+    plan.adherence = round2(
+      this.adherence(actualKg, Number(plan.recommendedKg)),
+    );
     return this.repo.save(plan);
   }
 }

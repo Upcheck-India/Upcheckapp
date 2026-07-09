@@ -1,63 +1,74 @@
-import { IsArray, IsDateString, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsArray,
+  IsDateString,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateDiseaseDto {
-    @IsString()
-    name: string;
+  @IsString()
+  name: string;
 
-    @IsOptional()
-    @IsString()
-    scientificName?: string;
+  @IsOptional()
+  @IsString()
+  scientificName?: string;
 
-    @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    commonNames?: string[];
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  commonNames?: string[];
 
-    @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    symptoms?: string[];
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  symptoms?: string[];
 
-    @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    preventionMeasures?: string[];
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  preventionMeasures?: string[];
 
-    @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    treatmentRecommendations?: string[];
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  treatmentRecommendations?: string[];
 
-    @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    imageUrls?: string[];
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  imageUrls?: string[];
 
-    @IsOptional()
-    @IsString()
-    severityLevel?: string;
+  @IsOptional()
+  @IsString()
+  severityLevel?: string;
 }
 
 export class CreateDiseaseRecordDto {
-    @IsUUID()
-    cropId: string;
+  // Client-minted idempotency key — lets offline replays be safe (insert-or-return).
+  @IsUUID()
+  @IsOptional()
+  id?: string;
 
-    @IsUUID()
-    diseaseId: string;
+  @IsUUID()
+  cropId: string;
 
-    @IsDateString()
-    recordedDate: string;
+  @IsUUID()
+  diseaseId: string;
 
-    @IsOptional()
-    @IsString()
-    severityAtDetection?: string;
+  @IsDateString()
+  recordedDate: string;
 
-    @IsOptional()
-    @IsArray()
-    @IsString({ each: true })
-    photoUrls?: string[];
+  @IsOptional()
+  @IsString()
+  severityAtDetection?: string;
 
-    @IsOptional()
-    @IsString()
-    notes?: string;
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  photoUrls?: string[];
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

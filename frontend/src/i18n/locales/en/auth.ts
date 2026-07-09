@@ -47,7 +47,12 @@ const auth = {
 
   passwordAtLeast8Placeholder: 'At least 8 characters',
   passwordTooShortRegister: 'Password must be at least 8 characters',
-  passwordHint: 'Min 8 characters',
+  passwordHint: '8+ characters with an uppercase & lowercase letter, a number, and a symbol',
+  passwordRuleLength: 'Use at least 8 characters',
+  passwordRuleLower: 'Add a lowercase letter',
+  passwordRuleUpper: 'Add an uppercase letter',
+  passwordRuleDigit: 'Add a number',
+  passwordRuleSpecial: 'Add a special character (e.g. # @ ! -)',
 
   confirmPasswordLabel: 'Confirm Password',
   confirmPasswordPlaceholder: 'Re-enter your password',
@@ -93,6 +98,12 @@ const auth = {
   invalidCodeAlert: 'Enter the 6-digit code from your authenticator app.',
   noSessionSignInAgain: 'No session returned. Please sign in again.',
   invalidVerificationCode: 'Invalid verification code',
+
+  // ── Backup codes (AUTH-4) ──
+  twoFactorBackupHelp: 'Enter one of your saved backup codes to finish signing in.',
+  backupCodeLabel: 'Backup code',
+  useBackupCode: 'Use a backup code instead',
+  useAuthenticatorInstead: 'Use authenticator app instead',
   verify: 'Verify',
 
   // ── TruecallerLoginScreen ─────────────────────────────────────────────────

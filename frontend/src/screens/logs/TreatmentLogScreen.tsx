@@ -10,6 +10,7 @@ import { AlertBanner } from '../../components/ui/AlertBanner';
 import { theme } from '../../theme';
 import { treatmentsApi } from '../../api/treatments';
 import { findBannedSubstances } from '../../features/bannedSubstances';
+import { useBannedSubstancesStore } from '../../features/bannedSubstancesStore';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 
@@ -29,7 +30,8 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
 
     // Export-protection guardrail: scan the free-text fields for banned/restricted
     // substances (CAA/MPEDA). Warn-only and non-directive — no alternative suggested.
-    const flagged = findBannedSubstances(`${description} ${productName} ${notes}`);
+    const bannedList = useBannedSubstancesStore((s) => s.substances);
+    const flagged = findBannedSubstances(`${description} ${productName} ${notes}`, bannedList);
     const hasBanned = flagged.some((s) => s.category === 'banned');
 
     const performSave = async () => {

@@ -47,7 +47,12 @@ const auth = {
 
   passwordAtLeast8Placeholder: 'కనీసం 8 అక్షరాలు',
   passwordTooShortRegister: 'పాస్‌వర్డ్ కనీసం 8 అక్షరాలు ఉండాలి',
-  passwordHint: 'కనీసం 8 అక్షరాలు',
+  passwordHint: '8+ అక్షరాలు — ఒక పెద్ద & చిన్న అక్షరం, ఒక సంఖ్య, ఒక ప్రత్యేక గుర్తు',
+  passwordRuleLength: 'కనీసం 8 అక్షరాలు ఉపయోగించండి',
+  passwordRuleLower: 'ఒక చిన్న అక్షరాన్ని జోడించండి',
+  passwordRuleUpper: 'ఒక పెద్ద అక్షరాన్ని జోడించండి',
+  passwordRuleDigit: 'ఒక సంఖ్యను జోడించండి',
+  passwordRuleSpecial: 'ఒక ప్రత్యేక గుర్తును జోడించండి (ఉదా. # @ ! -)',
 
   confirmPasswordLabel: 'పాస్‌వర్డ్ నిర్ధారించు',
   confirmPasswordPlaceholder: 'పాస్‌వర్డ్ మళ్ళీ నమోదు చేయండి',
@@ -93,6 +98,12 @@ const auth = {
   invalidCodeAlert: 'మీ ఆథెంటికేటర్ యాప్ నుండి 6-అంకెల కోడ్ నమోదు చేయండి.',
   noSessionSignInAgain: 'సెషన్ రాలేదు. దయచేసి మళ్ళీ సైన్ ఇన్ చేయండి.',
   invalidVerificationCode: 'చెల్లని ధృవీకరణ కోడ్',
+
+  // ── Backup codes (AUTH-4) ──
+  twoFactorBackupHelp: 'సైన్ ఇన్ పూర్తి చేయడానికి మీరు సేవ్ చేసిన బ్యాకప్ కోడ్‌లలో ఒకదాన్ని నమోదు చేయండి.',
+  backupCodeLabel: 'బ్యాకప్ కోడ్',
+  useBackupCode: 'బదులుగా బ్యాకప్ కోడ్‌ను ఉపయోగించండి',
+  useAuthenticatorInstead: 'బదులుగా అథెంటికేటర్ యాప్‌ను ఉపయోగించండి',
   verify: 'ధృవీకరించు',
 
   // ── TruecallerLoginScreen ─────────────────────────────────────────────────

@@ -5,8 +5,8 @@ import { MortalityRecord } from './mortality-record.entity';
 import { MortalityService } from './mortality.service';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([MortalityRecord])],
-    controllers: [MortalityController],
-    providers: [MortalityService],
+  imports: [TypeOrmModule.forFeature([MortalityRecord])],
+  controllers: [MortalityController],
+  providers: [MortalityService],
 })
-export class MortalityModule { }
+export class MortalityModule {}

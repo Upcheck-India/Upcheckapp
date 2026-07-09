@@ -58,7 +58,9 @@ export class DataDictionaryService implements OnModuleInit {
       this.logger.log(`Data dictionary: added ${rows.length} param(s)`);
     } catch (err) {
       // Never block app startup on a seeding hiccup (e.g. race on cold start).
-      this.logger.warn(`Data dictionary bootstrap skipped: ${(err as Error).message}`);
+      this.logger.warn(
+        `Data dictionary bootstrap skipped: ${(err as Error).message}`,
+      );
     }
   }
 
@@ -144,7 +146,9 @@ export class DataDictionaryService implements OnModuleInit {
 
     // numeric
     if (!hasNum || !Number.isFinite(input.valueNum)) {
-      throw new BadRequestException(`'${input.param}' requires a numeric value`);
+      throw new BadRequestException(
+        `'${input.param}' requires a numeric value`,
+      );
     }
     const v = input.valueNum as number;
     if (entry.minValue !== null && v < Number(entry.minValue)) {

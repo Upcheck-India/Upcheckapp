@@ -1,19 +1,26 @@
 import { PondContextService } from './pond-context.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
 
-function makeService(over: {
-  pond?: any;
-  crop?: any;
-  wqRecords?: any[];
-  sampling?: any;
-  deaths?: any[];
-  feeds?: any[];
-  tray?: any;
-} = {}) {
-  const samplingRepo = { findOne: jest.fn().mockResolvedValue(over.sampling ?? null) };
+function makeService(
+  over: {
+    pond?: any;
+    crop?: any;
+    wqRecords?: any[];
+    sampling?: any;
+    deaths?: any[];
+    feeds?: any[];
+    tray?: any;
+  } = {},
+) {
+  const samplingRepo = {
+    findOne: jest.fn().mockResolvedValue(over.sampling ?? null),
+  };
   // getContext now sums via SQL (SUM/MAX) instead of loading rows — mock the
   // aggregate query builders to return the same total the row arrays imply.
-  const mortalityTotal = (over.deaths ?? []).reduce((a: number, d: any) => a + (Number(d.estimatedTotal) || 0), 0);
+  const mortalityTotal = (over.deaths ?? []).reduce(
+    (a: number, d: any) => a + (Number(d.estimatedTotal) || 0),
+    0,
+  );
   const mortalityRepo = {
     createQueryBuilder: jest.fn(() => ({
       select: jest.fn().mockReturnThis(),
@@ -21,24 +28,48 @@ function makeService(over: {
       getRawOne: jest.fn().mockResolvedValue({ total: mortalityTotal }),
     })),
   };
-  const feedTotal = (over.feeds ?? []).reduce((a: number, f: any) => a + (Number(f.quantityKg) || 0), 0);
-  const feedLastAt = (over.feeds ?? []).reduce((latest: string | null, f: any) =>
-    f.recordedAt && (!latest || f.recordedAt > latest) ? f.recordedAt : latest, null);
+  const feedTotal = (over.feeds ?? []).reduce(
+    (a: number, f: any) => a + (Number(f.quantityKg) || 0),
+    0,
+  );
+  const feedLastAt = (over.feeds ?? []).reduce(
+    (latest: string | null, f: any) =>
+      f.recordedAt && (!latest || f.recordedAt > latest)
+        ? f.recordedAt
+        : latest,
+    null,
+  );
   const feedRepo = {
     createQueryBuilder: jest.fn(() => ({
       select: jest.fn().mockReturnThis(),
       addSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
-      getRawOne: jest.fn().mockResolvedValue({ totalFeed: feedTotal, lastFeedAt: feedLastAt }),
+      getRawOne: jest
+        .fn()
+        .mockResolvedValue({ totalFeed: feedTotal, lastFeedAt: feedLastAt }),
     })),
   };
   const trayRepo = { findOne: jest.fn().mockResolvedValue(over.tray ?? null) };
   const wqRepo = { find: jest.fn().mockResolvedValue(over.wqRecords ?? []) };
-  const pondsService = { findOne: jest.fn().mockResolvedValue(over.pond ?? { id: 'p1', calculatedAreaM2: 4000, activeCycleId: 'c1' }) };
-  const cropsService = { findOne: jest.fn().mockResolvedValue(over.crop ?? null) };
+  const pondsService = {
+    findOne: jest
+      .fn()
+      .mockResolvedValue(
+        over.pond ?? { id: 'p1', calculatedAreaM2: 4000, activeCycleId: 'c1' },
+      ),
+  };
+  const cropsService = {
+    findOne: jest.fn().mockResolvedValue(over.crop ?? null),
+  };
   const svc = new PondContextService(
-    samplingRepo as any, mortalityRepo as any, feedRepo as any, trayRepo as any,
-    wqRepo as any, pondsService as any, cropsService as any, new ShrimpCalculationsService(),
+    samplingRepo as any,
+    mortalityRepo as any,
+    feedRepo as any,
+    trayRepo as any,
+    wqRepo as any,
+    pondsService as any,
+    cropsService as any,
+    new ShrimpCalculationsService(),
   );
   return { svc };
 }
@@ -66,13 +97,20 @@ describe('PondContextService', () => {
 
   it('scores data confidence by completeness + freshness', () => {
     const { svc } = makeService();
-    const factor = (key: string, present: boolean, ageDays: number | null, weight: number, w: number) =>
-      ({ key, present, ageDays, weight, freshWindowDays: w });
+    const factor = (
+      key: string,
+      present: boolean,
+      ageDays: number | null,
+      weight: number,
+      w: number,
+    ) => ({ key, present, ageDays, weight, freshWindowDays: w });
 
     // All present and fresh → high.
     const all = svc.computeConfidence([
-      factor('DO', true, 0, 2, 1), factor('pH', true, 0, 1.5, 1),
-      factor('Ammonia', true, 3, 2, 10), factor('ABW', true, 5, 2, 14),
+      factor('DO', true, 0, 2, 1),
+      factor('pH', true, 0, 1.5, 1),
+      factor('Ammonia', true, 3, 2, 10),
+      factor('ABW', true, 5, 2, 14),
     ]);
     expect(all.score).toBe(100);
     expect(all.band).toBe('high');
@@ -80,8 +118,10 @@ describe('PondContextService', () => {
 
     // Ammonia missing + ABW very stale → lower band, flagged.
     const partial = svc.computeConfidence([
-      factor('DO', true, 0, 2, 1), factor('pH', true, 0, 1.5, 1),
-      factor('Ammonia', false, null, 2, 10), factor('ABW', true, 40, 2, 14),
+      factor('DO', true, 0, 2, 1),
+      factor('pH', true, 0, 1.5, 1),
+      factor('Ammonia', false, null, 2, 10),
+      factor('ABW', true, 40, 2, 14),
     ]);
     expect(partial.score).toBeLessThan(75);
     expect(partial.missing).toContain('Ammonia');
@@ -90,7 +130,12 @@ describe('PondContextService', () => {
 
   it('surfaces cumulative feed, running FCR and latest tray residue', async () => {
     const { svc } = makeService({
-      crop: { stockingCount: 100000, get computedDOC() { return 50; } },
+      crop: {
+        stockingCount: 100000,
+        get computedDOC() {
+          return 50;
+        },
+      },
       sampling: { mbwG: 25 },
       feeds: [{ quantityKg: 1500 }, { quantityKg: 1200 }, { quantityKg: 981 }],
       tray: { remainingFeedStatus: 'a_lot_left', checkDate: '2026-06-13' },
@@ -104,13 +149,35 @@ describe('PondContextService', () => {
 
   it('assembles the latest-log snapshot the engines consume', async () => {
     const { svc } = makeService({
-      pond: { id: 'p1', calculatedAreaM2: 4000, overrideAreaM2: null, activeCycleId: 'c1' },
-      crop: {
-        stockingCount: 400000, carryingCapacityKgM2: 1.25, feedPriceRpPerKg: 95,
-        targetSrPercent: 75, targetSize: 40, targetCultivationDays: 120,
-        get computedDOC() { return 60; },
+      pond: {
+        id: 'p1',
+        calculatedAreaM2: 4000,
+        overrideAreaM2: null,
+        activeCycleId: 'c1',
       },
-      wqRecords: [{ dissolvedOxygen: 3.8, ph: 8.1, temperature: 31, salinity: 18, ammonia: 2, nitrite: 0.1, alkalinity: 130, recordedAt: '2026-06-13T06:00:00.000Z' }],
+      crop: {
+        stockingCount: 400000,
+        carryingCapacityKgM2: 1.25,
+        feedPriceRpPerKg: 95,
+        targetSrPercent: 75,
+        targetSize: 40,
+        targetCultivationDays: 120,
+        get computedDOC() {
+          return 60;
+        },
+      },
+      wqRecords: [
+        {
+          dissolvedOxygen: 3.8,
+          ph: 8.1,
+          temperature: 31,
+          salinity: 18,
+          ammonia: 2,
+          nitrite: 0.1,
+          alkalinity: 130,
+          recordedAt: '2026-06-13T06:00:00.000Z',
+        },
+      ],
       sampling: { mbwG: 22 },
       deaths: [{ estimatedTotal: 30000 }, { estimatedTotal: 10000 }],
     });
@@ -132,8 +199,28 @@ describe('PondContextService', () => {
       // Newest first: today is a probe-only entry (ammonia null); ammonia was
       // last measured 4 days ago in a chemistry entry.
       wqRecords: [
-        { dissolvedOxygen: 5.2, ph: 8.0, temperature: 30, salinity: 17, ammonia: null, nitrite: null, nitrate: null, alkalinity: null, recordedAt: '2026-06-13T06:00:00.000Z' },
-        { dissolvedOxygen: 4.9, ph: 7.9, temperature: 29.5, salinity: 17, ammonia: 1.5, nitrite: 0.2, nitrate: 5, alkalinity: 120, recordedAt: '2026-06-09T07:00:00.000Z' },
+        {
+          dissolvedOxygen: 5.2,
+          ph: 8.0,
+          temperature: 30,
+          salinity: 17,
+          ammonia: null,
+          nitrite: null,
+          nitrate: null,
+          alkalinity: null,
+          recordedAt: '2026-06-13T06:00:00.000Z',
+        },
+        {
+          dissolvedOxygen: 4.9,
+          ph: 7.9,
+          temperature: 29.5,
+          salinity: 17,
+          ammonia: 1.5,
+          nitrite: 0.2,
+          nitrate: 5,
+          alkalinity: 120,
+          recordedAt: '2026-06-09T07:00:00.000Z',
+        },
       ],
     });
     const ctx = await svc.getContext('p1', 'u');
@@ -146,7 +233,9 @@ describe('PondContextService', () => {
   });
 
   it('degrades gracefully when nothing is logged yet', async () => {
-    const { svc } = makeService({ pond: { id: 'p1', calculatedAreaM2: 4000, activeCycleId: null } });
+    const { svc } = makeService({
+      pond: { id: 'p1', calculatedAreaM2: 4000, activeCycleId: null },
+    });
     const ctx = await svc.getContext('p1', 'u');
     expect(ctx.cropId).toBeNull();
     expect(ctx.waterQuality).toBeNull();

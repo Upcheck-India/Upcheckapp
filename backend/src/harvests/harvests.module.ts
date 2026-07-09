@@ -6,12 +6,9 @@ import { Harvest } from './harvest.entity';
 import { CropsModule } from '../crops/crops.module';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Harvest]),
-        CropsModule,
-    ],
-    controllers: [HarvestsController],
-    providers: [HarvestsService],
-    exports: [HarvestsService],
+  imports: [TypeOrmModule.forFeature([Harvest]), CropsModule],
+  controllers: [HarvestsController],
+  providers: [HarvestsService],
+  exports: [HarvestsService],
 })
-export class HarvestsModule { }
+export class HarvestsModule {}

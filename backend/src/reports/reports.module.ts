@@ -11,17 +11,17 @@ import { RedisModule } from '../redis/redis.module';
 import { SamplingModule } from '../sampling/sampling.module';
 
 @Module({
-    imports: [
-        PondsModule,
-        CropsModule,
-        FeedRecordsModule,
-        HarvestsModule,
-        FinancesModule,
-        InventoryModule,
-        RedisModule,
-        SamplingModule
-    ],
-    controllers: [ReportsController],
-    providers: [ReportsService],
+  imports: [
+    PondsModule,
+    CropsModule,
+    FeedRecordsModule,
+    HarvestsModule,
+    FinancesModule,
+    InventoryModule,
+    RedisModule,
+    SamplingModule,
+  ],
+  controllers: [ReportsController],
+  providers: [ReportsService],
 })
-export class ReportsModule { }
+export class ReportsModule {}

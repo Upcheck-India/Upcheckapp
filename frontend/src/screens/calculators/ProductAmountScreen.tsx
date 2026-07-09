@@ -56,7 +56,11 @@ export const ProductAmountScreen = ({ navigation }: any) => {
             setResult(data);
 
             if (concentration && conc > 0) {
-                const clientCalc = (pondVolume * ppm) / (conc * 10000);
+                // active ingredient (kg) = volume(m³) × ppm(g/m³) / 1000; a
+                // product that is conc% active needs ÷(conc/100) more mass →
+                // volume × ppm / (10 × conc). (Was ÷(conc×10000) = 1000× too
+                // small, i.e. gross under-dosing.)
+                const clientCalc = (pondVolume * ppm) / (conc * 10);
                 setClientResult(Math.round(clientCalc * 1000) / 1000);
             } else {
                 setClientResult(null);
@@ -146,7 +150,7 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                                 <Text style={styles.clientLabel}>{t('calculators.productDosage.withConcentration', { conc: concentration || '100' })}</Text>
                                 <Text style={styles.clientValue}>{clientResult.toFixed(3)} kg</Text>
                                 <Text style={styles.clientFormula}>
-                                    ({pondVolume?.toFixed(0)} m³ × {targetPpm} ppm) / ({concentration || 100}% × 10,000)
+                                    ({pondVolume?.toFixed(0)} m³ × {targetPpm} ppm) / (10 × {concentration || 100}%)
                                 </Text>
                             </View>
                         )}

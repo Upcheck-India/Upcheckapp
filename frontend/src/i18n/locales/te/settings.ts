@@ -100,6 +100,17 @@ const settings = {
   twoFactorDisabledSuccess: 'రెండు-దశల ప్రమాణీకరణ ఇప్పుడు ఆఫ్ అయింది.',
   twoFactorSetupError: '2FA సెటప్ ప్రారంభించడం సాధ్యపడలేదు',
 
+  // ── Backup codes (AUTH-4) ──
+  twoFactorBackupTitle: 'మీ బ్యాకప్ కోడ్‌లను సేవ్ చేయండి',
+  twoFactorBackupHelp:
+    'ఈ ఒక్కసారి కోడ్‌లను సురక్షితమైన చోట ఉంచండి. మీ అథెంటికేటర్ యాప్‌కు యాక్సెస్ కోల్పోతే ప్రతి ఒక్కటి ఒకసారి పనిచేస్తుంది. ఇవి మళ్లీ చూపబడవు.',
+  twoFactorBackupCopy: 'కోడ్‌లను కాపీ చేయండి',
+  twoFactorBackupAck: 'నేను వాటిని సేవ్ చేసాను',
+  twoFactorBackupCopied: 'బ్యాకప్ కోడ్‌లు క్లిప్‌బోర్డ్‌కు కాపీ చేయబడ్డాయి.',
+  twoFactorRegenerateHelp:
+    'కొత్త బ్యాకప్ కోడ్‌ల సెట్‌ను రూపొందించండి. మీ పాత కోడ్‌లు పనిచేయడం ఆగిపోతాయి.',
+  twoFactorRegenerate: 'బ్యాకప్ కోడ్‌లను మళ్లీ రూపొందించండి',
+
   // ── NotificationsScreen ───────────────────────────────────────────────────
   notificationsTitle: 'నోటిఫికేషన్లు',
   notificationsEmpty: 'అన్నీ చదివారు!',

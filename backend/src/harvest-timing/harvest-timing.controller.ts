@@ -48,7 +48,9 @@ export class HarvestTimingController {
       priceBands = feed ? this.pricing.bandsFromPrices(feed.prices) : [];
     }
     if (!priceBands || !priceBands.length) {
-      throw new BadRequestException('priceBands or a region with a feed is required');
+      throw new BadRequestException(
+        'priceBands or a region with a feed is required',
+      );
     }
 
     const input: HarvestTimingInput = {

@@ -34,13 +34,21 @@ describe('FeedAdvisorService.computeRation', () => {
   });
 
   it('applies the tray-residue multiplier', () => {
-    expect(svc.computeRation({ ...base, lastTray: 'empty' }).recommendedKg).toBe(80.25); // ×1.07
-    expect(svc.computeRation({ ...base, lastTray: 'a_lot_left' }).recommendedKg).toBe(60); // ×0.8
-    expect(svc.computeRation({ ...base, lastTray: 'few_left' }).recommendedKg).toBe(75); // ×1.0
+    expect(
+      svc.computeRation({ ...base, lastTray: 'empty' }).recommendedKg,
+    ).toBe(80.25); // ×1.07
+    expect(
+      svc.computeRation({ ...base, lastTray: 'a_lot_left' }).recommendedKg,
+    ).toBe(60); // ×0.8
+    expect(
+      svc.computeRation({ ...base, lastTray: 'few_left' }).recommendedKg,
+    ).toBe(75); // ×1.0
   });
 
   it('cuts feed in a molt-peak window (×0.75)', () => {
-    expect(svc.computeRation({ ...base, inMoltPeak: true }).recommendedKg).toBe(56.25);
+    expect(svc.computeRation({ ...base, inMoltPeak: true }).recommendedKg).toBe(
+      56.25,
+    );
   });
 
   it('grades the ammonia cut by free-NH3 level (stress from ~0.1 mg/L)', () => {
@@ -63,8 +71,12 @@ describe('FeedAdvisorService.computeRation', () => {
     expect(svc.computeRation({ ...base, temp: 26 }).recommendedKg).toBe(63.75); // <28 → ×0.85
     expect(svc.computeRation({ ...base, temp: 22 }).recommendedKg).toBe(52.5); // <24 → ×0.70
     expect(svc.computeRation({ ...base, temp: 30 }).recommendedKg).toBe(75); // optimal band → ×1.0
-    expect(svc.computeRation({ ...base, temp: 26 }).reasons).toContain('−15% cool water');
-    expect(svc.computeRation({ ...base, temp: 22 }).reasons).toContain('−30% cold water');
+    expect(svc.computeRation({ ...base, temp: 26 }).reasons).toContain(
+      '−15% cool water',
+    );
+    expect(svc.computeRation({ ...base, temp: 22 }).reasons).toContain(
+      '−30% cold water',
+    );
   });
 
   it('per-meal amounts always sum back to the recommended ration', () => {
@@ -92,11 +104,24 @@ describe('FeedAdvisorService.computeRation', () => {
 
   it('picks the species-specific FR table when species is given', () => {
     // At ABW 35g: vannamei tapers to 1.8%, tiger (monodon) holds a higher 2.0%.
-    expect(svc.computeRation({ livePopulation: 100_000, abwG: 35 }).frPct).toBe(1.8);
-    expect(svc.computeRation({ livePopulation: 100_000, abwG: 35, species: 'Penaeus monodon' }).frPct).toBe(2);
+    expect(svc.computeRation({ livePopulation: 100_000, abwG: 35 }).frPct).toBe(
+      1.8,
+    );
+    expect(
+      svc.computeRation({
+        livePopulation: 100_000,
+        abwG: 35,
+        species: 'Penaeus monodon',
+      }).frPct,
+    ).toBe(2);
     // Scampi (freshwater prawn) uses a lower juvenile rate than vannamei.
-    expect(svc.computeRation({ livePopulation: 100_000, abwG: 2, species: 'scampi' }).frPct).toBe(8);
-    expect(svc.computeRation({ livePopulation: 100_000, abwG: 2 }).frPct).toBe(10); // vannamei
+    expect(
+      svc.computeRation({ livePopulation: 100_000, abwG: 2, species: 'scampi' })
+        .frPct,
+    ).toBe(8);
+    expect(svc.computeRation({ livePopulation: 100_000, abwG: 2 }).frPct).toBe(
+      10,
+    ); // vannamei
   });
 
   it('computes adherence clamped to [0,1]', () => {

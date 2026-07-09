@@ -6,8 +6,8 @@ import { DiseaseRecord } from './disease-record.entity';
 import { DiseaseService } from './disease.service';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([DiseaseLibrary, DiseaseRecord])],
-    controllers: [DiseaseController],
-    providers: [DiseaseService],
+  imports: [TypeOrmModule.forFeature([DiseaseLibrary, DiseaseRecord])],
+  controllers: [DiseaseController],
+  providers: [DiseaseService],
 })
-export class DiseaseModule { }
+export class DiseaseModule {}

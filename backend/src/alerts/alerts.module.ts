@@ -11,4 +11,4 @@ import { PushModule } from '../push/push.module';
   providers: [AlertsService],
   exports: [AlertsService],
 })
-export class AlertsModule { }
+export class AlertsModule {}

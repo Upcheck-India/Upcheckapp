@@ -4,10 +4,10 @@ import { FarmCapability } from '../../farm-access/farm-capability';
 export const OWNS_RESOURCE_KEY = 'ownsResource';
 
 export interface OwnsResourceOptions {
-    entityType: string;
-    paramName: string;
-    ownerPath: string;
-    capability: FarmCapability;
+  entityType: string;
+  paramName: string;
+  ownerPath: string;
+  capability: FarmCapability;
 }
 
 /**
@@ -22,9 +22,14 @@ export interface OwnsResourceOptions {
  *   - OWNER_ONLY: owner exclusively — delete farm/pond, transfer, role changes
  */
 export const OwnsResource = (
-    entityType: string,
-    paramName: string = 'id',
-    ownerPath: string = 'userId',
-    capability: FarmCapability = 'WRITE_OPERATIONAL',
+  entityType: string,
+  paramName: string = 'id',
+  ownerPath: string = 'userId',
+  capability: FarmCapability = 'WRITE_OPERATIONAL',
 ) =>
-    SetMetadata(OWNS_RESOURCE_KEY, { entityType, paramName, ownerPath, capability } as OwnsResourceOptions);
+  SetMetadata(OWNS_RESOURCE_KEY, {
+    entityType,
+    paramName,
+    ownerPath,
+    capability,
+  } as OwnsResourceOptions);

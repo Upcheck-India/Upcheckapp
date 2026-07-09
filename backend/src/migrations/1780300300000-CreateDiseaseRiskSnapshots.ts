@@ -4,9 +4,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Additive, idempotent migration: `disease_risk_snapshots` for the Disease
  * Early-Warning engine (farmer_features_spec.md §2). References only `ponds`.
  */
-export class CreateDiseaseRiskSnapshots1780300300000
-  implements MigrationInterface
-{
+export class CreateDiseaseRiskSnapshots1780300300000 implements MigrationInterface {
   name = 'CreateDiseaseRiskSnapshots1780300300000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

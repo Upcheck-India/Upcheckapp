@@ -9,6 +9,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
 import { TypeORMExceptionFilter } from './common/filters/typeorm-exception.filter';
 import { assertSchemaReady } from './common/schema-guard';
+import { assertCorsOriginAllowed } from './common/cors-guard';
 
 import cookieParser from 'cookie-parser';
 
@@ -28,6 +29,8 @@ async function bootstrap() {
   app.use(cookieParser());
 
   const corsOrigin = process.env.CORS_ORIGIN || '*';
+  // Refuse to boot in production with a wildcard origin (CORS-1).
+  assertCorsOriginAllowed(process.env.NODE_ENV, corsOrigin);
   app.enableCors({
     origin: corsOrigin === '*' ? true : corsOrigin.split(','),
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
@@ -36,11 +39,13 @@ async function bootstrap() {
   });
   app.setGlobalPrefix('api');
 
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: false,
-    transform: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: false,
+      transform: true,
+    }),
+  );
 
   app.useGlobalFilters(new TypeORMExceptionFilter());
 

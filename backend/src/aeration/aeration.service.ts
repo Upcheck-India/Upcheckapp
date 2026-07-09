@@ -49,7 +49,8 @@ export class AerationService {
       requiredHp: round2(requiredHp),
       installedHp,
       deficitHp: round2(deficitHp),
-      adequacyRatio: requiredHp > 0 ? round2(installedHp / requiredHp) : Infinity,
+      adequacyRatio:
+        requiredHp > 0 ? round2(installedHp / requiredHp) : Infinity,
       underAerated: deficitHp > 0,
     };
   }
@@ -60,7 +61,11 @@ export class AerationService {
   }
 
   /** Diesel power cost = Σ L/hr × runHours × ₹/L. */
-  powerCostDiesel(litresPerHour: number, runHours: number, ratePerLitre: number): number {
+  powerCostDiesel(
+    litresPerHour: number,
+    runHours: number,
+    ratePerLitre: number,
+  ): number {
     return round2(litresPerHour * runHours * ratePerLitre);
   }
 
@@ -86,10 +91,12 @@ export class AerationService {
     const temp = input.temp ?? 30;
     const tempFactor = 1 + Math.max(0, temp - 28) * 0.03;
 
-    const biomassDensity = input.areaM2 > 0 ? input.biomassKg / input.areaM2 : 0;
+    const biomassDensity =
+      input.areaM2 > 0 ? input.biomassKg / input.areaM2 : 0;
     const drawDown =
       (biomassDensity * kB + planktonLoad * kP) * tempFactor * nightHours;
-    const supply = this.hpPerHa(input.installedHp, input.areaM2) * kA * input.runHours;
+    const supply =
+      this.hpPerHa(input.installedHp, input.areaM2) * kA * input.runHours;
     return round2(Math.max(0, input.currentDo - drawDown + supply));
   }
 
@@ -97,7 +104,10 @@ export class AerationService {
    * Minimum overnight aerator hours to keep the predicted DO-min ≥ target.
    * Returns 0 when no aeration is needed, capped at `nightHours`.
    */
-  recommendRunHours(input: Omit<NightDoInput, 'runHours'>, doTarget = 4): number {
+  recommendRunHours(
+    input: Omit<NightDoInput, 'runHours'>,
+    doTarget = 4,
+  ): number {
     const nightHours = input.nightHours ?? 8;
     const zero = this.predictNightDoMin({ ...input, runHours: 0 });
     if (zero >= doTarget) return 0;

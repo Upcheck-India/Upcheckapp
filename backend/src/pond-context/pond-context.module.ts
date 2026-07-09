@@ -17,7 +17,13 @@ import { ShrimpCalculationsModule } from '../shrimp-calculations/shrimp-calculat
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([SamplingData, MortalityRecord, FeedRecord, FeedingTrayCheck, WaterQualityRecord]),
+    TypeOrmModule.forFeature([
+      SamplingData,
+      MortalityRecord,
+      FeedRecord,
+      FeedingTrayCheck,
+      WaterQualityRecord,
+    ]),
     PondsModule,
     CropsModule,
     ShrimpCalculationsModule,

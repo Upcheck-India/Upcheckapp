@@ -31,18 +31,35 @@ describe('EngineAlertService.evaluate', () => {
   });
 
   it('emits a low-DO alert (critical under 3, watch under 4)', () => {
-    expect(svc.evaluate({ ...baseCtx, waterQuality: { dissolvedOxygen: 2.5 } })
-      .find((d) => d.source === 'aeration')?.severity).toBe('critical');
-    expect(svc.evaluate({ ...baseCtx, waterQuality: { dissolvedOxygen: 3.6 } })
-      .find((d) => d.source === 'aeration')?.severity).toBe('watch');
+    expect(
+      svc
+        .evaluate({ ...baseCtx, waterQuality: { dissolvedOxygen: 2.5 } })
+        .find((d) => d.source === 'aeration')?.severity,
+    ).toBe('critical');
+    expect(
+      svc
+        .evaluate({ ...baseCtx, waterQuality: { dissolvedOxygen: 3.6 } })
+        .find((d) => d.source === 'aeration')?.severity,
+    ).toBe('watch');
     // Healthy DO → no aeration alert.
-    expect(svc.evaluate({ ...baseCtx, waterQuality: { dissolvedOxygen: 6 } })
-      .find((d) => d.source === 'aeration')).toBeUndefined();
+    expect(
+      svc
+        .evaluate({ ...baseCtx, waterQuality: { dissolvedOxygen: 6 } })
+        .find((d) => d.source === 'aeration'),
+    ).toBeUndefined();
   });
 
   it('flags poor feed efficiency when running FCR is high', () => {
-    expect(svc.evaluate({ ...baseCtx, runningFcr: 2.1 }).find((d) => d.source === 'feed')?.severity).toBe('watch');
-    expect(svc.evaluate({ ...baseCtx, runningFcr: 1.3 }).find((d) => d.source === 'feed')).toBeUndefined();
+    expect(
+      svc
+        .evaluate({ ...baseCtx, runningFcr: 2.1 })
+        .find((d) => d.source === 'feed')?.severity,
+    ).toBe('watch');
+    expect(
+      svc
+        .evaluate({ ...baseCtx, runningFcr: 1.3 })
+        .find((d) => d.source === 'feed'),
+    ).toBeUndefined();
   });
 
   it('emits nothing when everything is healthy', () => {

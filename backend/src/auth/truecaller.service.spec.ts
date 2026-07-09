@@ -26,9 +26,7 @@ function generateKeyPair() {
 }
 
 function publicKeyToBase64Body(publicKey: crypto.KeyObject): string {
-  const pem = publicKey
-    .export({ type: 'spki', format: 'pem' })
-    .toString();
+  const pem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
   return pem
     .replace(/-----BEGIN PUBLIC KEY-----/g, '')
     .replace(/-----END PUBLIC KEY-----/g, '')
@@ -557,9 +555,7 @@ describe('TruecallerService nonce TTL configuration', () => {
     const { publicKey, privateKey } = generateKeyPair();
     mockedAxios.get.mockResolvedValue({
       status: 200,
-      data: [
-        { keyName: 'tc-test-key', key: publicKeyToBase64Body(publicKey) },
-      ],
+      data: [{ keyName: 'tc-test-key', key: publicKeyToBase64Body(publicKey) }],
     } as any);
 
     const svc = buildService(); // no env vars
@@ -717,9 +713,7 @@ describe('InMemoryTruecallerKeyCache', () => {
   });
 
   it('fetches once on a cold call and caches the result', async () => {
-    const fetcher = jest
-      .fn()
-      .mockResolvedValue({ data: sampleKeys });
+    const fetcher = jest.fn().mockResolvedValue({ data: sampleKeys });
     const cache = new InMemoryTruecallerKeyCache(
       url,
       ttlMs,
@@ -768,9 +762,7 @@ describe('InMemoryTruecallerKeyCache', () => {
     expect(await cache.getKeys()).toEqual(sampleKeys);
     // Step past the TTL boundary.
     now += ttlMs;
-    expect(await cache.getKeys()).toEqual([
-      { keyName: 'rotated', key: 'CCC' },
-    ]);
+    expect(await cache.getKeys()).toEqual([{ keyName: 'rotated', key: 'CCC' }]);
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
@@ -865,9 +857,7 @@ describe('InMemoryTruecallerKeyCache', () => {
       fetcher,
     );
 
-    await expect(cache.getKeys()).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
+    await expect(cache.getKeys()).rejects.toBeInstanceOf(UnauthorizedException);
     expect(await cache.getKeys()).toEqual(sampleKeys);
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
@@ -1006,9 +996,7 @@ describe('TruecallerService public-key cache integration', () => {
     const customUrl = 'https://example.test/v1/key';
     mockedAxios.get.mockResolvedValueOnce({
       status: 200,
-      data: [
-        { keyName: 'custom', key: publicKeyToBase64Body(publicKey) },
-      ],
+      data: [{ keyName: 'custom', key: publicKeyToBase64Body(publicKey) }],
     } as any);
 
     const requestNonce = 'nonce-custom-url';

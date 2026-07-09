@@ -12,7 +12,11 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 // Mock repository factory
 const createMockRepository = () => ({
   create: jest.fn().mockImplementation((dto) => dto),
-  save: jest.fn().mockImplementation((entity) => Promise.resolve({ ...entity, id: 'test-id' })),
+  save: jest
+    .fn()
+    .mockImplementation((entity) =>
+      Promise.resolve({ ...entity, id: 'test-id' }),
+    ),
   find: jest.fn().mockResolvedValue([]),
   findAndCount: jest.fn().mockResolvedValue([[], 0]),
   findOneBy: jest.fn().mockResolvedValue(null),
@@ -39,7 +43,10 @@ describe('FeedRecordsService', () => {
   beforeEach(async () => {
     module = await Test.createTestingModule({
       providers: [
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
+        },
         FeedRecordsService,
         {
           provide: getRepositoryToken(FeedRecord),
@@ -69,7 +76,9 @@ describe('FeedRecordsService', () => {
     }).compile();
 
     service = module.get<FeedRecordsService>(FeedRecordsService);
-    mockRepository = module.get<Repository<FeedRecord>>(getRepositoryToken(FeedRecord));
+    mockRepository = module.get<Repository<FeedRecord>>(
+      getRepositoryToken(FeedRecord),
+    );
   });
 
   it('should be defined', () => {
@@ -87,7 +96,7 @@ describe('FeedRecordsService', () => {
         feedingMethod: 'Manual',
         waterTemperature: 28,
         notes: 'Morning feeding',
-        inventoryItemId: 'inv-item-1' // Added this
+        inventoryItemId: 'inv-item-1', // Added this
       };
 
       // Mock PondsService to return a pond with activeCycleId
@@ -96,12 +105,15 @@ describe('FeedRecordsService', () => {
         id: 'pond-1',
         activeCycleId: 'crop-1',
         userId: 'user-1',
-        farmId: 'farm-1'
+        farmId: 'farm-1',
       } as any);
 
       // Mock InventoryService
-      const inventoryServiceMock = module.get<InventoryService>(InventoryService);
-      jest.spyOn(inventoryServiceMock, 'adjustStock').mockResolvedValue({} as any);
+      const inventoryServiceMock =
+        module.get<InventoryService>(InventoryService);
+      jest
+        .spyOn(inventoryServiceMock, 'adjustStock')
+        .mockResolvedValue({} as any);
 
       const result = await service.create(createDto, 'user-1');
 
@@ -112,7 +124,11 @@ describe('FeedRecordsService', () => {
         updatedById: 'user-1',
       });
       expect(mockRepository.save).toHaveBeenCalled();
-      expect(inventoryServiceMock.adjustStock).toHaveBeenCalledWith('inv-item-1', -50, 'user-1'); // Verify deduction (scoped to caller)
+      expect(inventoryServiceMock.adjustStock).toHaveBeenCalledWith(
+        'inv-item-1',
+        -50,
+        'user-1',
+      ); // Verify deduction (scoped to caller)
       expect(result).toEqual(expect.objectContaining(createDto));
     });
 
@@ -124,9 +140,12 @@ describe('FeedRecordsService', () => {
       };
 
       const pondServiceMock = module.get<PondsService>(PondsService);
-      jest.spyOn(pondServiceMock, 'findOneAccessible').mockResolvedValue({ id: 'pond-1', activeCycleId: 'crop-1' } as any);
+      jest
+        .spyOn(pondServiceMock, 'findOneAccessible')
+        .mockResolvedValue({ id: 'pond-1', activeCycleId: 'crop-1' } as any);
 
-      const inventoryServiceMock = module.get<InventoryService>(InventoryService);
+      const inventoryServiceMock =
+        module.get<InventoryService>(InventoryService);
 
       await service.create(createDto as any, 'user-1');
 
@@ -154,12 +173,16 @@ describe('FeedRecordsService', () => {
 
       await service.findAll('user-1', pondId);
 
-      expect(qb.andWhere).toHaveBeenCalledWith('feed.pondId = :pondId', { pondId });
+      expect(qb.andWhere).toHaveBeenCalledWith('feed.pondId = :pondId', {
+        pondId,
+      });
     });
 
     it('should return no records when the caller has no accessible farms', async () => {
       const farmAccessMock = module.get<FarmAccessService>(FarmAccessService);
-      jest.spyOn(farmAccessMock, 'getAccessibleFarmIds').mockResolvedValueOnce([]);
+      jest
+        .spyOn(farmAccessMock, 'getAccessibleFarmIds')
+        .mockResolvedValueOnce([]);
 
       const result = await service.findAll('user-1');
 
@@ -223,7 +246,7 @@ describe('FeedRecordsService', () => {
 
       const result = await service.getTotalFeedByPond(pondId);
 
-      expect(result).toBe("150");
+      expect(result).toBe('150');
     });
   });
 });

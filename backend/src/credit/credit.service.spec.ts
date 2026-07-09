@@ -31,16 +31,43 @@ describe('CreditService — ledger persistence', () => {
       create: (x: any) => ({ ...x }),
       save: jest.fn(async (x: any) => x),
       find: jest.fn(async () => store),
-      findOne: jest.fn(async ({ where: { id } }: any) => store.find((r) => r.id === id) ?? null),
+      findOne: jest.fn(
+        async ({ where: { id } }: any) =>
+          store.find((r) => r.id === id) ?? null,
+      ),
     };
     return { svc: new CreditService(repo as any), repo };
   }
 
   it('lists ledger rows with computed outstanding and a per-dealer summary', async () => {
     const { svc } = makeService([
-      { id: '1', userId: 'u', dealerName: 'Avanti', principal: 100000, interestPct: 0, repaid: 40000, startDate: '2026-01-01' },
-      { id: '2', userId: 'u', dealerName: 'Avanti', principal: 50000, interestPct: 10, repaid: 0, startDate: '2026-02-01' },
-      { id: '3', userId: 'u', dealerName: 'CP', principal: 30000, interestPct: 0, repaid: 30000, startDate: '2026-03-01' },
+      {
+        id: '1',
+        userId: 'u',
+        dealerName: 'Avanti',
+        principal: 100000,
+        interestPct: 0,
+        repaid: 40000,
+        startDate: '2026-01-01',
+      },
+      {
+        id: '2',
+        userId: 'u',
+        dealerName: 'Avanti',
+        principal: 50000,
+        interestPct: 10,
+        repaid: 0,
+        startDate: '2026-02-01',
+      },
+      {
+        id: '3',
+        userId: 'u',
+        dealerName: 'CP',
+        principal: 30000,
+        interestPct: 0,
+        repaid: 30000,
+        startDate: '2026-03-01',
+      },
     ]);
     const list = await svc.list('u');
     expect(list[0].outstanding).toBe(60000); // 100000 − 40000
@@ -53,7 +80,15 @@ describe('CreditService — ledger persistence', () => {
 
   it('records a repayment against the right entry', async () => {
     const { svc } = makeService([
-      { id: '1', userId: 'u', dealerName: 'Avanti', principal: 100000, interestPct: 0, repaid: 0, startDate: '2026-01-01' },
+      {
+        id: '1',
+        userId: 'u',
+        dealerName: 'Avanti',
+        principal: 100000,
+        interestPct: 0,
+        repaid: 0,
+        startDate: '2026-01-01',
+      },
     ]);
     const updated = await svc.recordRepayment('1', 25000, 'u');
     expect(updated.repaid).toBe(25000);

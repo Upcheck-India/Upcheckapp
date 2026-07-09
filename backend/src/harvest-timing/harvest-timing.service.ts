@@ -72,7 +72,10 @@ const RISK_DAILY_HAZARD_AT_MAX = 0.02;
 /** Growth multiplier (1 → floor) as biomass density approaches carrying capacity. */
 function densityGrowthFactor(densityRatio: number): number {
   if (densityRatio <= DENSITY_TAPER_START) return 1;
-  const t = Math.min(1, (densityRatio - DENSITY_TAPER_START) / (1 - DENSITY_TAPER_START));
+  const t = Math.min(
+    1,
+    (densityRatio - DENSITY_TAPER_START) / (1 - DENSITY_TAPER_START),
+  );
   return 1 - (1 - DENSITY_GROWTH_FLOOR) * t;
 }
 
@@ -107,7 +110,9 @@ export class HarvestTimingService {
    *   d* = argmax netProfit(d)  s.t. biomass(d)/area ≤ carryingCapacity
    * Day 0 (harvest now) is always a candidate.
    */
-  optimizeCore(input: HarvestTimingInput): Omit<HarvestTimingResult, 'partial'> {
+  optimizeCore(
+    input: HarvestTimingInput,
+  ): Omit<HarvestTimingResult, 'partial'> {
     const horizon = input.horizon ?? 30;
     const decay = input.adgDecay ?? 0.97;
     const risk = Math.max(0, Math.min(1, input.diseaseRisk ?? 0));
@@ -127,7 +132,9 @@ export class HarvestTimingService {
             ? prevBiomassKg / input.areaM2 / input.carryingCapacityKgM2
             : 0;
         const adg =
-          input.adgNow * Math.pow(decay, d - 1) * densityGrowthFactor(densityRatio);
+          input.adgNow *
+          Math.pow(decay, d - 1) *
+          densityGrowthFactor(densityRatio);
         abw += adg;
       }
       const population = input.nNow * Math.pow(input.dailySurvival, d);
@@ -143,11 +150,13 @@ export class HarvestTimingService {
       }
       // Compounding disease exposure over the hold: 0 at harvest-now, growing the
       // longer the cohort is held. survivors = (1 − dailyHazard)^d.
-      const diseaseValueLost = 1 - Math.pow(1 - risk * RISK_DAILY_HAZARD_AT_MAX, d);
+      const diseaseValueLost =
+        1 - Math.pow(1 - risk * RISK_DAILY_HAZARD_AT_MAX, d);
       const riskLoss = gross * diseaseValueLost;
       const netProfit = gross - feedCostCum - riskLoss;
       const feasible =
-        input.areaM2 > 0 && biomassKg / input.areaM2 <= input.carryingCapacityKgM2;
+        input.areaM2 > 0 &&
+        biomassKg / input.areaM2 <= input.carryingCapacityKgM2;
 
       projections.push({
         day: d,
@@ -220,7 +229,7 @@ export class HarvestTimingService {
     let best: PartialPlan | null = null;
     for (const pct of fractions) {
       const realizedNow =
-        (pct * input.nNow * input.abwNow) / 1000 * priceNow * (1 - risk);
+        ((pct * input.nNow * input.abwNow) / 1000) * priceNow * (1 - risk);
       // Remaining cohort grows under the same conditions (lower density now).
       // Use optimizeCore to avoid re-entering the partial optimizer.
       const remainder = this.optimizeCore({

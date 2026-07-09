@@ -1,4 +1,11 @@
-import { Controller, Get, Post, Body, Query, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  BadRequestException,
+} from '@nestjs/common';
 import { Public } from '../auth/decorators/auth.decorators';
 import { LunarService, MoltVulnerabilityInput } from './lunar.service';
 
@@ -22,7 +29,8 @@ export class LunarController {
   @Get('phase')
   phase(@Query('date') date?: string) {
     const d = date ? new Date(date) : new Date();
-    if (Number.isNaN(d.getTime())) throw new BadRequestException('invalid date');
+    if (Number.isNaN(d.getTime()))
+      throw new BadRequestException('invalid date');
     return this.service.moonPhase(d);
   }
 
@@ -30,7 +38,8 @@ export class LunarController {
   @Post('risk')
   risk(@Body() body: ComputeRiskBody) {
     const d = body.date ? new Date(body.date) : new Date();
-    if (Number.isNaN(d.getTime())) throw new BadRequestException('invalid date');
+    if (Number.isNaN(d.getTime()))
+      throw new BadRequestException('invalid date');
     const phase = this.service.moonPhase(d);
     const vulnerability = body.vulnerability ?? {};
     const risk = this.service.computeMoltRisk(phase, body.abwG, vulnerability);

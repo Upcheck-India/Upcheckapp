@@ -1,28 +1,39 @@
-import { IsUUID, IsString, IsOptional, IsNumber, IsDateString } from 'class-validator';
+import {
+  IsUUID,
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsDateString,
+} from 'class-validator';
 
 export class CreateTreatmentDto {
-    @IsUUID()
-    cropId: string;
+  // Client-minted idempotency key — lets offline replays be safe (insert-or-return).
+  @IsUUID()
+  @IsOptional()
+  id?: string;
 
-    @IsDateString()
-    treatmentDate: string;
+  @IsUUID()
+  cropId: string;
 
-    @IsString()
-    @IsOptional()
-    basedOn?: string; // 'written_notes' | 'product_usage'
+  @IsDateString()
+  treatmentDate: string;
 
-    @IsString()
-    description: string;
+  @IsString()
+  @IsOptional()
+  basedOn?: string; // 'written_notes' | 'product_usage'
 
-    @IsUUID()
-    @IsOptional()
-    productId?: string;
+  @IsString()
+  description: string;
 
-    @IsNumber()
-    @IsOptional()
-    dosageKg?: number;
+  @IsUUID()
+  @IsOptional()
+  productId?: string;
 
-    @IsString()
-    @IsOptional()
-    notes?: string;
+  @IsNumber()
+  @IsOptional()
+  dosageKg?: number;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
 }

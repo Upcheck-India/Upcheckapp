@@ -41,5 +41,10 @@ const common = {
   serverErrorMessage: 'Our servers are having issues. Please try again later.',
   showPassword: 'Show password',
   hidePassword: 'Hide password',
+  settings: 'Settings',
+  syncFailedTitle: 'Some records need attention',
+  syncFailedBody: '{{count}} record(s) could not be synced. Retry now?',
+  syncFailedBanner: 'Records need attention',
+  syncFailedA11y: '{{count}} records failed to sync, tap to retry',
 };
 export default common;

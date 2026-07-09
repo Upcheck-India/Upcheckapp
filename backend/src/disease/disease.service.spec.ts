@@ -5,14 +5,17 @@ import { Repository } from 'typeorm';
 import { DiseaseService } from './disease.service';
 import { DiseaseLibrary } from './disease-library.entity';
 import { DiseaseRecord } from './disease-record.entity';
-import { CreateDiseaseDto, CreateDiseaseRecordDto } from './dto/create-disease.dto';
+import {
+  CreateDiseaseDto,
+  CreateDiseaseRecordDto,
+} from './dto/create-disease.dto';
 import { NotFoundException } from '@nestjs/common';
 
 describe('DiseaseService', () => {
   let service: DiseaseService;
   let diseaseLibraryRepository: MockRepository<DiseaseLibrary>;
   let diseaseRecordRepository: MockRepository<DiseaseRecord>;
-  
+
   const mockDisease = new DiseaseLibrary();
   mockDisease.id = 'disease-1';
   mockDisease.name = 'White Spot Syndrome';
@@ -24,7 +27,7 @@ describe('DiseaseService', () => {
   mockDisease.imageUrls = [];
   mockDisease.severityLevel = 'high';
   mockDisease.createdAt = new Date();
-  
+
   const mockDiseaseRecord = new DiseaseRecord();
   mockDiseaseRecord.id = 'record-1';
   mockDiseaseRecord.cropId = 'crop-1';
@@ -34,7 +37,7 @@ describe('DiseaseService', () => {
   mockDiseaseRecord.photoUrls = [];
   mockDiseaseRecord.notes = 'First detection';
   mockDiseaseRecord.createdAt = new Date();
-  
+
   const mockCreateDiseaseDto: CreateDiseaseDto = {
     name: 'New Disease',
     scientificName: 'Scientific Name',
@@ -45,7 +48,7 @@ describe('DiseaseService', () => {
     imageUrls: ['url1', 'url2'],
     severityLevel: 'medium',
   };
-  
+
   const mockCreateDiseaseRecordDto: CreateDiseaseRecordDto = {
     cropId: 'crop-1',
     diseaseId: 'disease-1',
@@ -54,9 +57,9 @@ describe('DiseaseService', () => {
     photoUrls: ['photo1.jpg', 'photo2.jpg'],
     notes: 'Severe outbreak',
   };
-  
+
   type MockRepository<T = any> = Partial<Record<string, jest.Mock>>;
-  
+
   const createMockRepository = (): MockRepository<any> => ({
     create: jest.fn(),
     save: jest.fn(),
@@ -70,7 +73,10 @@ describe('DiseaseService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
+        },
         DiseaseService,
         {
           provide: getRepositoryToken(DiseaseLibrary),
@@ -91,78 +97,134 @@ describe('DiseaseService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
-  
+
   describe('createDisease', () => {
     it('should create a new disease in library', async () => {
-      (diseaseLibraryRepository.create as jest.Mock).mockReturnValue(mockDisease);
-      (diseaseLibraryRepository.save as jest.Mock).mockResolvedValue(mockDisease);
-      
+      (diseaseLibraryRepository.create as jest.Mock).mockReturnValue(
+        mockDisease,
+      );
+      (diseaseLibraryRepository.save as jest.Mock).mockResolvedValue(
+        mockDisease,
+      );
+
       const result = await service.createDisease(mockCreateDiseaseDto);
-      
-      expect(diseaseLibraryRepository.create).toHaveBeenCalledWith(mockCreateDiseaseDto);
+
+      expect(diseaseLibraryRepository.create).toHaveBeenCalledWith(
+        mockCreateDiseaseDto,
+      );
       expect(diseaseLibraryRepository.save).toHaveBeenCalledWith(mockDisease);
       expect(result).toEqual(mockDisease);
     });
   });
-  
+
   describe('findAllDiseases', () => {
     it('should return all diseases ordered by name', async () => {
       const diseases = [mockDisease];
-      
+
       (diseaseLibraryRepository.find as jest.Mock).mockResolvedValue(diseases);
-      
+
       const result = await service.findAllDiseases();
-      
+
       expect(diseaseLibraryRepository.find).toHaveBeenCalledWith({
         order: { name: 'ASC' },
       });
       expect(result).toEqual(diseases);
     });
   });
-  
+
   describe('findDiseaseById', () => {
     it('should return a disease by id', async () => {
       const diseaseId = 'disease-1';
-      
-      (diseaseLibraryRepository.findOne as jest.Mock).mockResolvedValue(mockDisease);
-      
+
+      (diseaseLibraryRepository.findOne as jest.Mock).mockResolvedValue(
+        mockDisease,
+      );
+
       const result = await service.findDiseaseById(diseaseId);
-      
-      expect(diseaseLibraryRepository.findOne).toHaveBeenCalledWith({ where: { id: diseaseId } });
+
+      expect(diseaseLibraryRepository.findOne).toHaveBeenCalledWith({
+        where: { id: diseaseId },
+      });
       expect(result).toEqual(mockDisease);
     });
-    
+
     it('should throw NotFoundException when disease not found', async () => {
       const diseaseId = 'non-existent';
-      
+
       (diseaseLibraryRepository.findOne as jest.Mock).mockResolvedValue(null);
-      
-      await expect(service.findDiseaseById(diseaseId)).rejects.toThrow(NotFoundException);
+
+      await expect(service.findDiseaseById(diseaseId)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
-  
+
   describe('recordOccurrence', () => {
     it('should record a disease occurrence', async () => {
-      (diseaseRecordRepository.create as jest.Mock).mockReturnValue(mockDiseaseRecord);
-      (diseaseRecordRepository.save as jest.Mock).mockResolvedValue(mockDiseaseRecord);
-      
+      (diseaseRecordRepository.create as jest.Mock).mockReturnValue(
+        mockDiseaseRecord,
+      );
+      (diseaseRecordRepository.save as jest.Mock).mockResolvedValue(
+        mockDiseaseRecord,
+      );
+
       const result = await service.recordOccurrence(mockCreateDiseaseRecordDto);
-      
-      expect(diseaseRecordRepository.create).toHaveBeenCalledWith(mockCreateDiseaseRecordDto);
-      expect(diseaseRecordRepository.save).toHaveBeenCalledWith(mockDiseaseRecord);
+
+      expect(diseaseRecordRepository.create).toHaveBeenCalledWith(
+        mockCreateDiseaseRecordDto,
+      );
+      expect(diseaseRecordRepository.save).toHaveBeenCalledWith(
+        mockDiseaseRecord,
+      );
       expect(result).toEqual(mockDiseaseRecord);
     });
   });
-  
+
+  describe('recordOccurrence — idempotent replay (SYNC-2)', () => {
+    const CLIENT_ID = '11111111-1111-1111-1111-111111111111';
+
+    it('returns the existing record and does NOT insert on a same-id, same-crop replay', async () => {
+      const existing = { id: CLIENT_ID, cropId: 'crop-1' };
+      (diseaseRecordRepository.findOne as jest.Mock).mockResolvedValue(
+        existing,
+      );
+
+      const result = await service.recordOccurrence(
+        { ...mockCreateDiseaseRecordDto, id: CLIENT_ID } as any,
+        'user-1',
+      );
+
+      expect(result).toBe(existing);
+      expect(diseaseRecordRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects a client id colliding with a record on a different crop (IDOR)', async () => {
+      (diseaseRecordRepository.findOne as jest.Mock).mockResolvedValue({
+        id: CLIENT_ID,
+        cropId: 'other-crop',
+      });
+
+      await expect(
+        service.recordOccurrence(
+          { ...mockCreateDiseaseRecordDto, id: CLIENT_ID } as any,
+          'user-1',
+        ),
+      ).rejects.toThrow(
+        'Disease record id already exists for a different crop',
+      );
+      expect(diseaseRecordRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
   describe('findRecordsByCrop', () => {
     it('should return disease records for a crop ordered by date', async () => {
       const cropId = 'crop-1';
       const records = [mockDiseaseRecord];
-      
+
       (diseaseRecordRepository.find as jest.Mock).mockResolvedValue(records);
-      
+
       const result = await service.findRecordsByCrop(cropId);
-      
+
       expect(diseaseRecordRepository.find).toHaveBeenCalledWith({
         where: { cropId },
         relations: ['disease'],

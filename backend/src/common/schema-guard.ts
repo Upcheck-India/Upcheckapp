@@ -25,11 +25,17 @@ export async function assertSchemaReady(dataSource: DataSource): Promise<void> {
       [SENTINEL_TABLES],
     );
   } catch (err) {
-    console.error('───────────────────────────────────────────────────────────');
+    console.error(
+      '───────────────────────────────────────────────────────────',
+    );
     console.error('FATAL: schema guard could not query the database.');
-    console.error('Cannot verify the schema — check DATABASE_URL and connectivity.');
+    console.error(
+      'Cannot verify the schema — check DATABASE_URL and connectivity.',
+    );
     console.error((err as Error).message);
-    console.error('───────────────────────────────────────────────────────────');
+    console.error(
+      '───────────────────────────────────────────────────────────',
+    );
     throw err;
   }
 
@@ -37,13 +43,21 @@ export async function assertSchemaReady(dataSource: DataSource): Promise<void> {
   const missing = SENTINEL_TABLES.filter((t) => !found.has(t));
 
   if (missing.length > 0) {
-    console.error('───────────────────────────────────────────────────────────');
+    console.error(
+      '───────────────────────────────────────────────────────────',
+    );
     console.error('FATAL: database schema is missing core tables:');
     console.error(`       ${missing.join(', ')}`);
-    console.error('The TypeORM migration chain has not been applied to this DB.');
-    console.error('Fix: run `npm run migration:run` against DATABASE_URL, then redeploy.');
+    console.error(
+      'The TypeORM migration chain has not been applied to this DB.',
+    );
+    console.error(
+      'Fix: run `npm run migration:run` against DATABASE_URL, then redeploy.',
+    );
     console.error('(On Render this runs automatically via the startCommand.)');
-    console.error('───────────────────────────────────────────────────────────');
+    console.error(
+      '───────────────────────────────────────────────────────────',
+    );
     throw new Error(
       `Schema not ready — missing core tables: ${missing.join(', ')}`,
     );

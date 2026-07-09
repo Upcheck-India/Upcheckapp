@@ -1,140 +1,323 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddInventoryNotes1780287841640 implements MigrationInterface {
-    name = 'AddInventoryNotes1780287841640'
+  name = 'AddInventoryNotes1780287841640';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "farms" DROP CONSTRAINT "FK_farms_user_id"`);
-        await queryRunner.query(`ALTER TABLE "crops" DROP CONSTRAINT "FK_crops_broodstock_id"`);
-        await queryRunner.query(`ALTER TABLE "crops" DROP CONSTRAINT "FK_crops_species_id"`);
-        await queryRunner.query(`ALTER TABLE "crops" DROP CONSTRAINT "FK_crops_hatchery_id"`);
-        await queryRunner.query(`ALTER TABLE "treatments" DROP CONSTRAINT "FK_treatments_product_id"`);
-        await queryRunner.query(`ALTER TABLE "tasks" DROP CONSTRAINT "FK_tasks_crop"`);
-        await queryRunner.query(`ALTER TABLE "tasks" DROP CONSTRAINT "FK_tasks_pond"`);
-        await queryRunner.query(`ALTER TABLE "tasks" DROP CONSTRAINT "FK_tasks_farm"`);
-        await queryRunner.query(`ALTER TABLE "simulations" DROP CONSTRAINT "FK_simulations_user_id"`);
-        await queryRunner.query(`ALTER TABLE "expenses" DROP CONSTRAINT "FK_expenses_user_id"`);
-        await queryRunner.query(`ALTER TABLE "alerts" DROP CONSTRAINT "FK_alerts_farm_id"`);
-        await queryRunner.query(`ALTER TABLE "alerts" DROP CONSTRAINT "FK_alerts_pond_id"`);
-        await queryRunner.query(`ALTER TABLE "alerts" DROP CONSTRAINT "FK_alerts_user_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_farms_user_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_crops_pond_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_crops_farm_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_crops_hatchery_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_crops_species_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_crops_broodstock_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_crops_is_active"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_ponds_farm_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_ponds_status"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_ponds_active_cycle_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_water_quality_records_pond_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_treatments_crop_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_treatments_product_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_tasks_farm_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_tasks_pond_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_tasks_crop_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_tasks_status"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_tasks_assigned_to_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_simulations_pond_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_simulations_user_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_sampling_data_pond_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_sampling_data_crop_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_plankton_data_crop_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_mortality_records_crop_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_microbiology_data_crop_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_inventory_farm_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_harvests_crop_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_expenses_pond_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_expenses_crop_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_expenses_user_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_feed_records_pond_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_feed_records_crop_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_disease_records_crop_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_disease_records_disease_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_chemical_data_crop_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_alerts_user_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_alerts_pond_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_alerts_farm_id"`);
-        await queryRunner.query(`DROP INDEX "public"."IDX_alerts_is_read"`);
-        await queryRunner.query(`ALTER TABLE "disease_library" DROP COLUMN "commonNames"`);
-        await queryRunner.query(`ALTER TABLE "inventory" ADD "notes" text`);
-        await queryRunner.query(`ALTER TABLE "crops" ALTER COLUMN "carrying_capacity_kg_m2" SET DEFAULT '1.25'`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "geometry_type" DROP NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "construction_type" DROP NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "depth_m" DROP NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "calculated_area_m2" DROP NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "crops" ALTER COLUMN "carrying_capacity_kg_m2" SET DEFAULT '1.25'`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "geometry_type" DROP NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "construction_type" DROP NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "depth_m" DROP NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "calculated_area_m2" DROP NOT NULL`);
-    }
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "farms" DROP CONSTRAINT "FK_farms_user_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" DROP CONSTRAINT "FK_crops_broodstock_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" DROP CONSTRAINT "FK_crops_species_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" DROP CONSTRAINT "FK_crops_hatchery_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "treatments" DROP CONSTRAINT "FK_treatments_product_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasks" DROP CONSTRAINT "FK_tasks_crop"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasks" DROP CONSTRAINT "FK_tasks_pond"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasks" DROP CONSTRAINT "FK_tasks_farm"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "simulations" DROP CONSTRAINT "FK_simulations_user_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "expenses" DROP CONSTRAINT "FK_expenses_user_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "alerts" DROP CONSTRAINT "FK_alerts_farm_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "alerts" DROP CONSTRAINT "FK_alerts_pond_id"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "alerts" DROP CONSTRAINT "FK_alerts_user_id"`,
+    );
+    await queryRunner.query(`DROP INDEX "public"."IDX_farms_user_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_crops_pond_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_crops_farm_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_crops_hatchery_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_crops_species_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_crops_broodstock_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_crops_is_active"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_ponds_farm_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_ponds_status"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_ponds_active_cycle_id"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_water_quality_records_pond_id"`,
+    );
+    await queryRunner.query(`DROP INDEX "public"."IDX_treatments_crop_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_treatments_product_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_tasks_farm_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_tasks_pond_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_tasks_crop_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_tasks_status"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_tasks_assigned_to_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_simulations_pond_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_simulations_user_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_sampling_data_pond_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_sampling_data_crop_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_plankton_data_crop_id"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_mortality_records_crop_id"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_microbiology_data_crop_id"`,
+    );
+    await queryRunner.query(`DROP INDEX "public"."IDX_inventory_farm_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_harvests_crop_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_expenses_pond_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_expenses_crop_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_expenses_user_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_feed_records_pond_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_feed_records_crop_id"`);
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_disease_records_crop_id"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX "public"."IDX_disease_records_disease_id"`,
+    );
+    await queryRunner.query(`DROP INDEX "public"."IDX_chemical_data_crop_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_alerts_user_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_alerts_pond_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_alerts_farm_id"`);
+    await queryRunner.query(`DROP INDEX "public"."IDX_alerts_is_read"`);
+    await queryRunner.query(
+      `ALTER TABLE "disease_library" DROP COLUMN "commonNames"`,
+    );
+    await queryRunner.query(`ALTER TABLE "inventory" ADD "notes" text`);
+    await queryRunner.query(
+      `ALTER TABLE "crops" ALTER COLUMN "carrying_capacity_kg_m2" SET DEFAULT '1.25'`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "geometry_type" DROP NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "construction_type" DROP NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "depth_m" DROP NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "calculated_area_m2" DROP NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" ALTER COLUMN "carrying_capacity_kg_m2" SET DEFAULT '1.25'`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "geometry_type" DROP NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "construction_type" DROP NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "depth_m" DROP NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "calculated_area_m2" DROP NOT NULL`,
+    );
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "calculated_area_m2" SET NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "depth_m" SET NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "construction_type" SET NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "geometry_type" SET NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "crops" ALTER COLUMN "carrying_capacity_kg_m2" SET DEFAULT 1.25`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "calculated_area_m2" SET NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "depth_m" SET NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "construction_type" SET NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "ponds" ALTER COLUMN "geometry_type" SET NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "crops" ALTER COLUMN "carrying_capacity_kg_m2" SET DEFAULT 1.25`);
-        await queryRunner.query(`ALTER TABLE "inventory" DROP COLUMN "notes"`);
-        await queryRunner.query(`ALTER TABLE "disease_library" ADD "commonNames" text array DEFAULT '{}'`);
-        await queryRunner.query(`CREATE INDEX "IDX_alerts_is_read" ON "alerts" ("is_read") `);
-        await queryRunner.query(`CREATE INDEX "IDX_alerts_farm_id" ON "alerts" ("farm_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_alerts_pond_id" ON "alerts" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_alerts_user_id" ON "alerts" ("user_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_chemical_data_crop_id" ON "chemical_data" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_disease_records_disease_id" ON "disease_records" ("disease_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_disease_records_crop_id" ON "disease_records" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_feed_records_crop_id" ON "feed_records" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_feed_records_pond_id" ON "feed_records" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_expenses_user_id" ON "expenses" ("user_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_expenses_crop_id" ON "expenses" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_expenses_pond_id" ON "expenses" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_harvests_crop_id" ON "harvests" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_inventory_farm_id" ON "inventory" ("farm_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_microbiology_data_crop_id" ON "microbiology_data" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_mortality_records_crop_id" ON "mortality_records" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_plankton_data_crop_id" ON "plankton_data" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_sampling_data_crop_id" ON "sampling_data" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_sampling_data_pond_id" ON "sampling_data" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_simulations_user_id" ON "simulations" ("user_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_simulations_pond_id" ON "simulations" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_tasks_assigned_to_id" ON "tasks" ("assigned_to_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_tasks_status" ON "tasks" ("status") `);
-        await queryRunner.query(`CREATE INDEX "IDX_tasks_crop_id" ON "tasks" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_tasks_pond_id" ON "tasks" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_tasks_farm_id" ON "tasks" ("farm_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_treatments_product_id" ON "treatments" ("product_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_treatments_crop_id" ON "treatments" ("crop_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_water_quality_records_pond_id" ON "water_quality_records" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_ponds_active_cycle_id" ON "ponds" ("active_cycle_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_ponds_status" ON "ponds" ("status") `);
-        await queryRunner.query(`CREATE INDEX "IDX_ponds_farm_id" ON "ponds" ("farm_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_crops_is_active" ON "crops" ("is_active") `);
-        await queryRunner.query(`CREATE INDEX "IDX_crops_broodstock_id" ON "crops" ("broodstock_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_crops_species_id" ON "crops" ("species_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_crops_hatchery_id" ON "crops" ("hatchery_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_crops_farm_id" ON "crops" ("farm_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_crops_pond_id" ON "crops" ("pond_id") `);
-        await queryRunner.query(`CREATE INDEX "IDX_farms_user_id" ON "farms" ("user_id") `);
-        await queryRunner.query(`ALTER TABLE "alerts" ADD CONSTRAINT "FK_alerts_user_id" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "alerts" ADD CONSTRAINT "FK_alerts_pond_id" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "alerts" ADD CONSTRAINT "FK_alerts_farm_id" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "expenses" ADD CONSTRAINT "FK_expenses_user_id" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "simulations" ADD CONSTRAINT "FK_simulations_user_id" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "tasks" ADD CONSTRAINT "FK_tasks_farm" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "tasks" ADD CONSTRAINT "FK_tasks_pond" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "tasks" ADD CONSTRAINT "FK_tasks_crop" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "treatments" ADD CONSTRAINT "FK_treatments_product_id" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "crops" ADD CONSTRAINT "FK_crops_hatchery_id" FOREIGN KEY ("hatchery_id") REFERENCES "hatcheries"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "crops" ADD CONSTRAINT "FK_crops_species_id" FOREIGN KEY ("species_id") REFERENCES "species"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "crops" ADD CONSTRAINT "FK_crops_broodstock_id" FOREIGN KEY ("broodstock_id") REFERENCES "broodstocks"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "farms" ADD CONSTRAINT "FK_farms_user_id" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-    }
-
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "calculated_area_m2" SET NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "depth_m" SET NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "construction_type" SET NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "geometry_type" SET NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" ALTER COLUMN "carrying_capacity_kg_m2" SET DEFAULT 1.25`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "calculated_area_m2" SET NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "depth_m" SET NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "construction_type" SET NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "ponds" ALTER COLUMN "geometry_type" SET NOT NULL`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" ALTER COLUMN "carrying_capacity_kg_m2" SET DEFAULT 1.25`,
+    );
+    await queryRunner.query(`ALTER TABLE "inventory" DROP COLUMN "notes"`);
+    await queryRunner.query(
+      `ALTER TABLE "disease_library" ADD "commonNames" text array DEFAULT '{}'`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_alerts_is_read" ON "alerts" ("is_read") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_alerts_farm_id" ON "alerts" ("farm_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_alerts_pond_id" ON "alerts" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_alerts_user_id" ON "alerts" ("user_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_chemical_data_crop_id" ON "chemical_data" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_disease_records_disease_id" ON "disease_records" ("disease_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_disease_records_crop_id" ON "disease_records" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_feed_records_crop_id" ON "feed_records" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_feed_records_pond_id" ON "feed_records" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_expenses_user_id" ON "expenses" ("user_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_expenses_crop_id" ON "expenses" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_expenses_pond_id" ON "expenses" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_harvests_crop_id" ON "harvests" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_inventory_farm_id" ON "inventory" ("farm_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_microbiology_data_crop_id" ON "microbiology_data" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_mortality_records_crop_id" ON "mortality_records" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_plankton_data_crop_id" ON "plankton_data" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_sampling_data_crop_id" ON "sampling_data" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_sampling_data_pond_id" ON "sampling_data" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_simulations_user_id" ON "simulations" ("user_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_simulations_pond_id" ON "simulations" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_tasks_assigned_to_id" ON "tasks" ("assigned_to_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_tasks_status" ON "tasks" ("status") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_tasks_crop_id" ON "tasks" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_tasks_pond_id" ON "tasks" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_tasks_farm_id" ON "tasks" ("farm_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_treatments_product_id" ON "treatments" ("product_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_treatments_crop_id" ON "treatments" ("crop_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_water_quality_records_pond_id" ON "water_quality_records" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_ponds_active_cycle_id" ON "ponds" ("active_cycle_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_ponds_status" ON "ponds" ("status") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_ponds_farm_id" ON "ponds" ("farm_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_crops_is_active" ON "crops" ("is_active") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_crops_broodstock_id" ON "crops" ("broodstock_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_crops_species_id" ON "crops" ("species_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_crops_hatchery_id" ON "crops" ("hatchery_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_crops_farm_id" ON "crops" ("farm_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_crops_pond_id" ON "crops" ("pond_id") `,
+    );
+    await queryRunner.query(
+      `CREATE INDEX "IDX_farms_user_id" ON "farms" ("user_id") `,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "alerts" ADD CONSTRAINT "FK_alerts_user_id" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "alerts" ADD CONSTRAINT "FK_alerts_pond_id" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "alerts" ADD CONSTRAINT "FK_alerts_farm_id" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "expenses" ADD CONSTRAINT "FK_expenses_user_id" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "simulations" ADD CONSTRAINT "FK_simulations_user_id" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasks" ADD CONSTRAINT "FK_tasks_farm" FOREIGN KEY ("farm_id") REFERENCES "farms"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasks" ADD CONSTRAINT "FK_tasks_pond" FOREIGN KEY ("pond_id") REFERENCES "ponds"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "tasks" ADD CONSTRAINT "FK_tasks_crop" FOREIGN KEY ("crop_id") REFERENCES "crops"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "treatments" ADD CONSTRAINT "FK_treatments_product_id" FOREIGN KEY ("product_id") REFERENCES "products"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" ADD CONSTRAINT "FK_crops_hatchery_id" FOREIGN KEY ("hatchery_id") REFERENCES "hatcheries"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" ADD CONSTRAINT "FK_crops_species_id" FOREIGN KEY ("species_id") REFERENCES "species"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "crops" ADD CONSTRAINT "FK_crops_broodstock_id" FOREIGN KEY ("broodstock_id") REFERENCES "broodstocks"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "farms" ADD CONSTRAINT "FK_farms_user_id" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+  }
 }

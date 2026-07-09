@@ -100,6 +100,17 @@ const settings = {
   twoFactorDisabledSuccess: 'दो-चरणीय प्रमाणीकरण अब बंद है।',
   twoFactorSetupError: '2FA सेटअप शुरू नहीं हो सका',
 
+  // ── Backup codes (AUTH-4) ──
+  twoFactorBackupTitle: 'अपने बैकअप कोड सहेजें',
+  twoFactorBackupHelp:
+    'इन एक-बार उपयोग होने वाले कोड को किसी सुरक्षित जगह पर रखें। यदि आप अपने प्रमाणक ऐप तक पहुँच खो देते हैं तो प्रत्येक एक बार काम करता है। ये दोबारा नहीं दिखाए जाएँगे।',
+  twoFactorBackupCopy: 'कोड कॉपी करें',
+  twoFactorBackupAck: 'मैंने इन्हें सहेज लिया है',
+  twoFactorBackupCopied: 'बैकअप कोड क्लिपबोर्ड पर कॉपी किए गए।',
+  twoFactorRegenerateHelp:
+    'बैकअप कोड का नया सेट बनाएँ। आपके पुराने कोड काम करना बंद कर देंगे।',
+  twoFactorRegenerate: 'बैकअप कोड फिर से बनाएँ',
+
   // ── NotificationsScreen ───────────────────────────────────────────────────
   notificationsTitle: 'सूचनाएं',
   notificationsEmpty: 'सब अपडेट है!',

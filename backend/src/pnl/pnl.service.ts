@@ -58,7 +58,9 @@ export class PnlService {
     for (const e of expenses) {
       const amt = Number(e.amount) || 0;
       totalCost += amt;
-      costBreakdown[e.category] = round2((costBreakdown[e.category] ?? 0) + amt);
+      costBreakdown[e.category] = round2(
+        (costBreakdown[e.category] ?? 0) + amt,
+      );
     }
 
     let revenue = 0;
@@ -96,7 +98,9 @@ export class PnlService {
       marginPct: round2(econ.marginPct),
       roiPct: round2(econ.roiPct),
       productivityTPerHa:
-        econ.productivityTPerHa === null ? null : round2(econ.productivityTPerHa),
+        econ.productivityTPerHa === null
+          ? null
+          : round2(econ.productivityTPerHa),
       harvestComplete: hasFullHarvest,
     };
   }

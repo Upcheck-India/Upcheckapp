@@ -5,9 +5,9 @@ import { PushController } from './push.controller';
 import { User } from '../auth/user.entity';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([User])],
-    controllers: [PushController],
-    providers: [PushService],
-    exports: [PushService],
+  imports: [TypeOrmModule.forFeature([User])],
+  controllers: [PushController],
+  providers: [PushService],
+  exports: [PushService],
 })
-export class PushModule { }
+export class PushModule {}

@@ -11,12 +11,15 @@ describe('InventoryController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [InventoryController],
       providers: [
-        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('http://dummy.com') } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
+        },
         { provide: InventoryService, useValue: {} },
         { provide: DataSource, useValue: {} },
         { provide: 'EmailService', useValue: {} },
         { provide: 'PondsService', useValue: {} },
-        { provide: 'InventoryService', useValue: {} }
+        { provide: 'InventoryService', useValue: {} },
       ],
     }).compile();
 

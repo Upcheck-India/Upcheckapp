@@ -21,9 +21,7 @@ import {
  * neither.
  */
 @ValidatorConstraint({ name: 'truecallerExactlyOneCredential', async: false })
-export class TruecallerExactlyOneCredentialConstraint
-  implements ValidatorConstraintInterface
-{
+export class TruecallerExactlyOneCredentialConstraint implements ValidatorConstraintInterface {
   validate(_value: unknown, args: ValidationArguments): boolean {
     const dto = args.object as TruecallerAuthDto;
     const hasAccessToken =

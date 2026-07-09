@@ -43,7 +43,9 @@ describe('CropsService', () => {
     status: 'completed',
   };
 
-  type MockRepository = Partial<Record<keyof Repository<any>, jest.Mock>> & { [K in keyof Repository<any>]?: jest.Mock };
+  type MockRepository = Partial<Record<keyof Repository<any>, jest.Mock>> & {
+    [K in keyof Repository<any>]?: jest.Mock;
+  };
 
   const createMockRepository = (): MockRepository => ({
     create: jest.fn(),
@@ -93,7 +95,10 @@ describe('CropsService', () => {
 
       const result = await service.create(mockCreateCropDto, userId);
 
-      expect(pondsService.findOne).toHaveBeenCalledWith(mockCreateCropDto.pondId, userId);
+      expect(pondsService.findOne).toHaveBeenCalledWith(
+        mockCreateCropDto.pondId,
+        userId,
+      );
       expect(repository.create).toHaveBeenCalled();
       expect(repository.save).toHaveBeenCalledWith(mockCrop);
       expect(result).toEqual(mockCrop);
@@ -131,7 +136,10 @@ describe('CropsService', () => {
       const result = await service.findOne(cropId, userId);
 
       expect(repository.findOneBy).toHaveBeenCalledWith({ id: cropId });
-      expect(pondsService.findOne).toHaveBeenCalledWith(mockCrop.pondId, userId);
+      expect(pondsService.findOne).toHaveBeenCalledWith(
+        mockCrop.pondId,
+        userId,
+      );
       // findOne enriches the entity with a derived `computedDOC` field, so assert
       // the original fields are present rather than strict equality.
       expect(result).toEqual(expect.objectContaining(mockCrop));
@@ -143,7 +151,9 @@ describe('CropsService', () => {
 
       (repository.findOneBy as jest.Mock).mockResolvedValue(null);
 
-      await expect(service.findOne(cropId, userId)).rejects.toThrow(NotFoundException);
+      await expect(service.findOne(cropId, userId)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -151,7 +161,9 @@ describe('CropsService', () => {
     it('should update a crop', async () => {
       const cropId = 'crop-1';
       const userId = 'user-1';
-      const updatedCrop = Object.assign(new Crop(), mockCrop, { status: 'completed' });
+      const updatedCrop = Object.assign(new Crop(), mockCrop, {
+        status: 'completed',
+      });
 
       jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
       (repository.update as jest.Mock).mockResolvedValue(undefined);
@@ -187,24 +199,27 @@ describe('CropsService', () => {
       const cropId = 'crop-1';
       const userId = 'user-1';
       const harvestData = {
-        actualHarvestDate: new Date('2024-06-01'),
+        actualHarvestDate: '2024-06-01',
         harvestWeightKg: 2500,
       };
 
       jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
       pondsService.findOne.mockResolvedValue(mockPond as any);
       (repository.update as jest.Mock).mockResolvedValue(undefined);
-      jest.spyOn(service, 'findOne').mockResolvedValue(Object.assign(new Crop(), mockCrop, {
-        status: 'harvested',
-        actualHarvestDate: harvestData.actualHarvestDate,
-        harvestWeightKg: harvestData.harvestWeightKg,
-      }));
+      jest.spyOn(service, 'findOne').mockResolvedValue(
+        Object.assign(new Crop(), mockCrop, {
+          status: 'harvested',
+          actualHarvestDate: harvestData.actualHarvestDate,
+          harvestWeightKg: harvestData.harvestWeightKg,
+        }),
+      );
 
       const result = await service.harvest(cropId, harvestData, userId);
 
       expect(service.findOne).toHaveBeenCalledWith(cropId, userId);
       expect(repository.update).toHaveBeenCalledWith(cropId, {
-        ...harvestData,
+        actualHarvestDate: new Date(harvestData.actualHarvestDate),
+        harvestWeightKg: harvestData.harvestWeightKg,
         status: 'harvested',
       });
       expect(result.status).toBe('harvested');

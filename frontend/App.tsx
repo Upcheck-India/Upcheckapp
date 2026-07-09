@@ -14,6 +14,7 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ToastHost } from './src/components/ui/ToastHost';
 import { registerForPushNotificationsAsync, scheduleDailyWaterQualityReminders, scheduleWeeklyChemistryReminder } from './src/utils/notifications';
 import { useAuthStore } from './src/store/authStore';
+import { useBannedSubstancesStore } from './src/features/bannedSubstancesStore';
 import { pushApi } from './src/api/push';
 import {
   useFonts,
@@ -50,6 +51,12 @@ export default function App() {
       });
     }
   }, [isAuthenticated, expoPushToken]);
+
+  // Refresh the authoritative banned-substance list from the backend on launch
+  // (BANNED-1). Best-effort: falls back to the cached/bundled list when offline.
+  useEffect(() => {
+    useBannedSubstancesStore.getState().hydrate();
+  }, []);
 
   // Global unhandled promise rejection handler — prevents crash on Android production
   useEffect(() => {

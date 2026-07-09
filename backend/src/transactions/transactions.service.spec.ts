@@ -10,7 +10,11 @@ const USER_ID = 'user-1';
 // Mock repository factory
 const createMockRepository = () => ({
   create: jest.fn().mockImplementation((dto) => dto),
-  save: jest.fn().mockImplementation((entity) => Promise.resolve({ ...entity, id: 'test-id' })),
+  save: jest
+    .fn()
+    .mockImplementation((entity) =>
+      Promise.resolve({ ...entity, id: 'test-id' }),
+    ),
   find: jest.fn().mockResolvedValue([]),
   findOneBy: jest.fn().mockResolvedValue(null),
   update: jest.fn().mockResolvedValue({ affected: 1 }),
@@ -36,20 +40,27 @@ describe('TransactionsService', () => {
   beforeEach(async () => {
     mockFarmAccess = {
       // Resolves => caller may view this farm's financials. Tests override to deny.
-      assertCanAccessFarm: jest.fn().mockResolvedValue({ id: 'farm-1', userId: USER_ID }),
+      assertCanAccessFarm: jest
+        .fn()
+        .mockResolvedValue({ id: 'farm-1', userId: USER_ID }),
       getFarmIdsWithCapability: jest.fn().mockResolvedValue(['farm-1']),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TransactionsService,
-        { provide: getRepositoryToken(Transaction), useValue: createMockRepository() },
+        {
+          provide: getRepositoryToken(Transaction),
+          useValue: createMockRepository(),
+        },
         { provide: FarmAccessService, useValue: mockFarmAccess },
       ],
     }).compile();
 
     service = module.get<TransactionsService>(TransactionsService);
-    mockRepository = module.get<Repository<Transaction>>(getRepositoryToken(Transaction));
+    mockRepository = module.get<Repository<Transaction>>(
+      getRepositoryToken(Transaction),
+    );
   });
 
   it('should be defined', () => {
@@ -69,7 +80,11 @@ describe('TransactionsService', () => {
 
       const result = await service.create(createDto as any, USER_ID);
 
-      expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(USER_ID, 'farm-1', 'VIEW_FINANCIALS');
+      expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(
+        USER_ID,
+        'farm-1',
+        'VIEW_FINANCIALS',
+      );
       expect(mockRepository.create).toHaveBeenCalledWith(createDto);
       expect(mockRepository.save).toHaveBeenCalled();
       expect(result).toEqual(expect.objectContaining(createDto));
@@ -83,7 +98,10 @@ describe('TransactionsService', () => {
 
       const result = await service.findAll(USER_ID);
 
-      expect(mockFarmAccess.getFarmIdsWithCapability).toHaveBeenCalledWith(USER_ID, 'VIEW_FINANCIALS');
+      expect(mockFarmAccess.getFarmIdsWithCapability).toHaveBeenCalledWith(
+        USER_ID,
+        'VIEW_FINANCIALS',
+      );
       expect(mockRepository.find).toHaveBeenCalled();
       expect(result).toEqual(mockTransactions);
     });
@@ -92,7 +110,11 @@ describe('TransactionsService', () => {
       const farmId = 'farm-1';
       await service.findAll(USER_ID, farmId);
 
-      expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(USER_ID, farmId, 'VIEW_FINANCIALS');
+      expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(
+        USER_ID,
+        farmId,
+        'VIEW_FINANCIALS',
+      );
       expect(mockRepository.find).toHaveBeenCalledWith({
         where: { farmId },
         order: { transactionDate: 'DESC' },
@@ -103,23 +125,45 @@ describe('TransactionsService', () => {
   describe('findOne', () => {
     it('returns a transaction after a VIEW_FINANCIALS check', async () => {
       const transactionId = 'trans-1';
-      const mockTransaction = { id: transactionId, amount: 100, farmId: 'farm-1' };
+      const mockTransaction = {
+        id: transactionId,
+        amount: 100,
+        farmId: 'farm-1',
+      };
       mockRepository.findOneBy.mockResolvedValue(mockTransaction);
 
       const result = await service.findOne(transactionId, USER_ID);
 
-      expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: transactionId });
-      expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(USER_ID, 'farm-1', 'VIEW_FINANCIALS');
+      expect(mockRepository.findOneBy).toHaveBeenCalledWith({
+        id: transactionId,
+      });
+      expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(
+        USER_ID,
+        'farm-1',
+        'VIEW_FINANCIALS',
+      );
       expect(result).toEqual(mockTransaction);
     });
 
     it('blocks IDOR: a caller without farm financial access is rejected', async () => {
       // Attacker references another farm's transaction id directly.
-      mockRepository.findOneBy.mockResolvedValue({ id: 'victim-tx', amount: 999, farmId: 'other-farm' });
-      mockFarmAccess.assertCanAccessFarm.mockRejectedValue(new Error('Forbidden'));
+      mockRepository.findOneBy.mockResolvedValue({
+        id: 'victim-tx',
+        amount: 999,
+        farmId: 'other-farm',
+      });
+      mockFarmAccess.assertCanAccessFarm.mockRejectedValue(
+        new Error('Forbidden'),
+      );
 
-      await expect(service.findOne('victim-tx', 'attacker-user')).rejects.toBeDefined();
-      expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith('attacker-user', 'other-farm', 'VIEW_FINANCIALS');
+      await expect(
+        service.findOne('victim-tx', 'attacker-user'),
+      ).rejects.toBeDefined();
+      expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(
+        'attacker-user',
+        'other-farm',
+        'VIEW_FINANCIALS',
+      );
     });
   });
 
@@ -127,13 +171,24 @@ describe('TransactionsService', () => {
     it('updates a transaction the caller may manage', async () => {
       const transactionId = 'trans-1';
       const updateDto = { amount: 200 };
-      const updatedTransaction = { id: transactionId, amount: 200, farmId: 'farm-1' };
+      const updatedTransaction = {
+        id: transactionId,
+        amount: 200,
+        farmId: 'farm-1',
+      };
 
       mockRepository.findOneBy.mockResolvedValue(updatedTransaction);
 
-      const result = await service.update(transactionId, updateDto as any, USER_ID);
+      const result = await service.update(
+        transactionId,
+        updateDto as any,
+        USER_ID,
+      );
 
-      expect(mockRepository.update).toHaveBeenCalledWith(transactionId, updateDto);
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        transactionId,
+        updateDto,
+      );
       expect(result).toEqual(updatedTransaction);
     });
   });
@@ -141,7 +196,10 @@ describe('TransactionsService', () => {
   describe('remove', () => {
     it('removes a transaction the caller may manage', async () => {
       const transactionId = 'trans-1';
-      mockRepository.findOneBy.mockResolvedValue({ id: transactionId, farmId: 'farm-1' });
+      mockRepository.findOneBy.mockResolvedValue({
+        id: transactionId,
+        farmId: 'farm-1',
+      });
 
       const result = await service.remove(transactionId, USER_ID);
 
@@ -172,7 +230,11 @@ describe('TransactionsService', () => {
 
       const result = await service.getSummaryByFarm(farmId, USER_ID);
 
-      expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(USER_ID, farmId, 'VIEW_FINANCIALS');
+      expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(
+        USER_ID,
+        farmId,
+        'VIEW_FINANCIALS',
+      );
       expect(result).toEqual({
         totalIncome: 1500,
         totalExpense: 800,

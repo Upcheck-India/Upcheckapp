@@ -12,6 +12,7 @@ import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
 import { TruecallerLoginButton } from '../../components/ui/TruecallerLoginButton';
 import { LanguagePill } from '../../components/ui/LanguagePill';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
+import { passwordPolicyError } from '../../features/passwordPolicy';
 
 export const RegisterScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -34,7 +35,12 @@ export const RegisterScreen = ({ navigation }: any) => {
         if (!email.trim()) e.email = t('auth.emailRequired');
         else if (!/\S+@\S+\.\S+/.test(email)) e.email = t('auth.emailInvalid');
         if (!password) e.password = t('auth.passwordRequired');
-        else if (password.length < 8) e.password = t('auth.passwordTooShortRegister');
+        else {
+            // Mirror the server rule exactly so an accepted password is never
+            // rejected server-side with a raw untranslated message (PWDVAL-1).
+            const rule = passwordPolicyError(password);
+            if (rule) e.password = t(rule.key, rule.fallback);
+        }
         if (password !== confirmPassword) e.confirmPassword = t('auth.passwordsDoNotMatch');
         setErrors(e);
         return Object.keys(e).length === 0;

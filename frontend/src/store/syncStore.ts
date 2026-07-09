@@ -9,6 +9,11 @@ const uuidv4 = (): string =>
 
 export type SyncStatus = 'online' | 'offline' | 'syncing';
 
+// A transiently-failing op is retried at most this many times before it is
+// parked in failedOperations (terminal, surfaced to the user). Without a cap a
+// poison op ping-pongs between queues forever (SYNC-3).
+export const MAX_SYNC_RETRIES = 5;
+
 export type QueuedOperation = {
     id: string;
     type: 'CREATE' | 'UPDATE' | 'DELETE';
@@ -17,12 +22,25 @@ export type QueuedOperation = {
     method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     payload: Record<string, unknown>;
     localId?: string;
+    // Owning user at enqueue time. Queued ops must only replay under the same
+    // account (SYNC-4) — on a shared device, user A's records must never sync
+    // under user B's token (mis-attribution) or get dropped as 403.
+    userId?: string;
     retryCount: number;
     createdAt: string;
 };
 
-/** Handler signature for drainQueue — receives each op, returns true on success. */
-export type DrainHandler = (op: QueuedOperation) => Promise<boolean>;
+/**
+ * Handler outcome for one queued op:
+ *  - 'done'   → succeeded (or an idempotent duplicate the server already has) → remove.
+ *  - 'retry'  → transient failure (network, 5xx, or auth to be refreshed) → keep and retry;
+ *               after MAX_SYNC_RETRIES it is parked as terminal-failed.
+ *  - 'failed' → permanent rejection (e.g. 400/422) → park immediately, never silently drop.
+ */
+export type DrainOutcome = 'done' | 'retry' | 'failed';
+
+/** Handler signature for drainQueue — receives each op, returns its outcome. */
+export type DrainHandler = (op: QueuedOperation) => Promise<DrainOutcome>;
 
 interface SyncState {
     status: SyncStatus;
@@ -38,15 +56,18 @@ interface SyncState {
     enqueue: (operation: Omit<QueuedOperation, 'id' | 'retryCount' | 'createdAt'>) => void;
     dequeue: (id: string) => void;
     markFailed: (id: string) => void;
+    incrementRetry: (id: string) => void;
     retryFailed: () => void;
     clearQueue: () => void;
     setLastSyncedAt: (time: string) => void;
     /**
-     * Process every queued operation through `handler` in order.
-     * Successfully handled ops are removed; failed ops are moved to failedOperations.
+     * Process queued operations through `handler` in order. 'done' ops are
+     * removed; 'retry' ops stay (parked as failed once they exceed
+     * MAX_SYNC_RETRIES); 'failed' ops are parked immediately. When `currentUserId`
+     * is given, only ops owned by that user (or legacy ops with no owner) replay.
      * No-ops when offline or already syncing.
      */
-    drainQueue: (handler: DrainHandler) => Promise<void>;
+    drainQueue: (handler: DrainHandler, currentUserId?: string) => Promise<void>;
 }
 
 export const useSyncStore = create<SyncState>()(
@@ -91,9 +112,19 @@ export const useSyncStore = create<SyncState>()(
                 }));
             },
 
+            incrementRetry: (id) =>
+                set((state) => ({
+                    queue: state.queue.map((o) =>
+                        o.id === id ? { ...o, retryCount: o.retryCount + 1 } : o,
+                    ),
+                })),
+
+            // User-initiated "retry all" — move parked ops back into the queue with
+            // a fresh retry budget. Not called automatically (that was the SYNC-3
+            // infinite loop); the drain retries in-queue ops on its own.
             retryFailed: () =>
                 set((state) => ({
-                    queue: [...state.queue, ...state.failedOperations],
+                    queue: [...state.queue, ...state.failedOperations.map((o) => ({ ...o, retryCount: 0 }))],
                     failedOperations: [],
                 })),
 
@@ -101,25 +132,39 @@ export const useSyncStore = create<SyncState>()(
 
             setLastSyncedAt: (time) => set({ lastSyncedAt: time }),
 
-            drainQueue: async (handler) => {
+            drainQueue: async (handler, currentUserId) => {
                 const state = get();
                 if (!state.isConnected || state.status === 'syncing') return;
                 if (state.queue.length === 0) return;
 
                 set({ status: 'syncing' });
                 // Snapshot the queue so concurrent enqueues during drain are safe.
-                const opsToProcess = [...get().queue];
+                // Only replay ops owned by the active user (SYNC-4); legacy ops with
+                // no recorded owner are treated as the current user's.
+                const opsToProcess = get().queue.filter(
+                    (op) => !currentUserId || !op.userId || op.userId === currentUserId,
+                );
 
                 for (const op of opsToProcess) {
+                    let outcome: DrainOutcome;
                     try {
-                        const ok = await handler(op);
-                        if (ok) {
-                            get().dequeue(op.id);
-                        } else {
-                            get().markFailed(op.id);
-                        }
+                        outcome = await handler(op);
                     } catch {
-                        get().markFailed(op.id);
+                        outcome = 'retry'; // unexpected throw is transient, never a silent drop
+                    }
+
+                    if (outcome === 'done') {
+                        get().dequeue(op.id);
+                    } else if (outcome === 'failed') {
+                        get().markFailed(op.id); // permanent → park as visible, never drop
+                    } else {
+                        // Transient: keep retrying until the cap, then park it.
+                        const cur = get().queue.find((o) => o.id === op.id);
+                        if (cur && cur.retryCount + 1 >= MAX_SYNC_RETRIES) {
+                            get().markFailed(op.id);
+                        } else {
+                            get().incrementRetry(op.id);
+                        }
                     }
                 }
 

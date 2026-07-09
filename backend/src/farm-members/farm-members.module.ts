@@ -12,9 +12,9 @@ import { FarmMembersService } from './farm-members.service';
  * global FarmAccessService (owner-only for add/remove). Auth itself is untouched.
  */
 @Module({
-    imports: [TypeOrmModule.forFeature([FarmMember, User, Farm])],
-    controllers: [FarmMembersController],
-    providers: [FarmMembersService],
-    exports: [FarmMembersService],
+  imports: [TypeOrmModule.forFeature([FarmMember, User, Farm])],
+  controllers: [FarmMembersController],
+  providers: [FarmMembersService],
+  exports: [FarmMembersService],
 })
 export class FarmMembersModule {}
