@@ -24,6 +24,11 @@ jobs:
       # postinstall runs `nest build` (tsc), so install already typechecks.
       - run: npm ci
       - run: npm test
+      # Non-blocking: surfaces lint debt (no-unsafe-any family, etc.) without
+      # gating deploys. Tighten to a hard gate once the backlog is burned down.
+      - name: Lint (non-blocking)
+        run: npm run lint:check
+        continue-on-error: true
 
   frontend:
     name: Frontend (typecheck + test)

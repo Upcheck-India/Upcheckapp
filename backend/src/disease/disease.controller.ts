@@ -80,7 +80,12 @@ export class DiseaseController {
 
   @Patch('record/:id')
   @UseGuards(OwnershipGuard)
-  @OwnsResource('DiseaseRecord', 'id', 'crop.pond.farm.userId', 'WRITE_MANAGEMENT')
+  @OwnsResource(
+    'DiseaseRecord',
+    'id',
+    'crop.pond.farm.userId',
+    'WRITE_MANAGEMENT',
+  )
   updateRecord(
     @Param('id') id: string,
     @Body() dto: Partial<CreateDiseaseRecordDto>,
@@ -91,7 +96,12 @@ export class DiseaseController {
 
   @Delete('record/:id')
   @UseGuards(OwnershipGuard)
-  @OwnsResource('DiseaseRecord', 'id', 'crop.pond.farm.userId', 'WRITE_MANAGEMENT')
+  @OwnsResource(
+    'DiseaseRecord',
+    'id',
+    'crop.pond.farm.userId',
+    'WRITE_MANAGEMENT',
+  )
   removeRecord(@Param('id') id: string) {
     return this.diseaseService.removeRecord(id);
   }

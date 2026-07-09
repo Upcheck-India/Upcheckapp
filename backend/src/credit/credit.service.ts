@@ -49,10 +49,7 @@ export class CreditService {
   }
 
   // ── Ledger persistence ──────────────────────────────────────────────────
-  async create(
-    data: CreateCreditDto,
-    userId: string,
-  ): Promise<CreditLedger> {
+  async create(data: CreateCreditDto, userId: string): Promise<CreditLedger> {
     const entity = this.repo.create({
       ...data,
       userId,

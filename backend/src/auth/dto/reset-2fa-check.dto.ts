@@ -10,11 +10,11 @@ import { IsNotEmpty, IsString } from 'class-validator';
  * temp token instead of letting the recovery session enter the app unchecked.
  */
 export class Reset2faCheckDto {
-    @IsString()
-    @IsNotEmpty()
-    accessToken: string;
+  @IsString()
+  @IsNotEmpty()
+  accessToken: string;
 
-    @IsString()
-    @IsNotEmpty()
-    refreshToken: string;
+  @IsString()
+  @IsNotEmpty()
+  refreshToken: string;
 }

@@ -11,77 +11,88 @@ import { SupabaseAuthController } from './supabase-auth.controller';
  * straight through.
  */
 describe('SupabaseAuthController — reset-2fa-check (AUTH-2)', () => {
-    let controller: SupabaseAuthController;
-    let redisStore: Record<string, string>;
+  let controller: SupabaseAuthController;
+  let redisStore: Record<string, string>;
 
-    const supabaseAuthService = { verifyAccessToken: jest.fn() };
-    const twoFactorService = { isEnabled: jest.fn(), verifyCodeOrBackup: jest.fn() };
-    const redisService = {
-        get: jest.fn(async (k: string) => redisStore[k] ?? null),
-        set: jest.fn(async (k: string, v: string) => {
-            redisStore[k] = v;
-        }),
-        del: jest.fn(async (k: string) => {
-            delete redisStore[k];
-        }),
-    };
+  const supabaseAuthService = { verifyAccessToken: jest.fn() };
+  const twoFactorService = {
+    isEnabled: jest.fn(),
+    verifyCodeOrBackup: jest.fn(),
+  };
+  const redisService = {
+    get: jest.fn(async (k: string) => redisStore[k] ?? null),
+    set: jest.fn(async (k: string, v: string) => {
+      redisStore[k] = v;
+    }),
+    del: jest.fn(async (k: string) => {
+      delete redisStore[k];
+    }),
+  };
 
-    const recoveryUser = { id: 'user-1', email: 'farmer@example.com' };
-    const body = { accessToken: 'recovery-access', refreshToken: 'recovery-refresh' };
+  const recoveryUser = { id: 'user-1', email: 'farmer@example.com' };
+  const body = {
+    accessToken: 'recovery-access',
+    refreshToken: 'recovery-refresh',
+  };
 
-    beforeEach(() => {
-        jest.clearAllMocks();
-        redisStore = {};
-        controller = new SupabaseAuthController(
-            supabaseAuthService as any,
-            {} as any,
-            twoFactorService as any,
-            redisService as any,
-        );
-        supabaseAuthService.verifyAccessToken.mockResolvedValue(recoveryUser);
+  beforeEach(() => {
+    jest.clearAllMocks();
+    redisStore = {};
+    controller = new SupabaseAuthController(
+      supabaseAuthService as any,
+      {} as any,
+      twoFactorService as any,
+      redisService as any,
+    );
+    supabaseAuthService.verifyAccessToken.mockResolvedValue(recoveryUser);
+  });
+
+  it('DENIES a 2FA account: withholds the session behind a temp token', async () => {
+    twoFactorService.isEnabled.mockResolvedValue(true);
+
+    const res = await controller.reset2faCheck(body);
+
+    expect(res).toEqual({ requires2FA: true, tempToken: expect.any(String) });
+    // The recovery session was stashed, NOT returned to the client.
+    const stashed = JSON.parse(
+      redisStore[`auth:2fa:temp:${(res as any).tempToken}`],
+    );
+    expect(stashed.userId).toBe('user-1');
+    expect(stashed.session.access_token).toBe('recovery-access');
+    expect(stashed.session.refresh_token).toBe('recovery-refresh');
+  });
+
+  it('a valid code at 2fa/login releases the withheld recovery session', async () => {
+    twoFactorService.isEnabled.mockResolvedValue(true);
+    const { tempToken } = (await controller.reset2faCheck(body)) as any;
+
+    twoFactorService.verifyCodeOrBackup.mockResolvedValue(true);
+    const login = await controller.twoFactorLogin({
+      tempToken,
+      token: '123456',
     });
 
-    it('DENIES a 2FA account: withholds the session behind a temp token', async () => {
-        twoFactorService.isEnabled.mockResolvedValue(true);
+    expect(login.session.access_token).toBe('recovery-access');
+    // Challenge consumed.
+    expect(redisStore[`auth:2fa:temp:${tempToken}`]).toBeUndefined();
+  });
 
-        const res = await controller.reset2faCheck(body);
+  it('a wrong code at 2fa/login is rejected', async () => {
+    twoFactorService.isEnabled.mockResolvedValue(true);
+    const { tempToken } = (await controller.reset2faCheck(body)) as any;
 
-        expect(res).toEqual({ requires2FA: true, tempToken: expect.any(String) });
-        // The recovery session was stashed, NOT returned to the client.
-        const stashed = JSON.parse(redisStore[`auth:2fa:temp:${(res as any).tempToken}`]);
-        expect(stashed.userId).toBe('user-1');
-        expect(stashed.session.access_token).toBe('recovery-access');
-        expect(stashed.session.refresh_token).toBe('recovery-refresh');
-    });
+    twoFactorService.verifyCodeOrBackup.mockResolvedValue(false);
+    await expect(
+      controller.twoFactorLogin({ tempToken, token: '000000' }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
 
-    it('a valid code at 2fa/login releases the withheld recovery session', async () => {
-        twoFactorService.isEnabled.mockResolvedValue(true);
-        const { tempToken } = (await controller.reset2faCheck(body)) as any;
+  it('ALLOWS a non-2FA account through with no challenge', async () => {
+    twoFactorService.isEnabled.mockResolvedValue(false);
 
-        twoFactorService.verifyCodeOrBackup.mockResolvedValue(true);
-        const login = await controller.twoFactorLogin({ tempToken, token: '123456' });
+    const res = await controller.reset2faCheck(body);
 
-        expect(login.session.access_token).toBe('recovery-access');
-        // Challenge consumed.
-        expect(redisStore[`auth:2fa:temp:${tempToken}`]).toBeUndefined();
-    });
-
-    it('a wrong code at 2fa/login is rejected', async () => {
-        twoFactorService.isEnabled.mockResolvedValue(true);
-        const { tempToken } = (await controller.reset2faCheck(body)) as any;
-
-        twoFactorService.verifyCodeOrBackup.mockResolvedValue(false);
-        await expect(
-            controller.twoFactorLogin({ tempToken, token: '000000' }),
-        ).rejects.toBeInstanceOf(UnauthorizedException);
-    });
-
-    it('ALLOWS a non-2FA account through with no challenge', async () => {
-        twoFactorService.isEnabled.mockResolvedValue(false);
-
-        const res = await controller.reset2faCheck(body);
-
-        expect(res).toEqual({ requires2FA: false });
-        expect(redisService.set).not.toHaveBeenCalled();
-    });
+    expect(res).toEqual({ requires2FA: false });
+    expect(redisService.set).not.toHaveBeenCalled();
+  });
 });

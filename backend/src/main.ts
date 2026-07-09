@@ -83,7 +83,9 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
   console.log(`Backend listening on 0.0.0.0:${port}`);
   console.log(`CORS origin: ${corsOrigin}`);
-  console.log(`Sentry error tracking: ${sentryOn ? 'on' : 'off (no SENTRY_DSN)'}`);
+  console.log(
+    `Sentry error tracking: ${sentryOn ? 'on' : 'off (no SENTRY_DSN)'}`,
+  );
 }
 bootstrap().catch((err) => {
   console.error('Bootstrap failed:', err);

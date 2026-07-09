@@ -14,7 +14,10 @@ const makeController = (opts: { dbOk: boolean; redisMemory: boolean }) => {
 
 describe('HealthController.check', () => {
   it('returns ok with redis up when everything is healthy', async () => {
-    const res = await makeController({ dbOk: true, redisMemory: false }).check();
+    const res = await makeController({
+      dbOk: true,
+      redisMemory: false,
+    }).check();
     expect(res.status).toBe('ok');
     expect(res.checks.database.status).toBe('up');
     expect(res.checks.redis.status).toBe('up');
