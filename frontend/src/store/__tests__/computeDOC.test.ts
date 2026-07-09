@@ -15,9 +15,9 @@ describe('activeFarmStore.computeDOC', () => {
         const today = isoLocal(now);
         const tenDaysAgo = isoLocal(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 10));
 
-        expect(computeDOC(today, 0)).toBe(0); // stocked today → DOC 0, not -1/+1
-        expect(computeDOC(today, 3)).toBe(3); // initial age added
-        expect(computeDOC(tenDaysAgo, 0)).toBe(10);
+        expect(computeDOC(today, 0)).toBe(1); // 1-based: stocked today → DOC 1
+        expect(computeDOC(today, 3)).toBe(4); // initial age added
+        expect(computeDOC(tenDaysAgo, 0)).toBe(11);
     });
 
     it('does not drift as the clock moves through the day', () => {
@@ -26,8 +26,9 @@ describe('activeFarmStore.computeDOC', () => {
         const early = computeDOC(stock, 0);
         jest.setSystemTime(new Date(2026, 6, 9, 23, 55, 0)); // 23:55 local
         const late = computeDOC(stock, 0);
-        // UTC-parse + floor would report 7 early and 8 late in IST — the off-by-one.
-        expect(early).toBe(8);
-        expect(late).toBe(8);
+        // 1-based, local calendar: 01→09 Jul is 8 elapsed days → DOC 9, stable
+        // across the day (UTC-parse+floor would drift 8→9).
+        expect(early).toBe(9);
+        expect(late).toBe(9);
     });
 });

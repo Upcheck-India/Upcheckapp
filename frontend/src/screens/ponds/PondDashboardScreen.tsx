@@ -23,6 +23,7 @@ import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { pondsApi, Pond } from '../../api/ponds';
 import { cropsApi, Crop } from '../../api/crops';
+import { computeDOC } from '../../store/activeFarmStore';
 import { samplingApi } from '../../api/sampling';
 import { feedApi } from '../../api/feedRecords';
 import { harvestsApi } from '../../api/harvests';
@@ -305,11 +306,6 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         fetchData(true);
     }, [fetchData]);
 
-    const calculateDOC = (stockingDateStr: string): number => {
-        const diff = Math.floor((Date.now() - new Date(stockingDateStr).getTime()) / 86_400_000);
-        return diff >= 0 ? diff : 0;
-    };
-
     const navigateAction = (item: ActionConfig) => {
         const route = activeTab === 'log' ? item.logRoute : item.historyRoute;
         const params: Record<string, any> = { pondId, pondName };
@@ -318,7 +314,9 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         navigation.navigate(route, params);
     };
 
-    const doc = activeCycle?.stockingDate ? calculateDOC(activeCycle.stockingDate) : (activeCycle?.doc ?? 0);
+    const doc = activeCycle?.stockingDate
+        ? computeDOC(activeCycle.stockingDate, activeCycle.initialAgeDays ?? 0)
+        : (activeCycle?.doc ?? 0);
     const pondStatusColor = pond?.status === 'active' ? '#4CAF50' : pond?.status === 'fallow' ? '#FF9800' : '#9E9E9E';
 
     const renderSkeleton = () => (

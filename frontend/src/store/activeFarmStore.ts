@@ -53,7 +53,10 @@ export const computeDOC = (stockingDate: string, initialAgeDays: number): number
     const daysSinceStocking = Math.round(
         (today.getTime() - stocking.getTime()) / (1000 * 60 * 60 * 24)
     );
-    return daysSinceStocking + initialAgeDays;
+    // 1-based: the stocking day itself is DOC 1, matching the backend
+    // computeDoc (crop.entity.ts) so every screen — local or backend-derived
+    // (measurement history, engine prefill) — agrees on the same day number.
+    return daysSinceStocking + 1 + initialAgeDays;
 };
 
 export const useActiveFarmStore = create<ActiveFarmState>()((set, get) => ({

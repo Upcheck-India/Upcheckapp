@@ -80,10 +80,14 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
     }
 
     const calculateDOC = (stockingDateStr: string) => {
-        const start = new Date(stockingDateStr).getTime();
-        const end = cycle.actualHarvestDate ? new Date(cycle.actualHarvestDate).getTime() : new Date().getTime();
-        const diff = Math.floor((end - start) / (1000 * 60 * 60 * 24));
-        return diff >= 0 ? diff : 0;
+        // Local-calendar day, 1-based, freezes at harvest — matches the backend
+        // computeDoc convention so DOC agrees across every screen.
+        const [y, m, d] = stockingDateStr.split('T')[0].split('-').map(Number);
+        const start = new Date(y, (m ?? 1) - 1, d ?? 1).getTime();
+        const endSrc = cycle.actualHarvestDate ? new Date(cycle.actualHarvestDate) : new Date();
+        const end = new Date(endSrc.getFullYear(), endSrc.getMonth(), endSrc.getDate()).getTime();
+        const diff = Math.round((end - start) / 86_400_000);
+        return diff >= 0 ? diff + 1 + (cycle.initialAgeDays ?? 0) : 0;
     };
 
     return (
