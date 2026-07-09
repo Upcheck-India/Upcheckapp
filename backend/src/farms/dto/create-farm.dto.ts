@@ -9,14 +9,23 @@ import {
   IsLongitude,
   IsIn,
   IsArray,
+  IsNotEmpty,
+  MaxLength,
+  ArrayMaxSize,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { BoundaryPointDto } from '../../common/dto/boundary-point.dto';
 
 export class CreateFarmDto {
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
   name: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   farmCode?: string;
 
   @IsOptional()
@@ -25,6 +34,7 @@ export class CreateFarmDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   address?: string;
 
   @IsOptional()
@@ -48,13 +58,18 @@ export class CreateFarmDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   privacySetting?: string;
 
   @IsOptional()
   @IsArray()
-  boundary?: { latitude: number; longitude: number }[];
+  @ArrayMaxSize(1000)
+  @ValidateNested({ each: true })
+  @Type(() => BoundaryPointDto)
+  boundary?: BoundaryPointDto[];
 
   @IsString()
   @IsOptional()
+  @MaxLength(2048)
   qrCodeUrl?: string;
 }

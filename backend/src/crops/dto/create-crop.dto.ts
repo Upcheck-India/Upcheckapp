@@ -6,7 +6,10 @@ import {
   IsUUID,
   IsInt,
   IsIn,
+  IsNotEmpty,
+  MaxLength,
   Min,
+  Max,
 } from 'class-validator';
 
 export class CreateCropDto {
@@ -14,18 +17,23 @@ export class CreateCropDto {
   pondId: string;
 
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
   name: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(100)
   cropCode?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(100)
   speciesType?: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(100)
   seedType?: string;
 
   @IsNumber()
@@ -48,6 +56,7 @@ export class CreateCropDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(50)
   status?: string;
 
   // ── Stocking detail + cycle targets (consumed by the decision engines /
@@ -80,6 +89,7 @@ export class CreateCropDto {
   @IsNumber()
   @IsOptional()
   @Min(0)
+  @Max(100)
   targetSrPercent?: number;
 
   @IsString()

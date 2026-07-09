@@ -5,6 +5,8 @@ import {
   IsNumber,
   IsDateString,
   IsArray,
+  ArrayMaxSize,
+  MaxLength,
   Min,
   Max,
 } from 'class-validator';
@@ -55,9 +57,13 @@ export class CreateSamplingDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(2000)
   notes?: string;
 
   @IsArray()
   @IsOptional()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(2048, { each: true })
   photoUrls?: string[];
 }

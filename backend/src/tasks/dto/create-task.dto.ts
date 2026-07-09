@@ -5,6 +5,8 @@ import {
   IsDateString,
   IsIn,
   IsInt,
+  IsNotEmpty,
+  MaxLength,
   Min,
   Max,
   Matches,
@@ -27,10 +29,13 @@ export class CreateTaskDto {
   farmId: string;
 
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
   title: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(2000)
   description?: string;
 
   @IsIn(TASK_TYPES as unknown as string[])

@@ -2,8 +2,11 @@ import {
   IsUUID,
   IsString,
   IsOptional,
-  IsNumber,
+  IsInt,
+  IsIn,
   IsDateString,
+  MaxLength,
+  Min,
 } from 'class-validator';
 
 export class CreateFeedingTrayCheckDto {
@@ -23,11 +26,13 @@ export class CreateFeedingTrayCheckDto {
   checkDate: string;
 
   @IsString()
+  @MaxLength(20)
   checkTime: string;
 
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   trayNumber: number;
 
-  @IsString()
-  remainingFeedStatus: string; // 'empty' | 'few_left' | 'a_lot_left'
+  @IsIn(['empty', 'few_left', 'a_lot_left'])
+  remainingFeedStatus: string;
 }

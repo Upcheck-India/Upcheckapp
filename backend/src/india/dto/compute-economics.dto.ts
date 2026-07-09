@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsString,
   IsArray,
+  ArrayMaxSize,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -31,6 +32,7 @@ export class ComputeEconomicsDto {
 
   /** Explicit price bands; if omitted, `region` is used to fetch the latest. */
   @IsArray()
+  @ArrayMaxSize(200)
   @ValidateNested({ each: true })
   @Type(() => CountPriceBandDto)
   @IsOptional()

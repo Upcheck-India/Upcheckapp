@@ -10,10 +10,14 @@ import {
   MaxLength,
   MinLength,
   ValidateIf,
+  ValidateNested,
   IsLatitude,
   IsLongitude,
   IsArray,
+  ArrayMaxSize,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { BoundaryPointDto } from '../../common/dto/boundary-point.dto';
 
 export class CreatePondDto {
   @IsUUID()
@@ -109,5 +113,8 @@ export class CreatePondDto {
 
   @IsOptional()
   @IsArray()
-  boundary?: { latitude: number; longitude: number }[];
+  @ArrayMaxSize(1000)
+  @ValidateNested({ each: true })
+  @Type(() => BoundaryPointDto)
+  boundary?: BoundaryPointDto[];
 }
