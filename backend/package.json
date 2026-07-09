@@ -37,6 +37,7 @@
     "@nestjs/schedule": "^5.0.1",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.0",
+    "@sentry/node": "^10.64.0",
     "@supabase/supabase-js": "^2.95.3",
     "@types/zxcvbn": "^4.4.5",
     "argon2": "^0.44.0",

@@ -3,18 +3,23 @@ if (typeof globalThis.crypto === 'undefined') {
   (globalThis as any).crypto = webcrypto;
 }
 
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, HttpAdapterHost } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
 import { TypeORMExceptionFilter } from './common/filters/typeorm-exception.filter';
+import { SentryExceptionFilter } from './common/filters/sentry-exception.filter';
 import { assertSchemaReady } from './common/schema-guard';
 import { assertCorsOriginAllowed } from './common/cors-guard';
+import { initSentry, Sentry } from './common/sentry';
 
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
 async function bootstrap() {
+  // Init before anything else so early failures are captured (no-op w/o DSN).
+  const sentryOn = initSentry();
+
   const app = await NestFactory.create(AppModule);
 
   // Security response headers (HSTS, X-Content-Type-Options, frameguard, …).
@@ -52,7 +57,11 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalFilters(new TypeORMExceptionFilter());
+  const httpAdapter = app.get(HttpAdapterHost).httpAdapter;
+  app.useGlobalFilters(
+    new TypeORMExceptionFilter(),
+    new SentryExceptionFilter(httpAdapter),
+  );
 
   // Run onModuleDestroy/onApplicationShutdown hooks (e.g. close the DB pool)
   // when Render sends SIGTERM on deploy, instead of dropping in-flight work.
@@ -62,9 +71,11 @@ async function bootstrap() {
   // the process wedged in an undefined state.
   process.on('unhandledRejection', (reason) => {
     console.error('Unhandled promise rejection:', reason);
+    Sentry.captureException(reason);
   });
   process.on('uncaughtException', (err) => {
     console.error('Uncaught exception — shutting down:', err);
+    Sentry.captureException(err);
     void app.close().finally(() => process.exit(1));
   });
 
@@ -72,6 +83,7 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0');
   console.log(`Backend listening on 0.0.0.0:${port}`);
   console.log(`CORS origin: ${corsOrigin}`);
+  console.log(`Sentry error tracking: ${sentryOn ? 'on' : 'off (no SENTRY_DSN)'}`);
 }
 bootstrap().catch((err) => {
   console.error('Bootstrap failed:', err);
