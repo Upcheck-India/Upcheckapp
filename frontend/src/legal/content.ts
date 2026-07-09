@@ -12,16 +12,17 @@ export interface LegalBlock {
 }
 
 export const LEGAL_META = {
-  company: 'Upcheck Technologies',
+  company: 'Upcheck Technologies Private Limited',
   appName: 'Upcheck',
-  contactEmail: '[support@yourdomain.com]',
+  contactEmail: 'admin@upcheck.in',
+  // Operator to complete before publishing — real values only known to Upcheck:
   address: '[Registered office address]',
   governingLaw: '[State], India',
-  effectiveDate: '[Effective date]',
-  lastUpdated: '[Last updated date]',
-  privacyUrl: '[https://yourdomain.com/privacy]',
-  termsUrl: '[https://yourdomain.com/terms]',
-  deletionUrl: '[https://yourdomain.com/account-deletion]',
+  effectiveDate: '9 July 2026',
+  lastUpdated: '9 July 2026',
+  privacyUrl: '[https://upcheck.in/privacy]',
+  termsUrl: '[https://upcheck.in/terms]',
+  deletionUrl: '[https://upcheck.in/account-deletion]',
 };
 
 export const PRIVACY_POLICY: LegalBlock[] = [

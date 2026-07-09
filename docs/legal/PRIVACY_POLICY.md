@@ -1,13 +1,13 @@
 # Privacy Policy — Upcheck
 
-_Effective: [EFFECTIVE DATE] · Last updated: [LAST UPDATED]_
+_Effective: 9 July 2026 · Last updated: 9 July 2026_
 
-> Host this page at a public URL (e.g. `https://yourdomain.com/privacy`) and enter that
+> Host this page at a public URL (e.g. `https://upcheck.in/privacy`) and enter that
 > URL in Google Play Console → Store listing → Privacy Policy. It is also shown in-app at
 > **Settings → Privacy Policy** (source of truth: `frontend/src/legal/content.ts`).
 > Complete every `[PLACEHOLDER]` before publishing.
 
-**Upcheck Technologies** ("we", "us", "our") operates the **Upcheck** mobile application (the "App"), a shrimp‑aquaculture farm‑management tool. This Privacy Policy explains what personal data we collect, why, how we use and share it, and the choices you have.
+**Upcheck Technologies Private Limited** ("we", "us", "our") operates the **Upcheck** mobile application (the "App"), a shrimp‑aquaculture farm‑management tool. This Privacy Policy explains what personal data we collect, why, how we use and share it, and the choices you have.
 
 ## 1. Information we collect
 - **Account & identity:** email address, name, username, profile photo, and — when you use phone verification — your phone number. Passwords are stored only as salted hashes; never in plain text.
@@ -48,4 +48,4 @@ Encryption in transit (HTTPS), hashed passwords, signed session tokens and acces
 The App is intended for business/agricultural use by adults and is not directed to children under 13 (or the minimum age in your jurisdiction). We do not knowingly collect children's data.
 
 ## 9. Changes & contact
-We may update this policy; material changes will be notified in‑app or by email. Questions/requests: **[support@yourdomain.com]** — Upcheck Technologies, **[Registered office address]**.
+We may update this policy; material changes will be notified in‑app or by email. Questions/requests: **admin@upcheck.in** — Upcheck Technologies Private Limited, **[Registered office address]**.

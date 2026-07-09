@@ -58,7 +58,7 @@ Complete the **content rating questionnaire** (App content → Content ratings).
   >
   > Sign in with email, Google, or phone, secure your account with two-factor authentication, and use the app in **English, Hindi, Tamil, Telugu, Bengali and Odia**. Your data is private — we never sell it.
 - **Category:** Business (or Productivity). **Tags:** aquaculture, farming.
-- **Contact:** `[support@yourdomain.com]`, website `[https://yourdomain.com]`.
+- **Contact:** `admin@upcheck.in`, website `https://upcheck.in`.
 
 ## 6. [FILL] Graphic assets (upload in Store listing)
 - **App icon** 512×512 PNG (have `frontend/assets/` icon — export at 512).

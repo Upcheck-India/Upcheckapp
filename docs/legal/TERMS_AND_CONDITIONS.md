@@ -1,12 +1,12 @@
 # Terms & Conditions — Upcheck
 
-_Effective: [EFFECTIVE DATE]_
+_Effective: 9 July 2026_
 
-> Host at a public URL (e.g. `https://yourdomain.com/terms`). Also shown in‑app at
+> Host at a public URL (e.g. `https://upcheck.in/terms`). Also shown in‑app at
 > **Settings → Terms of Service**. Source of truth: `frontend/src/legal/content.ts`.
 > Have a lawyer review before publishing; complete every `[PLACEHOLDER]`.
 
-These Terms & Conditions ("Terms") govern your use of the **Upcheck** application provided by **Upcheck Technologies**. By creating an account or using the App you agree to these Terms and to our Privacy Policy.
+These Terms & Conditions ("Terms") govern your use of the **Upcheck** application provided by **Upcheck Technologies Private Limited**. By creating an account or using the App you agree to these Terms and to our Privacy Policy.
 
 ## 1. Eligibility & accounts
 You must be at least 18 (or the age of majority where you live) and able to enter a binding contract. You are responsible for the accuracy of information you provide, for keeping your credentials secure, and for all activity under your account.
@@ -24,10 +24,10 @@ The App provides calculators, simulations, alerts and reference information **fo
 The App relies on third‑party services (Supabase, Google, Truecaller, Brevo, Expo, Render). Your use of sign‑in providers is also subject to their terms. We are not responsible for third‑party availability or actions.
 
 ## 6. Limitation of liability
-To the maximum extent permitted by law, Upcheck Technologies shall not be liable for any indirect, incidental, special or consequential damages, or for loss of data, profits, crop or revenue, arising from your use of or inability to use the App.
+To the maximum extent permitted by law, Upcheck Technologies Private Limited shall not be liable for any indirect, incidental, special or consequential damages, or for loss of data, profits, crop or revenue, arising from your use of or inability to use the App.
 
 ## 7. Suspension & termination
 You may stop using the App and delete your account at any time. We may suspend or terminate access for breach of these Terms or to protect the service. On termination your right to use the App ends; data handling follows the Privacy Policy.
 
 ## 8. Changes & governing law
-We may update these Terms; continued use after changes means you accept them. These Terms are governed by the laws of **[State], India**, and disputes are subject to the courts of that jurisdiction. Contact: **[support@yourdomain.com]**.
+We may update these Terms; continued use after changes means you accept them. These Terms are governed by the laws of **[State], India**, and disputes are subject to the courts of that jurisdiction. Contact: **admin@upcheck.in**.
