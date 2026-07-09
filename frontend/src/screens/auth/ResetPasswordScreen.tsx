@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { supabase } from '../../lib/supabase';
 import { authApi } from '../../api/auth';
+import { passwordPolicyError } from '../../features/passwordPolicy';
 
 const c = theme.roles.light;
 
@@ -49,8 +50,11 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
     }, []);
 
     const submit = async () => {
-        if (password.length < 8) {
-            Alert.alert(t('common.error'), t('auth.passwordMin', 'Password must be at least 8 characters'));
+        // Enforce the SAME policy as signup (upper+lower+digit+special, ≥8) so a
+        // password set via reset can't be one the Register form would reject.
+        const pwErr = passwordPolicyError(password);
+        if (pwErr) {
+            Alert.alert(t('common.error'), t(pwErr.key, pwErr.fallback));
             return;
         }
         if (password !== confirm) {

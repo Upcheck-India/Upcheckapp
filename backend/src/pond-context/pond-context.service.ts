@@ -34,8 +34,14 @@ export interface PondContext {
     nitrite: number | null;
     nitrate: number | null;
     alkalinity: number | null;
-    /** When the daily probe params were last logged. */
+    /** When the newest water-quality record was logged. */
     recordedAt: string | null;
+    /** Each parameter's OWN source-record time — probe params can come from
+     * different records than one another, so freshness must be per-parameter. */
+    dissolvedOxygenAsOf: string | null;
+    phAsOf: string | null;
+    temperatureAsOf: string | null;
+    salinityAsOf: string | null;
     /** When ammonia (chemistry) was last measured — may be older. */
     chemistryAsOf: string | null;
     /** When alkalinity was last measured — independent of ammonia's date. */
@@ -137,22 +143,29 @@ export class PondContextService {
       }
       return { value: null as number | null, at: null as Date | null };
     };
+    const iso = (d: Date | null) => (d ? new Date(d).toISOString() : null);
+    const dox = latest('dissolvedOxygen');
+    const ph = latest('ph');
+    const temp = latest('temperature');
+    const sal = latest('salinity');
     const amm = latest('ammonia');
     const alk = latest('alkalinity');
     return {
-      dissolvedOxygen: latest('dissolvedOxygen').value,
-      ph: latest('ph').value,
-      temperature: latest('temperature').value,
-      salinity: latest('salinity').value,
+      dissolvedOxygen: dox.value,
+      ph: ph.value,
+      temperature: temp.value,
+      salinity: sal.value,
       ammonia: amm.value,
       nitrite: latest('nitrite').value,
       nitrate: latest('nitrate').value,
       alkalinity: alk.value,
-      recordedAt: records[0].recordedAt
-        ? new Date(records[0].recordedAt).toISOString()
-        : null,
-      chemistryAsOf: amm.at ? new Date(amm.at).toISOString() : null,
-      alkalinityAsOf: alk.at ? new Date(alk.at).toISOString() : null,
+      recordedAt: iso(records[0].recordedAt as unknown as Date),
+      dissolvedOxygenAsOf: iso(dox.at),
+      phAsOf: iso(ph.at),
+      temperatureAsOf: iso(temp.at),
+      salinityAsOf: iso(sal.at),
+      chemistryAsOf: iso(amm.at),
+      alkalinityAsOf: iso(alk.at),
     };
   }
 
@@ -322,28 +335,28 @@ export class PondContextService {
       {
         key: 'DO',
         present: wq?.dissolvedOxygen != null,
-        ageDays: ageDays(wq?.recordedAt ?? null),
+        ageDays: ageDays(wq?.dissolvedOxygenAsOf ?? null),
         weight: 2,
         freshWindowDays: 1,
       },
       {
         key: 'pH',
         present: wq?.ph != null,
-        ageDays: ageDays(wq?.recordedAt ?? null),
+        ageDays: ageDays(wq?.phAsOf ?? null),
         weight: 1.5,
         freshWindowDays: 1,
       },
       {
         key: 'Temperature',
         present: wq?.temperature != null,
-        ageDays: ageDays(wq?.recordedAt ?? null),
+        ageDays: ageDays(wq?.temperatureAsOf ?? null),
         weight: 1.5,
         freshWindowDays: 1,
       },
       {
         key: 'Salinity',
         present: wq?.salinity != null,
-        ageDays: ageDays(wq?.recordedAt ?? null),
+        ageDays: ageDays(wq?.salinityAsOf ?? null),
         weight: 1,
         freshWindowDays: 1,
       },
