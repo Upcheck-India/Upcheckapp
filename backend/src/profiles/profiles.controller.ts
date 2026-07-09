@@ -17,6 +17,7 @@ import {
 import { ProfilesService } from './profiles.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { InviteDto } from './dto/invite.dto';
 import { Public } from '../auth/decorators/auth.decorators';
 import { EmailService } from '../email.service';
 
@@ -53,7 +54,7 @@ export class ProfilesController {
   }
 
   @Post('invite')
-  async inviteFriend(@Body() body: { toEmail: string }, @CurrentUser() user) {
+  async inviteFriend(@Body() body: InviteDto, @CurrentUser() user) {
     const inviterProfile = await this.profilesService.findOne(user.id);
     const inviterName =
       inviterProfile?.fullName || inviterProfile?.username || user.email;

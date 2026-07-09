@@ -71,8 +71,15 @@ import { PondContextModule } from './pond-context/pond-context.module';
         const isProduction = configService.get('NODE_ENV') === 'production';
         const databaseUrl = configService.get<string>('DATABASE_URL');
 
-        // Log for debugging (remove in production if desired)
         if (!databaseUrl && type === 'postgres') {
+          if (isProduction) {
+            // Fail fast instead of silently connecting to localhost — a
+            // production deploy with no DATABASE_URL is a misconfiguration,
+            // not a case to limp along on (AUDIT id 154).
+            throw new Error(
+              'DATABASE_URL is not set in production. Refusing to start.',
+            );
+          }
           console.error('DATABASE_URL is not set! Falling back to localhost.');
         }
 

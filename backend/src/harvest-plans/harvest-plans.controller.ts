@@ -12,6 +12,7 @@ import {
 import { HarvestPlansService } from './harvest-plans.service';
 import { CreateHarvestPlanDto } from './dto/create-harvest-plan.dto';
 import { UpdateHarvestPlanDto } from './dto/update-harvest-plan.dto';
+import { CompletePlanDto } from './dto/complete-plan.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { OwnershipGuard } from '../common/guards/ownership.guard';
 import { OwnsResource } from '../common/decorators/owns-resource.decorator';
@@ -49,15 +50,7 @@ export class HarvestPlansController {
   @Patch(':id/complete')
   @UseGuards(OwnershipGuard)
   @OwnsResource('HarvestPlan', 'id', 'pond.farm.userId', 'WRITE_MANAGEMENT')
-  complete(
-    @Param('id') id: string,
-    @Body()
-    payload: {
-      actualHarvestDate: Date;
-      actualWeightKg: number;
-      actualPricePerKg: number;
-    },
-  ) {
+  complete(@Param('id') id: string, @Body() payload: CompletePlanDto) {
     return this.harvestPlansService.completePlan(id, payload);
   }
 

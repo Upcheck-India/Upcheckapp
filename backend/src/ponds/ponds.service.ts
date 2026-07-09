@@ -262,7 +262,9 @@ export class PondsService {
   }
 
   async update(id: string, updatePondDto: UpdatePondDto, userId: string) {
-    const pond = await this.findOne(id, userId);
+    // Route guard is WRITE_MANAGEMENT (owner+manager); use the member-aware
+    // fetch so a manager who passed the guard is not 403'd by owner-only findOne.
+    const pond = await this.findOneAccessible(id, userId, 'WRITE_MANAGEMENT');
 
     // Check if dimensions changed — log history if so
     // Exclude activeCycleId and other non-dimension fields from dimension check
@@ -324,7 +326,7 @@ export class PondsService {
       });
     }
 
-    return this.findOne(id, userId);
+    return this.findOneAccessible(id, userId, 'READ');
   }
 
   /**
@@ -332,7 +334,8 @@ export class PondsService {
    * Returns 409 if pond has an active cycle.
    */
   async archive(id: string, userId: string) {
-    const pond = await this.findOne(id, userId);
+    // WRITE_MANAGEMENT route → member-aware fetch (see update()).
+    const pond = await this.findOneAccessible(id, userId, 'WRITE_MANAGEMENT');
 
     if (pond.activeCycleId) {
       throw new ConflictException({

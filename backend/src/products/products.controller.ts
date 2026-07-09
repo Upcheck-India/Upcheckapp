@@ -12,6 +12,7 @@ import {
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { UpdateStockDto } from './dto/update-stock.dto';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/roles.enum';
@@ -50,8 +51,8 @@ export class ProductsController {
   @Patch(':id/stock')
   @UseGuards(RolesGuard)
   @Roles(Role.SUPER_ADMIN)
-  updateStock(@Param('id') id: string, @Body('quantity') quantity: number) {
-    return this.productsService.updateStock(id, quantity);
+  updateStock(@Param('id') id: string, @Body() dto: UpdateStockDto) {
+    return this.productsService.updateStock(id, dto.quantity);
   }
 
   @Delete(':id')

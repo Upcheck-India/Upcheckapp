@@ -68,11 +68,12 @@ export class Pond {
   })
   displayName: string;
 
+  // NOT NULL to match migration 1771597711215 (dev synchronize would otherwise
+  // DROP NOT NULL each boot, diverging dev from prod).
   @Column({
     name: 'geometry_type',
     type: 'varchar',
     length: 20,
-    nullable: true,
   })
   geometryType: string;
 
@@ -80,7 +81,6 @@ export class Pond {
     name: 'construction_type',
     type: 'varchar',
     length: 20,
-    nullable: true,
   })
   constructionType: string;
 
@@ -93,7 +93,7 @@ export class Pond {
   @Column({ name: 'diameter_m', type: 'numeric', nullable: true })
   diameterM: number;
 
-  @Column({ name: 'depth_m', type: 'numeric', nullable: true })
+  @Column({ name: 'depth_m', type: 'numeric' })
   depthM: number;
 
   // Total installed aerator power (HP) on this pond — the Aeration & Power
@@ -109,7 +109,7 @@ export class Pond {
   @Column({ name: 'channel_count', type: 'int', nullable: true })
   channelCount: number;
 
-  @Column({ name: 'calculated_area_m2', type: 'numeric', nullable: true })
+  @Column({ name: 'calculated_area_m2', type: 'numeric' })
   calculatedAreaM2: number;
 
   @Column({ name: 'override_area_m2', type: 'numeric', nullable: true })

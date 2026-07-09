@@ -38,4 +38,13 @@ describe('RedisService — in-memory fallback warning (INFRA-1)', () => {
     await service.set('k', 'v');
     expect(await service.get('k')).toBe('v');
   });
+
+  it('clears the fallback flag once Redis recovers (AUDIT id 109)', () => {
+    const { service } = makeService();
+    (service as any).enableMemoryFallback('Redis down');
+    expect(service.isMemoryFallback).toBe(true);
+    // 'ready' event handler registered in onModuleInit calls this.
+    (service as any).handleReconnect();
+    expect(service.isMemoryFallback).toBe(false);
+  });
 });

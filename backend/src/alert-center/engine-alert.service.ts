@@ -141,14 +141,22 @@ export class EngineAlertService {
       where: { activeCycleId: Not(IsNull()), farmId: In(farmIds) },
     });
 
+    // Fan out per-pond context fetches instead of serializing them (AUDIT id
+    // 143), but cap concurrency to the pool size (app.module.ts: max: 5) so an
+    // N-pond farm doesn't hammer the connection pool.
+    const POOL_LIMIT = 5;
     const drafts: AlertDraft[] = [];
-    for (const p of mine) {
-      try {
-        const ctx = await this.pondContext.getContext(p.id, userId);
-        drafts.push(...this.evaluate(ctx));
-      } catch {
-        // Skip a pond that errors; don't fail the whole briefing.
-      }
+    for (let i = 0; i < mine.length; i += POOL_LIMIT) {
+      const batch = mine.slice(i, i + POOL_LIMIT);
+      const results = await Promise.all(
+        batch.map((p) =>
+          this.pondContext
+            .getContext(p.id, userId)
+            .then((ctx) => this.evaluate(ctx))
+            .catch(() => []), // Skip a pond that errors; don't fail the whole briefing.
+        ),
+      );
+      for (const r of results) drafts.push(...r);
     }
 
     return this.alertCenter.buildBriefing(

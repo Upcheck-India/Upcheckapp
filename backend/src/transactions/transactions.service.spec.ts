@@ -89,6 +89,25 @@ describe('TransactionsService', () => {
       expect(mockRepository.save).toHaveBeenCalled();
       expect(result).toEqual(expect.objectContaining(createDto));
     });
+
+    it('is idempotent: a replayed client id returns the existing row without re-inserting', async () => {
+      const existing = { id: 'client-uuid', farmId: 'farm-1', amount: 1000 };
+      mockRepository.findOneBy.mockResolvedValueOnce(existing);
+
+      const result = await service.create(
+        { id: 'client-uuid', farmId: 'farm-1' } as any,
+        USER_ID,
+      );
+
+      // Access to the found row's farm is checked before returning it.
+      expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(
+        USER_ID,
+        'farm-1',
+        'VIEW_FINANCIALS',
+      );
+      expect(result).toBe(existing);
+      expect(mockRepository.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('findAll', () => {

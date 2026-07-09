@@ -1,4 +1,11 @@
-import { Controller, Post, Body, Get, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Post,
+  Body,
+  Get,
+  Query,
+} from '@nestjs/common';
 import { ShrimpCalculationsService } from './shrimp-calculations.service';
 import {
   CalculateFcrDto,
@@ -111,14 +118,18 @@ export class ShrimpCalculationsController {
 
   @Get('biomass')
   calculateBiomass(
-    @Query('stockCount') stockCount: number,
-    @Query('averageWeightG') averageWeightG: number,
+    @Query('stockCount') stockCount: string,
+    @Query('averageWeightG') averageWeightG: string,
   ) {
+    const stock = Number(stockCount);
+    const weight = Number(averageWeightG);
+    if (!Number.isFinite(stock) || !Number.isFinite(weight)) {
+      throw new BadRequestException(
+        'stockCount and averageWeightG must be numbers',
+      );
+    }
     return {
-      biomassKg: this.calculationsService.calculateBiomass(
-        Number(stockCount),
-        Number(averageWeightG),
-      ),
+      biomassKg: this.calculationsService.calculateBiomass(stock, weight),
     };
   }
 

@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsNumber,
   IsUUID,
+  IsDateString,
   Min,
   Max,
 } from 'class-validator';
@@ -34,6 +35,12 @@ export class CreateWaterQualityRecordDto {
 
   @IsUUID()
   pondId: string;
+
+  // Actual measurement time, for offline-queued records synced later. Falls
+  // back to server insert time when omitted (AUDIT id 31).
+  @IsDateString()
+  @IsOptional()
+  recordedAt?: string;
 
   @IsNumber()
   @IsOptional()

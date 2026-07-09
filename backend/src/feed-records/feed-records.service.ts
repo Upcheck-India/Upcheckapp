@@ -15,6 +15,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { PageOptionsDto } from '../common/dto/page-options.dto';
 import { PageMetaDto, PageDto } from '../common/dto/page.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { toIstDateString } from '../common/ist-date';
 
 @Injectable()
 export class FeedRecordsService {
@@ -62,10 +63,11 @@ export class FeedRecordsService {
       'WRITE_OPERATIONAL',
     );
 
-    // If inventory item selected, deduct stock (skip for fasting days)
-    if (createDto.inventoryItemId && !createDto.isFasting) {
+    // If inventory item selected, deduct stock (skip for fasting days).
+    const shouldDeduct = !!createDto.inventoryItemId && !createDto.isFasting;
+    if (shouldDeduct) {
       await this.inventoryService.adjustStock(
-        createDto.inventoryItemId,
+        createDto.inventoryItemId!,
         -createDto.quantityKg,
         userId,
       );
@@ -88,7 +90,24 @@ export class FeedRecordsService {
       createdById: userId,
       updatedById: userId,
     });
-    return this.recordsRepository.save(record);
+
+    try {
+      return await this.recordsRepository.save(record);
+    } catch (err) {
+      // Compensate the deduction if the record failed to persist, so stock is
+      // never phantom-deducted with no matching record. adjustStock runs on the
+      // inventory service's own connection, so a shared DB transaction can't
+      // roll it back — a compensating credit is the correct fix at this
+      // service boundary.
+      if (shouldDeduct) {
+        await this.inventoryService.adjustStock(
+          createDto.inventoryItemId!,
+          createDto.quantityKg,
+          userId,
+        );
+      }
+      throw err;
+    }
   }
 
   async findAll(
@@ -143,17 +162,67 @@ export class FeedRecordsService {
     updateDto: UpdateFeedRecordDto,
     userId?: string,
   ): Promise<FeedRecord> {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
+
+    // Fasting-day guard applies on PATCH too: a fasting day must have 0 feed.
+    // (isFasting alone previously slipped through — it isn't a column and was
+    // silently dropped, so the quantity was never checked on update.)
+    const resultingQty = updateDto.quantityKg ?? Number(existing.quantityKg);
+    if (updateDto.isFasting && resultingQty > 0) {
+      throw new BadRequestException(
+        'Fasting day: quantityKg must be 0 when isFasting is true',
+      );
+    }
+
+    // Changing which inventory item a record draws from would need a two-item
+    // stock transfer we don't model here — reject it rather than drift stock.
+    if (
+      updateDto.inventoryItemId !== undefined &&
+      updateDto.inventoryItemId !== existing.inventoryItemId
+    ) {
+      throw new BadRequestException(
+        'Changing the inventory item of a feed record is not supported',
+      );
+    }
+
+    // Reconcile inventory for a changed quantity on the same item so edits do
+    // not permanently drift stock (positive delta credits stock back).
+    if (
+      existing.inventoryItemId &&
+      userId &&
+      updateDto.quantityKg !== undefined &&
+      updateDto.quantityKg !== Number(existing.quantityKg)
+    ) {
+      const delta = Number(existing.quantityKg) - updateDto.quantityKg;
+      await this.inventoryService.adjustStock(
+        existing.inventoryItemId,
+        delta,
+        userId,
+      );
+    }
+
+    // isFasting / id are not persisted columns — strip them before the update
+    // (id would otherwise reassign the primary key).
+    const { isFasting: _isFasting, id: _id, ...columns } = updateDto;
     await this.recordsRepository.update(id, {
-      ...updateDto,
+      ...columns,
       ...(userId ? { updatedById: userId } : {}),
     });
     return this.findOne(id);
   }
 
-  async remove(id: string): Promise<{ message: string }> {
-    await this.findOne(id);
+  async remove(id: string, userId?: string): Promise<{ message: string }> {
+    const existing = await this.findOne(id);
     await this.recordsRepository.delete(id);
+    // Restore any stock this record had deducted, so deleting a feed log does
+    // not permanently drift inventory.
+    if (existing.inventoryItemId && userId) {
+      await this.inventoryService.adjustStock(
+        existing.inventoryItemId,
+        Number(existing.quantityKg),
+        userId,
+      );
+    }
     return { message: 'Feed record deleted successfully' };
   }
 
@@ -166,11 +235,13 @@ export class FeedRecordsService {
     return result?.totalFeed || 0;
   }
   async getDailyFeedUsage(farmId: string, date: Date) {
-    // Get start and end of day
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    // Bucket by the farm's IST calendar day. The backend runs in UTC on Render,
+    // so a setHours()-based window would span 05:30 IST→05:30 IST and drop
+    // early-morning feeding (00:00–05:30 IST) into the previous day. Anchoring
+    // the window with an explicit +05:30 offset gives the correct UTC instants.
+    const istDay = toIstDateString(date); // 'YYYY-MM-DD' in IST
+    const startOfDay = new Date(`${istDay}T00:00:00.000+05:30`);
+    const endOfDay = new Date(`${istDay}T23:59:59.999+05:30`);
 
     const result = await this.recordsRepository
       .createQueryBuilder('feed')

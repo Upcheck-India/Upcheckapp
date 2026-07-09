@@ -12,6 +12,35 @@ import { Pond } from '../ponds/pond.entity';
 import { Hatchery } from '../reference/entities/hatchery.entity';
 import { Species } from '../reference/entities/species.entity';
 import { Broodstock } from '../reference/entities/broodstock.entity';
+import { toIstDateString } from '../common/ist-date';
+
+/** Midnight (UTC ms) of the IST calendar day for a `date` column or instant. */
+function istCalendarMs(value: string | Date): number {
+  // A `date` column comes back as 'YYYY-MM-DD'; a timestamp as a Date object.
+  const iso = typeof value === 'string' ? value.slice(0, 10) : toIstDateString(value);
+  return Date.parse(iso);
+}
+
+/**
+ * Day of Culture — the single source of truth for crops, the entity getter and
+ * measurement DOC derivation. Convention: the stocking day itself is DOC 1
+ * (industry standard), days counted on the IST calendar (not UTC, so a dawn
+ * pond check before 05:30 IST no longer undercounts by one), offset by any age
+ * the seed already carried at stocking. Returns null when there is no stocking
+ * date or the reference instant precedes it.
+ */
+export function computeDoc(
+  stockingDate: string | Date | null | undefined,
+  initialAgeDays = 0,
+  asOf: Date = new Date(),
+): number | null {
+  if (!stockingDate) return null;
+  const diffDays = Math.floor(
+    (istCalendarMs(asOf) - istCalendarMs(stockingDate)) / 86400000,
+  );
+  if (diffDays < 0) return null;
+  return diffDays + 1 + (initialAgeDays || 0);
+}
 
 @Entity('crops')
 export class Crop {
@@ -142,17 +171,11 @@ export class Crop {
   status: string; // 'active' | 'completed' | 'cancelled'
 
   /**
-   * Computes Day of Culture (DOC) dynamically based on stockingDate vs current date.
-   * Returns 0 if stockingDate is not set or is in the future.
-   * Also accounts for initialAgeDays at stocking time.
+   * Day of Culture for API responses. Delegates to the shared IST-calendar
+   * `computeDoc` (stocking day = 1) so the crop card, service and measurement
+   * history all agree; 0 when unstocked/future to preserve the response shape.
    */
   get computedDOC(): number {
-    if (!this.stockingDate) return 0;
-    const stocked = new Date(this.stockingDate);
-    const now = new Date();
-    const diffMs = now.getTime() - stocked.getTime();
-    if (diffMs <= 0) return 0;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    return diffDays + (this.initialAgeDays || 0);
+    return computeDoc(this.stockingDate, this.initialAgeDays) ?? 0;
   }
 }

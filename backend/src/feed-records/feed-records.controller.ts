@@ -71,7 +71,7 @@ export class FeedRecordsController {
   @Delete(':id')
   @UseGuards(OwnershipGuard)
   @OwnsResource('FeedRecord', 'id', 'pond.farm.userId')
-  remove(@Param('id') id: string) {
-    return this.feedRecordsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user) {
+    return this.feedRecordsService.remove(id, user.id);
   }
 }

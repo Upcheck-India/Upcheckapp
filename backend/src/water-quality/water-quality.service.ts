@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { WaterQualityRecord } from './water-quality-record.entity';
@@ -19,6 +19,8 @@ const CRITICAL_THRESHOLDS = {
 
 @Injectable()
 export class WaterQualityService {
+  private readonly logger = new Logger(WaterQualityService.name);
+
   constructor(
     @InjectRepository(WaterQualityRecord)
     private recordsRepository: Repository<WaterQualityRecord>,
@@ -55,6 +57,9 @@ export class WaterQualityService {
 
     const record = this.recordsRepository.create({
       ...createDto,
+      recordedAt: createDto.recordedAt
+        ? new Date(createDto.recordedAt)
+        : undefined,
       createdById: userId,
       updatedById: userId,
     });
@@ -142,7 +147,10 @@ export class WaterQualityService {
           pond.id,
         );
       } catch (error) {
-        console.error('Failed to create water quality alert:', error);
+        this.logger.error(
+          `Failed to create water quality alert (pond ${pond.id}, record ${record.id}): ${error}`,
+          (error as Error)?.stack,
+        );
       }
     }
   }

@@ -93,4 +93,25 @@ describe('CreditService — ledger persistence', () => {
     const updated = await svc.recordRepayment('1', 25000, 'u');
     expect(updated.repaid).toBe(25000);
   });
+
+  it('rejects a non-positive repayment (would inflate the balance)', async () => {
+    const { svc } = makeService([
+      { id: '1', userId: 'u', principal: 100000, interestPct: 0, repaid: 0 },
+    ]);
+    await expect(svc.recordRepayment('1', -5000, 'u')).rejects.toThrow();
+    await expect(svc.recordRepayment('1', 0, 'u')).rejects.toThrow();
+  });
+
+  it('rejects a repayment beyond the total due (incl. interest)', async () => {
+    const { svc } = makeService([
+      { id: '1', userId: 'u', principal: 10000, interestPct: 10, repaid: 5000 },
+    ]);
+    // total due = 11000; already repaid 5000 (mock save doesn't mutate the
+    // store, so each call re-reads repaid=5000). 6000 lands exactly at the
+    // limit (allowed); 6001 exceeds it (rejected).
+    await expect(svc.recordRepayment('1', 6000, 'u')).resolves.toMatchObject({
+      repaid: 11000,
+    });
+    await expect(svc.recordRepayment('1', 6001, 'u')).rejects.toThrow();
+  });
 });

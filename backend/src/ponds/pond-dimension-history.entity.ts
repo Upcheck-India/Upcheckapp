@@ -5,9 +5,13 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Pond } from './pond.entity';
 
+// getDimensionHistory filters WHERE pond_id ORDER BY changed_at; Postgres does
+// not auto-index FKs, so index both to avoid a full scan as history grows.
+@Index(['pondId', 'changedAt'])
 @Entity('pond_dimension_history')
 export class PondDimensionHistory {
   @PrimaryGeneratedColumn('uuid')

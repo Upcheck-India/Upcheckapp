@@ -38,6 +38,8 @@ export interface PondContext {
     recordedAt: string | null;
     /** When ammonia (chemistry) was last measured — may be older. */
     chemistryAsOf: string | null;
+    /** When alkalinity was last measured — independent of ammonia's date. */
+    alkalinityAsOf: string | null;
   } | null;
   /** Free (un-ionised) NH3 derived from latest ammonia(TAN)+pH+temp. */
   freeAmmoniaMgL: number | null;
@@ -136,6 +138,7 @@ export class PondContextService {
       return { value: null as number | null, at: null as Date | null };
     };
     const amm = latest('ammonia');
+    const alk = latest('alkalinity');
     return {
       dissolvedOxygen: latest('dissolvedOxygen').value,
       ph: latest('ph').value,
@@ -144,11 +147,12 @@ export class PondContextService {
       ammonia: amm.value,
       nitrite: latest('nitrite').value,
       nitrate: latest('nitrate').value,
-      alkalinity: latest('alkalinity').value,
+      alkalinity: alk.value,
       recordedAt: records[0].recordedAt
         ? new Date(records[0].recordedAt).toISOString()
         : null,
       chemistryAsOf: amm.at ? new Date(amm.at).toISOString() : null,
+      alkalinityAsOf: alk.at ? new Date(alk.at).toISOString() : null,
     };
   }
 
@@ -353,7 +357,7 @@ export class PondContextService {
       {
         key: 'Alkalinity',
         present: wq?.alkalinity != null,
-        ageDays: ageDays(wq?.chemistryAsOf ?? null),
+        ageDays: ageDays(wq?.alkalinityAsOf ?? null),
         weight: 1,
         freshWindowDays: 14,
       },

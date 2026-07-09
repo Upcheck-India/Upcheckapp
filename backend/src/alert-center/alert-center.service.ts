@@ -53,7 +53,10 @@ export class AlertCenterService {
       type: input.source,
       title: input.title,
       message: input.body,
-      severity: input.severity,
+      // Persist on the same 'info'|'warning'|'critical' vocabulary the rest
+      // of the app writes/filters on — 'watch' is this module's internal
+      // name for the same thing as 'warning' (AUDIT id 53).
+      severity: input.severity === 'watch' ? 'warning' : input.severity,
       data: { source: input.source, steps: input.steps ?? [], status: 'open' },
     } as any);
   }

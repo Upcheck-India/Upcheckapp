@@ -287,6 +287,23 @@ describe('PondsService', () => {
         }),
       );
     });
+
+    it('lets a non-owner manager update (member-aware auth, not owner-only)', async () => {
+      // Route guard is WRITE_MANAGEMENT (owner+manager). A manager is NOT the
+      // farm owner, so the pond.farm.userId check fails and auth must delegate
+      // to the membership layer instead of throwing Forbidden.
+      pondsRepository.findOne.mockResolvedValue(mockPond); // farm.userId = 'user-1'
+      pondsRepository.update.mockResolvedValue(undefined);
+
+      await service.update('pond-1', { displayName: 'X' }, 'manager-2');
+
+      expect(farmsService.verifyAccess).toHaveBeenCalledWith(
+        'farm-1',
+        'manager-2',
+        'WRITE_MANAGEMENT',
+      );
+      expect(pondsRepository.update).toHaveBeenCalled();
+    });
   });
 
   // ── archive ────────────────────────────────────────────────

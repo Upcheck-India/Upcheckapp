@@ -41,3 +41,22 @@ describe('CreateWaterQualityRecordDto — VALID-1 range validation', () => {
     ).toBeGreaterThan(0);
   });
 });
+
+/** AUDIT id 31: client-supplied measurement time for offline-queued records. */
+describe('CreateWaterQualityRecordDto — recordedAt', () => {
+  it('accepts an ISO recordedAt', () => {
+    expect(
+      errorsFor({ pondId: POND, recordedAt: '2026-07-01T10:00:00.000Z' }),
+    ).toHaveLength(0);
+  });
+
+  it('omitting recordedAt is still valid (falls back to server insert time)', () => {
+    expect(errorsFor({ pondId: POND })).toHaveLength(0);
+  });
+
+  it('rejects a malformed recordedAt', () => {
+    expect(
+      errorsFor({ pondId: POND, recordedAt: 'not-a-date' }).length,
+    ).toBeGreaterThan(0);
+  });
+});

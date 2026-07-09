@@ -15,23 +15,33 @@ function makeService() {
   const expenseRepo = { find: jest.fn().mockResolvedValue(expenses) };
   const harvestRepo = { find: jest.fn().mockResolvedValue(harvests) };
   const pricing = { latestForRegion: jest.fn(), bandsFromPrices: jest.fn() };
-  const crops = { findOne: jest.fn().mockResolvedValue({ id: 'crop-1' }) };
+  const cropRepo = {
+    findOne: jest.fn().mockResolvedValue({ id: 'crop-1', pondId: 'pond-1' }),
+  };
+  const farmAccess = { assertCanAccessPond: jest.fn().mockResolvedValue({}) };
   const svc = new PnlService(
     expenseRepo as any,
     harvestRepo as any,
+    cropRepo as any,
     new EconomicsService(),
     pricing as any,
-    crops as any,
+    farmAccess as any,
   );
-  return { svc, crops };
+  return { svc, cropRepo, farmAccess };
 }
 
 describe('PnlService.computeCropPnl (farmer_features_spec §5)', () => {
   it('aggregates the expense ledger and harvest revenue into CoP/profit', async () => {
-    const { svc, crops } = makeService();
+    const { svc, farmAccess } = makeService();
     const r = await svc.computeCropPnl('crop-1', 'user-1', { areaM2: 4046.86 });
 
-    expect(crops.findOne).toHaveBeenCalledWith('crop-1', 'user-1'); // ownership
+    // VIEW_FINANCIALS on the crop's pond (owner or manager), matching the
+    // expenses.getCycleFinancials authorization path.
+    expect(farmAccess.assertCanAccessPond).toHaveBeenCalledWith(
+      'user-1',
+      'pond-1',
+      'VIEW_FINANCIALS',
+    );
     expect(r.totalCost).toBe(312000);
     expect(r.revenue).toBe(500000);
     expect(r.harvestBiomassKg).toBe(1000);

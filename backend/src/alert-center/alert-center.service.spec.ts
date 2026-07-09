@@ -24,6 +24,19 @@ describe('AlertCenterService', () => {
     });
   });
 
+  it('emit normalizes "watch" to "warning" before persisting (AUDIT id 53)', () => {
+    const alerts = { create: jest.fn((x) => x) };
+    const svc = new AlertCenterService(alerts as any);
+    svc.emit({
+      userId: 'u',
+      source: 'feed',
+      severity: 'watch',
+      title: 'FCR rising',
+      body: 'Running FCR 1.9',
+    });
+    expect(alerts.create.mock.calls[0][0].severity).toBe('warning');
+  });
+
   it('buildBriefing picks the top-severity alert per pond, ordered by severity', () => {
     const svc = new AlertCenterService({} as any);
     const briefing = svc.buildBriefing([

@@ -9,6 +9,13 @@ import {
 } from 'class-validator';
 
 export class CreateHarvestDto {
+  // Optional client-minted id for offline-queue idempotency (see feed-records/
+  // sampling): a replayed create returns the existing row instead of double-
+  // inserting the harvest and re-running closeCycle.
+  @IsUUID()
+  @IsOptional()
+  id?: string;
+
   @IsUUID()
   cropId: string;
 

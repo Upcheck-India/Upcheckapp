@@ -11,6 +11,8 @@ import { CreateExpenseDto } from './dto/create-expense.dto';
 import { HarvestsService } from '../harvests/harvests.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 @Injectable()
 export class ExpensesService {
   constructor(
@@ -101,8 +103,10 @@ export class ExpensesService {
       {} as Record<string, number>,
     );
 
-    // 2. Get Revenue + harvested biomass (Harvests)
-    const harvests = await this.harvestsService.findAll(cropId);
+    // 2. Get Revenue + harvested biomass (Harvests). findAll is
+    // (userId, cropId?) — the crop filter is the 2nd arg; passing cropId as the
+    // userId scoped to no farms and silently returned zero revenue.
+    const harvests = await this.harvestsService.findAll(userId, cropId);
     const totalRevenue = harvests.reduce(
       (sum, h) => sum + (Number(h.salePriceTotal) || 0),
       0,
@@ -117,16 +121,19 @@ export class ExpensesService {
     const breakEvenPricePerKg =
       totalHarvestKg > 0 ? totalExpenses / totalHarvestKg : null;
 
+    // Round money to 2dp to avoid JS float drift (e.g. 12345.670000000002)
+    // surfacing in API responses — matches pnl.service.ts.
     return {
-      totalRevenue,
-      totalExpenses,
-      netProfit: totalRevenue - totalExpenses,
+      totalRevenue: round2(totalRevenue),
+      totalExpenses: round2(totalExpenses),
+      netProfit: round2(totalRevenue - totalExpenses),
       marginPercent:
         totalRevenue > 0
-          ? ((totalRevenue - totalExpenses) / totalRevenue) * 100
+          ? round2(((totalRevenue - totalExpenses) / totalRevenue) * 100)
           : 0,
-      totalHarvestKg,
-      breakEvenPricePerKg,
+      totalHarvestKg: round2(totalHarvestKg),
+      breakEvenPricePerKg:
+        breakEvenPricePerKg === null ? null : round2(breakEvenPricePerKg),
       expensesByCategory,
     };
   }

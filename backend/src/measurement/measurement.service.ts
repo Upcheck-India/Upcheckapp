@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Repository,
@@ -8,14 +12,12 @@ import {
   MoreThanOrEqual,
 } from 'typeorm';
 import { Measurement } from './measurement.entity';
-import { Crop } from '../crops/crop.entity';
+import { Crop, computeDoc } from '../crops/crop.entity';
 import { DataDictionaryService } from './data-dictionary.service';
 import { CreateMeasurementDto } from './dto/create-measurement.dto';
 import { QueryMeasurementDto } from './dto/query-measurement.dto';
 import { EditMeasurementDto } from './dto/edit-measurement.dto';
 import { PondsService } from '../ponds/ponds.service';
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Per-item outcome for a batch ingest. */
 export interface BatchItemResult {
@@ -44,9 +46,16 @@ export class MeasurementService {
   async create(
     dto: CreateMeasurementDto,
     userId: string,
+    // Set of pondIds whose ownership has already been verified this call/batch.
+    // Lets createBatch resolve each distinct pond ONCE instead of re-running the
+    // identical ownership query for every reading (N+1 on offline sync).
+    pondCache?: Set<string>,
   ): Promise<Measurement> {
     // Ownership — throws if the user does not own the pond.
-    await this.pondsService.findOne(dto.pondId, userId);
+    if (!pondCache?.has(dto.pondId)) {
+      await this.pondsService.findOne(dto.pondId, userId);
+      pondCache?.add(dto.pondId);
+    }
 
     // Idempotency — a re-synced offline row is a no-op. Verify ownership of the
     // found row's OWN pond before returning it: a replayed op with a guessed id
@@ -70,10 +79,29 @@ export class MeasurementService {
     });
 
     const measuredAt = dto.measuredAt ? new Date(dto.measuredAt) : new Date();
+
+    // Resolve the crop once — used both to guard cross-tenant cropIds and to
+    // derive DOC. dto.pondId ownership was verified above, but the crop it
+    // names must actually live in that pond (otherwise a caller could attach a
+    // reading to, or infer another tenant's stocking date via, a foreign crop).
+    let crop: Crop | null = null;
+    if (dto.cropId) {
+      crop = await this.cropRepo.findOne({ where: { id: dto.cropId } });
+      if (crop && crop.pondId !== dto.pondId) {
+        throw new BadRequestException(
+          'cropId does not belong to the given pond',
+        );
+      }
+    }
+
+    // DOC via the shared IST-calendar helper (stocking day = 1); null when the
+    // reading predates stocking or there is no stocking date.
     const doc =
       dto.doc !== undefined
         ? dto.doc
-        : await this.deriveDoc(dto.cropId, measuredAt);
+        : crop?.stockingDate
+          ? computeDoc(crop.stockingDate, crop.initialAgeDays, measuredAt)
+          : null;
 
     const source = dto.source ?? 'manual';
     const confidence =
@@ -115,12 +143,14 @@ export class MeasurementService {
     continueOnError = true,
   ): Promise<{ results: BatchItemResult[] }> {
     const results: BatchItemResult[] = [];
+    // Verify each distinct pond's ownership once across the whole batch.
+    const pondCache = new Set<string>();
     for (let i = 0; i < items.length; i++) {
       const dto = items[i];
       try {
         const wasDuplicate =
           !!dto.id && !!(await this.repo.findOne({ where: { id: dto.id } }));
-        const saved = await this.create(dto, userId);
+        const saved = await this.create(dto, userId, pondCache);
         results.push({
           index: i,
           id: saved.id,
@@ -231,20 +261,5 @@ export class MeasurementService {
     original.isSuperseded = true;
     await this.repo.save(original);
     return saved;
-  }
-
-  /** DOC where the stocking day = 1; null when no crop / no stocking date. */
-  private async deriveDoc(
-    cropId: string | undefined,
-    measuredAt: Date,
-  ): Promise<number | null> {
-    if (!cropId) return null;
-    const crop = await this.cropRepo.findOne({ where: { id: cropId } });
-    if (!crop?.stockingDate) return null;
-    const stocking = new Date(crop.stockingDate);
-    const diffDays = Math.floor(
-      (measuredAt.getTime() - stocking.getTime()) / MS_PER_DAY,
-    );
-    return diffDays + 1;
   }
 }

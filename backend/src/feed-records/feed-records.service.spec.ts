@@ -217,6 +217,34 @@ describe('FeedRecordsService', () => {
       expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: recordId });
       expect(result).toEqual(updatedRecord);
     });
+
+    it('rejects a fasting PATCH that still carries feed', async () => {
+      mockRepository.findOneBy.mockResolvedValue({
+        id: 'r1',
+        quantityKg: 40,
+      });
+      await expect(
+        service.update('r1', { isFasting: true, quantityKg: 5 } as any),
+      ).rejects.toThrow('Fasting day');
+    });
+
+    it('reconciles inventory by the quantity delta on an edit', async () => {
+      const inventory = module.get<InventoryService>(InventoryService);
+      mockRepository.findOneBy.mockResolvedValue({
+        id: 'r1',
+        quantityKg: 50,
+        inventoryItemId: 'inv-1',
+      });
+      // 50 → 30 frees 20 kg back into stock; isFasting is stripped (not a column).
+      await service.update(
+        'r1',
+        { quantityKg: 30, isFasting: false } as any,
+        'user-1',
+      );
+      expect(inventory.adjustStock).toHaveBeenCalledWith('inv-1', 20, 'user-1');
+      const [, patch] = mockRepository.update.mock.calls.at(-1);
+      expect(patch).not.toHaveProperty('isFasting');
+    });
   });
 
   describe('remove', () => {

@@ -9,6 +9,13 @@ import {
 } from 'class-validator';
 
 export class CreateTransactionDto {
+  // Optional client-minted id for offline-queue idempotency (mirrors feed-
+  // records/sampling): a retried timed-out POST returns the existing row
+  // instead of double-recording income/expense into the farm P&L.
+  @IsUUID()
+  @IsOptional()
+  id?: string;
+
   @IsUUID()
   farmId: string;
 

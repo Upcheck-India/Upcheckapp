@@ -10,10 +10,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CreditService } from './credit.service';
 import { CreateCreditDto } from './dto/create-credit.dto';
-
-interface RepaymentBody {
-  amount: number;
-}
+import { RepayCreditDto } from './dto/repay-credit.dto';
 
 /** Inventory Credit / Dealer tracking (farmer_features_spec.md §6). */
 @Controller('credit')
@@ -38,7 +35,7 @@ export class CreditController {
   @Patch(':id/repay')
   repay(
     @Param('id') id: string,
-    @Body() body: RepaymentBody,
+    @Body() body: RepayCreditDto,
     @CurrentUser() user,
   ) {
     return this.service.recordRepayment(id, body.amount, user.id);

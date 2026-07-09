@@ -1,11 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Expense } from '../finances/expense.entity';
 import { Harvest } from '../harvests/harvest.entity';
+import { Crop } from '../crops/crop.entity';
 import { EconomicsService } from '../india/economics.service';
 import { PricingService } from '../india/pricing.service';
-import { CropsService } from '../crops/crops.service';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 export interface CropPnl {
   cropId: string;
@@ -37,9 +38,11 @@ export class PnlService {
     private readonly expenseRepo: Repository<Expense>,
     @InjectRepository(Harvest)
     private readonly harvestRepo: Repository<Harvest>,
+    @InjectRepository(Crop)
+    private readonly cropRepo: Repository<Crop>,
     private readonly economics: EconomicsService,
     private readonly pricing: PricingService,
-    private readonly cropsService: CropsService,
+    private readonly farmAccess: FarmAccessService,
   ) {}
 
   async computeCropPnl(
@@ -47,8 +50,19 @@ export class PnlService {
     userId: string,
     opts?: { region?: string; areaM2?: number },
   ): Promise<CropPnl> {
-    // Ownership — throws if the user does not own the crop.
-    await this.cropsService.findOne(cropId, userId);
+    // Authorize via VIEW_FINANCIALS on the crop's pond — same capability as
+    // expenses.getCycleFinancials, so an owner OR manager who can see the
+    // cycle financials can also see the P&L rollup of the same crop (was
+    // owner-only, which 403'd managers on their own farm's financials).
+    const crop = await this.cropRepo.findOne({ where: { id: cropId } });
+    if (!crop) {
+      throw new NotFoundException(`Crop with ID ${cropId} not found`);
+    }
+    await this.farmAccess.assertCanAccessPond(
+      userId,
+      crop.pondId,
+      'VIEW_FINANCIALS',
+    );
 
     const expenses = await this.expenseRepo.find({ where: { cropId } });
     const harvests = await this.harvestRepo.find({ where: { cropId } });

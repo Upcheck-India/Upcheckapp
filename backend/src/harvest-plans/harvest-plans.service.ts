@@ -8,9 +8,14 @@ import { Repository } from 'typeorm';
 import { HarvestPlan } from './harvest-plan.entity';
 import { CreateHarvestPlanDto } from './dto/create-harvest-plan.dto';
 import { UpdateHarvestPlanDto } from './dto/update-harvest-plan.dto';
+import { CompletePlanDto } from './dto/complete-plan.dto';
 import { Transaction } from '../transactions/transaction.entity';
+import { Expense } from '../finances/expense.entity';
+import { Harvest } from '../harvests/harvest.entity';
 import { Crop } from '../crops/crop.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 @Injectable()
 export class HarvestPlansService {
@@ -19,6 +24,10 @@ export class HarvestPlansService {
     private plansRepository: Repository<HarvestPlan>,
     @InjectRepository(Transaction)
     private transactionsRepository: Repository<Transaction>,
+    @InjectRepository(Expense)
+    private expensesRepository: Repository<Expense>,
+    @InjectRepository(Harvest)
+    private harvestsRepository: Repository<Harvest>,
     @InjectRepository(Crop)
     private cropsRepository: Repository<Crop>,
     private farmAccess: FarmAccessService,
@@ -56,14 +65,7 @@ export class HarvestPlansService {
     return this.plansRepository.delete(id);
   }
 
-  async completePlan(
-    id: string,
-    payload: {
-      actualHarvestDate: Date;
-      actualWeightKg: number;
-      actualPricePerKg: number;
-    },
-  ) {
+  async completePlan(id: string, payload: CompletePlanDto) {
     // Load with the pond relation so the farm for the money-writing Transaction
     // below is resolved server-side — never trust a client-supplied farmId here.
     const plan = await this.plansRepository.findOne({
@@ -115,19 +117,27 @@ export class HarvestPlansService {
   }
 
   async getCycleSummary(pondId: string, farmId: string) {
-    const revenue = await this.transactionsRepository
-      .createQueryBuilder('t')
-      .select('SUM(t.amount)', 'total')
-      .where('t.farmId = :farmId', { farmId })
-      .andWhere('t.type = :type', { type: 'income' })
+    // Scope to THIS pond, not the whole farm. Transactions carry no pond/crop
+    // link, so source pond-scoped economics from the same tables PnL uses:
+    // expenses (pondId) and harvest sale revenue (via crop.pondId).
+    // ponytail: this mirrors getCycleFinancials/PnL basis; plan-completion
+    // income that completePlan writes to `transactions` (no pond column) is
+    // out of this basis — unify the two revenue paths if that matters.
+    const revenue = await this.harvestsRepository
+      .createQueryBuilder('h')
+      .innerJoin('h.crop', 'crop')
+      .select('SUM(h.salePriceTotal)', 'total')
+      .where('crop.pondId = :pondId', { pondId })
       .getRawOne();
 
-    const expenses = await this.transactionsRepository
-      .createQueryBuilder('t')
-      .select('SUM(t.amount)', 'total')
-      .where('t.farmId = :farmId', { farmId })
-      .andWhere('t.type = :type', { type: 'expense' })
+    const expenses = await this.expensesRepository
+      .createQueryBuilder('e')
+      .select('SUM(e.amount)', 'total')
+      .where('e.pondId = :pondId', { pondId })
       .getRawOne();
+
+    const totalRevenue = round2(Number(revenue?.total || 0));
+    const totalExpense = round2(Number(expenses?.total || 0));
 
     // Only return a plan that actually belongs to the requested (guard-checked)
     // farm — pondId alone isn't authorized, so it must be cross-checked against farmId.
@@ -141,9 +151,9 @@ export class HarvestPlansService {
 
     return {
       pondId,
-      totalRevenue: Number(revenue?.total || 0),
-      totalExpense: Number(expenses?.total || 0),
-      netProfit: Number(revenue?.total || 0) - Number(expenses?.total || 0),
+      totalRevenue,
+      totalExpense,
+      netProfit: round2(totalRevenue - totalExpense),
       latestPlan: plan,
     };
   }

@@ -2,7 +2,6 @@ import {
   Entity,
   Column,
   PrimaryGeneratedColumn,
-  CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
@@ -23,7 +22,16 @@ export class WaterQualityRecord {
   @JoinColumn({ name: 'pond_id' })
   pond: Pond;
 
-  @CreateDateColumn({ name: 'recorded_at', type: 'timestamp with time zone' })
+  // Plain @Column (not @CreateDateColumn) so a client-supplied measurement
+  // time can be persisted — TypeORM unconditionally overwrites
+  // @CreateDateColumn with `new Date()` on insert, which would stamp an
+  // offline-queued reading with sync time instead of when it was taken
+  // (AUDIT id 31). DB default covers the common case where the client omits it.
+  @Column({
+    name: 'recorded_at',
+    type: 'timestamp with time zone',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   recordedAt: Date;
 
   @Column({ type: 'numeric', nullable: true })

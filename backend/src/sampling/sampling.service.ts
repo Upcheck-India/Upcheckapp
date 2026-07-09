@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SamplingData } from './sampling-data.entity';
@@ -35,6 +35,12 @@ export class SamplingService {
       }
     }
 
+    // Permissive by a day to absorb client/server clock skew — reject
+    // anything clearly in the future, not a same-day edge case.
+    if (new Date(createDto.samplingDate).getTime() > Date.now() + 86_400_000) {
+      throw new BadRequestException('samplingDate cannot be in the future');
+    }
+
     const pond = await this.pondsService.findOneAccessible(
       createDto.pondId,
       userId,
@@ -44,7 +50,10 @@ export class SamplingService {
     const record = this.samplingRepository.create({
       id: createDto.id,
       pondId: createDto.pondId,
-      cropId: pond.activeCycleId,
+      // Honor the requested crop when supplied — a sampling record for a
+      // specific non-active crop shouldn't be silently rewritten to the pond's
+      // current cycle (AUDIT id 35).
+      cropId: createDto.cropId ?? pond.activeCycleId,
       samplingDate: createDto.samplingDate,
       mbwG: createDto.mbwG,
       totalSamples: createDto.totalSamples,

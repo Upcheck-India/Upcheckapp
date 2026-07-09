@@ -1,17 +1,28 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { CropsService } from './crops.service';
 import { Crop } from './crop.entity';
 import { CreateCropDto } from './dto/create-crop.dto';
 import { UpdateCropDto } from './dto/update-crop.dto';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ForbiddenException,
+  ConflictException,
+} from '@nestjs/common';
 import { PondsService } from '../ponds/ponds.service';
 
 describe('CropsService', () => {
   let service: CropsService;
   let repository: MockRepository;
   let pondsService: jest.Mocked<PondsService>;
+  // Transaction EntityManager stand-in — create() now claims the pond's active
+  // cycle inside a locked dataSource.transaction.
+  let manager: {
+    findOne: jest.Mock;
+    create: jest.Mock;
+    save: jest.Mock;
+  };
 
   const mockCrop = new Crop();
   mockCrop.id = 'crop-1';
@@ -58,6 +69,11 @@ describe('CropsService', () => {
   });
 
   beforeEach(async () => {
+    manager = {
+      findOne: jest.fn(),
+      create: jest.fn(),
+      save: jest.fn(),
+    };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CropsService,
@@ -71,6 +87,14 @@ describe('CropsService', () => {
             findOne: jest.fn().mockResolvedValue(mockPond),
             verifyOwner: jest.fn().mockResolvedValue(true),
             update: jest.fn().mockResolvedValue(mockPond),
+          },
+        },
+        {
+          provide: DataSource,
+          useValue: {
+            transaction: jest.fn((cb: (m: typeof manager) => unknown) =>
+              cb(manager),
+            ),
           },
         },
       ],
@@ -90,8 +114,9 @@ describe('CropsService', () => {
       const userId = 'user-1';
 
       pondsService.findOne.mockResolvedValue({} as any);
-      (repository.create as jest.Mock).mockReturnValue(mockCrop);
-      (repository.save as jest.Mock).mockResolvedValue(mockCrop);
+      manager.findOne.mockResolvedValue({ id: 'pond-1', activeCycleId: null });
+      manager.create.mockReturnValue(mockCrop);
+      manager.save.mockResolvedValue(mockCrop);
 
       const result = await service.create(mockCreateCropDto, userId);
 
@@ -99,9 +124,22 @@ describe('CropsService', () => {
         mockCreateCropDto.pondId,
         userId,
       );
-      expect(repository.create).toHaveBeenCalled();
-      expect(repository.save).toHaveBeenCalledWith(mockCrop);
+      expect(manager.create).toHaveBeenCalled();
       expect(result).toEqual(mockCrop);
+    });
+
+    it('rejects a second concurrent active cycle for the same pond', async () => {
+      pondsService.findOne.mockResolvedValue({} as any);
+      // Locked pond row already carries an active cycle.
+      manager.findOne.mockResolvedValue({
+        id: 'pond-1',
+        activeCycleId: 'crop-existing',
+      });
+
+      await expect(
+        service.create(mockCreateCropDto, 'user-1'),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(manager.save).not.toHaveBeenCalled();
     });
   });
 
@@ -208,7 +246,7 @@ describe('CropsService', () => {
       (repository.update as jest.Mock).mockResolvedValue(undefined);
       jest.spyOn(service, 'findOne').mockResolvedValue(
         Object.assign(new Crop(), mockCrop, {
-          status: 'harvested',
+          status: 'completed',
           actualHarvestDate: harvestData.actualHarvestDate,
           harvestWeightKg: harvestData.harvestWeightKg,
         }),
@@ -220,9 +258,37 @@ describe('CropsService', () => {
       expect(repository.update).toHaveBeenCalledWith(cropId, {
         actualHarvestDate: new Date(harvestData.actualHarvestDate),
         harvestWeightKg: harvestData.harvestWeightKg,
-        status: 'harvested',
+        status: 'completed',
       });
-      expect(result.status).toBe('harvested');
+      expect(result.status).toBe('completed');
+    });
+  });
+
+  describe('closeCycle', () => {
+    it('rejects a second close (idempotent) with ConflictException', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
+      pondsService.findOne.mockResolvedValue(mockPond as any);
+      // Guarded UPDATE matched no open row → already closed.
+      (repository.update as jest.Mock).mockResolvedValue({ affected: 0 });
+
+      await expect(
+        service.closeCycle('crop-1', '2024-06-01', 'user-1'),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('closes an open cycle and unlinks it from the pond', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
+      pondsService.findOne.mockResolvedValue(mockPond as any);
+      (repository.update as jest.Mock).mockResolvedValue({ affected: 1 });
+
+      await service.closeCycle('crop-1', '2024-06-01', 'user-1');
+
+      expect(repository.update).toHaveBeenCalled();
+      expect(pondsService.update).toHaveBeenCalledWith(
+        'pond-1',
+        { activeCycleId: null },
+        'user-1',
+      );
     });
   });
 });

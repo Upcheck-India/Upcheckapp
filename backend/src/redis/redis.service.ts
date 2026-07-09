@@ -31,16 +31,23 @@ export class RedisService implements OnModuleInit {
         host: redisHost,
         port: redisPort,
         lazyConnect: true,
+        // Keep retrying indefinitely (capped backoff) instead of giving up after
+        // 3 tries — a transient outage should self-heal once Redis comes back
+        // rather than pinning the process on the in-memory fallback forever.
         retryStrategy: (times) => {
           if (times > 3) {
             this.enableMemoryFallback(
               'Redis connection failed, switching to in-memory store.',
             );
-            return null; // Stop retrying
           }
-          return Math.min(times * 50, 2000);
+          return Math.min(times * 50, 5000);
         },
       });
+
+      this.client.on('error', (err) => {
+        this.logger.warn(`Redis client error: ${err.message}`);
+      });
+      this.client.on('ready', () => this.handleReconnect());
 
       await this.client.connect().catch(() => {
         this.enableMemoryFallback(
@@ -72,6 +79,14 @@ export class RedisService implements OnModuleInit {
           'safe on a single instance, BROKEN if scaled to multiple instances. ' +
           'Provision Redis before scaling horizontally.',
       );
+    }
+  }
+
+  /** Redis reconnected ('ready' event) — stop serving from the memory fallback. */
+  private handleReconnect(): void {
+    if (this.useMemory) {
+      this.useMemory = false;
+      this.logger.log('Redis reconnected — leaving in-memory fallback.');
     }
   }
 

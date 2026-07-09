@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, In } from 'typeorm';
 import { FarmMember, FarmRole } from './farm-member.entity';
 import { Farm } from '../farms/farm.entity';
 import { Pond } from '../ponds/pond.entity';
@@ -118,12 +118,36 @@ export class FarmAccessService {
     capability: FarmCapability,
   ): Promise<string[]> {
     const accessibleIds = await this.getAccessibleFarmIds(userId);
-    const allowed: string[] = [];
-    for (const farmId of accessibleIds) {
-      const role = await this.getRoleOnFarm(userId, farmId);
-      if (roleSatisfies(role, capability)) allowed.push(farmId);
+    if (accessibleIds.length === 0) return [];
+
+    // Batch-load roles instead of one getRoleOnFarm() query per farm (AUDIT
+    // id 142): a single membership query + a single owner-fallback query for
+    // whatever's left, instead of up to 2 queries per accessible farm.
+    let members: FarmMember[] = [];
+    try {
+      members = await this.membersRepo.find({
+        where: { userId, farmId: In(accessibleIds) },
+      });
+    } catch (err) {
+      if (!isMissingTable(err)) throw err;
+      this.logger.warn(
+        'farm_members table missing — run migrations; using owner-only access',
+      );
     }
-    return allowed;
+    const roleByFarm = new Map(members.map((m) => [m.farmId, m.role]));
+
+    const missing = accessibleIds.filter((id) => !roleByFarm.has(id));
+    if (missing.length > 0) {
+      const owned = await this.farmsRepo.find({
+        where: { id: In(missing), userId },
+        select: { id: true },
+      });
+      for (const f of owned) roleByFarm.set(f.id, 'owner');
+    }
+
+    return accessibleIds.filter((id) =>
+      roleSatisfies(roleByFarm.get(id) ?? null, capability),
+    );
   }
 
   /**

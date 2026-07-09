@@ -136,7 +136,13 @@ export class SimulationsService {
     const totalFeedNeeded = adjustedBiomass * adjustedFcr;
     const totalFeedCost = totalFeedNeeded * feedPrice;
     const revenue = adjustedBiomass * marketPrice;
-    const totalCost = totalFeedCost + baselineOtherCosts;
+    // Put baseline and simulated on the SAME cost basis: swap the baseline feed
+    // cost (feed used so far × the same feedPrice) out of baselineOtherCosts and
+    // the projected feed cost in — otherwise projected feed is added only to the
+    // simulated side, so a null FeedChange (0% growth) yields profitDifference =
+    // -totalFeedCost instead of ~0, and totalCost double-counts feed.
+    const baselineFeedCost = baselineFeedUsed * feedPrice;
+    const totalCost = baselineOtherCosts - baselineFeedCost + totalFeedCost;
     const simulatedNetProfit = revenue - totalCost;
     const profitDifference = simulatedNetProfit - baselineNetProfit;
 

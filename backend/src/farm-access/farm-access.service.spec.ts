@@ -76,6 +76,40 @@ describe('FarmAccessService', () => {
     });
   });
 
+  describe('getFarmIdsWithCapability (AUDIT id 142 — batched, not N+1)', () => {
+    const FARM_2 = 'farm-2';
+
+    it('resolves roles from a single membership query, plus one owner-fallback query', async () => {
+      membersRepo.find
+        .mockResolvedValueOnce([{ farmId: FARM }, { farmId: FARM_2 }]) // getAccessibleFarmIds
+        .mockResolvedValueOnce([{ farmId: FARM, role: 'worker' }]); // batched role lookup
+      farmsRepo.find
+        .mockResolvedValueOnce([]) // owned (getAccessibleFarmIds)
+        .mockResolvedValueOnce([{ id: FARM }, { id: FARM_2 }]) // live (getAccessibleFarmIds)
+        .mockResolvedValueOnce([{ id: FARM_2 }]); // owner-fallback for the farm missing a member row
+
+      const allowed = await service.getFarmIdsWithCapability(
+        WORKER,
+        'WRITE_OPERATIONAL',
+      );
+
+      expect(allowed.sort()).toEqual([FARM, FARM_2].sort());
+      // Exactly one batched find() for roles, not one getRoleOnFarm() per farm.
+      expect(membersRepo.find).toHaveBeenCalledTimes(2);
+      expect(membersRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it('returns [] without querying roles when the user has no accessible farms', async () => {
+      membersRepo.find.mockResolvedValueOnce([]);
+      farmsRepo.find.mockResolvedValueOnce([]); // owned only — getAccessibleFarmIds short-circuits
+
+      expect(
+        await service.getFarmIdsWithCapability(STRANGER, 'READ'),
+      ).toEqual([]);
+      expect(membersRepo.find).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('assertCanAccessFarm', () => {
     beforeEach(() => {
       farmsRepo.findOne.mockResolvedValue({

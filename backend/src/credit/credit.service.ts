@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -83,7 +84,21 @@ export class CreditService {
     const row = await this.repo.findOne({ where: { id } });
     if (!row) throw new NotFoundException('Credit entry not found');
     if (row.userId !== userId) throw new ForbiddenException();
-    row.repaid = round2(Number(row.repaid) + amount);
+    // A negative/zero amount would inflate the outstanding balance; an amount
+    // beyond what is owed would push repaid above the total due. Reject both so
+    // the ledger stays consistent.
+    if (!(amount > 0)) {
+      throw new BadRequestException('Repayment amount must be greater than 0');
+    }
+    const totalDue =
+      Number(row.principal) * (1 + (Number(row.interestPct) || 0) / 100);
+    const newRepaid = round2(Number(row.repaid) + amount);
+    if (newRepaid > round2(totalDue)) {
+      throw new BadRequestException(
+        'Repayment exceeds the outstanding balance',
+      );
+    }
+    row.repaid = newRepaid;
     return this.repo.save(row);
   }
 

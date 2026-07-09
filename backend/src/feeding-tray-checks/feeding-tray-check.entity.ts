@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { FeedRecord } from '../feed-records/feed-record.entity';
 import { Crop } from '../crops/crop.entity';
@@ -14,6 +15,9 @@ export class FeedingTrayCheck {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  // Hot-path filter column (feeding-tray-checks.service findAll, pond-context
+  // findOne) with no auto-created FK index in Postgres (AUDIT id 146).
+  @Index()
   @Column({ name: 'crop_id', type: 'uuid' })
   cropId: string;
 

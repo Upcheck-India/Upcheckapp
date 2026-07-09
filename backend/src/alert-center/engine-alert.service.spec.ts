@@ -66,3 +66,37 @@ describe('EngineAlertService.evaluate', () => {
     expect(svc.evaluate(baseCtx)).toEqual([]);
   });
 });
+
+/** AUDIT id 143: liveBriefing fans per-pond context fetches out, not N+1. */
+describe('EngineAlertService.liveBriefing', () => {
+  it('fetches contexts for all active ponds and skips a pond that errors', async () => {
+    const ponds = [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }];
+    const pondRepo = { find: jest.fn().mockResolvedValue(ponds) };
+    const getContext = jest.fn((pondId: string) =>
+      pondId === 'p2'
+        ? Promise.reject(new Error('boom'))
+        : Promise.resolve({ ...baseCtx, pondId }),
+    );
+    const pondContext = { getContext };
+    const alertCenter = { buildBriefing: jest.fn((drafts) => drafts) };
+    const farmAccess = {
+      getAccessibleFarmIds: jest.fn().mockResolvedValue(['farm-1']),
+    };
+
+    const svc = new EngineAlertService(
+      pondRepo as any,
+      pondContext as any,
+      new LunarService(),
+      alertCenter as any,
+      farmAccess as any,
+    );
+
+    await svc.liveBriefing('user-1');
+
+    // All 3 ponds fetched (fanned out), including the one that errors.
+    expect(getContext).toHaveBeenCalledTimes(3);
+    expect(getContext).toHaveBeenCalledWith('p1', 'user-1');
+    expect(getContext).toHaveBeenCalledWith('p2', 'user-1');
+    expect(getContext).toHaveBeenCalledWith('p3', 'user-1');
+  });
+});

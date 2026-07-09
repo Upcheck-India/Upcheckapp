@@ -72,7 +72,7 @@ function makeService(opts?: { stockingDate?: string }) {
   const measRepo = fakeRepo<any>();
   const cropRepo = fakeRepo<any>(
     opts?.stockingDate
-      ? [{ id: 'crop-1', stockingDate: opts.stockingDate }]
+      ? [{ id: 'crop-1', pondId: POND, stockingDate: opts.stockingDate }]
       : [],
   );
   const pondsService = { findOne: jest.fn().mockResolvedValue({ id: POND }) };

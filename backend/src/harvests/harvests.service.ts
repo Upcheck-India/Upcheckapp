@@ -17,6 +17,25 @@ export class HarvestsService {
   ) {}
 
   async create(createDto: CreateHarvestDto, userId: string) {
+    // Idempotent replay guard — a queued-then-retried harvest must not
+    // double-insert or run closeCycle twice (double-counting biomass/revenue).
+    // Verify the caller can access the found row's farm BEFORE returning it so
+    // a replay with a guessed id can't leak another farm's harvest.
+    if (createDto.id) {
+      const existing = await this.harvestsRepository.findOne({
+        where: { id: createDto.id },
+        relations: ['crop'],
+      });
+      if (existing) {
+        await this.farmAccess.assertCanAccessPond(
+          userId,
+          existing.crop.pondId,
+          'WRITE_MANAGEMENT',
+        );
+        return existing;
+      }
+    }
+
     const harvest = this.harvestsRepository.create(createDto);
     const savedHarvest = await this.harvestsRepository.save(harvest);
 

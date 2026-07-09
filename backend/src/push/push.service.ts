@@ -46,7 +46,7 @@ export class PushService {
     if (!token) return false;
 
     try {
-      await axios.post(
+      const res = await axios.post(
         EXPO_PUSH_URL,
         {
           to: token,
@@ -57,6 +57,24 @@ export class PushService {
         },
         { headers: { 'Content-Type': 'application/json' }, timeout: 10_000 },
       );
+
+      // Expo returns HTTP 200 even for a per-message failure — the real
+      // outcome is in the response body (AUDIT id 108). A stale/uninstalled
+      // token reports here, not as a non-2xx, so axios' catch never sees it.
+      const ticket = res.data?.data?.[0];
+      if (ticket?.status === 'error') {
+        if (ticket.details?.error === 'DeviceNotRegistered') {
+          this.logger.warn(
+            `Expo token for user ${userId} is stale (DeviceNotRegistered) — clearing it`,
+          );
+          await this.clearToken(userId);
+        } else {
+          this.logger.warn(
+            `Expo push to user ${userId} reported an error: ${ticket.message ?? ticket.details?.error}`,
+          );
+        }
+        return false;
+      }
       return true;
     } catch (err: any) {
       this.logger.warn(

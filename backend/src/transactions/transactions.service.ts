@@ -15,6 +15,24 @@ export class TransactionsService {
   ) {}
 
   async create(createDto: CreateTransactionDto, userId: string) {
+    // Idempotent replay guard for offline-queue drains — a retried timed-out
+    // POST must not double-record. Verify the caller can view the found row's
+    // farm financials BEFORE returning it so a guessed id can't leak another
+    // farm's transaction.
+    if (createDto.id) {
+      const existing = await this.transactionsRepository.findOneBy({
+        id: createDto.id,
+      });
+      if (existing) {
+        await this.farmAccess.assertCanAccessFarm(
+          userId,
+          existing.farmId,
+          'VIEW_FINANCIALS',
+        );
+        return existing;
+      }
+    }
+
     // Financials are owner/manager only (VIEW_FINANCIALS); workers/viewers denied.
     await this.farmAccess.assertCanAccessFarm(
       userId,

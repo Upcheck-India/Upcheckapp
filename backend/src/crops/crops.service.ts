@@ -4,11 +4,12 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Crop } from './crop.entity';
+import { DataSource, Not, Repository } from 'typeorm';
+import { Crop, computeDoc } from './crop.entity';
 import { CreateCropDto } from './dto/create-crop.dto';
 import { UpdateCropDto } from './dto/update-crop.dto';
 import { HarvestCropDto } from './dto/harvest-crop.dto';
+import { Pond } from '../ponds/pond.entity';
 import { PondsService } from '../ponds/ponds.service';
 
 @Injectable()
@@ -17,73 +18,82 @@ export class CropsService {
     @InjectRepository(Crop)
     private cropsRepository: Repository<Crop>,
     private pondsService: PondsService,
+    private dataSource: DataSource,
   ) {}
 
   async create(createCropDto: CreateCropDto, userId: string) {
-    // Verify user owns the pond
-    const pond = await this.pondsService.findOne(createCropDto.pondId, userId);
+    // Verify user owns the pond (throws otherwise).
+    const owned = await this.pondsService.findOne(createCropDto.pondId, userId);
 
-    if (
-      pond.activeCycleId &&
-      (createCropDto.status === 'active' || !createCropDto.status)
-    ) {
-      throw new ConflictException(
-        'Pond already has an active cycle. Close it first before starting a new one.',
-      );
-    }
+    // Default status to 'active' — and use the SAME resolved value below so a
+    // cycle created without an explicit status still links to the pond.
+    const finalStatus = createCropDto.status || 'active';
+    const isActive = finalStatus === 'active';
 
     // Calculate Stocking Density
     let stockingDensity = createCropDto.stockingDensity;
-    if (pond.calculatedAreaM2 || pond.overrideAreaM2) {
-      const area = pond.overrideAreaM2 || pond.calculatedAreaM2;
+    if (owned.calculatedAreaM2 || owned.overrideAreaM2) {
+      const area = owned.overrideAreaM2 || owned.calculatedAreaM2;
       if (area > 0 && createCropDto.stockingCount) {
         stockingDensity = Math.round(createCropDto.stockingCount / area);
       }
     }
 
-    // Default status to 'active' — and use the SAME resolved value below so a
-    // cycle created without an explicit status still links to the pond.
-    const finalStatus = createCropDto.status || 'active';
+    // Serialize the check-then-set on activeCycleId behind a row lock so two
+    // concurrent CreateCycle requests for the same pond can't both read
+    // activeCycleId=null and both create an 'active' crop (last-write-wins would
+    // leave two active cycles, breaking DOC / density / P&L invariants).
+    return this.dataSource.transaction(async (manager) => {
+      const pond = isActive
+        ? await manager.findOne(Pond, {
+            where: { id: createCropDto.pondId },
+            lock: { mode: 'pessimistic_write' },
+          })
+        : owned;
 
-    const crop = this.cropsRepository.create({
-      pondId: createCropDto.pondId,
-      name: createCropDto.name,
-      cropCode: createCropDto.cropCode,
-      speciesType: createCropDto.speciesType,
-      seedType: createCropDto.seedType,
-      stockingCount: createCropDto.stockingCount,
-      stockingDate: createCropDto.stockingDate,
-      expectedHarvestDate: createCropDto.expectedHarvestDate,
-      status: finalStatus,
-      stockingDensity,
-      // Stocking detail + cycle targets — undefined values fall back to the
-      // entity column defaults (carrying capacity 1.25, target SR 75, etc.).
-      totalSeed: createCropDto.totalSeed,
-      feedPriceRpPerKg: createCropDto.feedPriceRpPerKg,
-      carryingCapacityKgM2: createCropDto.carryingCapacityKgM2,
-      targetCultivationDays: createCropDto.targetCultivationDays,
-      targetSize: createCropDto.targetSize,
-      targetSrPercent: createCropDto.targetSrPercent,
-      srPredictionMethod: createCropDto.srPredictionMethod,
-      initialAgeDays: createCropDto.initialAgeDays,
-      preparationDays: createCropDto.preparationDays,
-      totalFeedingTrays: createCropDto.totalFeedingTrays,
-      hatcheryId: createCropDto.hatcheryId,
-      speciesId: createCropDto.speciesId,
-      broodstockId: createCropDto.broodstockId,
+      if (isActive && pond?.activeCycleId) {
+        throw new ConflictException(
+          'Pond already has an active cycle. Close it first before starting a new one.',
+        );
+      }
+
+      const crop = manager.create(Crop, {
+        pondId: createCropDto.pondId,
+        name: createCropDto.name,
+        cropCode: createCropDto.cropCode,
+        speciesType: createCropDto.speciesType,
+        seedType: createCropDto.seedType,
+        stockingCount: createCropDto.stockingCount,
+        stockingDate: createCropDto.stockingDate,
+        expectedHarvestDate: createCropDto.expectedHarvestDate,
+        status: finalStatus,
+        stockingDensity,
+        // Stocking detail + cycle targets — undefined values fall back to the
+        // entity column defaults (carrying capacity 1.25, target SR 75, etc.).
+        totalSeed: createCropDto.totalSeed,
+        feedPriceRpPerKg: createCropDto.feedPriceRpPerKg,
+        carryingCapacityKgM2: createCropDto.carryingCapacityKgM2,
+        targetCultivationDays: createCropDto.targetCultivationDays,
+        targetSize: createCropDto.targetSize,
+        targetSrPercent: createCropDto.targetSrPercent,
+        srPredictionMethod: createCropDto.srPredictionMethod,
+        initialAgeDays: createCropDto.initialAgeDays,
+        preparationDays: createCropDto.preparationDays,
+        totalFeedingTrays: createCropDto.totalFeedingTrays,
+        hatcheryId: createCropDto.hatcheryId,
+        speciesId: createCropDto.speciesId,
+        broodstockId: createCropDto.broodstockId,
+      });
+      const savedCrop = await manager.save(crop);
+
+      // Link as the pond's active cycle inside the same locked transaction.
+      if (isActive && pond) {
+        pond.activeCycleId = savedCrop.id;
+        await manager.save(pond);
+      }
+
+      return savedCrop;
     });
-    const savedCrop = await this.cropsRepository.save(crop);
-
-    // If the cycle is active, link it as the pond's active cycle.
-    if (finalStatus === 'active') {
-      await this.pondsService.update(
-        pond.id,
-        { activeCycleId: savedCrop.id } as any,
-        userId,
-      );
-    }
-
-    return savedCrop;
   }
 
   async findAll(pondId: string, userId: string) {
@@ -146,13 +156,9 @@ export class CropsService {
    * Returns 0 if stockingDate is not set or is in the future.
    */
   computeDOC(crop: Crop): number {
-    if (!crop.stockingDate) return 0;
-    const stocked = new Date(crop.stockingDate);
-    const now = new Date();
-    const diffMs = now.getTime() - stocked.getTime();
-    if (diffMs <= 0) return 0;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    return diffDays + (crop.initialAgeDays || 0);
+    // Shared IST-calendar DOC (stocking day = 1); 0 when unstocked/future so
+    // the API response keeps its numeric shape.
+    return computeDoc(crop.stockingDate, crop.initialAgeDays) ?? 0;
   }
 
   /**
@@ -192,11 +198,13 @@ export class CropsService {
     const crop = await this.findOne(id, userId); // Verify ownership
 
     // Assign only the two whitelisted fields — never spread the raw body, which
-    // would let a caller overwrite arbitrary crop columns.
+    // would let a caller overwrite arbitrary crop columns. Terminal status is
+    // 'completed' (matching closeCycle and the entity's documented states) so
+    // the same real event never lands in two different states.
     await this.cropsRepository.update(id, {
       actualHarvestDate: new Date(harvestData.actualHarvestDate),
       harvestWeightKg: harvestData.harvestWeightKg,
-      status: 'harvested',
+      status: 'completed',
     });
 
     // Unlink from ponds activeCycleId
@@ -215,10 +223,17 @@ export class CropsService {
   async closeCycle(id: string, actualHarvestDate: string, userId: string) {
     const crop = await this.findOne(id, userId); // Verify ownership
 
-    await this.cropsRepository.update(id, {
-      actualHarvestDate,
-      status: 'completed',
-    });
+    // Idempotent close: the guard `status <> 'completed'` means a
+    // double-submitted or concurrently-replayed full harvest closes the cycle
+    // exactly once. The second call affects 0 rows and is rejected, so yield /
+    // revenue can't be double-counted in reports and P&L.
+    const res = await this.cropsRepository.update(
+      { id, status: Not('completed') },
+      { actualHarvestDate, status: 'completed' },
+    );
+    if (!res.affected) {
+      throw new ConflictException('Cycle is already closed.');
+    }
 
     // Unlink from ponds activeCycleId
     // We can't just set to null blindly, we should check if THIS crop is the active one.
