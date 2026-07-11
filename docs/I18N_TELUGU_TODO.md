@@ -20,6 +20,7 @@ in code / the `en` locale):
 | `logs.feedingTray_*` | title, trayNumber, residue, empty, few_left, a_lot_left, tray, recent, emptyTitle, emptySub, errorSave |
 | `logs.waterQuality_*` | showMore, showFewer, prefillHint, sectionDaily (quick-mode expander added for the daily-logging-friction fix) |
 | `logs.feed_*` | showTrays, hideTrays (tray-check section collapsed by default) |
+| `history.bannedFlagLabel` | "Flagged: {{names}}" banner on treatment/disease history for a server-evaluated banned-substance match (BANNED-1) |
 | `auth.*` | resetTitle, newPassword, confirmPassword, resetCta, resetWaiting, useOtpInstead, passwordMin, passwordMismatch, resetDoneTitle, resetDoneSub, resetError |
 | `home.*` | workerNoFarm, logNow, workerLogPrompt |
 | `members.*` | roleLabel, changeRoleTitle, roleChangeError, transferTitle, transferConfirm, transferCta, transferError |

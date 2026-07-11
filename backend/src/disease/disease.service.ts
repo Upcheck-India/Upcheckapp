@@ -12,6 +12,8 @@ import {
   CreateDiseaseRecordDto,
 } from './dto/create-disease.dto';
 import { UpdateDiseaseLibraryDto } from './dto/update-disease-library.dto';
+import { evaluateBannedSubstances } from '../banned-substances/banned-substance-matcher';
+import { BANNED_LIST_VERSION } from '../banned-substances/banned-substances.data';
 
 const DISEASE_SEED_DATA: CreateDiseaseDto[] = [
   {
@@ -226,10 +228,18 @@ export class DiseaseService {
       }
     }
 
+    // Server-evaluated at write time (BANNED-1) — recomputed here regardless
+    // of anything the client detected or sent, so the audit trail is
+    // authoritative even against an offline-stale or bypassed client.
+    const { flag, matches } = evaluateBannedSubstances(dto.notes);
+
     const record = this.diseaseRecordRepository.create({
       ...dto,
       createdById: userId,
       updatedById: userId,
+      bannedSubstanceFlag: flag,
+      bannedSubstanceMatches: matches,
+      bannedSubstanceListVersion: BANNED_LIST_VERSION,
     });
     return this.diseaseRecordRepository.save(record);
   }
@@ -249,9 +259,21 @@ export class DiseaseService {
   ): Promise<DiseaseRecord> {
     const record = await this.diseaseRecordRepository.findOneBy({ id });
     if (!record) throw new NotFoundException(`Disease record ${id} not found`);
+
+    // Re-evaluate only when notes actually change — an edit that removes the
+    // flagged text should also clear a stale flag, and one that introduces a
+    // banned reference must not slip through un-flagged.
+    const reEvaluate = dto.notes !== undefined;
+    const { flag, matches } = reEvaluate
+      ? evaluateBannedSubstances(dto.notes)
+      : { flag: record.bannedSubstanceFlag, matches: record.bannedSubstanceMatches };
+
     await this.diseaseRecordRepository.update(id, {
       ...dto,
       ...(userId ? { updatedById: userId } : {}),
+      bannedSubstanceFlag: flag,
+      bannedSubstanceMatches: matches,
+      ...(reEvaluate ? { bannedSubstanceListVersion: BANNED_LIST_VERSION } : {}),
     });
     return this.diseaseRecordRepository.findOneBy({
       id,

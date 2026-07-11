@@ -16,7 +16,8 @@
       "Bash(find . -path ./node_modules -prune -o -iname \"*sync*test*\" -print)",
       "Bash(npx jest *)",
       "Bash(npx tsc *)",
-      "Bash(xargs cat)"
+      "Bash(xargs cat)",
+      "Bash(EXPO_DEBUG=1 npx expo config)"
     ]
   }
 }

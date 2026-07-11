@@ -29,6 +29,15 @@ export const HomeScreen = ({ navigation }: any) => {
     const [ponds, setPonds] = useState<Pond[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    // "Finish setting up your other ponds" nudge — an owner who bailed out of
+    // the onboarding pond-setup loop early (or via "Finish Later") still lands
+    // on a real dashboard (Task 7), but shouldn't silently forget the rest of
+    // their planned ponds. Reappears every time Home loads while incomplete
+    // (persistent), but a farmer mid-task can dismiss it for this visit
+    // without it blocking anything (dismissible) — plain component state is
+    // enough for that: it resets naturally next time this screen mounts.
+    const [plannedPondCount, setPlannedPondCount] = useState<number | null>(null);
+    const [nudgeDismissed, setNudgeDismissed] = useState(false);
     // Distinct from summary===null: on a fetch FAILURE we must show a retry state,
     // not the "no farm data / create your first farm" CTA (which is for a genuinely
     // empty account). Conflating them pushes an existing owner to re-create a farm.
@@ -79,6 +88,26 @@ export const HomeScreen = ({ navigation }: any) => {
     useEffect(() => {
         pondsApi.getMine().then(({ data }) => setPonds(data)).catch(() => setPonds([]));
     }, []);
+
+    // Planned vs. actual pond count for the selected farm — drives the
+    // finish-setup nudge below.
+    useEffect(() => {
+        if (!selectedFarm?.id) {
+            setPlannedPondCount(null);
+            return;
+        }
+        farmsApi
+            .getById(selectedFarm.id)
+            .then(({ data }) => setPlannedPondCount(data.plannedPondCount ?? null))
+            .catch(() => setPlannedPondCount(null));
+    }, [selectedFarm?.id]);
+
+    const pondsForSelectedFarm = selectedFarm?.id
+        ? ponds.filter((p) => p.farmId === selectedFarm.id).length
+        : ponds.length;
+    const remainingPonds =
+        plannedPondCount != null ? Math.max(0, plannedPondCount - pondsForSelectedFarm) : 0;
+    const showSetupNudge = !nudgeDismissed && remainingPonds > 0 && !!selectedFarm?.id;
 
     // First-run: a brand-new farmer with no farms and who hasn't seen the welcome
     // gets a one-time guided intro. The flag is set inside WelcomeScreen.
@@ -131,6 +160,39 @@ export const HomeScreen = ({ navigation }: any) => {
                     <MaterialCommunityIcons name="account-circle" size={40} color={theme.roles.light.primary} />
                 </TouchableOpacity>
             </View>
+
+            {/* Finish-setup nudge (Task 7): an owner who created fewer ponds than
+                planned (via "Finish Later" or backing out mid-loop) gets reminded
+                here every visit until it's resolved, but can dismiss it for now. */}
+            {showSetupNudge && (
+                <Card style={styles.nudgeCard}>
+                    <View style={styles.nudgeIcon}>
+                        <MaterialCommunityIcons name="progress-clock" size={22} color={theme.roles.light.warningText} />
+                    </View>
+                    <View style={styles.nudgeBody}>
+                        <Text style={styles.nudgeTitle}>
+                            {t('home.finishSetupTitle', 'Finish setting up your ponds')}
+                        </Text>
+                        <Text style={styles.nudgeSub}>
+                            {t('home.finishSetupSub', { count: remainingPonds })}
+                        </Text>
+                    </View>
+                    <TouchableOpacity
+                        onPress={() => setNudgeDismissed(true)}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('common.dismiss', 'Dismiss')}
+                        style={styles.nudgeDismiss}
+                    >
+                        <MaterialCommunityIcons name="close" size={18} color={theme.roles.light.textSecondary} />
+                    </TouchableOpacity>
+                    <Button
+                        title={t('home.finishSetupCta', 'Continue setup')}
+                        onPress={() => goRoot('PondSetup', { farmId: selectedFarm!.id, totalPonds: remainingPonds })}
+                        style={styles.nudgeBtn}
+                    />
+                </Card>
+            )}
 
             {/* Worker home is task-first: a single large "Log now" entry to the
                 daily loop. Owners/managers get the portfolio below instead. */}
@@ -278,6 +340,25 @@ export const HomeScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
+    nudgeCard: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[6],
+        backgroundColor: theme.roles.light.warningBg,
+        gap: theme.spacing[3],
+    },
+    nudgeIcon: {
+        width: 40, height: 40, borderRadius: 20,
+        backgroundColor: theme.roles.light.surface,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    nudgeBody: { flex: 1, minWidth: 140 },
+    nudgeTitle: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary, fontWeight: '600' },
+    nudgeSub: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: 2 },
+    nudgeDismiss: { padding: theme.spacing[1] },
+    nudgeBtn: { flexBasis: '100%', marginTop: theme.spacing[1] },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',

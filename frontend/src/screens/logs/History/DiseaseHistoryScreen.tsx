@@ -99,6 +99,14 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
                         </TouchableOpacity>
                     </View>
                 </View>
+                {item.bannedSubstanceFlag && item.bannedSubstanceFlag !== 'none' && (
+                    <View style={[styles.flagBanner, item.bannedSubstanceFlag === 'banned' ? styles.flagBannerBanned : styles.flagBannerRestricted]}>
+                        <MaterialCommunityIcons name="alert-decagram-outline" size={14} color={item.bannedSubstanceFlag === 'banned' ? theme.roles.light.dangerText : theme.roles.light.warningText} />
+                        <Text style={[styles.flagText, { color: item.bannedSubstanceFlag === 'banned' ? theme.roles.light.dangerText : theme.roles.light.warningText }]}>
+                            {t('history.bannedFlagLabel', { names: (item.bannedSubstanceMatches ?? []).join(', ') })}
+                        </Text>
+                    </View>
+                )}
                 <Text style={styles.diseaseId}>{t('history.diseaseIdLabel', { id: item.diseaseId })}</Text>
                 {item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
                 {item.photoUrls && item.photoUrls.length > 0 && (
@@ -162,6 +170,10 @@ const styles = StyleSheet.create({
     severityChip: { paddingHorizontal: theme.spacing[3], paddingVertical: 4, borderRadius: theme.radius.full },
     severityText: { ...theme.typeScale.labelSmall, fontWeight: '700', textTransform: 'capitalize' as const },
     diseaseId: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, marginBottom: theme.spacing[2] },
+    flagBanner: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1], alignSelf: 'flex-start', paddingHorizontal: theme.spacing[2], paddingVertical: 4, borderRadius: theme.radius.sm, marginBottom: theme.spacing[2] },
+    flagBannerBanned: { backgroundColor: theme.roles.light.dangerBg },
+    flagBannerRestricted: { backgroundColor: theme.roles.light.warningBg },
+    flagText: { ...theme.typeScale.labelSmall, fontWeight: '700', flexShrink: 1 },
     notesText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: theme.spacing[2] },
     photoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: theme.spacing[3] },
     photoCount: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },

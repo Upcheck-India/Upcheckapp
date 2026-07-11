@@ -60,6 +60,14 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
                     </View>
                 )}
             </View>
+            {item.bannedSubstanceFlag && item.bannedSubstanceFlag !== 'none' && (
+                <View style={[styles.flagBanner, item.bannedSubstanceFlag === 'banned' ? styles.flagBannerBanned : styles.flagBannerRestricted]}>
+                    <MaterialCommunityIcons name="alert-decagram-outline" size={14} color={item.bannedSubstanceFlag === 'banned' ? theme.roles.light.dangerText : theme.roles.light.warningText} />
+                    <Text style={[styles.flagText, { color: item.bannedSubstanceFlag === 'banned' ? theme.roles.light.dangerText : theme.roles.light.warningText }]}>
+                        {t('history.bannedFlagLabel', { names: (item.bannedSubstanceMatches ?? []).join(', ') })}
+                    </Text>
+                </View>
+            )}
             <Text style={styles.productText}>{item.description}</Text>
             {item.dosageKg != null && (
                 <View style={styles.dosageRow}>
@@ -120,6 +128,10 @@ const styles = StyleSheet.create({
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
     badge: { backgroundColor: theme.roles.light.infoBg, paddingHorizontal: theme.spacing[3], paddingVertical: 4, borderRadius: theme.radius.full },
     badgeText: { color: theme.roles.light.infoBorder, ...theme.typeScale.labelSmall, fontWeight: '700' },
+    flagBanner: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1], alignSelf: 'flex-start', paddingHorizontal: theme.spacing[2], paddingVertical: 4, borderRadius: theme.radius.sm, marginBottom: theme.spacing[2] },
+    flagBannerBanned: { backgroundColor: theme.roles.light.dangerBg },
+    flagBannerRestricted: { backgroundColor: theme.roles.light.warningBg },
+    flagText: { ...theme.typeScale.labelSmall, fontWeight: '700', flexShrink: 1 },
     productText: { ...theme.typeScale.h4, color: theme.roles.light.textPrimary, marginBottom: theme.spacing[2] },
     dosageRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2], marginBottom: theme.spacing[2] },
     detailText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },

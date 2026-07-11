@@ -170,8 +170,14 @@ describe('DiseaseService', () => {
 
       const result = await service.recordOccurrence(mockCreateDiseaseRecordDto);
 
+      // create() now also stamps the server-evaluated banned-substance flag
+      // (BANNED-1) alongside the original DTO fields.
       expect(diseaseRecordRepository.create).toHaveBeenCalledWith(
-        mockCreateDiseaseRecordDto,
+        expect.objectContaining({
+          ...mockCreateDiseaseRecordDto,
+          bannedSubstanceFlag: 'none',
+          bannedSubstanceMatches: [],
+        }),
       );
       expect(diseaseRecordRepository.save).toHaveBeenCalledWith(
         mockDiseaseRecord,

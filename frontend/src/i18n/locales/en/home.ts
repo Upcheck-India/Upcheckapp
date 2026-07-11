@@ -9,6 +9,9 @@ const home = {
   lowStockAlerts: 'Low Stock Alerts',
   todayFeed: "Today's Feed (kg)",
   noFarmData: 'No farm data available. Create a farm to get started!',
+  finishSetupTitle: 'Finish setting up your ponds',
+  finishSetupSub: '{{count}} more pond(s) planned but not set up yet.',
+  finishSetupCta: 'Continue setup',
   // Quick-action labels (HomeScreen)
   actionFarms: 'Farms',
   actionCalculators: 'Calculators',

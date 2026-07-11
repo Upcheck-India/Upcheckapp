@@ -11,6 +11,9 @@ export interface Treatment {
     notes?: string;
     createdAt: string;
     updatedAt: string;
+    /** Server-evaluated at write time (BANNED-1) — never client-set. */
+    bannedSubstanceFlag?: 'none' | 'restricted' | 'banned';
+    bannedSubstanceMatches?: string[];
 }
 
 export interface CreateTreatmentDto {

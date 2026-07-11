@@ -59,4 +59,29 @@ export class Treatment {
 
   @Column({ name: 'updated_by_id', type: 'uuid', nullable: true })
   updatedById: string | null;
+
+  // Server-evaluated at write time (BANNED-1) — never trust a client-sent
+  // value for these; TreatmentsService recomputes them from description+notes
+  // on every create/update against the backend's own BANNED_SUBSTANCES list.
+  @Column({
+    name: 'banned_substance_flag',
+    type: 'text',
+    default: 'none',
+  })
+  bannedSubstanceFlag: 'none' | 'restricted' | 'banned';
+
+  @Column({
+    name: 'banned_substance_matches',
+    type: 'text',
+    array: true,
+    default: [],
+  })
+  bannedSubstanceMatches: string[];
+
+  @Column({
+    name: 'banned_substance_list_version',
+    type: 'text',
+    nullable: true,
+  })
+  bannedSubstanceListVersion: string | null;
 }

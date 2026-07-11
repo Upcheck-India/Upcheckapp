@@ -9,6 +9,8 @@ import { Treatment } from './treatment.entity';
 import { CreateTreatmentDto } from './dto/create-treatment.dto';
 import { UpdateTreatmentDto } from './dto/update-treatment.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { evaluateBannedSubstances } from '../banned-substances/banned-substance-matcher';
+import { BANNED_LIST_VERSION } from '../banned-substances/banned-substances.data';
 
 @Injectable()
 export class TreatmentsService {
@@ -37,10 +39,21 @@ export class TreatmentsService {
       }
     }
 
+    // Server-evaluated at write time (BANNED-1) — recomputed here regardless
+    // of anything the client detected or sent, so the audit trail is
+    // authoritative even against an offline-stale or bypassed client.
+    const { flag, matches } = evaluateBannedSubstances(
+      createDto.description,
+      createDto.notes,
+    );
+
     const record = this.treatmentsRepository.create({
       ...createDto,
       createdById: userId,
       updatedById: userId,
+      bannedSubstanceFlag: flag,
+      bannedSubstanceMatches: matches,
+      bannedSubstanceListVersion: BANNED_LIST_VERSION,
     });
     return this.treatmentsRepository.save(record);
   }
@@ -73,10 +86,25 @@ export class TreatmentsService {
     updateDto: UpdateTreatmentDto,
     userId?: string,
   ): Promise<Treatment> {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
+    // Re-evaluate whenever either free-text field changes — an edit that
+    // removes the flagged text should also clear a stale flag, and one that
+    // introduces a banned reference must not slip through un-flagged.
+    const reEvaluate =
+      updateDto.description !== undefined || updateDto.notes !== undefined;
+    const { flag, matches } = reEvaluate
+      ? evaluateBannedSubstances(
+          updateDto.description ?? existing.description,
+          updateDto.notes ?? existing.notes,
+        )
+      : { flag: existing.bannedSubstanceFlag, matches: existing.bannedSubstanceMatches };
+
     await this.treatmentsRepository.update(id, {
       ...updateDto,
       ...(userId ? { updatedById: userId } : {}),
+      bannedSubstanceFlag: flag,
+      bannedSubstanceMatches: matches,
+      ...(reEvaluate ? { bannedSubstanceListVersion: BANNED_LIST_VERSION } : {}),
     });
     return this.findOne(id);
   }

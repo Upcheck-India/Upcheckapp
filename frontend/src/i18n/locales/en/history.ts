@@ -77,6 +77,7 @@ const history = {
   treatmentTitle: 'Treatment History',
   treatmentEmptyTitle: 'No Treatments Logged',
   treatmentEmptyText: 'This pond has no recorded treatments.',
+  bannedFlagLabel: 'Flagged: {{names}}',
 
   // ── WaterQualityHistoryScreen ─────────────────────────────────────────────
   waterQualityTitle: 'Water Quality History',

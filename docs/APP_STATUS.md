@@ -1,6 +1,6 @@
 # Upcheck — App Status
 
-> **Last updated:** 2026-07-09
+> **Last updated:** 2026-07-11
 > **Source docs this was built from (latest only):** `README.md`, `REMEDIATION_STATUS.md`, `LAUNCH_REMEDIATION.md`, `AUDIT_FINDINGS_2026-07-08.json`, `docs/PLAY_STORE_LAUNCH.md`, `docs/OPERATIONS.md`, `docs/I18N_TELUGU_TODO.md`, `docs/FEATURES.md`, `docs/ARCHITECTURE.md`, `docs/APP_FLOW.md`, latest commits on `master`.
 >
 > **⚠️ Maintenance instruction — read before trusting this doc:** This is a living status snapshot, not a historical record. **Whenever remediation sessions close more items, a new audit runs, a Play Store submission happens, or a major feature ships — update this document in the same change**, or as soon as possible after. If you're an AI agent picking up work in this repo: before relying on any status below, re-check it against the current `REMEDIATION_STATUS.md` tail, `git log`, and this file's own "Last updated" date — if they've diverged, refresh this doc first, then proceed. Stale status here is worse than no status doc at all, because it will be trusted.
@@ -50,7 +50,7 @@ Both are marked ✅ fixed in `REMEDIATION_STATUS.md` (rows #28, #29, #86). **The
 - Offline sync data-loss / shared-device mis-attribution (`SYNC-1`, `SYNC-4`) — highest consequence if it regresses; force-fail a token refresh mid-drain with a non-empty queue and check nothing is lost or mis-attributed.
 - UTC-vs-IST day-boundary bucketing (`DATE-1`) — a fixed-clock test around 00:00–05:30 IST.
 - Password/signup validation client↔server parity (`PWDVAL-1`).
-- Banned-substance guardrail (`BANNED-1`) — note this one is **explicitly deferred**, not claimed-fixed: the server-updatable list exists, but the server-evaluated *write-time warning flag* on treatment/chemical/disease records was deferred pending a schema migration. Treat this as still-open for compliance purposes.
+- ~~Banned-substance guardrail (`BANNED-1`)~~ — **code-complete as of 2026-07-11** (see `docs/LATEST_TASKLIST.md` §14): a server-evaluated write-time flag now exists on `treatments`/`disease_records`, computed independent of client input, with backend+frontend test coverage. **Still not live** — the migration (`1780301800000-AddBannedSubstanceFlag`) has not been run against any real database yet. Treat as open for compliance purposes until that migration runs.
 
 ---
 
@@ -61,7 +61,7 @@ Both are marked ✅ fixed in `REMEDIATION_STATUS.md` (rows #28, #29, #86). **The
 | Android upload keystore | 🔷 external/ops | Open | Must be done via `eas credentials`; cannot live in-repo. Play Store BLOCKER per `docs/PLAY_STORE_LAUNCH.md` §3. |
 | Truecaller SDK fork replacement | 🔷 external/ops | Open | Current patched fork is fragile; needs a real replacement package, not a repo code fix. |
 | Authentic non-English translations (Telugu first, then Tamil/Odia/Bengali/Hindi/Gujarati) | Content | Open, explicitly scoped | Needs a human native speaker per screen area listed in `docs/I18N_TELUGU_TODO.md`. |
-| Banned-substance server-evaluated write-time flag | Code, deferred | Open | Needs a schema migration on treatment/chemical/disease record services (`BANNED-1` in `LAUNCH_REMEDIATION.md`). |
+| Banned-substance server-evaluated write-time flag | Code done, migration pending | Open (ops step only) | Code + tests complete 2026-07-11 (`docs/LATEST_TASKLIST.md` §14). Migration `1780301800000-AddBannedSubstanceFlag` still needs `npm run migration:run` against the real DB — not yet applied anywhere. |
 | Large-font (`allowFontScaling`) accessibility QA | Manual QA | Open | Code-side labels landed; the actual "does it clip on a real device at 150–200% font scale" pass is still manual and pending (`A11Y-1`). |
 | Physical-device deep-link verification (password reset via Gmail/WhatsApp-forwarded links) | Ops/manual QA | Open | Code-side routing fixed; real-device handoff verification + Supabase redirect-allowlist confirmation is an ops step (`DEEPLINK-1`). |
 | Play Store submission checklist | Ops | In progress | Legal/permissions/account-deletion done; Data Safety form, signed AAB, store listing copy/assets, internal-testing pass still to complete per `docs/PLAY_STORE_LAUNCH.md`. |
@@ -73,6 +73,7 @@ Both are marked ✅ fixed in `REMEDIATION_STATUS.md` (rows #28, #29, #86). **The
 
 ## 7. Recent history (most recent first, from `git log` + `REMEDIATION_STATUS.md`)
 
+- **2026-07-11** — Tasks 6/7/8 from `docs/LATEST_TASKLIST.md` closed: Task 6 (decision-engine data-completeness indicator) and Task 7 (onboarding drop-off) were found already fixed in code, their remaining gaps (test coverage, a persistent finish-setup nudge) closed this session; Task 8 (`BANNED-1` write-time flag) is now code-complete with a new migration — **migration not yet run against any real database**, see §6 table and `docs/LATEST_TASKLIST.md` §14.1.
 - **2026-07-09** — DOC (days-of-culture) display alignment fix (frontend now matches backend's 1-based convention).
 - **2026-07-09 — Session 7**: closed the final 4 minor codeable audit items (ResetPassword password-policy parity, pond-context per-parameter confidence timestamps, dead `SupabaseService` removed, CreateCycle validation confirmed correct). **213/215 audit items done; only 2 external-only items remain.**
 - **2026-07-09 — Session 6**: large parallel workflow (8 agents) closed 91 findings in one pass — unified IST/1-based DOC convention app-wide, idempotent cycle-close + harvest/transaction writes, N+1 query collapses, admin-gating on reference/news/disease-library writes, frontend error-vs-empty-state + pull-to-refresh + accessibility + store-reset cleanup. **Noted behavior changes to manually verify on-device**: DOC is now 1-based (+1 from before), harvest status renamed `harvested`→`completed`, and several catalog writes now require SUPER_ADMIN.

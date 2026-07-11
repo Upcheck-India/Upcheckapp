@@ -9,6 +9,9 @@ export interface DiseaseRecord {
     photoUrls?: string[];
     notes?: string;
     createdAt?: string;
+    /** Server-evaluated at write time (BANNED-1) — never client-set. */
+    bannedSubstanceFlag?: 'none' | 'restricted' | 'banned';
+    bannedSubstanceMatches?: string[];
 }
 
 export interface DiseaseLibrary {
