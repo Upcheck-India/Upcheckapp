@@ -1,6 +1,6 @@
 # Upcheck — User Onboarding Module: Research, Ideation & Plan
 
-> **Date:** 2026-07-11
+> **Date:** 2026-07-11 (all 3 phases implemented same day — see §5 "Implementation status" at the end)
 > **Companion doc:** `docs/UI_UX_AUDIT.md` — the broader UI/UX audit this was spun out of; onboarding surfaced as the single highest-leverage upgrade area during that audit.
 > **Scope note:** this covers the *user*-facing onboarding module (a new farmer's first experience). `docs/ONBOARDING.md` is a *developer* onboarding doc (fresh clone → running the codebase) — unrelated, not touched here.
 > **Maintenance:** re-run the "current state" research below after any onboarding-related change lands, so this plan doesn't drift from reality the way a couple of other docs in this repo already had (see the Plankton field-count correction in `docs/LATEST_TASKLIST.md` §11.1 — stale docs describing onboarding are exactly the kind of thing that should get fixed here, not repeated elsewhere).
@@ -102,3 +102,26 @@ Since no analytics/activation-metrics infrastructure was found during research, 
 - % of owners who complete pond setup for *all* planned ponds within a week (directly measurable via the same `plannedPondCount` vs. actual-pond-count comparison the Phase-1/Task-7 nudge already computes).
 
 None of these require new backend infrastructure to start tracking manually (a one-off query against existing farm/pond/log timestamps could answer all three today) — worth doing before and after Phase 1 ships to actually confirm the fix helped, rather than assuming it did.
+
+---
+
+## Part 5 — Implementation status (2026-07-11)
+
+All three phases were built the same day this plan was written, per explicit direction to implement the full plan rather than stop at research. What actually shipped, versus what the plan above proposed:
+
+**Phase 1 — done, as scoped:**
+- Language selection is now the first interactive element on `WelcomeScreen.tsx`, above the value-prop copy — a chip grid (3 languages shown, "more" reveals the rest), each with both native-script label and an English gloss (also closes a small Tier 3 finding from `docs/UI_UX_AUDIT.md`). Tapping a chip switches the app language immediately.
+- A one-time, dismissible worker first-run interstitial now shows on `HomeScreen.tsx` for a worker's first login: "You're part of [Farm Name]'s team as a [Role]," with a one-line explanation of the Log Now flow. Gated by a new `WORKER_WELCOME_FLAG` AsyncStorage key (same pattern as `ONBOARDING_FLAG`), never re-shown once dismissed.
+- Each `PondSetupScreen.tsx` section (Pond details / Culture details / Aeration) now has a one-sentence "why we ask" subtitle explaining what the data enables.
+
+**Phase 2 — done, with one scope note:**
+- The pond-count-only "finish setup" nudge from the earlier Task 7 work was replaced with a broader **Getting Started checklist** on Home (Concept C): "Set up your ponds" / "Log your first reading" / "Invite your team," each independently checkable and tappable into the right screen. It disappears entirely once all three are done — a genuine activation checklist, not a recurring reminder. The "logged a reading" signal is checked against one representative pond's latest-input snapshot (not every pond) — a deliberate scoping simplification for an activation checklist, not a precise per-pond analytics count.
+- Morning Briefing vs. Daily Routine (the "two screens compete for the same daily territory" finding) was resolved by **merging them functionally rather than picking a winner**: `MorningBriefingScreen.tsx` still shows the cross-pond alert feed when there are real alerts, but on an "all clear" day it now shows each active pond's routine checklist (water/feed/tray done-today status) instead of a dead end, with each pond card linking into `DailyRoutineScreen` for the full guided flow. This was also the fix for an unrelated but directly-connected discovery made while implementing this: **`MorningBriefingScreen` had zero navigation entry points anywhere in the app before this change** — it was registered in `RootNavigator` but nothing ever linked to it. Added a "Today" quick-action on Home as the front door.
+
+**Phase 3 — done, deliberately right-sized (per the plan's own instruction to make a reasoned, contained call without a stakeholder available):**
+- **Concept E (contextual hints):** built a reusable `FirstUseHint` component (one-time, AsyncStorage-persisted, dismissible) and wired it into `FeedAdvisorScreen.tsx` as the proof-of-concept, explaining the `ConfidenceChip` the first time a farmer sees it. Not yet authored for every other first-encounter moment in the app — that's real per-screen content-authoring work (and translation work, ×6 languages) better done incrementally as an ongoing backlog item once this pattern proves out, not as a one-session content sprint.
+- **Concept D (sample/preview pond):** the plan explicitly flagged the *full* version (real demo-data seeding, safely labeled) as needing a product-owner decision on engineering cost versus payoff — that decision wasn't available, so a **contained, zero-risk alternative** was built instead: a static, clearly-labeled "EXAMPLE — not your data" preview card on `WelcomeScreen.tsx` showing illustrative DOC/FCR/Survival numbers, with zero API calls and zero backend rows created. This captures the "show value before commit" intent without the demo-data-seeding risk the full concept would carry. The full version remains a real, larger option for later — not silently built, not silently dropped.
+
+**Verification:** all new/changed pieces have test coverage (`WelcomeScreen.test.tsx`, `HomeScreen.test.tsx` rewritten for the checklist + worker interstitial, `MorningBriefingScreen.test.tsx`, `FirstUseHint.test.tsx`), with the riskiest logic (checklist completion gating, alerts-vs-routine branching) mutation-tested to confirm the tests actually catch a regression, not just pass trivially. Full frontend suite: 29 suites / 177 tests, `tsc --noEmit` clean.
+
+**What to revisit next**, in priority order: (1) get real usage data on the new checklist/interstitial to inform which Concept-E hints are worth authoring next; (2) bring the full Concept D (real demo pond) to whoever owns product direction as a scoped proposal now that the contained version is live and can be compared against; (3) decide whether Morning Briefing's "one representative pond" activation signal needs to become more precise once real usage surfaces edge cases (e.g. a farm where the first-created pond is never the one actually used).

@@ -282,6 +282,7 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
                 showsVerticalScrollIndicator={false}
             >
                 <Text style={styles.sectionTitle}>{t('pondSetup.sectionPond')}</Text>
+                <Text style={styles.sectionWhy}>{t('pondSetup.whyPond', 'Shape and size let us calculate area, stocking capacity, and dosage amounts for you.')}</Text>
 
                 <Input
                     label={t('pondSetup.fieldName')}
@@ -373,6 +374,7 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
                 )}
 
                 <Text style={styles.sectionTitle}>{t('pondSetup.sectionCulture')}</Text>
+                <Text style={styles.sectionWhy}>{t('pondSetup.whyCulture', 'Species, stocking date and density drive every growth, feed, and harvest-timing recommendation the app gives you for this pond.')}</Text>
 
                 <SelectField
                     label={t('pondSetup.fieldSpecies')}
@@ -428,6 +430,7 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
                 />
 
                 <Text style={styles.sectionTitle}>{t('pondSetup.sectionAeration')}</Text>
+                <Text style={styles.sectionWhy}>{t('pondSetup.whyAeration', 'Optional, but the Aeration engine uses this to check adequacy and estimate power cost — you can skip it and add it later.')}</Text>
 
                 <View style={styles.twoCol}>
                     <View style={styles.col}>
@@ -497,8 +500,13 @@ const styles = StyleSheet.create({
         ...theme.typeScale.labelMedium,
         color: theme.roles.light.textBrand,
         textTransform: 'uppercase',
-        marginBottom: theme.spacing[3],
+        marginBottom: theme.spacing[1],
         marginTop: theme.spacing[2],
+    },
+    sectionWhy: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[3],
     },
     fieldLabel: {
         ...theme.typeScale.labelMedium,

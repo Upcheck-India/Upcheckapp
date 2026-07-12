@@ -14,6 +14,7 @@ import { Button } from '../../components/ui/Button';
 import { NumberField } from '../../components/ui/NumberField';
 import { PrefilledBanner } from '../../components/ui/PrefilledBanner';
 import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
+import { FirstUseHint } from '../../components/ui/FirstUseHint';
 import { theme } from '../../theme';
 import { feedAdvisorApi, type RationResult, type TrayResidue } from '../../api/feedAdvisor';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
@@ -144,6 +145,15 @@ export const FeedAdvisorScreen = ({ route }: any) => {
         {result && (
           <Card style={[styles.card, styles.hero]}>
             {ctx && <ConfidenceChip confidence={ctx.confidence} showHint />}
+            {ctx && (
+              <FirstUseHint
+                flagKey="confidence-chip"
+                message={t(
+                  'engines.common.confidenceHint',
+                  'This score shows how complete and recent your logged readings are — the higher it is, the more this recommendation can be trusted.',
+                )}
+              />
+            )}
             <Text style={styles.heroLabel}>{t('engines.feed.recommended')}</Text>
             <View style={styles.heroValueRow}>
               <Text style={styles.heroValue}>{result.recommendedKg}</Text>

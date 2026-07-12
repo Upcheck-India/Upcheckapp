@@ -18,7 +18,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { reportsApi, DashboardSummary } from '../../api/reports';
 import { farmsApi } from '../../api/farms';
 import { pondsApi, type Pond } from '../../api/ponds';
+import { pondContextApi } from '../../api/pondContext';
+import { farmMembersApi } from '../../api/farmMembers';
 import { ONBOARDING_FLAG } from '../onboarding/WelcomeScreen';
+
+// A worker never sees WelcomeScreen/CreateFarm/PondSetup (those only gate
+// owner accounts — pendingFarmSetup is only set for accountType==='owner'),
+// so before this session's fix a worker's first app-open had ZERO onboarding
+// of any kind: no role explanation, no context on the farm they'd joined
+// (docs/ONBOARDING_MODULE_PLAN.md §1.2/Phase 1). This one-time, dismissible
+// interstitial closes that gap without blocking anything — same pattern as
+// ONBOARDING_FLAG, just keyed separately since it's a different milestone.
+export const WORKER_WELCOME_FLAG = '@upcheck:worker_welcomed';
 
 export const HomeScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -29,15 +40,20 @@ export const HomeScreen = ({ navigation }: any) => {
     const [ponds, setPonds] = useState<Pond[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    // "Finish setting up your other ponds" nudge — an owner who bailed out of
-    // the onboarding pond-setup loop early (or via "Finish Later") still lands
-    // on a real dashboard (Task 7), but shouldn't silently forget the rest of
-    // their planned ponds. Reappears every time Home loads while incomplete
-    // (persistent), but a farmer mid-task can dismiss it for this visit
-    // without it blocking anything (dismissible) — plain component state is
-    // enough for that: it resets naturally next time this screen mounts.
+    // "Getting Started" checklist (onboarding-plan Phase 2, extending the
+    // finish-setup nudge from Task 7 into real activation milestones, not
+    // just pond count): set up ponds → log a first reading → invite your
+    // team. Reappears every visit while incomplete (persistent); a farmer
+    // mid-task can dismiss it for this visit without it blocking anything
+    // (dismissible) — plain component state is enough, it resets naturally
+    // next time this screen mounts. Disappears entirely once every milestone
+    // is done — unlike a reminder, a finished checklist has nothing left to say.
     const [plannedPondCount, setPlannedPondCount] = useState<number | null>(null);
+    const [hasLoggedSomething, setHasLoggedSomething] = useState<boolean | null>(null);
+    const [hasInvitedWorker, setHasInvitedWorker] = useState<boolean | null>(null);
     const [nudgeDismissed, setNudgeDismissed] = useState(false);
+    // Worker first-run interstitial — see WORKER_WELCOME_FLAG above.
+    const [showWorkerWelcome, setShowWorkerWelcome] = useState(false);
     // Distinct from summary===null: on a fetch FAILURE we must show a retry state,
     // not the "no farm data / create your first farm" CTA (which is for a genuinely
     // empty account). Conflating them pushes an existing owner to re-create a farm.
@@ -89,8 +105,8 @@ export const HomeScreen = ({ navigation }: any) => {
         pondsApi.getMine().then(({ data }) => setPonds(data)).catch(() => setPonds([]));
     }, []);
 
-    // Planned vs. actual pond count for the selected farm — drives the
-    // finish-setup nudge below.
+    // Planned vs. actual pond count for the selected farm — one of the
+    // Getting Started checklist items below.
     useEffect(() => {
         if (!selectedFarm?.id) {
             setPlannedPondCount(null);
@@ -107,7 +123,47 @@ export const HomeScreen = ({ navigation }: any) => {
         : ponds.length;
     const remainingPonds =
         plannedPondCount != null ? Math.max(0, plannedPondCount - pondsForSelectedFarm) : 0;
-    const showSetupNudge = !nudgeDismissed && remainingPonds > 0 && !!selectedFarm?.id;
+    const pondsStepDone = plannedPondCount == null || remainingPonds === 0;
+
+    // "Logged a reading" — checked against the first pond's latest-input
+    // snapshot rather than every pond (a representative signal is enough for
+    // an activation checklist; it doesn't need to be a precise per-pond
+    // analytics count).
+    useEffect(() => {
+        const firstPond = selectedFarm?.id ? ponds.find((p) => p.farmId === selectedFarm.id) : ponds[0];
+        if (!firstPond) {
+            setHasLoggedSomething(false);
+            return;
+        }
+        pondContextApi
+            .get(firstPond.id)
+            .then(({ data }) => setHasLoggedSomething(
+                data.lastFeedAt != null || data.waterQuality?.recordedAt != null || data.samplingAt != null,
+            ))
+            .catch(() => setHasLoggedSomething(false));
+    }, [selectedFarm?.id, ponds]);
+
+    // "Invited your team" — more than just the owner as a farm member.
+    useEffect(() => {
+        if (!selectedFarm?.id) {
+            setHasInvitedWorker(null);
+            return;
+        }
+        farmMembersApi
+            .listMembers(selectedFarm.id)
+            .then(({ data }) => setHasInvitedWorker(data.length > 1))
+            .catch(() => setHasInvitedWorker(false));
+    }, [selectedFarm?.id]);
+
+    const checklistItems = [
+        { key: 'ponds', done: pondsStepDone, label: t('home.checklistPonds', 'Set up your ponds'), icon: 'water-outline' as const },
+        { key: 'log', done: hasLoggedSomething ?? false, label: t('home.checklistLog', 'Log your first reading'), icon: 'clipboard-check-outline' as const },
+        { key: 'invite', done: hasInvitedWorker ?? false, label: t('home.checklistInvite', 'Invite your team'), icon: 'account-plus-outline' as const },
+    ];
+    const checklistLoading = hasLoggedSomething == null || hasInvitedWorker == null;
+    const checklistDoneCount = checklistItems.filter((i) => i.done).length;
+    const showGettingStarted =
+        !nudgeDismissed && !!selectedFarm?.id && !checklistLoading && checklistDoneCount < checklistItems.length;
 
     // First-run: a brand-new farmer with no farms and who hasn't seen the welcome
     // gets a one-time guided intro. The flag is set inside WelcomeScreen.
@@ -125,12 +181,38 @@ export const HomeScreen = ({ navigation }: any) => {
         })();
     }, []);
 
+    // Worker first-run interstitial: only once, only for a worker who has
+    // resolved a farm (so there's a real name/role to show), never re-shown
+    // once dismissed. Waiting on selectedFarm/perms.role avoids a flash of
+    // the banner with blank content before the farm/membership loads.
+    useEffect(() => {
+        if (!perms.isWorker || !selectedFarm?.id || !perms.role) return;
+        (async () => {
+            try {
+                if (await AsyncStorage.getItem(WORKER_WELCOME_FLAG)) return;
+                setShowWorkerWelcome(true);
+            } catch {
+                /* non-blocking; the interstitial is a nicety, never a gate */
+            }
+        })();
+    }, [perms.isWorker, perms.role, selectedFarm?.id]);
+
+    const dismissWorkerWelcome = () => {
+        setShowWorkerWelcome(false);
+        AsyncStorage.setItem(WORKER_WELCOME_FLAG, '1').catch(() => {});
+    };
+
     // Root-stack screens (CreateFarm, PondDashboard, Settings…) live above the
     // tab navigator; navigate via the parent so they resolve from a tab.
     const goRoot = (screen: string, params?: any) =>
         navigation.getParent()?.navigate(screen, params) ?? navigation.navigate(screen, params);
 
     const quickActions = [
+        // "Today" (Morning Briefing) is the actual "what do I do right now"
+        // destination, so it leads — previously this screen had zero
+        // navigation entry points anywhere in the app (see docs/UI_UX_AUDIT.md
+        // Tier 1 #2 / docs/ONBOARDING_MODULE_PLAN.md Phase 2).
+        { icon: 'weather-sunset-up' as const, label: t('home.actionToday', 'Today'), screen: 'MorningBriefing', isTab: false, color: theme.roles.light.primary },
         { icon: 'barn' as const, label: t('home.actionFarms'), screen: 'Farms', isTab: true, color: theme.roles.light.primary },
         { icon: 'calculator-variant-outline' as const, label: t('home.actionCalculators'), screen: 'CalculatorHub', isTab: false, color: theme.roles.light.infoBorder },
         // Simulations are an owner/manager planning tool — hide for worker/viewer.
@@ -161,35 +243,72 @@ export const HomeScreen = ({ navigation }: any) => {
                 </TouchableOpacity>
             </View>
 
-            {/* Finish-setup nudge (Task 7): an owner who created fewer ponds than
-                planned (via "Finish Later" or backing out mid-loop) gets reminded
-                here every visit until it's resolved, but can dismiss it for now. */}
-            {showSetupNudge && (
-                <Card style={styles.nudgeCard}>
-                    <View style={styles.nudgeIcon}>
-                        <MaterialCommunityIcons name="progress-clock" size={22} color={theme.roles.light.warningText} />
+            {/* Getting Started checklist (onboarding-plan Phase 2): tracks real
+                activation milestones, not just pond count. Reappears every visit
+                while incomplete, dismissible for now, and disappears entirely
+                once every milestone is done. */}
+            {showGettingStarted && (
+                <Card style={styles.checklistCard}>
+                    <View style={styles.checklistHead}>
+                        <Text style={styles.checklistTitle}>{t('home.gettingStartedTitle', 'Getting started')}</Text>
+                        <View style={styles.checklistHeadRight}>
+                            <Text style={styles.checklistCount}>{checklistDoneCount}/{checklistItems.length}</Text>
+                            <TouchableOpacity
+                                onPress={() => setNudgeDismissed(true)}
+                                hitSlop={8}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('common.dismiss', 'Dismiss')}
+                                style={styles.nudgeDismiss}
+                            >
+                                <MaterialCommunityIcons name="close" size={18} color={theme.roles.light.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                    <View style={styles.nudgeBody}>
-                        <Text style={styles.nudgeTitle}>
-                            {t('home.finishSetupTitle', 'Finish setting up your ponds')}
-                        </Text>
-                        <Text style={styles.nudgeSub}>
-                            {t('home.finishSetupSub', { count: remainingPonds })}
-                        </Text>
+                    {checklistItems.map((item) => (
+                        <TouchableOpacity
+                            key={item.key}
+                            activeOpacity={item.done ? 1 : 0.7}
+                            disabled={item.done}
+                            onPress={() => {
+                                if (item.key === 'ponds') goRoot('PondSetup', { farmId: selectedFarm!.id, totalPonds: remainingPonds || 1 });
+                                else if (item.key === 'log') goRoot('QuickLog');
+                                else if (item.key === 'invite') goRoot('AddWorker', { farmId: selectedFarm!.id });
+                            }}
+                            style={styles.checklistRow}
+                        >
+                            <View style={[styles.checklistBadge, item.done && styles.checklistBadgeDone]}>
+                                <MaterialCommunityIcons
+                                    name={item.done ? 'check' : item.icon}
+                                    size={16}
+                                    color={item.done ? theme.roles.light.textInverse : theme.roles.light.textSecondary}
+                                />
+                            </View>
+                            <Text style={[styles.checklistLabel, item.done && styles.checklistLabelDone]}>{item.label}</Text>
+                            {!item.done && <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textTertiary} />}
+                        </TouchableOpacity>
+                    ))}
+                </Card>
+            )}
+
+            {/* Worker first-run interstitial (onboarding-plan Phase 1): a worker
+                previously got zero explanation of their role or which farm
+                they'd joined on their very first app-open. One-time, dismissible,
+                never blocks reaching the rest of the app underneath it. */}
+            {showWorkerWelcome && selectedFarm && perms.role && (
+                <Card style={styles.workerWelcomeCard}>
+                    <View style={styles.workerWelcomeIcon}>
+                        <MaterialCommunityIcons name="account-check-outline" size={24} color={theme.roles.light.primary} />
                     </View>
-                    <TouchableOpacity
-                        onPress={() => setNudgeDismissed(true)}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('common.dismiss', 'Dismiss')}
-                        style={styles.nudgeDismiss}
-                    >
-                        <MaterialCommunityIcons name="close" size={18} color={theme.roles.light.textSecondary} />
-                    </TouchableOpacity>
+                    <Text style={styles.workerWelcomeTitle}>
+                        {t('home.workerWelcomeTitle', { farmName: selectedFarm.name, role: ROLE_LABEL[perms.role], defaultValue: "You're part of {{farmName}}'s team as a {{role}}" })}
+                    </Text>
+                    <Text style={styles.workerWelcomeBody}>
+                        {t('home.workerWelcomeBody', 'Tap "Log now" anytime to record today\'s water, feed, or other readings for your ponds.')}
+                    </Text>
                     <Button
-                        title={t('home.finishSetupCta', 'Continue setup')}
-                        onPress={() => goRoot('PondSetup', { farmId: selectedFarm!.id, totalPonds: remainingPonds })}
-                        style={styles.nudgeBtn}
+                        title={t('home.workerWelcomeCta', 'Got it')}
+                        onPress={dismissWorkerWelcome}
+                        style={styles.ctaBtn}
                     />
                 </Card>
             )}
@@ -340,25 +459,29 @@ export const HomeScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-    nudgeCard: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        alignItems: 'center',
+    checklistCard: {
         padding: theme.spacing[4],
         marginBottom: theme.spacing[6],
-        backgroundColor: theme.roles.light.warningBg,
-        gap: theme.spacing[3],
     },
-    nudgeIcon: {
-        width: 40, height: 40, borderRadius: 20,
-        backgroundColor: theme.roles.light.surface,
-        alignItems: 'center', justifyContent: 'center',
+    checklistHead: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: theme.spacing[3],
     },
-    nudgeBody: { flex: 1, minWidth: 140 },
-    nudgeTitle: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary, fontWeight: '600' },
-    nudgeSub: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: 2 },
+    checklistHeadRight: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
+    checklistTitle: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary, fontWeight: '600' },
+    checklistCount: { ...theme.typeScale.labelMedium, color: theme.roles.light.textSecondary },
+    checklistRow: {
+        flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3],
+        paddingVertical: theme.spacing[2],
+    },
+    checklistBadge: {
+        width: 28, height: 28, borderRadius: theme.radius.full,
+        backgroundColor: theme.roles.light.surfaceVariant, alignItems: 'center', justifyContent: 'center',
+    },
+    checklistBadgeDone: { backgroundColor: theme.roles.light.successBorder },
+    checklistLabel: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, flex: 1 },
+    checklistLabelDone: { color: theme.roles.light.textTertiary, textDecorationLine: 'line-through' },
     nudgeDismiss: { padding: theme.spacing[1] },
-    nudgeBtn: { flexBasis: '100%', marginTop: theme.spacing[1] },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -457,6 +580,29 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     ctaBtn: { alignSelf: 'stretch', marginTop: theme.spacing[2] },
+    workerWelcomeCard: {
+        alignItems: 'center',
+        padding: theme.spacing[5],
+        marginBottom: theme.spacing[6],
+        gap: theme.spacing[2],
+        backgroundColor: theme.roles.light.infoBg,
+    },
+    workerWelcomeIcon: {
+        width: 48, height: 48, borderRadius: 24,
+        backgroundColor: theme.roles.light.surface,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    workerWelcomeTitle: {
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textPrimary,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    workerWelcomeBody: {
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        textAlign: 'center',
+    },
     sectionRow: {
         flexDirection: 'row',
         alignItems: 'center',

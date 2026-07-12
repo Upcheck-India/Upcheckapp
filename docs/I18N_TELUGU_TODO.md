@@ -22,7 +22,13 @@ in code / the `en` locale):
 | `logs.feed_*` | showTrays, hideTrays (tray-check section collapsed by default) |
 | `history.bannedFlagLabel` | "Flagged: {{names}}" banner on treatment/disease history for a server-evaluated banned-substance match (BANNED-1) |
 | `auth.*` | resetTitle, newPassword, confirmPassword, resetCta, resetWaiting, useOtpInstead, passwordMin, passwordMismatch, resetDoneTitle, resetDoneSub, resetError |
-| `home.*` | workerNoFarm, logNow, workerLogPrompt |
+| `home.*` | workerNoFarm, logNow, workerLogPrompt, gettingStartedTitle, checklistPonds, checklistLog, checklistInvite, actionToday |
+| `engines.briefing.*` | noPondsTitle, noPondsSub, routineSectionTitle (Morning Briefing's "good day" routine-checklist view, replacing a bare "all clear" dead end) |
+| `home.onboarding_languagePrompt` | "Choose your language" (language-first Welcome step) |
+| `home.workerWelcome*` | Title, Body, Cta (worker first-run interstitial) |
+| `pondSetup.whyPond`, `whyCulture`, `whyAeration` | one-sentence "why we ask" subtitles per PondSetup section |
+| `home.onboarding_example*` | Label, Doc, Fcr, Survival, Caption (static illustrative preview card on Welcome, Phase 3) |
+| `engines.common.confidenceHint` | one-time FirstUseHint explaining the confidence chip on Feed Advisor (Phase 3) |
 | `members.*` | roleLabel, changeRoleTitle, roleChangeError, transferTitle, transferConfirm, transferCta, transferError |
 | `cycles.btnAnalysis`, `content.tasks.*` | statusVerified, statusCancelled, verify |
 | `common.*` | savedOffline, offlineBanner |

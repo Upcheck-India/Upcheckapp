@@ -1,8 +1,10 @@
-// Task 7 — finish-setup nudge on Home. An owner who bailed out of onboarding
-// pond setup early (via "Finish Later" or backing out mid-loop) already lands
-// on a real dashboard (not gated), but shouldn't silently forget the rest of
-// their planned ponds. This locks in the nudge: shown while incomplete,
-// dismissible per-visit, gone once the pond count matches the plan.
+// Getting Started checklist (onboarding-plan Phase 2) + worker first-run
+// interstitial (Phase 1). The checklist replaces the earlier pond-count-only
+// nudge with real activation milestones (ponds set up / logged something /
+// invited a worker) and disappears entirely once all are done — unlike a
+// reminder, a finished checklist has nothing left to say. The worker
+// interstitial closes the "workers get zero onboarding" gap found in
+// docs/ONBOARDING_MODULE_PLAN.md §1.2.
 jest.mock('../../../api/farms', () => ({
     farmsApi: { getAll: jest.fn(), getById: jest.fn() },
 }));
@@ -12,20 +14,32 @@ jest.mock('../../../api/ponds', () => ({
 jest.mock('../../../api/reports', () => ({
     reportsApi: { getDashboardSummary: jest.fn() },
 }));
+jest.mock('../../../api/pondContext', () => ({
+    pondContextApi: { get: jest.fn() },
+}));
+jest.mock('../../../api/farmMembers', () => ({
+    farmMembersApi: { listMembers: jest.fn() },
+}));
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { HomeScreen } from '../HomeScreen';
+import { HomeScreen, WORKER_WELCOME_FLAG } from '../HomeScreen';
 import { farmsApi } from '../../../api/farms';
 import { pondsApi } from '../../../api/ponds';
 import { reportsApi } from '../../../api/reports';
+import { pondContextApi } from '../../../api/pondContext';
+import { farmMembersApi } from '../../../api/farmMembers';
 import { useActiveFarmStore } from '../../../store/activeFarmStore';
+import { useMembershipStore } from '../../../store/membershipStore';
 
 const mockedGetAll = farmsApi.getAll as jest.Mock;
 const mockedGetById = farmsApi.getById as jest.Mock;
 const mockedGetMine = pondsApi.getMine as jest.Mock;
 const mockedDashboard = reportsApi.getDashboardSummary as jest.Mock;
+const mockedPondContext = pondContextApi.get as jest.Mock;
+const mockedListMembers = farmMembersApi.listMembers as jest.Mock;
 
 // See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why:
 // react-native-safe-area-context's initialWindowMetrics is statically null
@@ -37,6 +51,14 @@ const TEST_SAFE_AREA_METRICS = {
 
 const navigation = { navigate: jest.fn(), getParent: () => undefined };
 const FARM = { id: 'farm-1', name: "Ravi's Farm" };
+const POND = { id: 'p1', farmId: 'farm-1', name: 'Pond 1', displayName: 'Pond 1' };
+
+const emptyPondContext = {
+    doc: null, waterQuality: null, freeAmmoniaMgL: null, abwG: null, livePopulation: null,
+    biomassKg: null, crop: null, cumulativeFeedKg: null, runningFcr: null, latestTrayResidue: null,
+    lastFeedAt: null, lastTrayAt: null, samplingAt: null,
+    confidence: { score: 0, band: 'low', missing: [], stale: [] },
+};
 
 const renderScreen = () =>
     render(
@@ -45,59 +67,148 @@ const renderScreen = () =>
         </SafeAreaProvider>,
     );
 
-describe('HomeScreen — finish-setup nudge', () => {
-    beforeEach(() => {
+describe('HomeScreen — Getting Started checklist', () => {
+    beforeEach(async () => {
         jest.clearAllMocks();
+        await AsyncStorage.clear();
+        useActiveFarmStore.setState({ selectedFarm: FARM } as any);
+        useMembershipStore.setState({ memberships: [], loaded: true, loading: false } as any);
+        mockedGetAll.mockResolvedValue({ data: [FARM] });
+        mockedDashboard.mockResolvedValue({
+            data: { activePondsCount: 1, totalPondsCount: 1, lowStockAlerts: 0, todayFeedUsage: 0 },
+        });
+        mockedPondContext.mockResolvedValue({ data: emptyPondContext });
+        mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }] }); // just the owner
+    });
+
+    it('shows the checklist with pond setup unfinished and everything else undone', async () => {
+        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
+        mockedGetMine.mockResolvedValue({ data: [POND] }); // 1 of 3 ponds
+
+        const { findByText } = renderScreen();
+
+        expect(await findByText('Getting started')).toBeTruthy();
+        expect(await findByText('0/3')).toBeTruthy();
+        expect(await findByText('Set up your ponds')).toBeTruthy();
+        expect(await findByText('Log your first reading')).toBeTruthy();
+        expect(await findByText('Invite your team')).toBeTruthy();
+    });
+
+    it('marks items done as their real milestones are met, without hiding the card until all are done', async () => {
+        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } }); // ponds: done
+        mockedGetMine.mockResolvedValue({ data: [POND] });
+        mockedPondContext.mockResolvedValue({ data: { ...emptyPondContext, lastFeedAt: '2026-07-01T00:00:00.000Z' } }); // log: done
+        mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }] }); // invite: still not done
+
+        const { findByText } = renderScreen();
+
+        expect(await findByText('2/3')).toBeTruthy();
+    });
+
+    it('disappears entirely once every milestone is complete', async () => {
+        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } });
+        mockedGetMine.mockResolvedValue({ data: [POND] });
+        mockedPondContext.mockResolvedValue({ data: { ...emptyPondContext, lastFeedAt: '2026-07-01T00:00:00.000Z' } });
+        mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }, { id: 'worker-1' }] });
+
+        const { queryByText, findByText } = renderScreen();
+        await findByText('Active Ponds'); // wait for the dashboard to settle
+
+        expect(queryByText('Getting started')).toBeNull();
+    });
+
+    it('dismisses for this visit without navigating anywhere', async () => {
+        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
+        mockedGetMine.mockResolvedValue({ data: [POND] });
+
+        const { findByText, findByLabelText, queryByText } = renderScreen();
+        await findByText('Getting started');
+
+        fireEvent.press(await findByLabelText('Dismiss'));
+
+        await waitFor(() => expect(queryByText('Getting started')).toBeNull());
+        expect(navigation.navigate).not.toHaveBeenCalled();
+    });
+
+    it('tapping the unfinished ponds item navigates to PondSetup with only the remaining count', async () => {
+        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
+        mockedGetMine.mockResolvedValue({ data: [POND] });
+
+        const { findByText } = renderScreen();
+        fireEvent.press(await findByText('Set up your ponds'));
+
+        expect(navigation.navigate).toHaveBeenCalledWith('PondSetup', { farmId: 'farm-1', totalPonds: 2 });
+    });
+
+    it('tapping the unfinished log item navigates to QuickLog', async () => {
+        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
+        mockedGetMine.mockResolvedValue({ data: [POND] });
+
+        const { findByText } = renderScreen();
+        fireEvent.press(await findByText('Log your first reading'));
+
+        expect(navigation.navigate).toHaveBeenCalledWith('QuickLog', undefined);
+    });
+
+    it('tapping the unfinished invite item navigates to AddWorker with the farm id', async () => {
+        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
+        mockedGetMine.mockResolvedValue({ data: [POND] });
+
+        const { findByText } = renderScreen();
+        fireEvent.press(await findByText('Invite your team'));
+
+        expect(navigation.navigate).toHaveBeenCalledWith('AddWorker', { farmId: 'farm-1' });
+    });
+});
+
+describe('HomeScreen — worker first-run interstitial', () => {
+    beforeEach(async () => {
+        jest.clearAllMocks();
+        await AsyncStorage.clear();
         useActiveFarmStore.setState({ selectedFarm: FARM } as any);
         mockedGetAll.mockResolvedValue({ data: [FARM] });
         mockedDashboard.mockResolvedValue({
             data: { activePondsCount: 1, totalPondsCount: 1, lowStockAlerts: 0, todayFeedUsage: 0 },
         });
+        mockedGetMine.mockResolvedValue({ data: [POND] });
+        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } });
+        mockedPondContext.mockResolvedValue({ data: emptyPondContext });
+        mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }] });
     });
 
-    it('shows the nudge with the correct remaining count when fewer ponds exist than planned', async () => {
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-        mockedGetMine.mockResolvedValue({ data: [{ id: 'p1', farmId: 'farm-1' }] }); // 1 of 3 set up
+    it("shows the worker's farm name and role on first login", async () => {
+        useMembershipStore.setState({
+            memberships: [{ farmId: 'farm-1', role: 'worker', farm: { id: 'farm-1', name: "Ravi's Farm" } }],
+            loaded: true, loading: false,
+        } as any);
 
         const { findByText } = renderScreen();
 
-        expect(await findByText('Finish setting up your ponds')).toBeTruthy();
-        expect(await findByText('2 more pond(s) planned but not set up yet.')).toBeTruthy();
+        expect(await findByText("You're part of Ravi's Farm's team as a Worker")).toBeTruthy();
     });
 
-    it('does not show the nudge once every planned pond is set up', async () => {
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 2 } });
-        mockedGetMine.mockResolvedValue({
-            data: [{ id: 'p1', farmId: 'farm-1' }, { id: 'p2', farmId: 'farm-1' }],
-        });
+    it('never shows again once dismissed', async () => {
+        useMembershipStore.setState({
+            memberships: [{ farmId: 'farm-1', role: 'worker', farm: { id: 'farm-1', name: "Ravi's Farm" } }],
+            loaded: true, loading: false,
+        } as any);
+        await AsyncStorage.setItem(WORKER_WELCOME_FLAG, '1');
 
         const { queryByText, findByText } = renderScreen();
         await findByText('Active Ponds'); // wait for the dashboard to settle
 
-        expect(queryByText('Finish setting up your ponds')).toBeNull();
+        expect(queryByText(/You're part of/)).toBeNull();
     });
 
-    it('dismisses for this visit without navigating anywhere', async () => {
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-        mockedGetMine.mockResolvedValue({ data: [{ id: 'p1', farmId: 'farm-1' }] });
+    it('does not show for an owner', async () => {
+        useMembershipStore.setState({
+            memberships: [{ farmId: 'farm-1', role: 'owner', farm: { id: 'farm-1', name: "Ravi's Farm" } }],
+            loaded: true, loading: false,
+        } as any);
 
-        const { findByText, findByLabelText, queryByText } = renderScreen();
-        await findByText('Finish setting up your ponds');
+        const { queryByText, findByText } = renderScreen();
+        await findByText('Active Ponds');
 
-        fireEvent.press(await findByLabelText('Dismiss'));
-
-        await waitFor(() => expect(queryByText('Finish setting up your ponds')).toBeNull());
-        expect(navigation.navigate).not.toHaveBeenCalled();
-    });
-
-    it('"Continue setup" navigates to PondSetup with only the remaining count', async () => {
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-        mockedGetMine.mockResolvedValue({ data: [{ id: 'p1', farmId: 'farm-1' }] });
-
-        const { findByText } = renderScreen();
-        const cta = await findByText('Continue setup');
-        fireEvent.press(cta);
-
-        expect(navigation.navigate).toHaveBeenCalledWith('PondSetup', { farmId: 'farm-1', totalPonds: 2 });
+        expect(queryByText(/You're part of/)).toBeNull();
     });
 });

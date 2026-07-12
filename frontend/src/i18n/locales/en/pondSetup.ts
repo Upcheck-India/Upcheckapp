@@ -3,8 +3,11 @@ const pondSetup = {
   finishLater: 'Finish later',
 
   sectionPond: 'Pond details',
+  whyPond: 'Shape and size let us calculate area, stocking capacity, and dosage amounts for you.',
   sectionCulture: 'Culture details',
+  whyCulture: 'Species, stocking date and density drive every growth, feed, and harvest-timing recommendation the app gives you for this pond.',
   sectionAeration: 'Aeration',
+  whyAeration: 'Optional, but the Aeration engine uses this to check adequacy and estimate power cost — you can skip it and add it later.',
 
   fieldName: 'Pond name',
   placeholderName: 'e.g. A1',
