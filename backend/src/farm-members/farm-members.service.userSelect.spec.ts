@@ -17,8 +17,8 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
  */
 describe('FarmMembersService — user lookups never select unused columns', () => {
   let service: FarmMembersService;
-  let usersRepo: { findOne: jest.Mock };
-  let membersRepo: { findOne: jest.Mock; create?: jest.Mock; save?: jest.Mock };
+  let usersRepo: { findOne: jest.Mock; find?: jest.Mock };
+  let membersRepo: { findOne: jest.Mock; find?: jest.Mock; create?: jest.Mock; save?: jest.Mock };
   let farmsRepo: { findOne: jest.Mock };
   let farmAccess: { assertCanAccessFarm: jest.Mock; getRoleOnFarm: jest.Mock };
 
@@ -100,5 +100,44 @@ describe('FarmMembersService — user lookups never select unused columns', () =
       where: { id: 'u2' },
       select: PUBLIC_USER_SELECT,
     });
+  });
+
+  /**
+   * Live-incident regression: listMembers() used `relations: ['user']` — an
+   * eager join selects every column of the joined User entity with no way
+   * to scope it, same underlying issue as the bare findOne() calls above,
+   * just via a different TypeORM API. The failure was worse here: caught by
+   * the screen's try/catch and silently rendered as "no workers" instead of
+   * a visible error, right after a successful "Add Worker" success message.
+   */
+  it('listMembers never uses relations:["user"] and scopes the batched user select', async () => {
+    membersRepo.find = jest.fn().mockResolvedValue([
+      { id: 'm1', farmId: 'farm-1', userId: 'u1', role: 'worker', createdAt: new Date() },
+    ]);
+    usersRepo.find = jest.fn().mockResolvedValue([
+      { id: 'u1', firstName: 'A', lastName: 'B', username: 'ab', avatarUrl: null },
+    ]);
+
+    const result = await service.listMembers('farm-1', 'owner-1');
+
+    expect(membersRepo.find).toHaveBeenCalledWith(
+      expect.not.objectContaining({ relations: expect.anything() }),
+    );
+    expect(usersRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({ select: PUBLIC_USER_SELECT }),
+    );
+    expect(result[0].user).toEqual({
+      id: 'u1', firstName: 'A', lastName: 'B', username: 'ab', avatarUrl: null,
+    });
+  });
+
+  it('listMembers does not query users at all when the farm has no members', async () => {
+    membersRepo.find = jest.fn().mockResolvedValue([]);
+    usersRepo.find = jest.fn();
+
+    const result = await service.listMembers('farm-1', 'owner-1');
+
+    expect(usersRepo.find).not.toHaveBeenCalled();
+    expect(result).toEqual([]);
   });
 });

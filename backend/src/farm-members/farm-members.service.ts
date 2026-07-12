@@ -6,7 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { FarmMember } from '../farm-access/farm-member.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { canAssignRole, canManageMember } from '../farm-access/farm-capability';
@@ -145,16 +145,29 @@ export class FarmMembersService {
     await this.farmAccess.assertCanAccessFarm(callerId, farmId, 'READ');
     const members = await this.membersRepo.find({
       where: { farmId },
-      relations: ['user'],
       order: { role: 'ASC', createdAt: 'ASC' },
     });
+    // Was `relations: ['user']` — an eager relation load selects every
+    // column of the joined entity with no way to scope it, same as a bare
+    // findOne(), so it hit the exact same missing-column failure this file
+    // was already fixed for elsewhere: the whole list request 500'd (caught
+    // client-side and shown as "no workers", success message notwithstanding,
+    // rather than the real error). Batch-fetching with the same scoped
+    // select sidesteps it entirely.
+    const users = members.length
+      ? await this.usersRepo.find({
+          where: { id: In(members.map((m) => m.userId)) },
+          select: PUBLIC_USER_SELECT,
+        })
+      : [];
+    const userById = new Map(users.map((u) => [u.id, u]));
     return members.map((m) => ({
       id: m.id,
       farmId: m.farmId,
       userId: m.userId,
       role: m.role,
       createdAt: m.createdAt,
-      user: m.user ? toPublicUser(m.user) : null,
+      user: userById.has(m.userId) ? toPublicUser(userById.get(m.userId)!) : null,
     }));
   }
 
