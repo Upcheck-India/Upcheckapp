@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -25,6 +26,7 @@ import { RedisService } from '../redis/redis.service';
  */
 @Injectable()
 export class TwoFactorService {
+  private readonly logger = new Logger(TwoFactorService.name);
   private static readonly PENDING_PREFIX = '2fa:pending:';
   private static readonly PENDING_TTL_SECONDS = 600;
   private static readonly ISSUER = 'Upcheck';
@@ -152,9 +154,30 @@ export class TwoFactorService {
   }
 
   /** True if the user has 2FA enabled (used to gate sign-in). */
+  /**
+   * Runs on EVERY successful login (password, OTP, Google, Truecaller —
+   * see SupabaseAuthController.issueSessionOrChallenge) to decide whether a
+   * 2FA challenge is required. Because this sits on that shared, unavoidable
+   * path, a query failure here (e.g. schema drift — a migration adding a
+   * `User` column landing in code before it's actually applied to the
+   * database) must never crash the whole login. Fail safe: if we can't
+   * determine 2FA status, treat the account as not requiring a challenge
+   * rather than 500ing every login for every user. This is a deliberate,
+   * temporary security tradeoff (a genuinely 2FA-enabled account would skip
+   * its challenge during an outage like this) in exchange for not taking
+   * down authentication entirely — the real fix is keeping the database
+   * migrated in lockstep with the entity, not this fallback.
+   */
   async isEnabled(userId: string): Promise<boolean> {
-    const user = await this.usersRepository.findOneBy({ id: userId });
-    return !!user?.is2faEnabled;
+    try {
+      const user = await this.usersRepository.findOneBy({ id: userId });
+      return !!user?.is2faEnabled;
+    } catch (err: any) {
+      this.logger.error(
+        `isEnabled() query failed for user ${userId} — treating as 2FA-disabled to avoid blocking login. ${err?.message}`,
+      );
+      return false;
+    }
   }
 
   /** Verify a login code against the user's stored secret. */

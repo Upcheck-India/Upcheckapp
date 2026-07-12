@@ -41,8 +41,21 @@ export class PushService {
     userId: string,
     notification: { title: string; body: string; data?: Record<string, any> },
   ): Promise<boolean> {
-    const user = await this.usersRepository.findOneBy({ id: userId });
-    const token = user?.pushToken;
+    // This method's contract is "never throws into the caller" (it's called
+    // from best-effort alert/notification paths) — a query failure loading
+    // the user row (e.g. schema drift) must degrade to "no token, skip
+    // sending" rather than propagate and take down whatever background job
+    // called this.
+    let token: string | null | undefined;
+    try {
+      const user = await this.usersRepository.findOneBy({ id: userId });
+      token = user?.pushToken;
+    } catch (err: any) {
+      this.logger.error(
+        `Failed to load push token for user ${userId}: ${err?.message}`,
+      );
+      return false;
+    }
     if (!token) return false;
 
     try {

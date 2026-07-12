@@ -75,4 +75,17 @@ describe('PushService.sendToUser — Expo HTTP-200 error body (AUDIT id 108)', (
     expect(result).toBe(true);
     expect(usersRepository.update).not.toHaveBeenCalled();
   });
+
+  it('returns false (never throws) when loading the user row fails — e.g. schema drift from an unapplied migration', async () => {
+    usersRepository.findOneBy.mockRejectedValue(
+      Object.assign(new Error('column User.backup_codes does not exist'), {
+        code: '42703',
+      }),
+    );
+
+    const result = await service.sendToUser(USER_ID, { title: 't', body: 'b' });
+
+    expect(result).toBe(false);
+    expect(mockedAxios.post).not.toHaveBeenCalled(); // never even attempted to send
+  });
 });
