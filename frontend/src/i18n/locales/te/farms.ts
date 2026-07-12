@@ -6,6 +6,7 @@ const farms = {
   emptyTitle: 'ఇంకా ఫారాలు లేవు',
   emptySubtitle: 'మీ చెరువులు మరియు సైకిళ్ళను నిర్వహించడానికి మొదటి ఫారాను సృష్టించండి.',
   addFarm: 'ఫారం జోడించు',
+  workerNoFarmSubtitle: 'మిమ్మల్ని బృంద సభ్యుడిగా చేర్చమని ఫారం యజమానిని అడగండి.',
 
   // FarmDetailScreen
   noPondsTitle: 'చెరువులు కనుగొనబడలేదు',

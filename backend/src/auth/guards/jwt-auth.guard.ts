@@ -70,7 +70,14 @@ export class JwtAuthGuard implements CanActivate {
       const supabaseUser = data.user;
       this.logger.debug(`[GUARD] token valid — sub: ${supabaseUser.id}`);
 
-      req.user = { id: supabaseUser.id, email: supabaseUser.email };
+      req.user = {
+        id: supabaseUser.id,
+        email: supabaseUser.email,
+        // Already present on the fetched Supabase user — no extra call.
+        // Defaults to 'owner' to match SignupDto's own default when the
+        // metadata is absent (e.g. very old accounts predating accountType).
+        accountType: supabaseUser.user_metadata?.account_type ?? 'owner',
+      };
       return true;
     } catch (err: any) {
       this.logger.error(`[UNAUTHORIZED] ${method} ${url} — ${err.message}`);

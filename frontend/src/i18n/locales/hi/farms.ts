@@ -6,6 +6,7 @@ const farms = {
   emptyTitle: 'अभी कोई फार्म नहीं',
   emptySubtitle: 'अपने तालाब और चक्र प्रबंधित करना शुरू करने के लिए पहला फार्म बनाएं।',
   addFarm: 'फार्म जोड़ें',
+  workerNoFarmSubtitle: 'फार्म मालिक से आपको टीम सदस्य के रूप में जोड़ने के लिए कहें।',
 
   // FarmDetailScreen
   noPondsTitle: 'कोई तालाब नहीं मिला',

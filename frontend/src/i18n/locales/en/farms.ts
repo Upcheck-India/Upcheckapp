@@ -6,6 +6,7 @@ const farms = {
   emptyTitle: 'No Farms Yet',
   emptySubtitle: 'Create your first farm to start managing your ponds and cycles.',
   addFarm: 'Add Farm',
+  workerNoFarmSubtitle: 'Ask a farm owner to add you as a team member.',
 
   // FarmDetailScreen
   noPondsTitle: 'No Ponds Found',

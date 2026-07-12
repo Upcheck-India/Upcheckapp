@@ -31,6 +31,22 @@ const toPublicUser = (u: User): PublicUser => ({
   avatarUrl: u.avatarUrl,
 });
 
+// Every lookup here only ever needs the fields toPublicUser() reads. A bare
+// findOne() selects every mapped column on User by default — including ones
+// added by a migration that hasn't been run yet in every environment (this
+// exact class of bug took down login once already: a column the entity
+// declares but the database doesn't have yet turns into a raw 500 for every
+// caller, not just the one screen that "needed" the new field). Scoping the
+// select to what's actually used means this code never has to care whether
+// the rest of the User columns are migrated yet.
+const PUBLIC_USER_SELECT = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  username: true,
+  avatarUrl: true,
+} as const;
+
 @Injectable()
 export class FarmMembersService {
   constructor(
@@ -51,14 +67,21 @@ export class FarmMembersService {
   }): Promise<PublicUser> {
     let user: User | null = null;
     if (query.userId) {
-      user = await this.usersRepo.findOne({ where: { id: query.userId } });
+      user = await this.usersRepo.findOne({
+        where: { id: query.userId },
+        select: PUBLIC_USER_SELECT,
+      });
     }
     if (!user && query.phone) {
-      user = await this.usersRepo.findOne({ where: { phone: query.phone } });
+      user = await this.usersRepo.findOne({
+        where: { phone: query.phone },
+        select: PUBLIC_USER_SELECT,
+      });
     }
     if (!user && query.email) {
       user = await this.usersRepo.findOne({
         where: { email: query.email.toLowerCase() },
+        select: PUBLIC_USER_SELECT,
       });
     }
     if (!user) {
@@ -87,7 +110,10 @@ export class FarmMembersService {
       );
     }
 
-    const target = await this.usersRepo.findOne({ where: { id: dto.userId } });
+    const target = await this.usersRepo.findOne({
+      where: { id: dto.userId },
+      select: PUBLIC_USER_SELECT,
+    });
     if (!target) {
       throw new NotFoundException('User to add was not found');
     }

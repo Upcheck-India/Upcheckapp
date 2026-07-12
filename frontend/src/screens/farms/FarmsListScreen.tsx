@@ -11,9 +11,14 @@ import { Skeleton, SkeletonCard, SkeletonList } from '../../components/ui/Skelet
 import { theme } from '../../theme';
 import { farmsApi, Farm } from '../../api/farms';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAuthStore } from '../../store/authStore';
 
 export const FarmsListScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
+    // Farm creation is owner-only server-side (a worker who created a farm
+    // became its owner — the actual reported bug); hide the entry points for
+    // workers too so the only way to see the action is to be blocked by it.
+    const isWorker = useAuthStore((s) => s.user?.accountType === 'worker');
     const [farms, setFarms] = useState<Farm[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -163,7 +168,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
                     </TouchableOpacity>
                 </View>
                 {renderSkeleton()}
-                <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />
+                {!isWorker && <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />}
             </ScreenWrapper>
         );
     }
@@ -178,7 +183,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
                     </TouchableOpacity>
                 </View>
                 <NetworkError onRetry={handleRetry} />
-                <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />
+                {!isWorker && <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />}
             </ScreenWrapper>
         );
     }
@@ -197,7 +202,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
                     error={error}
                     onRetry={handleRetry}
                 />
-                <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />
+                {!isWorker && <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />}
             </ScreenWrapper>
         );
     }
@@ -206,9 +211,11 @@ export const FarmsListScreen = ({ navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle} numberOfLines={1}>{t('farms.title')}</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('CreateFarm')}>
-                    <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
-                </TouchableOpacity>
+                {!isWorker && (
+                    <TouchableOpacity onPress={() => navigation.navigate('CreateFarm')}>
+                        <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
+                    </TouchableOpacity>
+                )}
             </View>
 
             <FlatList
@@ -225,13 +232,21 @@ export const FarmsListScreen = ({ navigation }: any) => {
                     />
                 }
                 ListEmptyComponent={
-                    <EmptyState
-                        icon="barn"
-                        title={t('farms.emptyTitle')}
-                        subtitle={t('farms.emptySubtitle')}
-                        actionLabel={t('farms.addFarm')}
-                        onAction={() => navigation.navigate('CreateFarm')}
-                    />
+                    isWorker ? (
+                        <EmptyState
+                            icon="barn"
+                            title={t('farms.emptyTitle')}
+                            subtitle={t('farms.workerNoFarmSubtitle', 'Ask a farm owner to add you as a team member.')}
+                        />
+                    ) : (
+                        <EmptyState
+                            icon="barn"
+                            title={t('farms.emptyTitle')}
+                            subtitle={t('farms.emptySubtitle')}
+                            actionLabel={t('farms.addFarm')}
+                            onAction={() => navigation.navigate('CreateFarm')}
+                        />
+                    )
                 }
             />
             <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />

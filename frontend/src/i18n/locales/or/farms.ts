@@ -6,6 +6,7 @@ const farms = {
   emptyTitle: 'ଏପର୍ଯ୍ୟନ୍ତ ଫାର୍ମ ନାହିଁ',
   emptySubtitle: 'ଆପଣଙ୍କ ପୋଖରୀ ଓ ଚକ୍ର ପ୍ରବନ୍ଧନ ଆରମ୍ଭ କରିବାକୁ ପ୍ରଥମ ଫାର୍ମ ତୈରି କରନ୍ତୁ।',
   addFarm: 'ଫାର୍ମ ଯୋଡ଼ନ୍ତୁ',
+  workerNoFarmSubtitle: 'ଆପଣଙ୍କୁ ଦଳ ସଦସ୍ୟ ଭାବରେ ଯୋଡ଼ିବାକୁ ଏକ ଫାର୍ମ ମାଲିକଙ୍କୁ କୁହନ୍ତୁ।',
 
   // FarmDetailScreen
   noPondsTitle: 'ପୋଖରୀ ମିଳିଲା ନାହିଁ',

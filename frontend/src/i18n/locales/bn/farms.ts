@@ -6,6 +6,7 @@ const farms = {
   emptyTitle: 'এখনও কোনো খামার নেই',
   emptySubtitle: 'পুকুর ও চক্র পরিচালনা শুরু করতে আপনার প্রথম খামার তৈরি করুন।',
   addFarm: 'খামার যোগ করুন',
+  workerNoFarmSubtitle: 'আপনাকে দলের সদস্য হিসেবে যোগ করতে খামারের মালিককে বলুন।',
 
   // FarmDetailScreen
   noPondsTitle: 'কোনো পুকুর পাওয়া যায়নি',
