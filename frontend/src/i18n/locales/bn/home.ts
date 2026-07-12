@@ -57,6 +57,8 @@ const home = {
   // Farm items
   moreMyFarms: 'আমার খামার',
   moreMyFarmsDesc: 'আপনার খামার পরিচালনা করুন',
+  moreAllWorkers: 'সকল কর্মী',
+  moreAllWorkersDesc: 'প্রতিটি খামারের কর্মী দেখুন',
   moreInventory: 'ইনভেন্টরি',
   moreInventoryDesc: 'খাদ্য ও রাসায়নিক স্টক',
   moreShop: 'শপ',

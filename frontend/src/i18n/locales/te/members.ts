@@ -10,7 +10,9 @@ const members = {
     emptySub: 'ఒక వర్కర్‌ను చేర్చండి, వారు ఈ ఫారం కోసం నీటి నాణ్యత మరియు మేత నమోదు చేయగలరు.',
     addWorker: 'వర్కర్‌ను చేర్చు',
     role_owner: 'యజమాని',
+    role_manager: 'మేనేజర్',
     role_worker: 'వర్కర్',
+    role_viewer: 'వీక్షకుడు',
     remove: 'తీసివేయి',
     removeTitle: 'సభ్యుడిని తీసివేయి',
     removeConfirm: '{{name}}ను ఈ ఫారం నుండి తీసివేయాలా?',
@@ -35,6 +37,11 @@ const members = {
     addedTitle: 'వర్కర్ చేర్చబడ్డారు',
     addedSub: '{{name}} ఇప్పుడు ఈ ఫారం కోసం డేటా నమోదు చేయవచ్చు.',
     addError: 'ఈ వర్కర్‌ను చేర్చలేకపోయాం.',
+
+    allTitle: 'అన్ని వర్కర్లు',
+    allEmptyTitle: 'ఇంకా వర్కర్లు లేరు',
+    allEmptySub: 'మీ ఫారాలలో వర్కర్లను చేర్చండి, వారు ఇక్కడ కనిపిస్తారు.',
+    allFarmMemberCountLabel: 'టీం: {{count}}',
 };
 
 export default members;

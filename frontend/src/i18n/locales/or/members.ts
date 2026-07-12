@@ -10,7 +10,9 @@ const members = {
     emptySub: 'ଜଣେ ୱାର୍କର ଯୋଡ଼ନ୍ତୁ ଯେପରି ସେ ଏହି ଫାର୍ମ ପାଇଁ ଜଳ ଗୁଣବତ୍ତା ଓ ଖାଦ୍ୟ ଲିପିବଦ୍ଧ କରିପାରିବେ।',
     addWorker: 'ୱାର୍କର ଯୋଡ଼ନ୍ତୁ',
     role_owner: 'ମାଲିକ',
+    role_manager: 'ମ୍ୟାନେଜର',
     role_worker: 'ୱାର୍କର',
+    role_viewer: 'ଦର୍ଶକ',
     remove: 'ହଟାନ୍ତୁ',
     removeTitle: 'ସଦସ୍ୟ ହଟାନ୍ତୁ',
     removeConfirm: '{{name}}ଙ୍କୁ ଏହି ଫାର୍ମରୁ ହଟାଇବେ?',
@@ -35,6 +37,11 @@ const members = {
     addedTitle: 'ୱାର୍କର ଯୋଡ଼ାଗଲା',
     addedSub: '{{name}} ବର୍ତ୍ତମାନ ଏହି ଫାର୍ମ ପାଇଁ ତଥ୍ୟ ଲିପିବଦ୍ଧ କରିପାରିବେ।',
     addError: 'ଏହି ୱାର୍କରଙ୍କୁ ଯୋଡ଼ି ହେଲା ନାହିଁ।',
+
+    allTitle: 'ସମସ୍ତ ୱାର୍କର',
+    allEmptyTitle: 'ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ୱାର୍କର ନାହାନ୍ତି',
+    allEmptySub: 'ଆପଣଙ୍କ ଫାର୍ମରେ ୱାର୍କର ଯୋଡ଼ନ୍ତୁ, ସେମାନେ ଏଠାରେ ଦେଖାଯିବେ।',
+    allFarmMemberCountLabel: 'ଦଳ: {{count}}',
 };
 
 export default members;

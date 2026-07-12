@@ -88,6 +88,13 @@ export const MoreScreen = ({ navigation }: any) => {
         // "My Farms" deliberately removed — it duplicates the Farms bottom tab
         // (docs/UI_UX_AUDIT.md Tier 1 #3: two IA entries to the same screen).
         {
+            icon: 'account-multiple-outline',
+            label: t('home.moreAllWorkers'),
+            route: 'AllWorkers',
+            description: t('home.moreAllWorkersDesc'),
+            color: theme.roles.light.primary,
+        },
+        {
             icon: 'database',
             label: t('home.moreInventory'),
             route: 'Inventory',

@@ -10,7 +10,9 @@ const members = {
     emptySub: 'एक वर्कर जोड़ें ताकि वह इस फ़ार्म के लिए जल गुणवत्ता और फ़ीड दर्ज कर सके।',
     addWorker: 'वर्कर जोड़ें',
     role_owner: 'मालिक',
+    role_manager: 'प्रबंधक',
     role_worker: 'वर्कर',
+    role_viewer: 'दर्शक',
     remove: 'हटाएँ',
     removeTitle: 'सदस्य हटाएँ',
     removeConfirm: '{{name}} को इस फ़ार्म से हटाएँ?',
@@ -35,6 +37,11 @@ const members = {
     addedTitle: 'वर्कर जोड़ा गया',
     addedSub: '{{name}} अब इस फ़ार्म के लिए डेटा दर्ज कर सकता है।',
     addError: 'इस वर्कर को जोड़ा नहीं जा सका।',
+
+    allTitle: 'सभी वर्कर',
+    allEmptyTitle: 'अभी कोई वर्कर नहीं',
+    allEmptySub: 'अपने फार्मों में वर्कर जोड़ें ताकि वे यहाँ दिखें।',
+    allFarmMemberCountLabel: 'टीम: {{count}}',
 };
 
 export default members;

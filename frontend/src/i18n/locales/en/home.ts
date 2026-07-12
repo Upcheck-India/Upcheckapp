@@ -57,6 +57,8 @@ const home = {
   // Farm items
   moreMyFarms: 'My Farms',
   moreMyFarmsDesc: 'Manage your farms',
+  moreAllWorkers: 'All Workers',
+  moreAllWorkersDesc: 'View workers across every farm',
   moreInventory: 'Inventory',
   moreInventoryDesc: 'Feed and chemical stock',
   moreShop: 'Shop',

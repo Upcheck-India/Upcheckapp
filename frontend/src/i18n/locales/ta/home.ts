@@ -57,6 +57,8 @@ const home = {
   // Farm items
   moreMyFarms: 'என் பண்ணைகள்',
   moreMyFarmsDesc: 'உங்கள் பண்ணைகளை நிர்வகி',
+  moreAllWorkers: 'அனைத்து பணியாளர்கள்',
+  moreAllWorkersDesc: 'ஒவ்வொரு பண்ணையின் பணியாளர்களையும் காண்க',
   moreInventory: 'சரக்கு பட்டியல்',
   moreInventoryDesc: 'தீவனம் மற்றும் இரசாயன இருப்பு',
   moreShop: 'கடை',

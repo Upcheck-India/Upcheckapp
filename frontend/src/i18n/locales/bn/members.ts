@@ -10,7 +10,9 @@ const members = {
     emptySub: 'একজন কর্মী যোগ করুন যাতে তিনি এই খামারের জন্য জলের গুণমান ও খাদ্য লিপিবদ্ধ করতে পারেন।',
     addWorker: 'কর্মী যোগ করুন',
     role_owner: 'মালিক',
+    role_manager: 'ম্যানেজার',
     role_worker: 'কর্মী',
+    role_viewer: 'দর্শক',
     remove: 'সরান',
     removeTitle: 'সদস্য সরান',
     removeConfirm: '{{name}}-কে এই খামার থেকে সরাবেন?',
@@ -35,6 +37,11 @@ const members = {
     addedTitle: 'কর্মী যোগ হয়েছে',
     addedSub: '{{name}} এখন এই খামারের জন্য ডেটা লিপিবদ্ধ করতে পারেন।',
     addError: 'এই কর্মীকে যোগ করা যায়নি।',
+
+    allTitle: 'সকল কর্মী',
+    allEmptyTitle: 'এখনও কোনো কর্মী নেই',
+    allEmptySub: 'আপনার খামারে কর্মী যোগ করুন, তারা এখানে দেখাবে।',
+    allFarmMemberCountLabel: 'দল: {{count}}',
 };
 
 export default members;

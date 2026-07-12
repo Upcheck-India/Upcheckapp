@@ -12,7 +12,9 @@ const members = {
     emptySub: 'Add a worker so they can log water quality and feed for this farm.',
     addWorker: 'Add worker',
     role_owner: 'Owner',
+    role_manager: 'Manager',
     role_worker: 'Worker',
+    role_viewer: 'Viewer',
     remove: 'Remove',
     removeTitle: 'Remove member',
     removeConfirm: 'Remove {{name}} from this farm?',
@@ -39,6 +41,12 @@ const members = {
     addedTitle: 'Worker added',
     addedSub: '{{name}} can now log data for this farm.',
     addError: 'Could not add this worker.',
+
+    // Cross-farm "All Workers" overview
+    allTitle: 'All Workers',
+    allEmptyTitle: 'No workers yet',
+    allEmptySub: 'Add workers to your farms to see everyone here.',
+    allFarmMemberCountLabel: 'Team: {{count}}',
 };
 
 export default members;

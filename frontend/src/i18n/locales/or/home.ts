@@ -57,6 +57,8 @@ const home = {
   // Farm items
   moreMyFarms: 'ମୋ ଫାର୍ମ',
   moreMyFarmsDesc: 'ଆପଣଙ୍କ ଫାର୍ମ ପ୍ରବନ୍ଧନ',
+  moreAllWorkers: 'ସମସ୍ତ ୱାର୍କର',
+  moreAllWorkersDesc: 'ପ୍ରତ୍ୟେକ ଫାର୍ମର ୱାର୍କର ଦେଖନ୍ତୁ',
   moreInventory: 'ଇନ୍‌ଭେଣ୍ଟୋରି',
   moreInventoryDesc: 'ଖାଦ୍ୟ ଓ ରାସାୟନିକ ଷ୍ଟକ',
   moreShop: 'ଦୋକାନ',

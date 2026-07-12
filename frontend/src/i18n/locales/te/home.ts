@@ -57,6 +57,8 @@ const home = {
   // Farm items
   moreMyFarms: 'నా ఫారాలు',
   moreMyFarmsDesc: 'మీ ఫారాలు నిర్వహించండి',
+  moreAllWorkers: 'అన్ని వర్కర్లు',
+  moreAllWorkersDesc: 'ప్రతి ఫారం వర్కర్లను చూడండి',
   moreInventory: 'ఇన్వెంటరీ',
   moreInventoryDesc: 'దాణా మరియు రసాయన స్టాక్',
   moreShop: 'దుకాణం',
