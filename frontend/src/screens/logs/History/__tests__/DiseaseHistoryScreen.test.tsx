@@ -5,6 +5,19 @@
 jest.mock('../../../../api/diseases', () => ({
     diseaseApi: { getByCrop: jest.fn(), remove: jest.fn() },
 }));
+// See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why:
+// useFocusEffect needs a NavigationContainer the plain SafeAreaProvider
+// wrapper below doesn't provide.
+jest.mock('@react-navigation/native', () => {
+    const actual = jest.requireActual('@react-navigation/native');
+    return {
+        ...actual,
+        useFocusEffect: (effect: () => void) => {
+            const React = require('react');
+            React.useEffect(effect, []);
+        },
+    };
+});
 
 import React from 'react';
 import { render } from '@testing-library/react-native';

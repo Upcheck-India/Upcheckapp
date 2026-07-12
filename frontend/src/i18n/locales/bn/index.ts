@@ -20,6 +20,8 @@ import engines from './engines';
 
 import members from './members';
 
+import harvestPlans from './harvestPlans';
+
 export default {
   common,
   history,
@@ -40,4 +42,5 @@ export default {
   settings,
   engines,
   members,
+  harvestPlans,
 };

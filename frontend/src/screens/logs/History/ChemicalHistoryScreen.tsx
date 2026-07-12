@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
@@ -50,7 +51,9 @@ export const ChemicalHistoryScreen = ({ route, navigation }: any) => {
         }
     }, [cropId]);
 
-    useEffect(() => { fetchRecords(); }, [fetchRecords]);
+    // Refetch on focus, not just mount — this screen stays mounted in the
+    // stack, so logging a new reading and navigating back never showed it.
+    useFocusEffect(useCallback(() => { fetchRecords(); }, [fetchRecords]));
 
     const handleRefresh = useCallback(() => {
         setIsRefreshing(true);

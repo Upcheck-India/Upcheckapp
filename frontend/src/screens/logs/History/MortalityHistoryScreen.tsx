@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
@@ -69,9 +70,15 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
         }
     }, [cropId, fadeIn]);
 
-    React.useEffect(() => {
-        fetchRecords();
-    }, [fetchRecords]);
+    // Refetch on focus, not just mount — React Navigation keeps this screen
+    // mounted in the stack, so a mount-only effect never saw records logged
+    // after navigating away and back (the same stale-list bug fixed
+    // elsewhere in the app). The 30s cacheRef above keeps this cheap.
+    useFocusEffect(
+        useCallback(() => {
+            fetchRecords();
+        }, [fetchRecords]),
+    );
 
     const handleRefresh = useCallback(() => {
         setIsRefreshing(true);

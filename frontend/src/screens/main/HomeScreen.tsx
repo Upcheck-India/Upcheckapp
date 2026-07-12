@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -85,29 +86,15 @@ export const HomeScreen = ({ navigation }: any) => {
         }
     }, [selectedFarm?.id, setSelectedFarm]);
 
-    useEffect(() => {
-        fetchSummary();
-    }, [fetchSummary]);
-
-    const onRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchSummary();
-    }, [fetchSummary]);
-
-    const onRetry = useCallback(() => {
-        setIsLoading(true);
-        fetchSummary();
-    }, [fetchSummary]);
-
     // Ponds for the one-tap "Your Ponds" shortcut — so the farmer reaches a pond
     // (and its daily loop) without drilling Farms → Farm → Pond.
-    useEffect(() => {
+    const fetchPonds = useCallback(() => {
         pondsApi.getMine().then(({ data }) => setPonds(data)).catch(() => setPonds([]));
     }, []);
 
     // Planned vs. actual pond count for the selected farm — one of the
     // Getting Started checklist items below.
-    useEffect(() => {
+    const fetchPlannedPondCount = useCallback(() => {
         if (!selectedFarm?.id) {
             setPlannedPondCount(null);
             return;
@@ -117,6 +104,31 @@ export const HomeScreen = ({ navigation }: any) => {
             .then(({ data }) => setPlannedPondCount(data.plannedPondCount ?? null))
             .catch(() => setPlannedPondCount(null));
     }, [selectedFarm?.id]);
+
+    // React Navigation keeps this screen mounted across the stack, so a
+    // mount-only effect never re-ran after e.g. PondSetup/CreatePond added a
+    // pond and navigated back — the dashboard, pond list, and Getting
+    // Started checklist all stayed stale until the app was force-restarted.
+    // Refetch every time Home regains focus instead.
+    useFocusEffect(
+        useCallback(() => {
+            fetchSummary();
+            fetchPonds();
+            fetchPlannedPondCount();
+        }, [fetchSummary, fetchPonds, fetchPlannedPondCount]),
+    );
+
+    const onRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        fetchSummary();
+        fetchPonds();
+        fetchPlannedPondCount();
+    }, [fetchSummary, fetchPonds, fetchPlannedPondCount]);
+
+    const onRetry = useCallback(() => {
+        setIsLoading(true);
+        fetchSummary();
+    }, [fetchSummary]);
 
     const pondsForSelectedFarm = selectedFarm?.id
         ? ponds.filter((p) => p.farmId === selectedFarm.id).length
@@ -144,7 +156,7 @@ export const HomeScreen = ({ navigation }: any) => {
     }, [selectedFarm?.id, ponds]);
 
     // "Invited your team" — more than just the owner as a farm member.
-    useEffect(() => {
+    const fetchInvitedWorker = useCallback(() => {
         if (!selectedFarm?.id) {
             setHasInvitedWorker(null);
             return;
@@ -154,6 +166,8 @@ export const HomeScreen = ({ navigation }: any) => {
             .then(({ data }) => setHasInvitedWorker(data.length > 1))
             .catch(() => setHasInvitedWorker(false));
     }, [selectedFarm?.id]);
+
+    useFocusEffect(fetchInvitedWorker);
 
     const checklistItems = [
         { key: 'ponds', done: pondsStepDone, label: t('home.checklistPonds', 'Set up your ponds'), icon: 'water-outline' as const },

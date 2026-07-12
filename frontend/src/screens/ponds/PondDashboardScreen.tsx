@@ -209,17 +209,24 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
             setPond(pondData);
 
             if (pondData.activeCycleId) {
-                const { data: cycleData } = await cropsApi.getById(pondData.activeCycleId);
-                setActiveCycle(cycleData);
-
-                const [samplingRes, feedTotalRes, harvestRes] = await Promise.all([
+                // All four calls only need pondId/activeCycleId (both already known),
+                // so they run in one batch instead of a 4-deep sequential chain — this
+                // was the main contributor to the dashboard's 10s+ load time.
+                const [cycleRes, samplingRes, feedTotalRes, harvestRes, wqLatestRes] = await Promise.all([
+                    cropsApi.getById(pondData.activeCycleId),
                     samplingApi.getAll(pondData.activeCycleId),
                     // ponytail: sums feed across every cycle ever run on this pond, not
                     // just the active one — it's the only total (unpaginated) endpoint
                     // the feed API exposes. Add a cycle-scoped total if that skews FCR.
                     feedApi.getTotalByPond(pondId),
-                    harvestsApi.getAll(),
+                    // Scoped to this cycle — passing no cropId makes the backend scan
+                    // every harvest across every farm the user can access (up to 500
+                    // rows), unrelated to this one pond.
+                    harvestsApi.getAll(pondData.activeCycleId),
+                    waterQualityApi.getLatest(pondId).catch(() => ({ data: null }) as any),
                 ]);
+                const cycleData = cycleRes.data;
+                setActiveCycle(cycleData);
 
                 const samplings = samplingRes.data || [];
                 const sortedSamplings = [...samplings].sort((a, b) => new Date(b.samplingDate).getTime() - new Date(a.samplingDate).getTime());
@@ -237,8 +244,8 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                     currentBiomass += Number(latest.biomassEstimationKg || 0);
                 }
 
-                const harvests = harvestRes.data || [];
-                const cycleHarvests = harvests.filter((h: any) => h.cropId === pondData.activeCycleId);
+                // Already scoped to this cycle by the harvestsApi.getAll(cropId) call above.
+                const cycleHarvests = harvestRes.data || [];
                 const harvestedBiomass = cycleHarvests.reduce((sum: number, h: any) => sum + Number(h.weightKg || 0), 0);
                 const totalBiomass = currentBiomass + harvestedBiomass;
                 const newBiomass = totalBiomass > 0 ? (totalBiomass / 1000).toFixed(2) : '--';
@@ -246,14 +253,8 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                 const totalFeedKg = Number(feedTotalRes.data) || 0;
                 const newFcr = totalBiomass > 0 && totalFeedKg > 0 ? (totalFeedKg / totalBiomass).toFixed(2) : '--';
 
-                let newWqAlert = false;
-                try {
-                    const wqLatestRes = await waterQualityApi.getLatest(pondId);
-                    newWqAlert = !wqLatestRes.data?.recordedAt
-                        || (Date.now() - new Date(wqLatestRes.data.recordedAt).getTime()) / 3_600_000 > 24;
-                } catch {
-                    newWqAlert = true;
-                }
+                const newWqAlert = !wqLatestRes.data?.recordedAt
+                    || (Date.now() - new Date(wqLatestRes.data.recordedAt).getTime()) / 3_600_000 > 24;
 
                 setMbw(newMbw);
                 setSurvival(newSurvival);
