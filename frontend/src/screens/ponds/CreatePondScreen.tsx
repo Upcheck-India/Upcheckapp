@@ -13,6 +13,15 @@ import { pondsApi } from '../../api/ponds';
 type GeometryType = 'rectangular' | 'circular' | 'irregular' | 'raceway';
 type ConstructionType = 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
 
+// Derive a 1–4 char alphanumeric prefix (backend naming requirement) from the
+// free-form pond name — same helper as PondSetupScreen (onboarding), so a
+// farmer never has to understand or type this internal grouping code
+// themselves; only the meaningful display name is ever asked for.
+const derivePrefix = (name: string) => {
+    const alnum = name.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    return alnum.slice(0, 4) || 'P';
+};
+
 export const CreatePondScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { farmId } = route.params;
@@ -30,7 +39,6 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
         { value: 'cage', label: t('ponds.constructionCage'), icon: 'cube-outline' },
         { value: 'biofloc_ras', label: t('ponds.constructionBioflocRas'), icon: 'recycle' },
     ];
-    const [namePrefix, setNamePrefix] = useState('');
     const [geometryType, setGeometryType] = useState<GeometryType>('rectangular');
     const [constructionType, setConstructionType] = useState<ConstructionType>('earthen');
     const [lengthM, setLengthM] = useState('');
@@ -42,7 +50,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
 
     const [computedArea, setComputedArea] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
-    const [errors, setErrors] = useState<{ namePrefix?: string; depthM?: string }>({});
+    const [errors, setErrors] = useState<{ displayName?: string; depthM?: string }>({});
     const [draftHydrated, setDraftHydrated] = useState(false);
 
     // Restore a saved draft once on mount. Corrupt drafts are ignored.
@@ -53,7 +61,6 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 const raw = await AsyncStorage.getItem(draftKey);
                 if (raw && !cancelled) {
                     const d = JSON.parse(raw);
-                    if (typeof d.namePrefix === 'string') setNamePrefix(d.namePrefix);
                     if (typeof d.displayName === 'string') setDisplayName(d.displayName);
                     if (typeof d.geometryType === 'string') setGeometryType(d.geometryType);
                     if (typeof d.constructionType === 'string') setConstructionType(d.constructionType);
@@ -80,7 +87,6 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
         AsyncStorage.setItem(
             draftKey,
             JSON.stringify({
-                namePrefix,
                 displayName,
                 geometryType,
                 constructionType,
@@ -91,7 +97,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 installedAeratorHp,
             }),
         ).catch(() => { /* best-effort; non-fatal */ });
-    }, [draftHydrated, draftKey, namePrefix, displayName, geometryType, constructionType, lengthM, widthM, diameterM, depthM, installedAeratorHp]);
+    }, [draftHydrated, draftKey, displayName, geometryType, constructionType, lengthM, widthM, diameterM, depthM, installedAeratorHp]);
 
     useEffect(() => {
         let area = 0;
@@ -108,9 +114,9 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
     }, [geometryType, lengthM, widthM, diameterM]);
 
     const handleSave = async () => {
-        const newErrors: { namePrefix?: string; depthM?: string } = {};
-        if (!namePrefix.trim() || namePrefix.trim().length > 4) {
-            newErrors.namePrefix = t('ponds.errorNamePrefix');
+        const newErrors: { displayName?: string; depthM?: string } = {};
+        if (!displayName.trim()) {
+            newErrors.displayName = t('ponds.errorDisplayName', 'Pond name is required');
         }
         if (!depthM || parseFloat(depthM) < 0.5 || parseFloat(depthM) > 5.0) {
             newErrors.depthM = t('ponds.errorDepth');
@@ -125,7 +131,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
         try {
             await pondsApi.create({
                 farmId,
-                namePrefix: namePrefix.trim(),
+                namePrefix: derivePrefix(displayName),
                 geometryType,
                 constructionType,
                 lengthM: (geometryType === 'rectangular' || geometryType === 'raceway') && lengthM ? parseFloat(lengthM) : undefined,
@@ -133,7 +139,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 diameterM: geometryType === 'circular' && diameterM ? parseFloat(diameterM) : undefined,
                 depthM: parseFloat(depthM),
                 installedAeratorHp: installedAeratorHp ? parseFloat(installedAeratorHp) : undefined,
-                displayName: displayName.trim() || undefined,
+                displayName: displayName.trim(),
             });
             // Pond saved — discard the draft so it isn't restored next time.
             await AsyncStorage.removeItem(draftKey);
@@ -157,19 +163,12 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
 
             <ScrollView contentContainerStyle={styles.content}>
                 <Input
-                    label={t('ponds.fieldNamePrefix')}
-                    value={namePrefix}
-                    onChangeText={setNamePrefix}
-                    placeholder={t('ponds.placeholderNamePrefix')}
-                    error={errors.namePrefix}
-                    required
-                />
-
-                <Input
                     label={t('ponds.fieldDisplayName')}
                     value={displayName}
                     onChangeText={setDisplayName}
                     placeholder={t('ponds.placeholderDisplayName')}
+                    error={errors.displayName}
+                    required
                 />
 
                 <Text style={styles.label}>{t('ponds.labelPondShape')}</Text>

@@ -2,6 +2,8 @@
 const members = {
     workerCode: 'ମୋ ୱାର୍କର କୋଡ୍',
     workerCodeHint: 'ଏହି କୋଡ୍ ଫାର୍ମ ମାଲିକଙ୍କୁ ଦେଖାନ୍ତୁ ଯେପରି ସେମାନେ ଆପଣଙ୍କୁ ସେମାନଙ୍କ ଫାର୍ମରେ ଯୋଡ଼ିପାରିବେ।',
+    workerCodeCopied: 'କୋଡ୍ କପି ହୋଇଛି',
+    workerCodeShareMessage: 'ମୋ Upcheck ୱାର୍କର କୋଡ୍: {{code}}',
 
     title: 'ଫାର୍ମ ଦଳ',
     emptyTitle: 'ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଦଳ ସଦସ୍ୟ ନାହାନ୍ତି',

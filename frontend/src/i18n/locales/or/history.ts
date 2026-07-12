@@ -77,6 +77,7 @@ const history = {
   treatmentTitle: 'ଚିକିତ୍ସା ଇତିହାସ',
   treatmentEmptyTitle: 'କୌଣସି ଚିକିତ୍ସା ଲଗ୍ ହୋଇନାହିଁ',
   treatmentEmptyText: 'ଏହି ପୋଖରିରେ କୌଣସି ଚିକିତ୍ସା ରେକର୍ଡ ନାହିଁ।',
+  bannedFlagLabel: 'ଚିହ୍ନିତ: {{names}}',
 
   // ── WaterQualityHistoryScreen ─────────────────────────────────────────────
   waterQualityTitle: 'ଜଳ ଗୁଣମାନ ଇତିହାସ',

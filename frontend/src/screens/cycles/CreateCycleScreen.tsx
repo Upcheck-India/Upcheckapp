@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Alert, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -46,6 +46,27 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
 
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<{ name?: string; stockingCount?: string }>({});
+
+    // A blank required "Cycle Name" field with nothing to go on is exactly the
+    // kind of internal-sounding ask a farmer shouldn't have to think about —
+    // pre-fill a sensible default (numbered after this pond's prior cycles) so
+    // accepting it and moving on is the normal path; still fully editable for
+    // anyone who wants a custom label.
+    useEffect(() => {
+        let cancelled = false;
+        cropsApi.getAll(pondId)
+            .then(({ data }) => {
+                if (cancelled) return;
+                const n = (Array.isArray(data) ? data.length : 0) + 1;
+                setName((current) => current || t('cycles.defaultCycleName', { n }));
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setName((current) => current || t('cycles.defaultCycleName', { n: 1 }));
+            });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pondId]);
 
     const handleSave = async () => {
         const newErrors: { name?: string; stockingCount?: string } = {};

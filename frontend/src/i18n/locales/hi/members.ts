@@ -2,6 +2,8 @@
 const members = {
     workerCode: 'मेरा वर्कर कोड',
     workerCodeHint: 'यह कोड फ़ार्म मालिक को दिखाएँ ताकि वे आपको अपने फ़ार्म में जोड़ सकें।',
+    workerCodeCopied: 'कोड कॉपी हो गया',
+    workerCodeShareMessage: 'मेरा Upcheck वर्कर कोड: {{code}}',
 
     title: 'फ़ार्म टीम',
     emptyTitle: 'अभी कोई टीम सदस्य नहीं',

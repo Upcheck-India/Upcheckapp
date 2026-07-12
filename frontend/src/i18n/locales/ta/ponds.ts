@@ -3,7 +3,7 @@ const ponds = {
   addPond: 'குளம் சேர்',
   fieldNamePrefix: 'பெயர் முன்னொட்டு',
   placeholderNamePrefix: 'எ.கா. A (அதிகபட்சம் 4 எழுத்துகள்)',
-  fieldDisplayName: 'காட்சி பெயர் (விருப்பத்தேர்வு)',
+  fieldDisplayName: 'குளத்தின் பெயர்',
   placeholderDisplayName: 'எ.கா. வடக்கு குளம்',
   labelPondShape: 'குளத்தின் வடிவம்',
   shapeRect: 'செவ்வக',
@@ -23,6 +23,7 @@ const ponds = {
   computedArea: 'கணக்கிடப்பட்ட பரப்பளவு',
   savePond: 'குளத்தை சேமி',
   errorNamePrefix: 'முன்னொட்டு தேவை (1-4 எழுத்துகள், எ.கா. "A")',
+  errorDisplayName: 'குளத்தின் பெயர் தேவை',
   errorDepth: 'ஆழம் தேவை (0.5 - 5.0 m)',
   errorCreatePond: 'குளம் உருவாக்க முடியவில்லை',
 

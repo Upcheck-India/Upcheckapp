@@ -2,6 +2,8 @@
 const members = {
     workerCode: 'నా వర్కర్ కోడ్',
     workerCodeHint: 'ఈ కోడ్‌ను ఫారం యజమానికి చూపించండి, వారు మిమ్మల్ని వారి ఫారంలో చేర్చగలరు.',
+    workerCodeCopied: 'కోడ్ కాపీ చేయబడింది',
+    workerCodeShareMessage: 'నా Upcheck వర్కర్ కోడ్: {{code}}',
 
     title: 'ఫారం టీం',
     emptyTitle: 'ఇంకా టీం సభ్యులు లేరు',

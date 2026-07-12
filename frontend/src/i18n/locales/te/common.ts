@@ -4,6 +4,8 @@ const common = {
   cancel: 'రద్దు చేయి',
   delete: 'తొలగించు',
   edit: 'మార్చు',
+  copy: 'కాపీ చేయి',
+  share: 'షేర్ చేయి',
   add: 'జోడించు',
   close: 'మూసివేయి',
   confirm: 'నిర్ధారించు',

@@ -2,6 +2,7 @@ const cycles = {
   // CreateCycleScreen
   fieldCycleName: 'Cycle Name',
   placeholderCycleName: 'e.g. Cycle 1',
+  defaultCycleName: 'Cycle {{n}}',
   fieldStockingDate: 'Stocking Date (YYYY-MM-DD)',
   placeholderStockingDate: '2026-01-01',
   fieldStockingCount: 'Stocking Count',

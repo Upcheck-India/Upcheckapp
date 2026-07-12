@@ -3,7 +3,7 @@ const ponds = {
   addPond: 'చెరువు జోడించు',
   fieldNamePrefix: 'పేరు ప్రిఫిక్స్',
   placeholderNamePrefix: 'ఉదా. A (గరిష్టం 4 అక్షరాలు)',
-  fieldDisplayName: 'ప్రదర్శన పేరు (ఐచ్ఛికం)',
+  fieldDisplayName: 'చెరువు పేరు',
   placeholderDisplayName: 'ఉదా. నార్త్ పాండ్',
   labelPondShape: 'చెరువు ఆకారం',
   shapeRect: 'దీర్ఘచతురస్రం',
@@ -23,6 +23,7 @@ const ponds = {
   computedArea: 'లెక్కించిన వైశాల్యం',
   savePond: 'చెరువు సేవ్ చేయి',
   errorNamePrefix: 'ప్రిఫిక్స్ తప్పనిసరి (1-4 అక్షరాలు, ఉదా. "A")',
+  errorDisplayName: 'చెరువు పేరు తప్పనిసరి',
   errorDepth: 'లోతు తప్పనిసరి (0.5 - 5.0 m)',
   errorCreatePond: 'చెరువు సృష్టించడం విఫలమైంది',
 

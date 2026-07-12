@@ -62,6 +62,8 @@ const logs = {
   feed_labelTray2: 'ट्रे 2',
   feed_labelTray3: 'ट्रे 3',
   feed_labelTray4: 'ट्रे 4',
+  feed_showTrays: 'फीडिंग-ट्रे जांच जोड़ें',
+  feed_hideTrays: 'फीडिंग-ट्रे जांच छिपाएं',
   feed_labelNotesBehavior: 'नोट्स / व्यवहार',
   feed_placeholderNotesBehavior: 'भूख, आहार के दौरान मौसम...',
   feed_validationFeedAmount: 'कृपया वैध कुल आहार मात्रा दर्ज करें',
@@ -162,6 +164,10 @@ const logs = {
 
   // ── Water Quality Log ─────────────────────────────────────────────────────
   waterQuality_title: 'जल गुणवत्ता',
+  waterQuality_sectionDaily: 'आज की रीडिंग',
+  waterQuality_showMore: 'अधिक रीडिंग जोड़ें',
+  waterQuality_showFewer: 'कम रीडिंग दिखाएं',
+  waterQuality_prefillHint: 'लवणता, क्षारीयता, कठोरता और पारदर्शिता आपकी पिछली रीडिंग से ली गई हैं — जो बदला हो उसे संपादित करें।',
   waterQuality_sectionPhysical: 'भौतिक मानक',
   waterQuality_sectionChemical: 'रासायनिक मानक',
   waterQuality_labelTemperature: 'तापमान',

@@ -3,7 +3,7 @@ const ponds = {
   addPond: 'तालाब जोड़ें',
   fieldNamePrefix: 'नाम उपसर्ग',
   placeholderNamePrefix: 'उदा. A (अधिकतम 4 अक्षर)',
-  fieldDisplayName: 'प्रदर्शन नाम (वैकल्पिक)',
+  fieldDisplayName: 'तालाब का नाम',
   placeholderDisplayName: 'उदा. उत्तरी तालाब',
   labelPondShape: 'तालाब का आकार',
   shapeRect: 'आयताकार',
@@ -23,6 +23,7 @@ const ponds = {
   computedArea: 'परिकलित क्षेत्रफल',
   savePond: 'तालाब सहेजें',
   errorNamePrefix: 'उपसर्ग आवश्यक है (1-4 अक्षर, उदा. "A")',
+  errorDisplayName: 'तालाब का नाम आवश्यक है',
   errorDepth: 'गहराई आवश्यक है (0.5 - 5.0 m)',
   errorCreatePond: 'तालाब बनाने में विफल',
 

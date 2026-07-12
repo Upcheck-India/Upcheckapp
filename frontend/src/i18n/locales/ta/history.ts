@@ -77,6 +77,7 @@ const history = {
   treatmentTitle: 'சிகிச்சை வரலாறு',
   treatmentEmptyTitle: 'சிகிச்சை பதிவுகள் இல்லை',
   treatmentEmptyText: 'இந்த குளத்தில் பதிவு செய்யப்பட்ட சிகிச்சைகள் இல்லை.',
+  bannedFlagLabel: 'குறியிடப்பட்டது: {{names}}',
 
   // ── WaterQualityHistoryScreen ─────────────────────────────────────────────
   waterQualityTitle: 'நீர் தர வரலாறு',

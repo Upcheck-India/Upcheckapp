@@ -4,6 +4,8 @@ const common = {
   cancel: 'বাতিল',
   delete: 'মুছুন',
   edit: 'সম্পাদনা',
+  copy: 'কপি করুন',
+  share: 'শেয়ার করুন',
   add: 'যোগ করুন',
   close: 'বন্ধ করুন',
   confirm: 'নিশ্চিত করুন',

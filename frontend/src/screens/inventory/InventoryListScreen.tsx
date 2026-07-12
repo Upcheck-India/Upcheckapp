@@ -12,6 +12,7 @@ import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { SkeletonList } from '../../components/ui/Skeleton';
 import { theme } from '../../theme';
 import { inventoryApi, InventoryItem } from '../../api/inventory';
+import { farmsApi } from '../../api/farms';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -35,6 +36,7 @@ export const InventoryListScreen = ({ navigation }: any) => {
 
     // Add-item form state
     const selectedFarm = useActiveFarmStore((s) => s.selectedFarm);
+    const setSelectedFarm = useActiveFarmStore((s) => s.setSelectedFarm);
     const [showAdd, setShowAdd] = useState(false);
     const [addSubmitting, setAddSubmitting] = useState(false);
     const [form, setForm] = useState({
@@ -72,6 +74,31 @@ export const InventoryListScreen = ({ navigation }: any) => {
     }, [fadeAnim, scaleAnim]);
 
     const fetchInventory = useCallback(async (forceRefresh = false) => {
+        // This screen used to call getAll('') whenever no farm was selected —
+        // an empty farmId never matches anything, so the list silently came
+        // back empty and "Add Item" just alerted "select a farm" with no
+        // actual picker anywhere to do that. Resolve a real farm first,
+        // same fallback HomeScreen already uses (auto-pick the first one).
+        let farmId = selectedFarm?.id;
+        if (!farmId) {
+            try {
+                const { data: farms } = await farmsApi.getAll();
+                const first = Array.isArray(farms) ? farms[0] : undefined;
+                if (first) {
+                    farmId = first.id;
+                    setSelectedFarm({ id: first.id, name: first.name, location: (first as any).location });
+                }
+            } catch {
+                // fall through — handled as "no farm" below
+            }
+        }
+        if (!farmId) {
+            setInventory([]);
+            setIsLoading(false);
+            setIsRefreshing(false);
+            return;
+        }
+
         if (!forceRefresh && cacheRef.current) {
             const { data, timestamp } = cacheRef.current;
             if (Date.now() - timestamp < CACHE_TTL) {
@@ -86,7 +113,7 @@ export const InventoryListScreen = ({ navigation }: any) => {
         setIsOffline(false);
 
         try {
-            const { data } = await inventoryApi.getAll('');
+            const { data } = await inventoryApi.getAll(farmId);
             setInventory(data);
             cacheRef.current = { data, timestamp: Date.now() };
             fadeIn();
@@ -100,7 +127,7 @@ export const InventoryListScreen = ({ navigation }: any) => {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, [fadeIn]);
+    }, [fadeIn, selectedFarm?.id, setSelectedFarm]);
 
     useFocusEffect(
         useCallback(() => {

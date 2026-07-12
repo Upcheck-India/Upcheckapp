@@ -77,6 +77,7 @@ const history = {
   treatmentTitle: 'उपचार इतिहास',
   treatmentEmptyTitle: 'कोई उपचार दर्ज नहीं',
   treatmentEmptyText: 'इस तालाब में कोई उपचार रिकॉर्ड नहीं है।',
+  bannedFlagLabel: 'चिह्नित: {{names}}',
 
   // ── WaterQualityHistoryScreen ─────────────────────────────────────────────
   waterQualityTitle: 'जल गुणवत्ता इतिहास',

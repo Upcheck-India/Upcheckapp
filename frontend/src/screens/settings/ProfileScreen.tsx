@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Animated, Share } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
 import QRCode from 'react-native-qrcode-svg';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -12,11 +13,33 @@ import { Skeleton, SkeletonAvatar } from '../../components/ui/Skeleton';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
+import { useUIStore } from '../../store/uiStore';
 import { profilesApi, ProfileCompat, CompatUpdateProfileDto } from '../../api/profiles';
 
 export const ProfileScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
     const { user, deleteAccount } = useAuthStore();
+    const showToast = useUIStore((s) => s.showToast);
+
+    // The worker code was QR-only in practice — no way to get it onto the
+    // clipboard or into a chat/SMS message for a remote owner, only usable
+    // if the two people are physically together with a camera.
+    const handleCopyWorkerCode = useCallback(async () => {
+        if (!user?.id) return;
+        await Clipboard.setStringAsync(user.id);
+        showToast({ message: t('members.workerCodeCopied', 'Code copied'), type: 'success' });
+    }, [user?.id, showToast, t]);
+
+    const handleShareWorkerCode = useCallback(async () => {
+        if (!user?.id) return;
+        try {
+            await Share.share({
+                message: t('members.workerCodeShareMessage', 'My Upcheck worker code: {{code}}', { code: user.id }),
+            });
+        } catch {
+            // User cancelled the share sheet — not an error.
+        }
+    }, [user?.id, t]);
 
     const handleDeleteAccount = () => {
         Alert.alert(
@@ -308,6 +331,16 @@ export const ProfileScreen = ({ navigation }: any) => {
                                 />
                             </View>
                             <Text style={styles.qrId} selectable>{user.id}</Text>
+                            <View style={styles.qrActions}>
+                                <TouchableOpacity style={styles.qrActionBtn} onPress={handleCopyWorkerCode} accessibilityRole="button">
+                                    <MaterialCommunityIcons name="content-copy" size={18} color={theme.roles.light.primary} />
+                                    <Text style={styles.qrActionText}>{t('common.copy', 'Copy')}</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.qrActionBtn} onPress={handleShareWorkerCode} accessibilityRole="button">
+                                    <MaterialCommunityIcons name="share-variant" size={18} color={theme.roles.light.primary} />
+                                    <Text style={styles.qrActionText}>{t('common.share', 'Share')}</Text>
+                                </TouchableOpacity>
+                            </View>
                         </Card>
                     )}
 
@@ -397,6 +430,9 @@ const styles = StyleSheet.create({
     qrHint: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[4] },
     qrBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: theme.spacing[2] },
     qrId: { ...theme.typeScale.caption, color: theme.roles.light.textTertiary, textAlign: 'center', marginTop: theme.spacing[3] },
+    qrActions: { flexDirection: 'row', justifyContent: 'center', gap: theme.spacing[5], marginTop: theme.spacing[4] },
+    qrActionBtn: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1], padding: theme.spacing[2] },
+    qrActionText: { ...theme.typeScale.labelMedium, color: theme.roles.light.primary, fontWeight: '600' },
     editCard: {
         padding: theme.spacing[4],
         marginBottom: theme.spacing[6],

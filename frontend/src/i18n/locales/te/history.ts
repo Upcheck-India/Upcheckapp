@@ -77,6 +77,7 @@ const history = {
   treatmentTitle: 'చికిత్స చరిత్ర',
   treatmentEmptyTitle: 'చికిత్సలు నమోదు కాలేదు',
   treatmentEmptyText: 'ఈ చెరువులో నమోదు చేసిన చికిత్సలు లేవు.',
+  bannedFlagLabel: 'ఫ్లాగ్ చేయబడింది: {{names}}',
 
   // ── WaterQualityHistoryScreen ─────────────────────────────────────────────
   waterQualityTitle: 'నీటి నాణ్యత చరిత్ర',

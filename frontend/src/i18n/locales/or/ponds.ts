@@ -3,7 +3,7 @@ const ponds = {
   addPond: 'ପୋଖରୀ ଯୋଡ଼ନ୍ତୁ',
   fieldNamePrefix: 'ନାମ ଉପସର୍ଗ',
   placeholderNamePrefix: 'ଯେ.ଯ. A (ସର୍ବାଧିକ ୪ ଅକ୍ଷର)',
-  fieldDisplayName: 'ପ୍ରଦର୍ଶନ ନାମ (ଐଚ୍ଛିକ)',
+  fieldDisplayName: 'ପୋଖରୀ ନାମ',
   placeholderDisplayName: 'ଯେ.ଯ. ଉତ୍ତର ପୋଖରୀ',
   labelPondShape: 'ପୋଖରୀ ଆକୃତି',
   shapeRect: 'ଆୟତକ୍ଷେତ୍ର',
@@ -23,6 +23,7 @@ const ponds = {
   computedArea: 'ଗଣିତ କ୍ଷେତ୍ରଫଳ',
   savePond: 'ପୋଖରୀ ସଞ୍ଚୟ',
   errorNamePrefix: 'ଉପସର୍ଗ ଆବଶ୍ୟକ (୧-୪ ଅକ୍ଷର, ଯେ.ଯ. "A")',
+  errorDisplayName: 'ପୋଖରୀ ନାମ ଆବଶ୍ୟକ',
   errorDepth: 'ଗଭୀରତା ଆବଶ୍ୟକ (0.5 - 5.0 m)',
   errorCreatePond: 'ପୋଖରୀ ତୈରି କରିବାରେ ବିଫଳ',
 

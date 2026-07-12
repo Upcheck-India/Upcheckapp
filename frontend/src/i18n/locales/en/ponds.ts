@@ -3,7 +3,7 @@ const ponds = {
   addPond: 'Add Pond',
   fieldNamePrefix: 'Name Prefix',
   placeholderNamePrefix: 'e.g. A (max 4 chars)',
-  fieldDisplayName: 'Display Name (Optional)',
+  fieldDisplayName: 'Pond Name',
   placeholderDisplayName: 'e.g. North Pond',
   labelPondShape: 'Pond Shape',
   shapeRect: 'Rect',
@@ -23,6 +23,7 @@ const ponds = {
   computedArea: 'Computed Area',
   savePond: 'Save Pond',
   errorNamePrefix: 'Prefix is required (1-4 characters, e.g. "A")',
+  errorDisplayName: 'Pond name is required',
   errorDepth: 'Depth is required (0.5 - 5.0 m)',
   errorCreatePond: 'Failed to create pond',
 

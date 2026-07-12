@@ -3,7 +3,7 @@ const ponds = {
   addPond: 'পুকুর যোগ করুন',
   fieldNamePrefix: 'নাম প্রিফিক্স',
   placeholderNamePrefix: 'যেমন: A (সর্বোচ্চ ৪ অক্ষর)',
-  fieldDisplayName: 'প্রদর্শন নাম (ঐচ্ছিক)',
+  fieldDisplayName: 'পুকুরের নাম',
   placeholderDisplayName: 'যেমন: উত্তর পুকুর',
   labelPondShape: 'পুকুরের আকৃতি',
   shapeRect: 'আয়তক্ষেত্র',
@@ -23,6 +23,7 @@ const ponds = {
   computedArea: 'গণনাকৃত ক্ষেত্রফল',
   savePond: 'পুকুর সংরক্ষণ করুন',
   errorNamePrefix: 'প্রিফিক্স আবশ্যক (১-৪ অক্ষর, যেমন "A")',
+  errorDisplayName: 'পুকুরের নাম আবশ্যক',
   errorDepth: 'গভীরতা আবশ্যক (0.5 - 5.0 m)',
   errorCreatePond: 'পুকুর তৈরিতে ব্যর্থ',
 

@@ -77,6 +77,7 @@ const history = {
   treatmentTitle: 'চিকিৎসার ইতিহাস',
   treatmentEmptyTitle: 'কোনো চিকিৎসা লগ নেই',
   treatmentEmptyText: 'এই পুকুরে কোনো চিকিৎসার রেকর্ড নেই।',
+  bannedFlagLabel: 'চিহ্নিত: {{names}}',
 
   // ── WaterQualityHistoryScreen ─────────────────────────────────────────────
   waterQualityTitle: 'পানির মানের ইতিহাস',

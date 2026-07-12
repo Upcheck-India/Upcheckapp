@@ -4,6 +4,8 @@ const common = {
   cancel: 'Cancel',
   delete: 'Delete',
   edit: 'Edit',
+  copy: 'Copy',
+  share: 'Share',
   add: 'Add',
   close: 'Close',
   confirm: 'Confirm',

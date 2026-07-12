@@ -2,6 +2,8 @@
 const members = {
     workerCode: 'আমার কর্মী কোড',
     workerCodeHint: 'এই কোডটি খামার মালিককে দেখান যাতে তারা আপনাকে তাদের খামারে যোগ করতে পারে।',
+    workerCodeCopied: 'কোড কপি হয়েছে',
+    workerCodeShareMessage: 'আমার Upcheck কর্মী কোড: {{code}}',
 
     title: 'খামার দল',
     emptyTitle: 'এখনও কোনো দল সদস্য নেই',

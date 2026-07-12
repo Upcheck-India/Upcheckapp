@@ -3,6 +3,8 @@ const members = {
     // Profile QR
     workerCode: 'My worker code',
     workerCodeHint: 'Show this code to a farm owner so they can add you to their farm.',
+    workerCodeCopied: 'Code copied',
+    workerCodeShareMessage: 'My Upcheck worker code: {{code}}',
 
     // Members list
     title: 'Farm Team',
