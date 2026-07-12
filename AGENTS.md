@@ -48,6 +48,37 @@ read this file fully before touching any code, and follow it exactly.
   skip hooks (`--no-verify`), never run `git reset --hard` / `git clean -f`
   without first checking `git status` and stashing anything unexpected.
 
+### Commit identity — make it obvious which human this commit came from
+
+Several people are pushing, each possibly paired with an agent — commits
+need to be attributable to the actual human at a glance in `git log`, not
+just "an agent." Resolve this once per session, not once per commit:
+
+1. Check `git config user.name` (and `user.email`). If it's already set to
+   something that looks like a real name — not empty, not a placeholder
+   like `user`/`admin`, not a bare hostname like `DESKTOP-1A2B3C` — use it
+   as-is. Don't second-guess a properly configured git identity.
+2. If it's unset or looks like a placeholder, check the OS username as a
+   weak hint (`whoami` on macOS/Linux, `$env:USERNAME` on Windows/
+   PowerShell) — but confirm it with the human instead of assuming it's
+   their real name.
+3. If it's still unclear, just ask: *"What name should I credit you as in
+   commit messages?"* One question, and attribution is fixed for the rest
+   of the session.
+
+Once you know it, add it as its own trailer on every commit, alongside
+whatever agent-identity trailer your tooling already appends (this repo's
+convention is `Co-Authored-By: <Agent Name> <agent-noreply-email>`):
+```
+Paired-with: <Human Name>
+Co-Authored-By: <Agent Name> <agent-noreply-email>
+```
+This is deliberately visible in plain `git log` output with no extra flags
+— even when `git config user.name` is already correct and this is
+technically redundant with `git log --format='%an'`, keep adding the
+trailer anyway. The goal is zero-effort scanning, not deduplicating
+identity sources.
+
 ## Before every commit (mandatory, no exceptions)
 
 - Backend touched: `cd backend && npx tsc --noEmit -p . && npx jest --silent --maxWorkers=2`
