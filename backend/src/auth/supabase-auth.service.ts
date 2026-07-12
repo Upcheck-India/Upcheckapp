@@ -60,6 +60,14 @@ export class SupabaseAuthService {
       password,
       options: {
         data: metadata || {},
+        // Without this, the confirmation email's link falls back to the
+        // dashboard's default Site URL — an unrelated web page, not the app —
+        // so clicking it looks like nothing happened and the user stays
+        // gated on "verification needed" forever. Same fix as the OTP
+        // magic-link (see sendEmailOtp below); OtpCallbackScreen already
+        // handles any tokens landing in this fragment generically, whether
+        // they came from a signup confirmation or a login OTP link.
+        emailRedirectTo: `${this.configService.get('FRONTEND_URL')}/otp-callback`,
       },
     });
 
@@ -297,6 +305,9 @@ export class SupabaseAuthService {
     const { error } = await this.supabase.auth.resend({
       type: 'signup',
       email,
+      options: {
+        emailRedirectTo: `${this.configService.get('FRONTEND_URL')}/otp-callback`,
+      },
     });
 
     if (error) {
