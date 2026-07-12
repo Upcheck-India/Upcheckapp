@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -8,6 +9,18 @@ import { In, Repository } from 'typeorm';
 import { DiseaseLibrary } from './disease-library.entity';
 import { DiseaseLibraryTranslation } from './disease-library-translation.entity';
 import { DiseaseRecord } from './disease-record.entity';
+
+/**
+ * Postgres "undefined_table" (42P01) — the same code as farm-access.service.ts
+ * checks for disease_library_translations not existing yet because its
+ * migration hasn't been run. Every disease-library GET now always sends a
+ * `lang`, so without this guard the very first non-English request after
+ * this feature deployed (before the migration ran) 500s for everyone on
+ * that language — this is deliberately fail-safe to plain English instead.
+ */
+function isMissingTable(err: any): boolean {
+  return (err?.code ?? err?.driverError?.code) === '42P01';
+}
 import {
   CreateDiseaseDto,
   CreateDiseaseRecordDto,
@@ -142,6 +155,8 @@ const TRANSLATABLE_LOCALES = ['hi', 'ta', 'te', 'bn', 'or'];
 
 @Injectable()
 export class DiseaseService {
+  private readonly logger = new Logger(DiseaseService.name);
+
   constructor(
     @InjectRepository(DiseaseLibrary)
     private diseaseLibraryRepository: Repository<DiseaseLibrary>,
@@ -171,9 +186,18 @@ export class DiseaseService {
     if (!locale || !TRANSLATABLE_LOCALES.includes(locale) || diseases.length === 0) {
       return diseases;
     }
-    const translations = await this.diseaseLibraryTranslationRepository.find({
-      where: { diseaseId: In(diseases.map((d) => d.id)), locale },
-    });
+    let translations: DiseaseLibraryTranslation[];
+    try {
+      translations = await this.diseaseLibraryTranslationRepository.find({
+        where: { diseaseId: In(diseases.map((d) => d.id)), locale },
+      });
+    } catch (err) {
+      if (!isMissingTable(err)) throw err;
+      this.logger.warn(
+        'disease_library_translations table missing — run migrations; serving English disease content',
+      );
+      return diseases;
+    }
     const byDiseaseId = new Map(translations.map((t) => [t.diseaseId, t]));
     return diseases.map((d) => {
       const t = byDiseaseId.get(d.id);

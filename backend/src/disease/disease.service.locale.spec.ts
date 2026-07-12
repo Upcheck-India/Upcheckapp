@@ -122,4 +122,31 @@ describe('DiseaseService — locale-aware library content', () => {
     expect(result.symptoms).toEqual(['খোলসে সাদা অন্তর্ভুক্তি', 'কম খাদ্য গ্রহণ', 'মৃত্যুহার']);
     expect(result.preventionMeasures).toEqual(english().preventionMeasures); // fell back
   });
+
+  /**
+   * Live-incident regression: the disease_library_translations migration
+   * hadn't been run yet in production, so every non-English disease-library
+   * request 500'd the moment the frontend started always sending `lang`.
+   * Must degrade to plain English instead of throwing — same fail-safe
+   * pattern as FarmAccessService's "farm_members table missing" handling.
+   */
+  it('falls back to English (never throws) when the translations table does not exist yet', async () => {
+    libraryRepo.find.mockResolvedValue([english()]);
+    translationRepo.find.mockRejectedValue(
+      Object.assign(new Error('relation "disease_library_translations" does not exist'), {
+        code: '42P01',
+      }),
+    );
+
+    const [result] = await service.findAllDiseases('hi');
+
+    expect(result.symptoms).toEqual(english().symptoms);
+  });
+
+  it('still throws on an unexpected query failure (not a missing-table error)', async () => {
+    libraryRepo.find.mockResolvedValue([english()]);
+    translationRepo.find.mockRejectedValue(new Error('connection terminated unexpectedly'));
+
+    await expect(service.findAllDiseases('hi')).rejects.toThrow('connection terminated unexpectedly');
+  });
 });
