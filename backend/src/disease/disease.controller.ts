@@ -40,13 +40,13 @@ export class DiseaseController {
   }
 
   @Get('library')
-  findAllDiseases() {
-    return this.diseaseService.findAllDiseases();
+  findAllDiseases(@Query('lang') lang?: string) {
+    return this.diseaseService.findAllDiseases(lang);
   }
 
   @Get('library/search')
-  searchLibrary(@Query('q') query: string) {
-    return this.diseaseService.searchLibrary(query);
+  searchLibrary(@Query('q') query: string, @Query('lang') lang?: string) {
+    return this.diseaseService.searchLibrary(query, lang);
   }
 
   // POST, not GET: this mutates (seeds rows), so it must not be a GET.
@@ -58,8 +58,8 @@ export class DiseaseController {
   }
 
   @Get('library/:id')
-  findDiseaseById(@Param('id') id: string) {
-    return this.diseaseService.findDiseaseById(id);
+  findDiseaseById(@Param('id') id: string, @Query('lang') lang?: string) {
+    return this.diseaseService.findDiseaseById(id, lang);
   }
 
   @Put('library/:id')

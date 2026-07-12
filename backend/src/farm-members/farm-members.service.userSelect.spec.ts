@@ -18,7 +18,7 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 describe('FarmMembersService — user lookups never select unused columns', () => {
   let service: FarmMembersService;
   let usersRepo: { findOne: jest.Mock };
-  let membersRepo: { findOne: jest.Mock };
+  let membersRepo: { findOne: jest.Mock; create?: jest.Mock; save?: jest.Mock };
   let farmsRepo: { findOne: jest.Mock };
   let farmAccess: { assertCanAccessFarm: jest.Mock; getRoleOnFarm: jest.Mock };
 

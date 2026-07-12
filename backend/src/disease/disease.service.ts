@@ -4,8 +4,9 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { DiseaseLibrary } from './disease-library.entity';
+import { DiseaseLibraryTranslation } from './disease-library-translation.entity';
 import { DiseaseRecord } from './disease-record.entity';
 import {
   CreateDiseaseDto,
@@ -134,11 +135,18 @@ const DISEASE_SEED_DATA: CreateDiseaseDto[] = [
   },
 ];
 
+// Locales this table actually stores translations for — matches the
+// frontend's non-English languages (frontend/src/i18n/languages.ts). 'en' is
+// never looked up: the disease_library row itself IS the English content.
+const TRANSLATABLE_LOCALES = ['hi', 'ta', 'te', 'bn', 'or'];
+
 @Injectable()
 export class DiseaseService {
   constructor(
     @InjectRepository(DiseaseLibrary)
     private diseaseLibraryRepository: Repository<DiseaseLibrary>,
+    @InjectRepository(DiseaseLibraryTranslation)
+    private diseaseLibraryTranslationRepository: Repository<DiseaseLibraryTranslation>,
     @InjectRepository(DiseaseRecord)
     private diseaseRecordRepository: Repository<DiseaseRecord>,
   ) {}
@@ -150,18 +158,53 @@ export class DiseaseService {
     return this.diseaseLibraryRepository.save(disease);
   }
 
-  async findAllDiseases(): Promise<DiseaseLibrary[]> {
-    return this.diseaseLibraryRepository.find({
-      order: { name: 'ASC' },
+  /**
+   * Merge each disease with its locale's translation, if one exists — a
+   * disease with no translation row yet (or an empty array field on one)
+   * silently falls back to the English disease_library value for that
+   * field, never a blank result.
+   */
+  private async applyLocale(
+    diseases: DiseaseLibrary[],
+    locale?: string,
+  ): Promise<DiseaseLibrary[]> {
+    if (!locale || !TRANSLATABLE_LOCALES.includes(locale) || diseases.length === 0) {
+      return diseases;
+    }
+    const translations = await this.diseaseLibraryTranslationRepository.find({
+      where: { diseaseId: In(diseases.map((d) => d.id)), locale },
+    });
+    const byDiseaseId = new Map(translations.map((t) => [t.diseaseId, t]));
+    return diseases.map((d) => {
+      const t = byDiseaseId.get(d.id);
+      if (!t) return d;
+      return {
+        ...d,
+        symptoms: t.symptoms?.length ? t.symptoms : d.symptoms,
+        preventionMeasures: t.preventionMeasures?.length
+          ? t.preventionMeasures
+          : d.preventionMeasures,
+        treatmentRecommendations: t.treatmentRecommendations?.length
+          ? t.treatmentRecommendations
+          : d.treatmentRecommendations,
+      };
     });
   }
 
-  async findDiseaseById(id: string): Promise<DiseaseLibrary> {
+  async findAllDiseases(locale?: string): Promise<DiseaseLibrary[]> {
+    const diseases = await this.diseaseLibraryRepository.find({
+      order: { name: 'ASC' },
+    });
+    return this.applyLocale(diseases, locale);
+  }
+
+  async findDiseaseById(id: string, locale?: string): Promise<DiseaseLibrary> {
     const disease = await this.diseaseLibraryRepository.findOne({
       where: { id },
     });
     if (!disease) throw new NotFoundException('Disease not found');
-    return disease;
+    const [localized] = await this.applyLocale([disease], locale);
+    return localized;
   }
 
   async updateLibrary(
@@ -178,9 +221,12 @@ export class DiseaseService {
     await this.diseaseLibraryRepository.remove(disease);
   }
 
-  async searchLibrary(query: string): Promise<DiseaseLibrary[]> {
+  async searchLibrary(query: string, locale?: string): Promise<DiseaseLibrary[]> {
+    // Matching stays against the English name/scientificName/commonNames —
+    // those are never translated (see disease-library-translation.entity.ts)
+    // — only the RETURNED symptoms/prevention/treatment text is localized.
     const q = `%${query}%`;
-    return this.diseaseLibraryRepository
+    const diseases = await this.diseaseLibraryRepository
       .createQueryBuilder('d')
       .where('d.name ILIKE :q', { q })
       .orWhere('d.scientific_name ILIKE :q', { q })
@@ -190,6 +236,7 @@ export class DiseaseService {
       )
       .orderBy('d.name', 'ASC')
       .getMany();
+    return this.applyLocale(diseases, locale);
   }
 
   async seedDiseases(): Promise<{ seeded: boolean; count: number }> {

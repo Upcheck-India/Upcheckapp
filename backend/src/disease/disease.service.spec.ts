@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DiseaseService } from './disease.service';
 import { DiseaseLibrary } from './disease-library.entity';
+import { DiseaseLibraryTranslation } from './disease-library-translation.entity';
 import { DiseaseRecord } from './disease-record.entity';
 import {
   CreateDiseaseDto,
@@ -84,6 +85,10 @@ describe('DiseaseService', () => {
         },
         {
           provide: getRepositoryToken(DiseaseRecord),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(DiseaseLibraryTranslation),
           useValue: createMockRepository(),
         },
       ],

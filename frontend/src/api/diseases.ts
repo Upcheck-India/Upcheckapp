@@ -1,4 +1,5 @@
 import apiClient from './client';
+import i18n from '../i18n';
 
 export interface DiseaseRecord {
     id: string;
@@ -42,8 +43,13 @@ export const diseaseApi = {
     update: (id: string, data: Partial<CreateDiseaseRecordDto>) =>
         apiClient.patch<DiseaseRecord>(`/disease/record/${id}`, data),
     remove: (id: string) => apiClient.delete(`/disease/record/${id}`),
-    getLibrary: () => apiClient.get<DiseaseLibrary[]>('/disease/library'),
-    getAllDiseases: () => apiClient.get<DiseaseLibrary[]>('/disease/library'),
-    searchDiseases: (query: string) => apiClient.get<DiseaseLibrary[]>('/disease/library/search', { params: { q: query } }),
-    getDiseaseById: (id: string) => apiClient.get<DiseaseLibrary>(`/disease/library/${id}`),
+    // Disease codes/scientific names never translate (see backend
+    // disease-library-translation.entity.ts) — only symptoms/prevention/
+    // treatment text does. Pass the app's current language so the backend
+    // returns that content pre-translated, falling back to English per-field
+    // when a translation is missing; the response shape is unchanged either way.
+    getLibrary: () => apiClient.get<DiseaseLibrary[]>('/disease/library', { params: { lang: i18n.language } }),
+    getAllDiseases: () => apiClient.get<DiseaseLibrary[]>('/disease/library', { params: { lang: i18n.language } }),
+    searchDiseases: (query: string) => apiClient.get<DiseaseLibrary[]>('/disease/library/search', { params: { q: query, lang: i18n.language } }),
+    getDiseaseById: (id: string) => apiClient.get<DiseaseLibrary>(`/disease/library/${id}`, { params: { lang: i18n.language } }),
 };

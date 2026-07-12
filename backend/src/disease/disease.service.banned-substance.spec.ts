@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DiseaseService } from './disease.service';
 import { DiseaseLibrary } from './disease-library.entity';
+import { DiseaseLibraryTranslation } from './disease-library-translation.entity';
 import { DiseaseRecord } from './disease-record.entity';
 import { BANNED_LIST_VERSION } from '../banned-substances/banned-substances.data';
 
@@ -34,6 +35,7 @@ describe('DiseaseService.recordOccurrence/updateRecord — banned-substance flag
         DiseaseService,
         { provide: getRepositoryToken(DiseaseLibrary), useValue: {} },
         { provide: getRepositoryToken(DiseaseRecord), useValue: recordRepo },
+        { provide: getRepositoryToken(DiseaseLibraryTranslation), useValue: {} },
       ],
     }).compile();
     service = module.get(DiseaseService);
