@@ -81,17 +81,24 @@ export const ReportsScreen = ({ navigation }: any) => {
                     }
                 }
 
+                // getFinancialReport is owner/manager-only server-side (VIEW_FINANCIALS);
+                // a worker/viewer gets a 403 here. That must not fail the whole screen —
+                // it's caught independently so the (permission-appropriate) summary
+                // metrics above still load. financialReport simply stays null, and the
+                // section below is hidden entirely for a role that can't see it.
                 const [summaryRes, financialRes] = await Promise.all([
                     reportsApi.getDashboardSummary(farmId),
-                    reportsApi.getFinancialReport(farmId),
+                    reportsApi.getFinancialReport(farmId).catch(() => ({ data: null as FinancialReport | null })),
                 ]);
                 setSummary(summaryRes.data);
                 setFinancialReport(financialRes.data);
-                cacheRef.current.set(farmId, {
-                    summary: summaryRes.data,
-                    financial: financialRes.data,
-                    timestamp: Date.now(),
-                });
+                if (financialRes.data) {
+                    cacheRef.current.set(farmId, {
+                        summary: summaryRes.data,
+                        financial: financialRes.data,
+                        timestamp: Date.now(),
+                    });
+                }
                 fadeIn();
             }
         } catch (err: any) {
@@ -278,33 +285,43 @@ export const ReportsScreen = ({ navigation }: any) => {
                                 />
                             </View>
 
-                            <Text style={styles.sectionTitle}>{t('home.reportsFinancialSummary')}</Text>
-                            <Card style={styles.financialCard}>
-                                <View style={styles.financialRow}>
-                                    <View style={styles.financialItem}>
-                                        <Text style={styles.financialLabel}>{t('home.reportsTotalRevenue')}</Text>
-                                        <Text style={[styles.financialValue, styles.revenue]}>
-                                            {formatCurrency(financialReport?.revenue || 0)}
-                                        </Text>
-                                    </View>
-                                    <View style={styles.financialDivider} />
-                                    <View style={styles.financialItem}>
-                                        <Text style={styles.financialLabel}>{t('home.reportsTotalExpenses')}</Text>
-                                        <Text style={[styles.financialValue, styles.expense]}>
-                                            {formatCurrency(financialReport?.totalExpenses || 0)}
-                                        </Text>
-                                    </View>
-                                </View>
-                                <View style={styles.profitRow}>
-                                    <Text style={styles.profitLabel}>{t('home.reportsNetProfit')}</Text>
-                                    <Text style={[
-                                        styles.profitValue,
-                                        (financialReport?.profit || 0) >= 0 ? styles.profitPositive : styles.profitNegative,
-                                    ]}>
-                                        {formatCurrency(financialReport?.profit || 0)}
-                                    </Text>
-                                </View>
-                            </Card>
+                            {/* Financial summary is owner/manager only (VIEW_FINANCIALS) — the
+                                backend already enforces this (getFinancialReport 403s for a
+                                worker/viewer), but the section must also be hidden here rather
+                                than shown with placeholder zeros; previously only the
+                                Transactions drill-down row below was gated, not this card
+                                itself (docs/UI_UX_AUDIT.md Tier 2 #10). */}
+                            {perms.canViewFinancials && (
+                                <>
+                                    <Text style={styles.sectionTitle}>{t('home.reportsFinancialSummary')}</Text>
+                                    <Card style={styles.financialCard}>
+                                        <View style={styles.financialRow}>
+                                            <View style={styles.financialItem}>
+                                                <Text style={styles.financialLabel}>{t('home.reportsTotalRevenue')}</Text>
+                                                <Text style={[styles.financialValue, styles.revenue]}>
+                                                    {formatCurrency(financialReport?.revenue || 0)}
+                                                </Text>
+                                            </View>
+                                            <View style={styles.financialDivider} />
+                                            <View style={styles.financialItem}>
+                                                <Text style={styles.financialLabel}>{t('home.reportsTotalExpenses')}</Text>
+                                                <Text style={[styles.financialValue, styles.expense]}>
+                                                    {formatCurrency(financialReport?.totalExpenses || 0)}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        <View style={styles.profitRow}>
+                                            <Text style={styles.profitLabel}>{t('home.reportsNetProfit')}</Text>
+                                            <Text style={[
+                                                styles.profitValue,
+                                                (financialReport?.profit || 0) >= 0 ? styles.profitPositive : styles.profitNegative,
+                                            ]}>
+                                                {formatCurrency(financialReport?.profit || 0)}
+                                            </Text>
+                                        </View>
+                                    </Card>
+                                </>
+                            )}
 
                             {perms.canViewFinancials && selectedFarmId && (
                                 <TouchableOpacity
@@ -319,7 +336,7 @@ export const ReportsScreen = ({ navigation }: any) => {
                                 </TouchableOpacity>
                             )}
 
-                            {(financialReport?.expensesByCategory?.length ?? 0) > 0 && (
+                            {perms.canViewFinancials && (financialReport?.expensesByCategory?.length ?? 0) > 0 && (
                                 <Card style={styles.expensesCard}>
                                     <Text style={styles.cardTitle}>{t('home.reportsExpensesBreakdown')}</Text>
                                     <BarChart

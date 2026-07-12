@@ -61,7 +61,7 @@ export const RegisterScreen = ({ navigation }: any) => {
         return (
             <ScreenWrapper>
                 <View style={styles.successContainer}>
-                    <Text style={styles.successIcon}>📧</Text>
+                    <MaterialCommunityIcons name="email-check-outline" size={64} color={theme.roles.light.primary} style={styles.successIcon} />
                     <Text style={styles.successTitle}>{t('auth.checkYourEmail')}</Text>
                     <Text style={styles.successText}>
                         {t('auth.verificationLinkSent', { email })}
@@ -316,7 +316,6 @@ const styles = StyleSheet.create({
         padding: theme.spacing[8],
     },
     successIcon: {
-        fontSize: 64,
         marginBottom: theme.spacing[4],
     },
     successTitle: {

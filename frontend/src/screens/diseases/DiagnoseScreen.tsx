@@ -19,6 +19,14 @@ const SEVERITY_COLOR: Record<string, string> = {
     low: c.successText,
 };
 
+// Below this, a match is symptom-overlap noise more than a real candidate —
+// every result used to render with identical visual weight regardless of
+// confidence, so a 12%-confidence guess looked as credible as an 80%-confidence
+// one (docs/UI_UX_AUDIT.md Tier 2 #9). Weak matches still show (they may be
+// genuinely useful leads for an ambiguous case) but are visually de-emphasized
+// and labeled, never hidden — the farmer decides what a "weak" lead is worth.
+const WEAK_MATCH_THRESHOLD = 40;
+
 export const DiagnoseScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { pondId, pondName, cropId } = route.params ?? {};
@@ -93,25 +101,34 @@ export const DiagnoseScreen = ({ route, navigation }: any) => {
                                 <Text style={styles.empty}>{t('diagnose.noMatch', 'No close match. Consider an expert consultation.')}</Text>
                             </Card>
                         ) : (
-                            results.map((m) => (
-                                <Card key={m.key} style={styles.card}>
-                                    <View style={styles.resultRow}>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.resultName}>{m.name}</Text>
-                                            <Text style={[styles.severity, { color: SEVERITY_COLOR[m.severity] }]}>
-                                                {t(`diagnose.sev_${m.severity}`, m.severity)}
-                                            </Text>
+                            results.map((m) => {
+                                const isWeak = m.confidence < WEAK_MATCH_THRESHOLD;
+                                return (
+                                    <Card key={m.key} style={[styles.card, isWeak && styles.cardWeak]}>
+                                        {isWeak && (
+                                            <View style={styles.weakBadge}>
+                                                <MaterialCommunityIcons name="help-circle-outline" size={12} color={c.textTertiary} />
+                                                <Text style={styles.weakBadgeText}>{t('diagnose.weakMatch', 'Weak match')}</Text>
+                                            </View>
+                                        )}
+                                        <View style={styles.resultRow}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.resultName, isWeak && styles.textWeak]}>{m.name}</Text>
+                                                <Text style={[styles.severity, { color: isWeak ? c.textTertiary : SEVERITY_COLOR[m.severity] }]}>
+                                                    {t(`diagnose.sev_${m.severity}`, m.severity)}
+                                                </Text>
+                                            </View>
+                                            <Text style={[styles.confidence, isWeak && styles.textWeak]}>{m.confidence}%</Text>
                                         </View>
-                                        <Text style={styles.confidence}>{m.confidence}%</Text>
-                                    </View>
-                                    <View style={styles.resultActions}>
-                                        <Button title={t('diagnose.viewLibrary', 'View')} variant="outlined" onPress={() => openLibrary(m)} style={styles.resultBtn} />
-                                        {cropId ? (
-                                            <Button title={t('diagnose.report', 'Report in pond')} onPress={reportInPond} style={styles.resultBtn} />
-                                        ) : null}
-                                    </View>
-                                </Card>
-                            ))
+                                        <View style={styles.resultActions}>
+                                            <Button title={t('diagnose.viewLibrary', 'View')} variant="outlined" onPress={() => openLibrary(m)} style={styles.resultBtn} />
+                                            {cropId ? (
+                                                <Button title={t('diagnose.report', 'Report in pond')} onPress={reportInPond} style={styles.resultBtn} />
+                                            ) : null}
+                                        </View>
+                                    </Card>
+                                );
+                            })
                         )}
                         <Text style={styles.disclaimer}>{t('diagnose.disclaimer', 'This is decision support, not a diagnosis. Confirm with an aquaculture expert before treating.')}</Text>
                     </View>
@@ -131,6 +148,10 @@ const styles = StyleSheet.create({
     content: { padding: theme.spacing[4], paddingBottom: theme.spacing[12] },
     intro: { ...theme.typeScale.bodyMedium, color: c.textSecondary, marginBottom: theme.spacing[4] },
     card: { marginBottom: theme.spacing[4], padding: theme.spacing[4] },
+    cardWeak: { opacity: 0.7, borderWidth: 1, borderColor: c.borderDefault, borderStyle: 'dashed' },
+    weakBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: theme.spacing[2] },
+    weakBadgeText: { ...theme.typeScale.caption, color: c.textTertiary },
+    textWeak: { color: c.textSecondary },
     sectionTitle: { ...theme.typeScale.h4, color: c.textPrimary, marginBottom: theme.spacing[3] },
     runBtn: { marginTop: theme.spacing[2], marginBottom: theme.spacing[4] },
     results: { marginTop: theme.spacing[2] },

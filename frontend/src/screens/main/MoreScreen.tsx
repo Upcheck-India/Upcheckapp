@@ -59,13 +59,8 @@ export const MoreScreen = ({ navigation }: any) => {
             description: t('home.moreSimulationsDesc'),
             color: theme.roles.light.primary,
         },
-        {
-            icon: 'chart-box',
-            label: t('home.moreReports'),
-            route: 'Reports',
-            description: t('home.moreReportsDesc'),
-            color: theme.roles.light.infoBorder,
-        },
+        // "Reports" deliberately removed — it duplicates the Reports bottom tab
+        // (docs/UI_UX_AUDIT.md Tier 1 #3: two IA entries to the same screen).
         {
             icon: 'book-open-variant',
             label: t('home.moreDiseaseEncyclopedia'),
@@ -90,13 +85,8 @@ export const MoreScreen = ({ navigation }: any) => {
     ];
 
     const farmMenuItems: MenuItem[] = [
-        {
-            icon: 'barn',
-            label: t('home.moreMyFarms'),
-            route: 'Farms',
-            description: t('home.moreMyFarmsDesc'),
-            color: theme.roles.light.primary,
-        },
+        // "My Farms" deliberately removed — it duplicates the Farms bottom tab
+        // (docs/UI_UX_AUDIT.md Tier 1 #3: two IA entries to the same screen).
         {
             icon: 'database',
             label: t('home.moreInventory'),

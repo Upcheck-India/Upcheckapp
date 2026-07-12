@@ -1,6 +1,5 @@
 // theme/index.ts — complete exportable theme object
 
-import { Colors as legacyColors } from './colors'; // Temporary fallback during migration
 import { typeScale } from './typography';
 import { spacing } from './spacing';
 import { radius } from './radius';
