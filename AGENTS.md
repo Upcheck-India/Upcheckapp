@@ -100,6 +100,13 @@ identity sources.
   explicitly in the PR and wait.
 - If master moves before your PR is reviewed, merge/rebase it in, rerun
   the full test+typecheck gate, and don't force through a conflict.
+- Robin (assisted by his AI agent, acting in a team-lead review capacity)
+  is currently the primary reviewer across the team's PRs — expect review
+  from that pairing rather than seeking a different approver or self-merge.
+  This does not change anything above: no PR self-merges regardless of who
+  opened it or who reviews it, and the reviewing agent asks its human for
+  explicit go-ahead before merging someone else's PR too — review recommends,
+  a human still merges.
 
 ## Local development setup (optional — ask first)
 
