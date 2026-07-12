@@ -74,27 +74,28 @@ export class FarmAccessService {
 
   /** Farm ids the user can access (owner or worker), excluding soft-deleted farms. */
   async getAccessibleFarmIds(userId: string): Promise<string[]> {
-    let memberFarmIds: string[] = [];
-    try {
-      const members = await this.membersRepo.find({
-        where: { userId },
-        select: { farmId: true },
-      });
-      memberFarmIds = members.map((m) => m.farmId);
-    } catch (err) {
-      if (!isMissingTable(err)) throw err;
-      this.logger.warn(
-        'farm_members table missing — run migrations; listing owned farms only',
-      );
-    }
-
-    // Defensive union with the legacy owner column, in case any farm lacks a
-    // backfilled membership row.
-    const owned = await this.farmsRepo.find({
-      where: { userId, deletedAt: IsNull() },
-      select: { id: true },
-    });
-    const ownedIds = owned.map((f) => f.id);
+    // The membership lookup and the legacy-owner lookup don't depend on each
+    // other — running them sequentially (as separate awaits) was one of the
+    // biggest contributors to the pond dashboard's multi-second load, since
+    // this method fires on every list endpoint call (harvests, sampling, …)
+    // and each one used to cost 3 sequential round-trips before this fix.
+    const [memberFarmIds, ownedIds] = await Promise.all([
+      this.membersRepo
+        .find({ where: { userId }, select: { farmId: true } })
+        .then((members) => members.map((m) => m.farmId))
+        .catch((err) => {
+          if (!isMissingTable(err)) throw err;
+          this.logger.warn(
+            'farm_members table missing — run migrations; listing owned farms only',
+          );
+          return [] as string[];
+        }),
+      // Defensive union with the legacy owner column, in case any farm lacks
+      // a backfilled membership row.
+      this.farmsRepo
+        .find({ where: { userId, deletedAt: IsNull() }, select: { id: true } })
+        .then((owned) => owned.map((f) => f.id)),
+    ]);
 
     const all = new Set([...memberFarmIds, ...ownedIds]);
     if (all.size === 0) return [];

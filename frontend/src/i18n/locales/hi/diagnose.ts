@@ -1,0 +1,41 @@
+const diagnose = {
+  title: 'निदान',
+  cta: 'लक्षणों से निदान करें',
+  intro: 'संभावित कारण देखने के लिए अपने द्वारा देखे गए लक्षण चुनें।',
+
+  cat_physical: 'शारीरिक',
+  cat_behavioral: 'व्यवहारिक',
+  cat_environmental: 'पर्यावरणीय',
+
+  sym_white_spots: 'खोल पर सफेद धब्बे',
+  sym_red: 'लाल रंगत',
+  sym_soft_shell: 'नरम / ढीला खोल',
+  sym_black_gills: 'काले / गहरे गलफड़े',
+  sym_white_feces: 'सफेद मल की लड़ियां',
+  sym_empty_gut: 'खाली आंत',
+  sym_pale_hp: 'पीला / सिकुड़ा हेपेटोपैंक्रियास',
+  sym_white_muscle: 'सफेद / अपारदर्शी मांसपेशी',
+  sym_yellow_head: 'पीला सिर / सिफेलोथोरैक्स',
+  sym_size_var: 'असमान आकार / रुकी हुई वृद्धि',
+  sym_reduced_feeding: 'कम आहार ग्रहण',
+  sym_lethargy: 'सुस्ती',
+  sym_surfacing: 'सतह / किनारों पर तैरना',
+  sym_erratic: 'अनियमित तैराकी',
+  sym_cannibalism: 'नरभक्षण',
+  sym_low_do: 'कम घुलित ऑक्सीजन',
+  sym_high_ammonia: 'उच्च अमोनिया',
+  sym_water_color: 'असामान्य पानी का रंग',
+
+  run: 'निदान करें',
+  results: 'संभावित कारण',
+  noMatch: 'कोई नज़दीकी मेल नहीं। विशेषज्ञ परामर्श पर विचार करें।',
+  weakMatch: 'कमज़ोर मेल',
+  sev_high: 'उच्च',
+  sev_medium: 'मध्यम',
+  sev_low: 'कम',
+  viewLibrary: 'देखें',
+  report: 'तालाब में दर्ज करें',
+  disclaimer: 'यह निर्णय सहायता है, निदान नहीं। उपचार से पहले जलीय कृषि विशेषज्ञ से पुष्टि करें।',
+};
+
+export default diagnose;

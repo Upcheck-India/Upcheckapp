@@ -1,0 +1,41 @@
+const diagnose = {
+  title: 'Diagnose',
+  cta: 'Diagnose from symptoms',
+  intro: 'Select the signs you observe to see likely causes.',
+
+  cat_physical: 'Physical',
+  cat_behavioral: 'Behavioral',
+  cat_environmental: 'Environmental',
+
+  sym_white_spots: 'White spots on shell',
+  sym_red: 'Red discoloration',
+  sym_soft_shell: 'Soft / loose shell',
+  sym_black_gills: 'Black / dark gills',
+  sym_white_feces: 'White faecal strings',
+  sym_empty_gut: 'Empty gut',
+  sym_pale_hp: 'Pale / shrunken hepatopancreas',
+  sym_white_muscle: 'White / opaque muscle',
+  sym_yellow_head: 'Yellow head / cephalothorax',
+  sym_size_var: 'Uneven size / stunted growth',
+  sym_reduced_feeding: 'Reduced feeding',
+  sym_lethargy: 'Lethargy',
+  sym_surfacing: 'Swimming at surface / edges',
+  sym_erratic: 'Erratic swimming',
+  sym_cannibalism: 'Cannibalism',
+  sym_low_do: 'Low dissolved oxygen',
+  sym_high_ammonia: 'High ammonia',
+  sym_water_color: 'Abnormal water colour',
+
+  run: 'Diagnose',
+  results: 'Likely causes',
+  noMatch: 'No close match. Consider an expert consultation.',
+  weakMatch: 'Weak match',
+  sev_high: 'high',
+  sev_medium: 'medium',
+  sev_low: 'low',
+  viewLibrary: 'View',
+  report: 'Report in pond',
+  disclaimer: 'This is decision support, not a diagnosis. Confirm with an aquaculture expert before treating.',
+};
+
+export default diagnose;

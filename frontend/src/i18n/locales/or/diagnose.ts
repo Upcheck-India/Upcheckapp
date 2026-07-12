@@ -1,0 +1,41 @@
+const diagnose = {
+  title: 'ନିଦାନ',
+  cta: 'ଲକ୍ଷଣରୁ ନିଦାନ କରନ୍ତୁ',
+  intro: 'ସମ୍ଭାବ୍ୟ କାରଣ ଦେଖିବାକୁ ଆପଣ ଦେଖିଥିବା ଲକ୍ଷଣଗୁଡ଼ିକ ବାଛନ୍ତୁ।',
+
+  cat_physical: 'ଶାରୀରିକ',
+  cat_behavioral: 'ଆଚରଣଗତ',
+  cat_environmental: 'ପରିବେଶଗତ',
+
+  sym_white_spots: 'ଖୋଳରେ ଧଳା ଦାଗ',
+  sym_red: 'ଲାଲ ରଙ୍ଗ ପରିବର୍ତ୍ତନ',
+  sym_soft_shell: 'ନରମ / ଢିଲା ଖୋଳ',
+  sym_black_gills: 'କଳା / ଗାଢ଼ ଫୁଲକା',
+  sym_white_feces: 'ଧଳା ମଳ ତନ୍ତୁ',
+  sym_empty_gut: 'ଖାଲି ଅନ୍ତନଳୀ',
+  sym_pale_hp: 'ଫିକା / ସଙ୍କୁଚିତ ହେପାଟୋପ୍ୟାନକ୍ରିଆସ',
+  sym_white_muscle: 'ଧଳା / ଅସ୍ୱଚ୍ଛ ମାଂସପେଶୀ',
+  sym_yellow_head: 'ହଳଦିଆ ମୁଣ୍ଡ / ସେଫାଲୋଥୋରାକ୍ସ',
+  sym_size_var: 'ଅସମାନ ଆକାର / ଅଟକି ଯାଇଥିବା ବୃଦ୍ଧି',
+  sym_reduced_feeding: 'କମ୍ ଖାଦ୍ୟ ଗ୍ରହଣ',
+  sym_lethargy: 'ଶୀଥିଳତା',
+  sym_surfacing: 'ପୃଷ୍ଠ / କଡ଼ରେ ପହଁରିବା',
+  sym_erratic: 'ଅନିୟମିତ ପହଁରିବା',
+  sym_cannibalism: 'ନରଭକ୍ଷଣ',
+  sym_low_do: 'କମ୍ ଦ୍ରବୀଭୂତ ଅମ୍ଳଜାନ',
+  sym_high_ammonia: 'ଉଚ୍ଚ ଆମୋନିଆ',
+  sym_water_color: 'ଅସାଧାରଣ ପାଣି ରଙ୍ଗ',
+
+  run: 'ନିଦାନ କରନ୍ତୁ',
+  results: 'ସମ୍ଭାବ୍ୟ କାରଣ',
+  noMatch: 'କୌଣସି ନିକଟ ମେଳ ନାହିଁ। ବିଶେଷଜ୍ଞ ପରାମର୍ଶ ବିଚାର କରନ୍ତୁ।',
+  weakMatch: 'ଦୁର୍ବଳ ମେଳ',
+  sev_high: 'ଉଚ୍ଚ',
+  sev_medium: 'ମଧ୍ୟମ',
+  sev_low: 'କମ୍',
+  viewLibrary: 'ଦେଖନ୍ତୁ',
+  report: 'ପୋଖରୀରେ ରେକର୍ଡ କରନ୍ତୁ',
+  disclaimer: 'ଏହା ନିଷ୍ପତ୍ତି ସହାୟତା, ନିଦାନ ନୁହେଁ। ଚିକିତ୍ସା ପୂର୍ବରୁ ଏକ ଜଳଚାଷ ବିଶେଷଜ୍ଞଙ୍କ ସହିତ ନିଶ୍ଚିତ କରନ୍ତୁ।',
+};
+
+export default diagnose;

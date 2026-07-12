@@ -22,6 +22,8 @@ import members from './members';
 
 import harvestPlans from './harvestPlans';
 
+import diagnose from './diagnose';
+
 export default {
   common,
   history,
@@ -43,4 +45,5 @@ export default {
   engines,
   members,
   harvestPlans,
+  diagnose,
 };

@@ -32,6 +32,18 @@ export function useGoogleAuth() {
 
         try {
             await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+            // The native SDK caches the last-authenticated Google account on the
+            // device and silently returns it from signIn() — no account picker —
+            // whenever one is cached. Without this, a user can never pick a
+            // different Google account after the first login, whether they meant
+            // to log in again or sign up fresh with a different account. signOut()
+            // only clears this local cache (not the OAuth grant), so it doesn't
+            // force the user to re-consent — just re-pick.
+            try {
+                await GoogleSignin.signOut();
+            } catch {
+                // no-op if nothing was cached
+            }
             const response = await GoogleSignin.signIn();
             
             if (isSuccessResponse(response)) {

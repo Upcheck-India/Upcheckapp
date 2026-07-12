@@ -1,0 +1,41 @@
+const diagnose = {
+  title: 'নির্ণয়',
+  cta: 'লক্ষণ থেকে নির্ণয় করুন',
+  intro: 'সম্ভাব্য কারণ দেখতে আপনি যে লক্ষণগুলি লক্ষ্য করেছেন তা নির্বাচন করুন।',
+
+  cat_physical: 'শারীরিক',
+  cat_behavioral: 'আচরণগত',
+  cat_environmental: 'পরিবেশগত',
+
+  sym_white_spots: 'খোলসে সাদা দাগ',
+  sym_red: 'লাল বিবর্ণতা',
+  sym_soft_shell: 'নরম / ঢিলা খোলস',
+  sym_black_gills: 'কালো / গাঢ় ফুলকা',
+  sym_white_feces: 'সাদা মলের সুতা',
+  sym_empty_gut: 'খালি অন্ত্র',
+  sym_pale_hp: 'ফ্যাকাশে / সংকুচিত হেপাটোপ্যানক্রিয়াস',
+  sym_white_muscle: 'সাদা / অস্বচ্ছ পেশী',
+  sym_yellow_head: 'হলুদ মাথা / সেফালোথোরাক্স',
+  sym_size_var: 'অসম আকার / বৃদ্ধি স্তব্ধতা',
+  sym_reduced_feeding: 'কম খাদ্য গ্রহণ',
+  sym_lethargy: 'অলসতা',
+  sym_surfacing: 'পৃষ্ঠে / কিনারায় সাঁতার কাটা',
+  sym_erratic: 'অনিয়মিত সাঁতার',
+  sym_cannibalism: 'নরমাংসভক্ষণ',
+  sym_low_do: 'কম দ্রবীভূত অক্সিজেন',
+  sym_high_ammonia: 'উচ্চ অ্যামোনিয়া',
+  sym_water_color: 'অস্বাভাবিক পানির রঙ',
+
+  run: 'নির্ণয় করুন',
+  results: 'সম্ভাব্য কারণ',
+  noMatch: 'কাছাকাছি কোনো মিল নেই। বিশেষজ্ঞ পরামর্শ বিবেচনা করুন।',
+  weakMatch: 'দুর্বল মিল',
+  sev_high: 'উচ্চ',
+  sev_medium: 'মাঝারি',
+  sev_low: 'কম',
+  viewLibrary: 'দেখুন',
+  report: 'পুকুরে রেকর্ড করুন',
+  disclaimer: 'এটি সিদ্ধান্ত সহায়তা, নির্ণয় নয়। চিকিৎসার আগে একজন জলজ চাষ বিশেষজ্ঞের সাথে নিশ্চিত করুন।',
+};
+
+export default diagnose;
