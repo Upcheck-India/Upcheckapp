@@ -102,7 +102,17 @@ export class SupabaseAuthService {
   async sendEmailOtp(email: string) {
     const { error } = await this.supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: false },
+      options: {
+        shouldCreateUser: false,
+        // The Supabase "Magic Link" email template renders a clickable
+        // confirmation link alongside (or instead of) the raw `{{ .Token }}`
+        // code, and users click it. Without this, that link's redirect falls
+        // back to the dashboard's default Site URL — an unrelated web page,
+        // not the app — so the click appears to do nothing. Routing it at
+        // the app's deep-link scheme lets OtpCallbackScreen complete the
+        // login the same way clicking the reset-password link already does.
+        emailRedirectTo: `${this.configService.get('FRONTEND_URL')}/otp-callback`,
+      },
     });
     if (error) {
       // L1 (anti-enumeration): do NOT surface the error. A distinct

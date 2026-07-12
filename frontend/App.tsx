@@ -3,10 +3,11 @@ import './src/theme/fontScaling'; // cap OS-level font scaling app-wide (docs/UI
 import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 
-// Deep links — the password-reset email opens upcheckapp://reset-password.
+// Deep links — the password-reset email opens upcheckapp://reset-password,
+// and the passwordless-login email opens upcheckapp://otp-callback.
 const linking = {
   prefixes: ['upcheckapp://'],
-  config: { screens: { ResetPassword: 'reset-password' } },
+  config: { screens: { ResetPassword: 'reset-password', OtpCallback: 'otp-callback' } },
 };
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';

@@ -100,6 +100,7 @@ import { HarvestPlansScreen } from '../screens/harvest/HarvestPlansScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
 import { PondSetupScreen } from '../screens/onboarding/PondSetupScreen';
 import { OtpLoginScreen } from '../screens/auth/OtpLoginScreen';
+import { OtpCallbackScreen } from '../screens/auth/OtpCallbackScreen';
 import { TwoFactorChallengeScreen } from '../screens/auth/TwoFactorChallengeScreen';
 import { TwoFactorScreen } from '../screens/settings/TwoFactorScreen';
 import { GrowthAndHarvestScreen } from '../screens/calculators/GrowthAndHarvestScreen';
@@ -116,6 +117,7 @@ export type RootStackParamList = {
     ResetPassword: undefined;
     TruecallerLogin: undefined;
     OtpLogin: undefined;
+    OtpCallback: undefined;
     TwoFactorChallenge: { tempToken: string };
     TwoFactor: undefined;
     PrivacyPolicy: undefined;
@@ -280,6 +282,7 @@ const RootNavigator = () => {
                         options={{ headerShown: true, title: 'Sign in with Truecaller', headerTintColor: theme.roles.light.primary }}
                     />
                     <Stack.Screen name="OtpLogin" component={OtpLoginScreen} />
+                    <Stack.Screen name="OtpCallback" component={OtpCallbackScreen} />
                     <Stack.Screen name="TwoFactorChallenge" component={TwoFactorChallengeScreen} />
                     {/* Legal — reachable pre-auth from the Register consent line */}
                     <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
@@ -390,6 +393,7 @@ const RootNavigator = () => {
                         authenticated stack too — and TwoFactorChallenge so the
                         AUTH-2 reset→2FA hand-off can complete from here. */}
                     <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+                    <Stack.Screen name="OtpCallback" component={OtpCallbackScreen} />
                     <Stack.Screen name="TwoFactorChallenge" component={TwoFactorChallengeScreen} />
 
                     {/* Additional calculators + feed products */}
