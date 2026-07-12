@@ -21,6 +21,8 @@ import { theme } from '../../theme';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { feedingTrayApi, type TrayResidue } from '../../api/feedingTray';
 import { toLocalISODate } from '../../utils/localDate';
+import { saveRecord } from '../../sync/recordSync';
+import { useUIStore } from '../../store/uiStore';
 
 const isToday = (iso: string | null | undefined) =>
   !!iso && new Date(iso).toDateString() === new Date().toDateString();
@@ -33,6 +35,7 @@ const TRAYS: { key: TrayResidue; tkey: string; icon: any }[] = [
 
 export const DailyRoutineScreen = ({ route, navigation }: any) => {
   const { t } = useTranslation();
+  const showToast = useUIStore((s) => s.showToast);
   const { pondId, pondName, cropId: cropParam } = route.params ?? {};
   const [ctx, setCtx] = useState<PondContext | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,14 +72,26 @@ export const DailyRoutineScreen = ({ route, navigation }: any) => {
     setSavingTray(true);
     try {
       const now = new Date();
-      await feedingTrayApi.create({
-        cropId,
-        checkDate: toLocalISODate(now),
-        checkTime: now.toTimeString().slice(0, 5),
-        trayNumber: 1,
-        remainingFeedStatus: tray,
+      const res = await saveRecord({
+        entity: 'feeding_tray_check',
+        endpoint: '/feeding-tray-checks',
+        payload: {
+          cropId,
+          checkDate: toLocalISODate(now),
+          checkTime: now.toTimeString().slice(0, 5),
+          trayNumber: 1,
+          remainingFeedStatus: tray,
+        },
       });
-      await load();
+      if (res.queued) {
+        // load()'s catch resets ctx to null on failure — while offline that
+        // refetch would just fail and wipe the screen's current state, so
+        // skip it and keep what's already shown; the focus-refetch picks up
+        // the real server state once back online and the queue drains.
+        showToast({ message: t('common.savedOffline', 'Saved — will sync when online'), type: 'success' });
+      } else {
+        await load();
+      }
     } catch (e: any) {
       Alert.alert(t('engines.common.couldNotSave'), e?.response?.data?.message ?? t('engines.common.tryAgain'));
     } finally {

@@ -13,6 +13,7 @@ import { theme } from '../../theme';
 import { feedingTrayApi, type FeedingTrayCheck, type TrayResidue } from '../../api/feedingTray';
 import { useUIStore } from '../../store/uiStore';
 import { toLocalISODate } from '../../utils/localDate';
+import { saveRecord } from '../../sync/recordSync';
 
 const c = theme.roles.light;
 const RESIDUE_LABEL: Record<TrayResidue, string> = {
@@ -40,15 +41,28 @@ export const FeedingTrayChecksScreen = ({ route, navigation }: any) => {
         setSaving(true);
         try {
             const now = new Date();
-            await feedingTrayApi.create({
-                cropId,
-                checkDate: toLocalISODate(now),
-                checkTime: now.toTimeString().slice(0, 5),
-                trayNumber,
-                remainingFeedStatus: residue,
+            const res = await saveRecord({
+                entity: 'feeding_tray_check',
+                endpoint: '/feeding-tray-checks',
+                payload: {
+                    cropId,
+                    checkDate: toLocalISODate(now),
+                    checkTime: now.toTimeString().slice(0, 5),
+                    trayNumber,
+                    remainingFeedStatus: residue,
+                },
             });
-            showToast({ message: t('common.savedSuccess'), type: 'success' });
-            load();
+            showToast({
+                message: res.queued
+                    ? t('common.savedOffline', 'Saved — will sync when online')
+                    : t('common.savedSuccess'),
+                type: 'success',
+            });
+            // load()'s catch clears the list to empty on failure — while
+            // offline that refetch would just fail and wipe the visible
+            // history for a check that's actually safely queued. Skip it and
+            // let the next focus/reconnect pick up the real list.
+            if (!res.queued) load();
         } catch (e: any) {
             Alert.alert(t('common.error'), e?.response?.data?.message || t('logs.feedingTray_errorSave', 'Could not save tray check'));
         } finally {

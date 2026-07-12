@@ -10,6 +10,7 @@ import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
+import { saveRecord } from '../../sync/recordSync';
 
 export const PlanktonLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -50,10 +51,20 @@ export const PlanktonLogScreen = ({ route, navigation }: any) => {
                 // offline queue — there's no "this reading must be captured
                 // right now, no signal" urgency the way a fresh log has.
                 await logResourcesApi.updatePlankton(editRecord.id, payload);
+                showToast({ message: t('common.savedSuccess'), type: 'success' });
             } else {
-                await logResourcesApi.createPlankton(payload);
+                const res = await saveRecord({
+                    entity: 'plankton',
+                    endpoint: '/plankton-data',
+                    payload,
+                });
+                showToast({
+                    message: res.queued
+                        ? t('common.savedOffline', 'Saved — will sync when online')
+                        : t('common.savedSuccess'),
+                    type: 'success',
+                });
             }
-            showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.plankton_errorSave'));

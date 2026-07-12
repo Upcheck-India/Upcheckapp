@@ -13,6 +13,7 @@ import { findBannedSubstances } from '../../features/bannedSubstances';
 import { useBannedSubstancesStore } from '../../features/bannedSubstancesStore';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
+import { saveRecord } from '../../sync/recordSync';
 
 // Best-effort split of the combined "Symptoms: X. Action: Y" note string that
 // performSave() builds, so editing a past record can repopulate the two
@@ -96,10 +97,20 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
                 // offline queue — there's no "this reading must be captured
                 // right now, no signal" urgency the way a fresh log has.
                 await diseaseApi.update(editRecord.id, payload);
+                showToast({ message: t('common.savedSuccess'), type: 'success' });
             } else {
-                await diseaseApi.create(payload);
+                const res = await saveRecord({
+                    entity: 'disease',
+                    endpoint: '/disease/record',
+                    payload,
+                });
+                showToast({
+                    message: res.queued
+                        ? t('common.savedOffline', 'Saved — will sync when online')
+                        : t('common.savedSuccess'),
+                    type: 'success',
+                });
             }
-            showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.disease_errorSave'));

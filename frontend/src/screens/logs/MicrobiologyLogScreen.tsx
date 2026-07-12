@@ -10,6 +10,7 @@ import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
+import { saveRecord } from '../../sync/recordSync';
 
 export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -44,10 +45,20 @@ export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
         try {
             if (isEditing) {
                 await logResourcesApi.updateMicrobiology(editRecord.id, payload);
+                showToast({ message: t('common.savedSuccess'), type: 'success' });
             } else {
-                await logResourcesApi.createMicrobiology(payload);
+                const res = await saveRecord({
+                    entity: 'microbiology',
+                    endpoint: '/microbiology-data',
+                    payload,
+                });
+                showToast({
+                    message: res.queued
+                        ? t('common.savedOffline', 'Saved — will sync when online')
+                        : t('common.savedSuccess'),
+                    type: 'success',
+                });
             }
-            showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.microbiology_errorSave'));

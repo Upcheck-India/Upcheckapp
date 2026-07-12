@@ -10,6 +10,7 @@ import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
+import { saveRecord } from '../../sync/recordSync';
 
 export const ChemicalLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -56,8 +57,17 @@ export const ChemicalLogScreen = ({ route, navigation }: any) => {
                 await logResourcesApi.updateChemical(editRecord.id, payload);
                 showToast({ message: t('common.savedSuccess'), type: 'success' });
             } else {
-                await logResourcesApi.createChemical(payload);
-                showToast({ message: t('common.savedSuccess'), type: 'success' });
+                const res = await saveRecord({
+                    entity: 'chemical',
+                    endpoint: '/chemical-data',
+                    payload,
+                });
+                showToast({
+                    message: res.queued
+                        ? t('common.savedOffline', 'Saved — will sync when online')
+                        : t('common.savedSuccess'),
+                    type: 'success',
+                });
             }
             navigation.goBack();
         } catch (error: any) {

@@ -13,6 +13,7 @@ import { findBannedSubstances } from '../../features/bannedSubstances';
 import { useBannedSubstancesStore } from '../../features/bannedSubstancesStore';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
+import { saveRecord } from '../../sync/recordSync';
 
 export const TreatmentLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -55,8 +56,17 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
                 await treatmentsApi.update(editRecord.id, payload);
                 showToast({ message: t('common.savedSuccess'), type: 'success' });
             } else {
-                await treatmentsApi.create({ cropId, ...payload });
-                showToast({ message: t('common.savedSuccess'), type: 'success' });
+                const res = await saveRecord({
+                    entity: 'treatment',
+                    endpoint: '/treatments',
+                    payload: { cropId, ...payload },
+                });
+                showToast({
+                    message: res.queued
+                        ? t('common.savedOffline', 'Saved — will sync when online')
+                        : t('common.savedSuccess'),
+                    type: 'success',
+                });
             }
             navigation.goBack();
         } catch (error: any) {

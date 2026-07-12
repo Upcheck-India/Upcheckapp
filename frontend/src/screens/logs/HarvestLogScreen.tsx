@@ -10,6 +10,7 @@ import { theme } from '../../theme';
 import { harvestsApi } from '../../api/harvests';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
+import { saveRecord } from '../../sync/recordSync';
 
 export const HarvestLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -48,11 +49,21 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                 // offline queue — there's no "this reading must be captured
                 // right now, no signal" urgency the way a fresh log has.
                 await harvestsApi.update(editRecord.id, payload);
+                showToast({ message: t('common.savedSuccess'), type: 'success' });
             } else {
-                await harvestsApi.create({ cropId, ...payload });
+                const res = await saveRecord({
+                    entity: 'harvest',
+                    endpoint: '/harvests',
+                    payload: { cropId, ...payload },
+                });
+                showToast({
+                    message: res.queued
+                        ? t('common.savedOffline', 'Saved — will sync when online')
+                        : t('common.savedSuccess'),
+                    type: 'success',
+                });
             }
 
-            showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error) {
             console.error('Failed to log harvest', error);
