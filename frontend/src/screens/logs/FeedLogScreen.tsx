@@ -11,24 +11,28 @@ import { saveRecord } from '../../sync/recordSync';
 import { ChipGroup } from '../../components/ui/ChipGroup';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
+import { feedApi } from '../../api/feedRecords';
 
 export const FeedLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondId, pondName } = route.params;
+    const { pondId, pondName, editRecord } = route.params;
+    const isEditing = !!editRecord;
 
-    const [date, setDate] = useState(todayLocalISODate());
-    const [fasting, setFasting] = useState(false);
+    const [date, setDate] = useState(editRecord?.feedingTime ?? todayLocalISODate());
+    const [fasting, setFasting] = useState(isEditing ? editRecord?.quantityKg === 0 : false);
 
-    // Tray percentages (for tracking leftovers)
+    // Tray percentages (for tracking leftovers). Not stored as separate
+    // fields on the record (they're folded into `notes` on save), so there's
+    // nothing to pre-fill from editRecord — they start blank on edit too.
     const [tray1, setTray1] = useState('');
     const [tray2, setTray2] = useState('');
     const [tray3, setTray3] = useState('');
     const [tray4, setTray4] = useState('');
 
-    const [totalFeed, setTotalFeed] = useState('');
-    const [feedType, setFeedType] = useState('Starter');
-    const [notes, setNotes] = useState('');
+    const [totalFeed, setTotalFeed] = useState(editRecord?.quantityKg != null ? String(editRecord.quantityKg) : '');
+    const [feedType, setFeedType] = useState(editRecord?.feedType ?? 'Starter');
+    const [notes, setNotes] = useState(editRecord?.notes ?? '');
 
     const [isLoading, setIsLoading] = useState(false);
     // Tray checks are a supplementary observation, not required to save a
@@ -53,24 +57,34 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
             combinedNotes = `Trays leftovers: [1: ${tray1 || 0}%, 2: ${tray2 || 0}%, 3: ${tray3 || 0}%, 4: ${tray4 || 0}%]. ${notes}`.trim();
         }
 
+        const payload = {
+            feedType: feedType.trim() || 'Pellet',
+            quantityKg: fasting ? 0 : parseFloat(totalFeed),
+            feedingTime: date,
+            notes: combinedNotes || undefined,
+        };
+
         try {
-            const res = await saveRecord({
-                entity: 'feed',
-                endpoint: '/feed-records',
-                payload: {
-                    pondId,
-                    feedType: feedType.trim() || 'Pellet',
-                    quantityKg: fasting ? 0 : parseFloat(totalFeed),
-                    feedingTime: date,
-                    notes: combinedNotes || undefined,
-                },
-            });
-            showToast({
-                message: res.queued
-                    ? t('common.savedOffline', 'Saved — will sync when online')
-                    : t('common.savedSuccess'),
-                type: 'success',
-            });
+            if (isEditing) {
+                // Editing a specific past record is not a field-logging action,
+                // so it goes straight to the API rather than through the
+                // offline queue — there's no "this reading must be captured
+                // right now, no signal" urgency the way a fresh log has.
+                await feedApi.update(editRecord.id, payload);
+                showToast({ message: t('common.savedSuccess'), type: 'success' });
+            } else {
+                const res = await saveRecord({
+                    entity: 'feed',
+                    endpoint: '/feed-records',
+                    payload: { pondId, ...payload },
+                });
+                showToast({
+                    message: res.queued
+                        ? t('common.savedOffline', 'Saved — will sync when online')
+                        : t('common.savedSuccess'),
+                    type: 'success',
+                });
+            }
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.feed_errorSave'));
@@ -85,7 +99,7 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>{t('logs.feed_title')}</Text>
+                <Text style={styles.title}>{isEditing ? t('logs.editTitle', 'Edit Reading') : t('logs.feed_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -189,7 +203,7 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Button
-                    title={t('logs.saveRecord')}
+                    title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.saveRecord')}
                     onPress={handleSave}
                     loading={isLoading}
                     style={styles.saveBtn}

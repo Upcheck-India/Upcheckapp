@@ -40,5 +40,6 @@ export const harvestsApi = {
     getByCrop: (cropId: string) => apiClient.get<Harvest[]>('/harvests', { params: { cropId } }),
     getById: (id: string) => apiClient.get<Harvest>(`/harvests/${id}`),
     create: (data: CreateHarvestDto) => apiClient.post<Harvest>('/harvests', data),
+    update: (id: string, data: Partial<CreateHarvestDto>) => apiClient.patch<Harvest>(`/harvests/${id}`, data),
     delete: (id: string) => apiClient.delete(`/harvests/${id}`),
 };

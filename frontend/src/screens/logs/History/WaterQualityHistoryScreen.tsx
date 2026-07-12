@@ -190,9 +190,19 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
                 <Text style={styles.dateText}>
                     {new Date(item.recordedAt || '').toLocaleDateString()} at {new Date(item.recordedAt || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </Text>
-                <TouchableOpacity onPress={() => handleDelete(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
-                    <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.textSecondary} />
-                </TouchableOpacity>
+                <View style={styles.cardActions}>
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate('WaterQualityLog', { pondId, pondName, editRecord: item })}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('common.edit', 'Edit')}
+                    >
+                        <MaterialCommunityIcons name="pencil-outline" size={20} color={theme.roles.light.textSecondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDelete(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
+                        <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.textSecondary} />
+                    </TouchableOpacity>
+                </View>
             </View>
             <View style={styles.metricsGrid}>
                 <View style={styles.metricItem}>
@@ -280,6 +290,7 @@ const styles = StyleSheet.create({
     chipText: { ...theme.typeScale.labelMedium, color: theme.roles.light.textSecondary },
     card: { marginBottom: theme.spacing[3], padding: theme.spacing[4] },
     cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: theme.spacing[3], borderBottomWidth: 1, borderBottomColor: theme.roles.light.borderDefault, paddingBottom: theme.spacing[2] },
+    cardActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
     dateText: { ...theme.typeScale.labelMedium, color: theme.roles.light.primary },
     metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
     metricItem: { width: '48%', marginBottom: theme.spacing[3] },

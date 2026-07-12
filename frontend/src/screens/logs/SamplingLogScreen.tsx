@@ -10,18 +10,20 @@ import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
+import { samplingApi } from '../../api/sampling';
 
 export const SamplingLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondId, pondName } = route.params;
+    const { pondId, pondName, editRecord } = route.params;
+    const isEditing = !!editRecord;
 
-    const [date, setDate] = useState(todayLocalISODate());
-    const [mbwG, setMbwG] = useState('');
-    const [totalSamples, setTotalSamples] = useState('');
-    const [biomassEstimation, setBiomassEstimation] = useState('');
-    const [srEstimation, setSrEstimation] = useState('');
-    const [notes, setNotes] = useState('');
+    const [date, setDate] = useState(editRecord?.samplingDate ?? todayLocalISODate());
+    const [mbwG, setMbwG] = useState(editRecord?.mbwG != null ? String(editRecord.mbwG) : '');
+    const [totalSamples, setTotalSamples] = useState(editRecord?.totalSamples != null ? String(editRecord.totalSamples) : '');
+    const [biomassEstimation, setBiomassEstimation] = useState(editRecord?.biomassEstimationKg != null ? String(editRecord.biomassEstimationKg) : '');
+    const [srEstimation, setSrEstimation] = useState(editRecord?.srEstimationPercent != null ? String(editRecord.srEstimationPercent) : '');
+    const [notes, setNotes] = useState(editRecord?.notes ?? '');
 
     const [isLoading, setIsLoading] = useState(false);
 
@@ -33,26 +35,36 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
 
         setIsLoading(true);
 
+        const payload = {
+            samplingDate: date,
+            mbwG: parseFloat(mbwG),
+            totalSamples: totalSamples ? parseInt(totalSamples, 10) : undefined,
+            biomassEstimationKg: biomassEstimation ? parseFloat(biomassEstimation) : undefined,
+            srEstimationPercent: srEstimation ? parseFloat(srEstimation) : undefined,
+            notes: notes.trim() || undefined,
+        };
+
         try {
-            const res = await saveRecord({
-                entity: 'sampling',
-                endpoint: '/sampling',
-                payload: {
-                    pondId,
-                    samplingDate: date,
-                    mbwG: parseFloat(mbwG),
-                    totalSamples: totalSamples ? parseInt(totalSamples, 10) : undefined,
-                    biomassEstimationKg: biomassEstimation ? parseFloat(biomassEstimation) : undefined,
-                    srEstimationPercent: srEstimation ? parseFloat(srEstimation) : undefined,
-                    notes: notes.trim() || undefined,
-                },
-            });
-            showToast({
-                message: res.queued
-                    ? t('common.savedOffline', 'Saved — will sync when online')
-                    : t('common.savedSuccess'),
-                type: 'success',
-            });
+            if (isEditing) {
+                // Editing a specific past record is not a field-logging action,
+                // so it goes straight to the API rather than through the
+                // offline queue — there's no "this reading must be captured
+                // right now, no signal" urgency the way a fresh log has.
+                await samplingApi.update(editRecord.id, payload);
+                showToast({ message: t('common.savedSuccess'), type: 'success' });
+            } else {
+                const res = await saveRecord({
+                    entity: 'sampling',
+                    endpoint: '/sampling',
+                    payload: { pondId, ...payload },
+                });
+                showToast({
+                    message: res.queued
+                        ? t('common.savedOffline', 'Saved — will sync when online')
+                        : t('common.savedSuccess'),
+                    type: 'success',
+                });
+            }
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.sampling_errorSave'));
@@ -67,7 +79,7 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>{t('logs.sampling_title')}</Text>
+                <Text style={styles.title}>{isEditing ? t('logs.editTitle', 'Edit Reading') : t('logs.sampling_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -115,7 +127,7 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Button
-                    title={t('logs.saveRecord')}
+                    title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.saveRecord')}
                     onPress={handleSave}
                     loading={isLoading}
                     style={styles.saveBtn}

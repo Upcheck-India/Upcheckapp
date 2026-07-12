@@ -103,9 +103,19 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
                         <View style={[styles.statusChip, { backgroundColor: vibrioLevel.color + '20' }]}>
                             <Text style={[styles.statusText, { color: vibrioLevel.color }]}>{vibrioLevel.label}</Text>
                         </View>
-                        <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.deleteBtn} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
-                            <MaterialCommunityIcons name="trash-can-outline" size={18} color={theme.roles.light.textTertiary} />
-                        </TouchableOpacity>
+                        <View style={styles.cardActions}>
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('MicrobiologyLog', { pondId, cropId, editRecord: item })}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('common.edit', 'Edit')}
+                            >
+                                <MaterialCommunityIcons name="pencil-outline" size={18} color={theme.roles.light.textTertiary} />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.deleteBtn} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
+                                <MaterialCommunityIcons name="trash-can-outline" size={18} color={theme.roles.light.textTertiary} />
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
                 <View style={styles.grid}>
@@ -177,6 +187,7 @@ const styles = StyleSheet.create({
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[3] },
     rowRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    cardActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
     deleteBtn: { padding: 2 },
     statusChip: { paddingHorizontal: theme.spacing[3], paddingVertical: 4, borderRadius: theme.radius.full },

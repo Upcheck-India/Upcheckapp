@@ -14,32 +14,39 @@ import { todayLocalISODate } from '../../utils/localDate';
 export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondId, pondName, cropId } = route.params;
+    const { pondId, pondName, cropId, editRecord } = route.params;
+    const isEditing = !!editRecord;
 
-    const [date, setDate] = useState(todayLocalISODate());
-    const [totalBacillus, setTotalBacillus] = useState('');
-    const [totalVibrio, setTotalVibrio] = useState('');
-    const [greenVibrio, setGreenVibrio] = useState('');
-    const [yellowVibrio, setYellowVibrio] = useState('');
-    const [luminescentBacteria, setLuminescentBacteria] = useState('');
-    const [note, setNote] = useState('');
+    const [date, setDate] = useState(editRecord?.measurementDate ?? todayLocalISODate());
+    const [totalBacillus, setTotalBacillus] = useState(editRecord?.totalBacillusCfuMl != null ? String(editRecord.totalBacillusCfuMl) : '');
+    const [totalVibrio, setTotalVibrio] = useState(editRecord?.totalVibrioCountTvcCfuMl != null ? String(editRecord.totalVibrioCountTvcCfuMl) : '');
+    const [greenVibrio, setGreenVibrio] = useState(editRecord?.greenVibrioCountTvcCfuMl != null ? String(editRecord.greenVibrioCountTvcCfuMl) : '');
+    const [yellowVibrio, setYellowVibrio] = useState(editRecord?.yellowVibrioCountTvcCfuMl != null ? String(editRecord.yellowVibrioCountTvcCfuMl) : '');
+    const [luminescentBacteria, setLuminescentBacteria] = useState(editRecord?.luminescentBacteriaLbCfuMl != null ? String(editRecord.luminescentBacteriaLbCfuMl) : '');
+    const [note, setNote] = useState(editRecord?.note ?? '');
 
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSave = async () => {
         setIsLoading(true);
 
+        const payload = {
+            cropId,
+            measurementDate: date,
+            totalBacillusCfuMl: totalBacillus ? parseFloat(totalBacillus) : undefined,
+            totalVibrioCountTvcCfuMl: totalVibrio ? parseFloat(totalVibrio) : undefined,
+            greenVibrioCountTvcCfuMl: greenVibrio ? parseFloat(greenVibrio) : undefined,
+            yellowVibrioCountTvcCfuMl: yellowVibrio ? parseFloat(yellowVibrio) : undefined,
+            luminescentBacteriaLbCfuMl: luminescentBacteria ? parseFloat(luminescentBacteria) : undefined,
+            note: note.trim() || undefined,
+        };
+
         try {
-            await logResourcesApi.createMicrobiology({
-                cropId,
-                measurementDate: date,
-                totalBacillusCfuMl: totalBacillus ? parseFloat(totalBacillus) : undefined,
-                totalVibrioCountTvcCfuMl: totalVibrio ? parseFloat(totalVibrio) : undefined,
-                greenVibrioCountTvcCfuMl: greenVibrio ? parseFloat(greenVibrio) : undefined,
-                yellowVibrioCountTvcCfuMl: yellowVibrio ? parseFloat(yellowVibrio) : undefined,
-                luminescentBacteriaLbCfuMl: luminescentBacteria ? parseFloat(luminescentBacteria) : undefined,
-                note: note.trim() || undefined,
-            });
+            if (isEditing) {
+                await logResourcesApi.updateMicrobiology(editRecord.id, payload);
+            } else {
+                await logResourcesApi.createMicrobiology(payload);
+            }
             showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error: any) {
@@ -55,7 +62,7 @@ export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>{t('logs.microbiology_title')}</Text>
+                <Text style={styles.title}>{isEditing ? t('logs.editTitle', 'Edit Reading') : t('logs.microbiology_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -97,7 +104,7 @@ export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
                     />
                 </Card>
 
-                <Button title={t('logs.saveRecord')} onPress={handleSave} loading={isLoading} style={styles.saveBtn} />
+                <Button title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.saveRecord')} onPress={handleSave} loading={isLoading} style={styles.saveBtn} />
             </ScrollView>
         </ScreenWrapper>
     );

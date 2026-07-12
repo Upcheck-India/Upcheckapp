@@ -139,9 +139,19 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
                                 <MaterialCommunityIcons name="skull-outline" size={14} color={theme.roles.light.dangerText} />
                                 <Text style={styles.countText}>{item.quantity}</Text>
                             </View>
-                            <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
-                                <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.dangerText} />
-                            </TouchableOpacity>
+                            <View style={styles.cardActions}>
+                                <TouchableOpacity
+                                    onPress={() => navigation.navigate('MortalityLog', { pondId, cropId, editRecord: item })}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('common.edit', 'Edit')}
+                                >
+                                    <MaterialCommunityIcons name="pencil-outline" size={20} color={theme.roles.light.textSecondary} />
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
+                                    <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.dangerText} />
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     </View>
                     {item.estimatedWeightKg != null && (
@@ -151,7 +161,7 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
                 </Card>
             </Animated.View>
         );
-    }, [fadeAnim, handleDelete]);
+    }, [fadeAnim, handleDelete, navigation, pondId, cropId]);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -218,6 +228,7 @@ const styles = StyleSheet.create({
     listContent: { padding: theme.spacing[4], paddingBottom: 100 },
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[2] },
+    cardActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
     deleteBtn: { marginLeft: theme.spacing[3] },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
     countChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFEBEE', paddingHorizontal: theme.spacing[3], paddingVertical: 4, borderRadius: theme.radius.full },

@@ -37,4 +37,6 @@ export const feedApi = {
     getByCrop: (cropId: string, params?: { take?: number; page?: number }) =>
         apiClient.get<FeedRecord[]>('/feed-records', { params: { cropId, ...params } }),
     create: (data: CreateFeedRecordDto) => apiClient.post<FeedRecord>('/feed-records', data),
+    update: (id: string, data: Partial<CreateFeedRecordDto>) =>
+        apiClient.patch<FeedRecord>(`/feed-records/${id}`, data),
 };

@@ -2,6 +2,8 @@ const logs = {
   // ── Shared across log screens ──────────────────────────────────────────────
   loggingFor: '{{pondName}}-এর জন্য লগিং',
   saveRecord: 'রেকর্ড সংরক্ষণ করুন',
+  editTitle: 'রিডিং সম্পাদনা করুন',
+  updateBtn: 'আপডেট করুন',
   time: 'সময়',
   timePlaceholder: 'HH:MM',
   datePlaceholder: 'YYYY-MM-DD',

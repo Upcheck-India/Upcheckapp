@@ -14,20 +14,39 @@ import { useBannedSubstancesStore } from '../../features/bannedSubstancesStore';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 
+// Best-effort split of the combined "Symptoms: X. Action: Y" note string that
+// performSave() builds, so editing a past record can repopulate the two
+// separate form fields it came from. Falls back to putting everything in
+// symptoms if the saved notes don't match that shape (e.g. older records).
+const parseNotes = (notes?: string): { symptoms: string; actionTaken: string } => {
+    if (!notes) return { symptoms: '', actionTaken: '' };
+    const symptomsMatch = notes.match(/^Symptoms:\s*([\s\S]*?)(?:\.\s*Action:|$)/);
+    const actionMatch = notes.match(/Action:\s*([\s\S]*)$/);
+    if (symptomsMatch || actionMatch) {
+        return {
+            symptoms: symptomsMatch ? symptomsMatch[1].trim() : '',
+            actionTaken: actionMatch ? actionMatch[1].trim() : '',
+        };
+    }
+    return { symptoms: notes, actionTaken: '' };
+};
+
 export const DiseaseLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondId, pondName, cropId } = route.params;
+    const { pondId, pondName, cropId, editRecord } = route.params;
+    const isEditing = !!editRecord;
 
-    const [date, setDate] = useState(todayLocalISODate());
+    const [date, setDate] = useState(editRecord?.recordedDate ? String(editRecord.recordedDate).slice(0, 10) : todayLocalISODate());
     // Disease is chosen from the seeded library — never a hand-typed UUID, so
     // the saved record always references a real disease_library row (FK-safe).
     const [diseases, setDiseases] = useState<DiseaseLibrary[]>([]);
-    const [diseaseId, setDiseaseId] = useState('');
+    const [diseaseId, setDiseaseId] = useState(editRecord?.diseaseId ?? '');
     const [loadingDiseases, setLoadingDiseases] = useState(true);
-    const [severity, setSeverity] = useState('Mild');
-    const [symptoms, setSymptoms] = useState('');
-    const [actionTaken, setActionTaken] = useState('');
+    const [severity, setSeverity] = useState(editRecord?.severityAtDetection ?? 'Mild');
+    const initialNotes = parseNotes(editRecord?.notes);
+    const [symptoms, setSymptoms] = useState(initialNotes.symptoms);
+    const [actionTaken, setActionTaken] = useState(initialNotes.actionTaken);
 
     const [isLoading, setIsLoading] = useState(false);
 
@@ -63,13 +82,23 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
             if (symptoms.trim()) notesParts.push(`Symptoms: ${symptoms.trim()}`);
             if (actionTaken.trim()) notesParts.push(`Action: ${actionTaken.trim()}`);
 
-            await diseaseApi.create({
+            const payload = {
                 cropId,
                 diseaseId: diseaseId.trim(),
                 recordedDate: date,
                 severityAtDetection: severity.trim() || undefined,
                 notes: notesParts.length > 0 ? notesParts.join('. ') : undefined,
-            });
+            };
+
+            if (isEditing) {
+                // Editing a specific past record is not a field-logging action,
+                // so it goes straight to the API rather than through the
+                // offline queue — there's no "this reading must be captured
+                // right now, no signal" urgency the way a fresh log has.
+                await diseaseApi.update(editRecord.id, payload);
+            } else {
+                await diseaseApi.create(payload);
+            }
             showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error: any) {
@@ -109,7 +138,7 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>{t('logs.disease_title')}</Text>
+                <Text style={styles.title}>{isEditing ? t('logs.editTitle', 'Edit Reading') : t('logs.disease_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -183,7 +212,7 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
                     />
                 </Card>
 
-                <Button title={t('logs.saveRecord')} onPress={handleSave} loading={isLoading} style={[styles.saveBtn, styles.dangerBtn]} />
+                <Button title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.saveRecord')} onPress={handleSave} loading={isLoading} style={[styles.saveBtn, styles.dangerBtn]} />
             </ScrollView>
         </ScreenWrapper>
     );

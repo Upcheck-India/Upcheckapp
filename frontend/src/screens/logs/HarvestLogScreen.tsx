@@ -14,14 +14,15 @@ import { todayLocalISODate } from '../../utils/localDate';
 export const HarvestLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondId, pondName, cropId } = route.params;
+    const { pondId, pondName, cropId, editRecord } = route.params;
+    const isEditing = !!editRecord;
 
-    const [harvestDate, setHarvestDate] = useState(todayLocalISODate());
-    const [weightKg, setWeightKg] = useState('');
-    const [harvestType, setHarvestType] = useState<'partial' | 'full'>('partial');
-    const [averageSize, setAverageSize] = useState('');
-    const [salePriceTotal, setSalePriceTotal] = useState('');
-    const [buyerName, setBuyerName] = useState('');
+    const [harvestDate, setHarvestDate] = useState(editRecord?.harvestDate ?? todayLocalISODate());
+    const [weightKg, setWeightKg] = useState(editRecord?.weightKg != null ? String(editRecord.weightKg) : '');
+    const [harvestType, setHarvestType] = useState<'partial' | 'full'>(editRecord?.harvestType ?? 'partial');
+    const [averageSize, setAverageSize] = useState(editRecord?.averageSize != null ? String(editRecord.averageSize) : '');
+    const [salePriceTotal, setSalePriceTotal] = useState(editRecord?.salePriceTotal != null ? String(editRecord.salePriceTotal) : '');
+    const [buyerName, setBuyerName] = useState(editRecord?.buyerName ?? '');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSave = async () => {
@@ -32,15 +33,24 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
 
         setIsSubmitting(true);
         try {
-            await harvestsApi.create({
-                cropId,
+            const payload = {
                 harvestDate,
                 weightKg: parseFloat(weightKg),
                 harvestType,
                 averageSize: averageSize ? parseFloat(averageSize) : undefined,
                 salePriceTotal: salePriceTotal ? parseFloat(salePriceTotal) : undefined,
                 buyerName: buyerName || undefined,
-            });
+            };
+
+            if (isEditing) {
+                // Editing a specific past record is not a field-logging action,
+                // so it goes straight to the API rather than through the
+                // offline queue — there's no "this reading must be captured
+                // right now, no signal" urgency the way a fresh log has.
+                await harvestsApi.update(editRecord.id, payload);
+            } else {
+                await harvestsApi.create({ cropId, ...payload });
+            }
 
             showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
@@ -59,7 +69,7 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <View>
-                    <Text style={styles.title}>{t('logs.harvest_title')}</Text>
+                    <Text style={styles.title}>{isEditing ? t('logs.editTitle', 'Edit Reading') : t('logs.harvest_title')}</Text>
                     <Text style={styles.subtitle}>{pondName}</Text>
                 </View>
                 <View style={{ width: 40 }} />
@@ -128,7 +138,7 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Button
-                    title={t('logs.harvest_saveBtn')}
+                    title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.harvest_saveBtn')}
                     onPress={handleSave}
                     loading={isSubmitting}
                     style={styles.saveBtn}

@@ -61,7 +61,17 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
                 <Text style={styles.dateText}>
                     {new Date(item.recordedAt || '').toLocaleDateString()}
                 </Text>
-                <Text style={styles.amountText}>{item.quantityKg} kg</Text>
+                <View style={styles.cardActions}>
+                    <Text style={styles.amountText}>{item.quantityKg} kg</Text>
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate('FeedLog', { pondId, pondName, editRecord: item })}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('common.edit', 'Edit')}
+                    >
+                        <MaterialCommunityIcons name="pencil-outline" size={20} color={theme.roles.light.textSecondary} />
+                    </TouchableOpacity>
+                </View>
             </View>
             {item.feedType && <Text style={styles.typeText}>{t('history.feedTypeLabel', { type: item.feedType })}</Text>}
             {item.feedingMethod && <Text style={styles.methodText}>{t('history.feedMethodLabel', { method: item.feedingMethod })}</Text>}
@@ -127,6 +137,7 @@ const styles = StyleSheet.create({
     listContent: { padding: theme.spacing[4], paddingBottom: 100 },
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
     rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[2] },
+    cardActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },
     amountText: { ...theme.typeScale.h4, color: theme.roles.light.primary },
     typeText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary, marginTop: 4 },

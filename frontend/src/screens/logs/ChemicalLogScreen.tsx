@@ -14,39 +14,51 @@ import { todayLocalISODate } from '../../utils/localDate';
 export const ChemicalLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondId, pondName, cropId } = route.params;
+    const { pondId, pondName, cropId, editRecord } = route.params;
+    const isEditing = !!editRecord;
 
-    const [date, setDate] = useState(todayLocalISODate());
-    const [time, setTime] = useState(new Date().toTimeString().split(' ')[0].substring(0, 5));
-    const [ammoniaNh3, setAmmoniaNh3] = useState('');
-    const [nitriteNo2, setNitriteNo2] = useState('');
-    const [nitrateNo3, setNitrateNo3] = useState('');
-    const [alkalinity, setAlkalinity] = useState('');
-    const [hardness, setHardness] = useState('');
-    const [calciumCa, setCalciumCa] = useState('');
-    const [magnesiumMg, setMagnesiumMg] = useState('');
-    const [potassium, setPotassium] = useState('');
+    const [date, setDate] = useState(editRecord?.measurementDate ?? todayLocalISODate());
+    const [time, setTime] = useState(editRecord?.measurementTime ?? new Date().toTimeString().split(' ')[0].substring(0, 5));
+    const [ammoniaNh3, setAmmoniaNh3] = useState(editRecord?.ammoniaNh3Ppm != null ? String(editRecord.ammoniaNh3Ppm) : '');
+    const [nitriteNo2, setNitriteNo2] = useState(editRecord?.nitriteNo2Ppm != null ? String(editRecord.nitriteNo2Ppm) : '');
+    const [nitrateNo3, setNitrateNo3] = useState(editRecord?.nitrateNo3Ppm != null ? String(editRecord.nitrateNo3Ppm) : '');
+    const [alkalinity, setAlkalinity] = useState(editRecord?.alkalinityPpm != null ? String(editRecord.alkalinityPpm) : '');
+    const [hardness, setHardness] = useState(editRecord?.hardnessPpm != null ? String(editRecord.hardnessPpm) : '');
+    const [calciumCa, setCalciumCa] = useState(editRecord?.calciumCaPpm != null ? String(editRecord.calciumCaPpm) : '');
+    const [magnesiumMg, setMagnesiumMg] = useState(editRecord?.magnesiumMgPpm != null ? String(editRecord.magnesiumMgPpm) : '');
+    const [potassium, setPotassium] = useState(editRecord?.potassiumPpm != null ? String(editRecord.potassiumPpm) : '');
 
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSave = async () => {
         setIsLoading(true);
 
+        const payload = {
+            cropId,
+            measurementDate: date,
+            measurementTime: time,
+            ammoniaNh3Ppm: ammoniaNh3 ? parseFloat(ammoniaNh3) : undefined,
+            nitriteNo2Ppm: nitriteNo2 ? parseFloat(nitriteNo2) : undefined,
+            nitrateNo3Ppm: nitrateNo3 ? parseFloat(nitrateNo3) : undefined,
+            alkalinityPpm: alkalinity ? parseFloat(alkalinity) : undefined,
+            hardnessPpm: hardness ? parseFloat(hardness) : undefined,
+            calciumCaPpm: calciumCa ? parseFloat(calciumCa) : undefined,
+            magnesiumMgPpm: magnesiumMg ? parseFloat(magnesiumMg) : undefined,
+            potassiumPpm: potassium ? parseFloat(potassium) : undefined,
+        };
+
         try {
-            await logResourcesApi.createChemical({
-                cropId,
-                measurementDate: date,
-                measurementTime: time,
-                ammoniaNh3Ppm: ammoniaNh3 ? parseFloat(ammoniaNh3) : undefined,
-                nitriteNo2Ppm: nitriteNo2 ? parseFloat(nitriteNo2) : undefined,
-                nitrateNo3Ppm: nitrateNo3 ? parseFloat(nitrateNo3) : undefined,
-                alkalinityPpm: alkalinity ? parseFloat(alkalinity) : undefined,
-                hardnessPpm: hardness ? parseFloat(hardness) : undefined,
-                calciumCaPpm: calciumCa ? parseFloat(calciumCa) : undefined,
-                magnesiumMgPpm: magnesiumMg ? parseFloat(magnesiumMg) : undefined,
-                potassiumPpm: potassium ? parseFloat(potassium) : undefined,
-            });
-            showToast({ message: t('common.savedSuccess'), type: 'success' });
+            if (isEditing) {
+                // Editing a specific past record is not a field-logging action,
+                // so it goes straight to the API rather than through the
+                // offline queue — there's no "this reading must be captured
+                // right now, no signal" urgency the way a fresh log has.
+                await logResourcesApi.updateChemical(editRecord.id, payload);
+                showToast({ message: t('common.savedSuccess'), type: 'success' });
+            } else {
+                await logResourcesApi.createChemical(payload);
+                showToast({ message: t('common.savedSuccess'), type: 'success' });
+            }
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.chemical_errorSave'));
@@ -61,7 +73,7 @@ export const ChemicalLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>{t('logs.chemical_title')}</Text>
+                <Text style={styles.title}>{isEditing ? t('logs.editTitle', 'Edit Reading') : t('logs.chemical_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -118,7 +130,7 @@ export const ChemicalLogScreen = ({ route, navigation }: any) => {
                     <Input label={t('logs.chemical_labelPotassium')} value={potassium} onChangeText={setPotassium} keyboardType="decimal-pad" placeholder="0.0" />
                 </Card>
 
-                <Button title={t('logs.saveRecord')} onPress={handleSave} loading={isLoading} style={styles.saveBtn} />
+                <Button title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.saveRecord')} onPress={handleSave} loading={isLoading} style={styles.saveBtn} />
             </ScrollView>
         </ScreenWrapper>
     );

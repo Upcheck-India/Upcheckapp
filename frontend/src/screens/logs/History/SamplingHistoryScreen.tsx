@@ -82,9 +82,19 @@ export const SamplingHistoryScreen = ({ route, navigation }: any) => {
                 </Text>
                 <View style={styles.rowBetween}>
                     <Text style={styles.mbwText}>{item.mbwG ?? '--'} g</Text>
-                    <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
-                        <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.dangerText} />
-                    </TouchableOpacity>
+                    <View style={styles.cardActions}>
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('SamplingLog', { pondId, pondName, editRecord: item })}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('common.edit', 'Edit')}
+                        >
+                            <MaterialCommunityIcons name="pencil-outline" size={20} color={theme.roles.light.textSecondary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
+                            <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.dangerText} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
             <View style={styles.detailRow}>
@@ -157,7 +167,8 @@ const styles = StyleSheet.create({
     listContent: { padding: theme.spacing[4], paddingBottom: 100 },
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
     rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[3] },
-    deleteBtn: { marginLeft: theme.spacing[3] },
+    cardActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
+    deleteBtn: {},
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
     mbwText: { ...theme.typeScale.h4, color: theme.roles.light.primary },
     detailRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2] },

@@ -17,14 +17,15 @@ import { todayLocalISODate } from '../../utils/localDate';
 export const TreatmentLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondId, pondName, cropId } = route.params;
+    const { pondId, pondName, cropId, editRecord } = route.params;
+    const isEditing = !!editRecord;
 
-    const [date, setDate] = useState(todayLocalISODate());
-    const [description, setDescription] = useState('');
-    const [basedOn, setBasedOn] = useState('product_usage');
+    const [date, setDate] = useState(editRecord?.treatmentDate ? editRecord.treatmentDate.slice(0, 10) : todayLocalISODate());
+    const [description, setDescription] = useState(editRecord?.description ?? '');
+    const [basedOn, setBasedOn] = useState(editRecord?.basedOn ?? 'product_usage');
     const [productName, setProductName] = useState('');
-    const [dosageKg, setDosageKg] = useState('');
-    const [notes, setNotes] = useState('');
+    const [dosageKg, setDosageKg] = useState(editRecord?.dosageKg != null ? String(editRecord.dosageKg) : '');
+    const [notes, setNotes] = useState(editRecord?.notes ?? '');
 
     const [isLoading, setIsLoading] = useState(false);
 
@@ -37,16 +38,26 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
     const performSave = async () => {
         setIsLoading(true);
 
+        const payload = {
+            treatmentDate: date,
+            description: description.trim(),
+            basedOn: basedOn.trim() || undefined,
+            dosageKg: dosageKg ? parseFloat(dosageKg) : undefined,
+            notes: productName ? `Product: ${productName.trim()}. ${notes}`.trim() : (notes.trim() || undefined),
+        };
+
         try {
-            await treatmentsApi.create({
-                cropId,
-                treatmentDate: date,
-                description: description.trim(),
-                basedOn: basedOn.trim() || undefined,
-                dosageKg: dosageKg ? parseFloat(dosageKg) : undefined,
-                notes: productName ? `Product: ${productName.trim()}. ${notes}`.trim() : (notes.trim() || undefined),
-            });
-            showToast({ message: t('common.savedSuccess'), type: 'success' });
+            if (isEditing) {
+                // Editing a specific past record is not a field-logging action,
+                // so it goes straight to the API rather than through the
+                // offline queue — there's no "this reading must be captured
+                // right now, no signal" urgency the way a fresh log has.
+                await treatmentsApi.update(editRecord.id, payload);
+                showToast({ message: t('common.savedSuccess'), type: 'success' });
+            } else {
+                await treatmentsApi.create({ cropId, ...payload });
+                showToast({ message: t('common.savedSuccess'), type: 'success' });
+            }
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.treatment_errorSave'));
@@ -85,7 +96,7 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>{t('logs.treatment_title')}</Text>
+                <Text style={styles.title}>{isEditing ? t('logs.editTitle', 'Edit Reading') : t('logs.treatment_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -128,7 +139,7 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Button
-                    title={t('logs.saveRecord')}
+                    title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.saveRecord')}
                     onPress={handleSave}
                     loading={isLoading}
                     style={styles.saveBtn}

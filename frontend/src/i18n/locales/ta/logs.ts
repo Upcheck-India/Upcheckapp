@@ -2,6 +2,8 @@ const logs = {
   // ── Shared across log screens ──────────────────────────────────────────────
   loggingFor: '{{pondName}} க்கான பதிவு',
   saveRecord: 'பதிவை சேமி',
+  editTitle: 'அளவீட்டைத் திருத்து',
+  updateBtn: 'புதுப்பி',
   time: 'நேரம்',
   timePlaceholder: 'HH:MM',
   datePlaceholder: 'YYYY-MM-DD',

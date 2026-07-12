@@ -14,34 +14,45 @@ import { todayLocalISODate } from '../../utils/localDate';
 export const PlanktonLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondId, pondName, cropId } = route.params;
+    const { pondId, pondName, cropId, editRecord } = route.params;
+    const isEditing = !!editRecord;
 
-    const [date, setDate] = useState(todayLocalISODate());
-    const [time, setTime] = useState(new Date().toTimeString().split(' ')[0].substring(0, 5));
-    const [greenAlgae, setGreenAlgae] = useState('');
-    const [blueGreenAlgae, setBlueGreenAlgae] = useState('');
-    const [diatom, setDiatom] = useState('');
-    const [dinoflagellata, setDinoflagellata] = useState('');
-    const [protozoa, setProtozoa] = useState('');
-    const [floc, setFloc] = useState('');
+    const [date, setDate] = useState(editRecord?.measurementDate ?? todayLocalISODate());
+    const [time, setTime] = useState(editRecord?.measurementTime ?? new Date().toTimeString().split(' ')[0].substring(0, 5));
+    const [greenAlgae, setGreenAlgae] = useState(editRecord?.greenAlgaeGaCellMl != null ? String(editRecord.greenAlgaeGaCellMl) : '');
+    const [blueGreenAlgae, setBlueGreenAlgae] = useState(editRecord?.blueGreenAlgaeBgaCellMl != null ? String(editRecord.blueGreenAlgaeBgaCellMl) : '');
+    const [diatom, setDiatom] = useState(editRecord?.diatomCellMl != null ? String(editRecord.diatomCellMl) : '');
+    const [dinoflagellata, setDinoflagellata] = useState(editRecord?.dinoflagellataCellMl != null ? String(editRecord.dinoflagellataCellMl) : '');
+    const [protozoa, setProtozoa] = useState(editRecord?.protozoaCellMl != null ? String(editRecord.protozoaCellMl) : '');
+    const [floc, setFloc] = useState(editRecord?.flocCellMl != null ? String(editRecord.flocCellMl) : '');
 
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSave = async () => {
         setIsLoading(true);
 
+        const payload = {
+            cropId,
+            measurementDate: date,
+            measurementTime: time,
+            greenAlgaeGaCellMl: greenAlgae ? parseFloat(greenAlgae) : undefined,
+            blueGreenAlgaeBgaCellMl: blueGreenAlgae ? parseFloat(blueGreenAlgae) : undefined,
+            diatomCellMl: diatom ? parseFloat(diatom) : undefined,
+            dinoflagellataCellMl: dinoflagellata ? parseFloat(dinoflagellata) : undefined,
+            protozoaCellMl: protozoa ? parseFloat(protozoa) : undefined,
+            flocCellMl: floc ? parseFloat(floc) : undefined,
+        };
+
         try {
-            await logResourcesApi.createPlankton({
-                cropId,
-                measurementDate: date,
-                measurementTime: time,
-                greenAlgaeGaCellMl: greenAlgae ? parseFloat(greenAlgae) : undefined,
-                blueGreenAlgaeBgaCellMl: blueGreenAlgae ? parseFloat(blueGreenAlgae) : undefined,
-                diatomCellMl: diatom ? parseFloat(diatom) : undefined,
-                dinoflagellataCellMl: dinoflagellata ? parseFloat(dinoflagellata) : undefined,
-                protozoaCellMl: protozoa ? parseFloat(protozoa) : undefined,
-                flocCellMl: floc ? parseFloat(floc) : undefined,
-            });
+            if (isEditing) {
+                // Editing a specific past record is not a field-logging action,
+                // so it goes straight to the API rather than through the
+                // offline queue — there's no "this reading must be captured
+                // right now, no signal" urgency the way a fresh log has.
+                await logResourcesApi.updatePlankton(editRecord.id, payload);
+            } else {
+                await logResourcesApi.createPlankton(payload);
+            }
             showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
         } catch (error: any) {
@@ -57,7 +68,7 @@ export const PlanktonLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>{t('logs.plankton_title')}</Text>
+                <Text style={styles.title}>{isEditing ? t('logs.editTitle', 'Edit Reading') : t('logs.plankton_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -103,7 +114,7 @@ export const PlanktonLogScreen = ({ route, navigation }: any) => {
                     </View>
                 </Card>
 
-                <Button title={t('logs.saveRecord')} onPress={handleSave} loading={isLoading} style={styles.saveBtn} />
+                <Button title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.saveRecord')} onPress={handleSave} loading={isLoading} style={styles.saveBtn} />
             </ScrollView>
         </ScreenWrapper>
     );

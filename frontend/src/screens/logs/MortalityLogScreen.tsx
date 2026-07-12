@@ -11,16 +11,18 @@ import { Stepper } from '../../components/ui/Stepper';
 import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
+import { mortalityApi } from '../../api/mortalities';
 
 export const MortalityLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondId, pondName, cropId } = route.params;
+    const { pondId, pondName, cropId, editRecord } = route.params;
+    const isEditing = !!editRecord;
 
-    const [date, setDate] = useState(todayLocalISODate());
-    const [quantity, setQuantity] = useState(0);
-    const [estimatedWeightKg, setEstimatedWeightKg] = useState('');
-    const [note, setNote] = useState('');
+    const [date, setDate] = useState(editRecord?.recordDate ?? todayLocalISODate());
+    const [quantity, setQuantity] = useState(editRecord?.quantity ?? 0);
+    const [estimatedWeightKg, setEstimatedWeightKg] = useState(editRecord?.estimatedWeightKg != null ? String(editRecord.estimatedWeightKg) : '');
+    const [note, setNote] = useState(editRecord?.note ?? '');
 
     const [isLoading, setIsLoading] = useState(false);
 
@@ -32,24 +34,35 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
 
         setIsLoading(true);
 
+        const payload = {
+            cropId,
+            recordDate: date,
+            quantity,
+            estimatedWeightKg: estimatedWeightKg ? parseFloat(estimatedWeightKg) : undefined,
+            note: note.trim() || undefined,
+        };
+
         try {
-            const res = await saveRecord({
-                entity: 'mortality',
-                endpoint: '/mortality',
-                payload: {
-                    cropId,
-                    recordDate: date,
-                    quantity,
-                    estimatedWeightKg: estimatedWeightKg ? parseFloat(estimatedWeightKg) : undefined,
-                    note: note.trim() || undefined,
-                },
-            });
-            showToast({
-                message: res.queued
-                    ? t('common.savedOffline', 'Saved — will sync when online')
-                    : t('common.savedSuccess'),
-                type: 'success',
-            });
+            if (isEditing) {
+                // Editing a specific past record is not a field-logging action,
+                // so it goes straight to the API rather than through the
+                // offline queue — there's no "this reading must be captured
+                // right now, no signal" urgency the way a fresh log has.
+                await mortalityApi.update(editRecord.id, payload);
+                showToast({ message: t('common.savedSuccess'), type: 'success' });
+            } else {
+                const res = await saveRecord({
+                    entity: 'mortality',
+                    endpoint: '/mortality',
+                    payload,
+                });
+                showToast({
+                    message: res.queued
+                        ? t('common.savedOffline', 'Saved — will sync when online')
+                        : t('common.savedSuccess'),
+                    type: 'success',
+                });
+            }
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.mortality_errorSave'));
@@ -64,7 +77,7 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>{t('logs.mortality_title')}</Text>
+                <Text style={styles.title}>{isEditing ? t('logs.editTitle', 'Edit Reading') : t('logs.mortality_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -105,7 +118,7 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Button
-                    title={t('logs.saveRecord')}
+                    title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.saveRecord')}
                     onPress={handleSave}
                     loading={isLoading}
                     style={styles.saveBtn}

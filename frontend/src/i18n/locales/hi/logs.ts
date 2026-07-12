@@ -2,6 +2,8 @@ const logs = {
   // ── Shared across log screens ──────────────────────────────────────────────
   loggingFor: '{{pondName}} के लिए दर्ज कर रहे हैं',
   saveRecord: 'रिकॉर्ड सहेजें',
+  editTitle: 'रीडिंग संपादित करें',
+  updateBtn: 'अपडेट करें',
   time: 'समय',
   timePlaceholder: 'HH:MM',
   datePlaceholder: 'YYYY-MM-DD',

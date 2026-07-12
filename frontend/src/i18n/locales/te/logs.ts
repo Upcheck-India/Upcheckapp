@@ -2,6 +2,8 @@ const logs = {
   // ── Shared across log screens ──────────────────────────────────────────────
   loggingFor: '{{pondName}} కోసం నమోదు చేస్తోంది',
   saveRecord: 'రికార్డు సేవ్ చేయి',
+  editTitle: 'రీడింగ్ సవరించండి',
+  updateBtn: 'నవీకరించండి',
   time: 'సమయం',
   timePlaceholder: 'HH:MM',
   datePlaceholder: 'YYYY-MM-DD',

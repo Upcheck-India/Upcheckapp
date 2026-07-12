@@ -59,8 +59,18 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
                 <Text style={styles.dateText}>
                     {new Date(item.harvestDate).toLocaleDateString()}
                 </Text>
-                <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{item.harvestType.toUpperCase()}</Text>
+                <View style={styles.cardActions}>
+                    <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{item.harvestType.toUpperCase()}</Text>
+                    </View>
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate('HarvestLog', { pondId, pondName: '', cropId, editRecord: item })}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('common.edit', 'Edit')}
+                    >
+                        <MaterialCommunityIcons name="pencil-outline" size={20} color={theme.roles.light.textSecondary} />
+                    </TouchableOpacity>
                 </View>
             </View>
 
@@ -152,6 +162,7 @@ const styles = StyleSheet.create({
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[4] },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[4] },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },
+    cardActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
     badge: { backgroundColor: theme.roles.light.successText + '15', paddingHorizontal: theme.spacing[3], paddingVertical: 4, borderRadius: theme.radius.full },
     badgeText: { color: theme.roles.light.successText, ...theme.typeScale.labelSmall, fontWeight: '700' },
     metricsRow: { flexDirection: 'row', justifyContent: 'flex-start', gap: theme.spacing[8], marginBottom: theme.spacing[4] },

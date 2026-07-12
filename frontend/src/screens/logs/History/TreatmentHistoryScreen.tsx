@@ -57,11 +57,21 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
                 <Text style={styles.dateText}>
                     {new Date(item.treatmentDate).toLocaleDateString()}
                 </Text>
-                {item.basedOn && (
-                    <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{item.basedOn}</Text>
-                    </View>
-                )}
+                <View style={styles.cardActions}>
+                    {item.basedOn && (
+                        <View style={styles.badge}>
+                            <Text style={styles.badgeText}>{item.basedOn}</Text>
+                        </View>
+                    )}
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate('TreatmentLog', { pondId, pondName, cropId, editRecord: item })}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('common.edit', 'Edit')}
+                    >
+                        <MaterialCommunityIcons name="pencil-outline" size={20} color={theme.roles.light.textSecondary} />
+                    </TouchableOpacity>
+                </View>
             </View>
             {item.bannedSubstanceFlag && item.bannedSubstanceFlag !== 'none' && (
                 <View style={[styles.flagBanner, item.bannedSubstanceFlag === 'banned' ? styles.flagBannerBanned : styles.flagBannerRestricted]}>
@@ -128,6 +138,7 @@ const styles = StyleSheet.create({
     listContent: { padding: theme.spacing[4], paddingBottom: 100 },
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[2] },
+    cardActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3] },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
     badge: { backgroundColor: theme.roles.light.infoBg, paddingHorizontal: theme.spacing[3], paddingVertical: 4, borderRadius: theme.radius.full },
     badgeText: { color: theme.roles.light.infoBorder, ...theme.typeScale.labelSmall, fontWeight: '700' },

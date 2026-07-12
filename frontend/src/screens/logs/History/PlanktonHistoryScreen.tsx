@@ -107,9 +107,19 @@ export const PlanktonHistoryScreen = ({ route, navigation }: any) => {
                     </Text>
                     <View style={styles.rowRight}>
                         <Text style={styles.timeText}>{item.measurementTime}</Text>
-                        <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.deleteBtn} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
-                            <MaterialCommunityIcons name="trash-can-outline" size={18} color={theme.roles.light.textTertiary} />
-                        </TouchableOpacity>
+                        <View style={styles.cardActions}>
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('PlanktonLog', { pondId, cropId, editRecord: item })}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('common.edit', 'Edit')}
+                            >
+                                <MaterialCommunityIcons name="pencil-outline" size={18} color={theme.roles.light.textTertiary} />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.deleteBtn} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
+                                <MaterialCommunityIcons name="trash-can-outline" size={18} color={theme.roles.light.textTertiary} />
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
                 <Text style={styles.totalText}>{t('history.planktonTotalLabel', { total: total.toLocaleString() })}</Text>
@@ -179,6 +189,7 @@ const styles = StyleSheet.create({
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[2] },
     rowRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    cardActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
     timeText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
     deleteBtn: { padding: 2 },

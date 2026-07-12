@@ -22,28 +22,32 @@ const SLOW_CHANGING_PREFILL_FIELDS = ['salinity', 'alkalinity', 'hardness', 'tra
 export const WaterQualityLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondId, pondName } = route.params;
+    const { pondId, pondName, editRecord } = route.params;
+    const isEditing = !!editRecord;
 
-    const [ph, setPh] = useState('');
-    const [dissolvedOxygen, setDissolvedOxygen] = useState('');
-    const [temperature, setTemperature] = useState('');
-    const [salinity, setSalinity] = useState('');
-    const [ammonia, setAmmonia] = useState('');
-    const [nitrite, setNitrite] = useState('');
-    const [nitrate, setNitrate] = useState('');
-    const [alkalinity, setAlkalinity] = useState('');
-    const [hardness, setHardness] = useState('');
-    const [transparency, setTransparency] = useState('');
+    const [ph, setPh] = useState(editRecord?.ph != null ? String(editRecord.ph) : '');
+    const [dissolvedOxygen, setDissolvedOxygen] = useState(editRecord?.dissolvedOxygen != null ? String(editRecord.dissolvedOxygen) : '');
+    const [temperature, setTemperature] = useState(editRecord?.temperature != null ? String(editRecord.temperature) : '');
+    const [salinity, setSalinity] = useState(editRecord?.salinity != null ? String(editRecord.salinity) : '');
+    const [ammonia, setAmmonia] = useState(editRecord?.ammonia != null ? String(editRecord.ammonia) : '');
+    const [nitrite, setNitrite] = useState(editRecord?.nitrite != null ? String(editRecord.nitrite) : '');
+    const [nitrate, setNitrate] = useState(editRecord?.nitrate != null ? String(editRecord.nitrate) : '');
+    const [alkalinity, setAlkalinity] = useState(editRecord?.alkalinity != null ? String(editRecord.alkalinity) : '');
+    const [hardness, setHardness] = useState(editRecord?.hardness != null ? String(editRecord.hardness) : '');
+    const [transparency, setTransparency] = useState(editRecord?.transparency != null ? String(editRecord.transparency) : '');
 
-    const [notes, setNotes] = useState('');
+    const [notes, setNotes] = useState(editRecord?.notes ?? '');
     const [isLoading, setIsLoading] = useState(false);
     // Quick-mode: only pH/DO/temperature show by default (the readings a
     // farmer logs every visit); the rest are one tap away, not a wall of
     // fields between "open screen" and "save" (USER_PERSPECTIVE_PRODUCT_ANALYSIS §Part 2 row #2).
-    const [showMore, setShowMore] = useState(false);
+    // Editing an existing record starts expanded — the farmer came here to
+    // correct a specific value and needs to see everything they logged.
+    const [showMore, setShowMore] = useState(isEditing);
     const [prefilledFields, setPrefilledFields] = useState<Set<string>>(new Set());
 
     useEffect(() => {
+        if (isEditing) return; // editing an exact past record — never overwrite with "latest"
         let cancelled = false;
         waterQualityApi
             .getLatest(pondId)
@@ -78,37 +82,46 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
         return () => {
             cancelled = true;
         };
-    }, [pondId]);
+    }, [pondId, isEditing]);
 
     const handleSave = async () => {
         setIsLoading(true);
 
+        const payload = {
+            ph: ph ? parseFloat(ph) : undefined,
+            dissolvedOxygen: dissolvedOxygen ? parseFloat(dissolvedOxygen) : undefined,
+            temperature: temperature ? parseFloat(temperature) : undefined,
+            salinity: salinity ? parseFloat(salinity) : undefined,
+            ammonia: ammonia ? parseFloat(ammonia) : undefined,
+            nitrite: nitrite ? parseFloat(nitrite) : undefined,
+            nitrate: nitrate ? parseFloat(nitrate) : undefined,
+            alkalinity: alkalinity ? parseFloat(alkalinity) : undefined,
+            hardness: hardness ? parseFloat(hardness) : undefined,
+            transparency: transparency ? parseFloat(transparency) : undefined,
+            notes: notes.trim() || undefined,
+        };
+
         try {
-            const res = await saveRecord({
-                entity: 'water_quality',
-                endpoint: '/water-quality',
-                payload: {
-                    pondId,
-                    recordedAt: new Date().toISOString(),
-                    ph: ph ? parseFloat(ph) : undefined,
-                    dissolvedOxygen: dissolvedOxygen ? parseFloat(dissolvedOxygen) : undefined,
-                    temperature: temperature ? parseFloat(temperature) : undefined,
-                    salinity: salinity ? parseFloat(salinity) : undefined,
-                    ammonia: ammonia ? parseFloat(ammonia) : undefined,
-                    nitrite: nitrite ? parseFloat(nitrite) : undefined,
-                    nitrate: nitrate ? parseFloat(nitrate) : undefined,
-                    alkalinity: alkalinity ? parseFloat(alkalinity) : undefined,
-                    hardness: hardness ? parseFloat(hardness) : undefined,
-                    transparency: transparency ? parseFloat(transparency) : undefined,
-                    notes: notes.trim() || undefined,
-                },
-            });
-            showToast({
-                message: res.queued
-                    ? t('common.savedOffline', 'Saved — will sync when online')
-                    : t('common.savedSuccess'),
-                type: 'success',
-            });
+            if (isEditing) {
+                // Editing a specific past record is not a field-logging action,
+                // so it goes straight to the API rather than through the
+                // offline queue — there's no "this reading must be captured
+                // right now, no signal" urgency the way a fresh log has.
+                await waterQualityApi.update(editRecord.id, payload);
+                showToast({ message: t('common.savedSuccess'), type: 'success' });
+            } else {
+                const res = await saveRecord({
+                    entity: 'water_quality',
+                    endpoint: '/water-quality',
+                    payload: { pondId, recordedAt: new Date().toISOString(), ...payload },
+                });
+                showToast({
+                    message: res.queued
+                        ? t('common.savedOffline', 'Saved — will sync when online')
+                        : t('common.savedSuccess'),
+                    type: 'success',
+                });
+            }
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('logs.waterQuality_errorSave'));
@@ -123,7 +136,7 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>{t('logs.waterQuality_title')}</Text>
+                <Text style={styles.title}>{isEditing ? t('logs.editTitle', 'Edit Reading') : t('logs.waterQuality_title')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -214,7 +227,7 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                 </Card>
 
                 <Button
-                    title={t('logs.waterQuality_saveBtn')}
+                    title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.waterQuality_saveBtn')}
                     onPress={handleSave}
                     loading={isLoading}
                     style={styles.saveBtn}

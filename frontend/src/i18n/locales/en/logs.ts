@@ -2,6 +2,8 @@ const logs = {
   // ── Shared across log screens ──────────────────────────────────────────────
   loggingFor: 'Logging for {{pondName}}',
   saveRecord: 'Save Record',
+  editTitle: 'Edit Reading',
+  updateBtn: 'Update',
   time: 'Time',
   timePlaceholder: 'HH:MM',
   datePlaceholder: 'YYYY-MM-DD',

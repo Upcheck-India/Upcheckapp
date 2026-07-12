@@ -97,9 +97,19 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
                                 </Text>
                             </View>
                         )}
-                        <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
-                            <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.textDisabled} />
-                        </TouchableOpacity>
+                        <View style={styles.cardActions}>
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('DiseaseLog', { pondId, cropId, editRecord: item })}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('common.edit', 'Edit')}
+                            >
+                                <MaterialCommunityIcons name="pencil-outline" size={20} color={theme.roles.light.textDisabled} />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
+                                <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.textDisabled} />
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
                 {item.bannedSubstanceFlag && item.bannedSubstanceFlag !== 'none' && (
@@ -169,6 +179,7 @@ const styles = StyleSheet.create({
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[2] },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3] },
+    cardActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
     severityChip: { paddingHorizontal: theme.spacing[3], paddingVertical: 4, borderRadius: theme.radius.full },
     severityText: { ...theme.typeScale.labelSmall, fontWeight: '700', textTransform: 'capitalize' as const },
