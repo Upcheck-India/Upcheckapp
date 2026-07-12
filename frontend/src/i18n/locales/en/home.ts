@@ -133,6 +133,23 @@ const home = {
   cropPnl: 'Cycle P&L',
   marginRoi: 'Margin {{margin}}% · ROI {{roi}}%',
   noActiveCrop: 'No active cycle',
+
+  // ── Needs Attention (cross-pond alert summary) ────────────────────────────
+  needsAttentionTitle: 'Needs Attention',
+  allClearTitle: 'All clear',
+  allClearBody: 'No issues need your attention right now.',
+  moreAlerts: '+{{count}} more',
+
+  // ── Today's Logs (daily morning/afternoon/evening + weekly chemistry) ─────
+  dailyProgressTitle: "Today's Logs",
+  dailyProgressMorning: 'Morning',
+  dailyProgressAfternoon: 'Afternoon',
+  dailyProgressEvening: 'Evening',
+  weeklyChemistryLabel: 'Weekly chemistry check',
+  weeklyChemistryToday: 'Checked today',
+  weeklyChemistryDaysAgo: '{{days}}d ago',
+  weeklyChemistryOverdue: 'Overdue — {{days}}d ago',
+  weeklyChemistryNone: 'Not logged yet',
 };
 
 export default home;

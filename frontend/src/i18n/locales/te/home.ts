@@ -119,6 +119,21 @@ const home = {
   cropPnl: 'పంట లాభ-నష్టం',
   marginRoi: 'మార్జిన్ {{margin}}% · ROI {{roi}}%',
   noActiveCrop: 'క్రియాశీల పంట లేదు',
+
+  needsAttentionTitle: 'శ్రద్ధ అవసరం',
+  allClearTitle: 'అంతా బాగుంది',
+  allClearBody: 'ప్రస్తుతం మీ శ్రద్ధ అవసరమైన సమస్యలు లేవు.',
+  moreAlerts: '+{{count}} మరిన్ని',
+
+  dailyProgressTitle: 'నేటి రికార్డులు',
+  dailyProgressMorning: 'ఉదయం',
+  dailyProgressAfternoon: 'మధ్యాహ్నం',
+  dailyProgressEvening: 'సాయంత్రం',
+  weeklyChemistryLabel: 'వారపు రసాయన తనిఖీ',
+  weeklyChemistryToday: 'ఈరోజు తనిఖీ చేయబడింది',
+  weeklyChemistryDaysAgo: '{{days}} రోజుల క్రితం',
+  weeklyChemistryOverdue: 'మించిపోయింది — {{days}} రోజుల క్రితం',
+  weeklyChemistryNone: 'ఇంకా నమోదు కాలేదు',
 };
 
 export default home;

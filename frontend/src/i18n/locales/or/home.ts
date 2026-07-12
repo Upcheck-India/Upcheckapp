@@ -119,6 +119,21 @@ const home = {
   cropPnl: 'ଫସଲ ଲାଭ-କ୍ଷତି',
   marginRoi: 'ମାର୍ଜିନ {{margin}}% · ROI {{roi}}%',
   noActiveCrop: 'ସଚ୍ଛଳ ଫସଲ ନାହିଁ',
+
+  needsAttentionTitle: 'ଧ୍ୟାନ ଆବଶ୍ୟକ',
+  allClearTitle: 'ସବୁ ଠିକ୍ ଅଛି',
+  allClearBody: 'ବର୍ତ୍ତମାନ ଆପଣଙ୍କ ଧ୍ୟାନ ଆବଶ୍ୟକ କରୁଥିବା କୌଣସି ସମସ୍ୟା ନାହିଁ।',
+  moreAlerts: '+{{count}} ଅଧିକ',
+
+  dailyProgressTitle: 'ଆଜିର ରେକର୍ଡ',
+  dailyProgressMorning: 'ସକାଳ',
+  dailyProgressAfternoon: 'ଅପରାହ୍ନ',
+  dailyProgressEvening: 'ସନ୍ଧ୍ୟା',
+  weeklyChemistryLabel: 'ସାପ୍ତାହିକ ରାସାୟନିକ ଯାଞ୍ଚ',
+  weeklyChemistryToday: 'ଆଜି ଯାଞ୍ଚ ହୋଇଛି',
+  weeklyChemistryDaysAgo: '{{days}} ଦିନ ପୂର୍ବେ',
+  weeklyChemistryOverdue: 'ବକେୟା — {{days}} ଦିନ ପୂର୍ବେ',
+  weeklyChemistryNone: 'ଏପର୍ଯ୍ୟନ୍ତ ଲଗ୍ ହୋଇନାହିଁ',
 };
 
 export default home;

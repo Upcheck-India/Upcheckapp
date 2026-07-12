@@ -20,6 +20,12 @@ jest.mock('../../../api/pondContext', () => ({
 jest.mock('../../../api/farmMembers', () => ({
     farmMembersApi: { listMembers: jest.fn() },
 }));
+jest.mock('../../../api/alertCenter', () => ({
+    alertCenterApi: { liveBriefing: jest.fn(), briefing: jest.fn() },
+}));
+jest.mock('../../../api/waterQuality', () => ({
+    waterQualityApi: { getAll: jest.fn() },
+}));
 // See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why:
 // useFocusEffect needs a NavigationContainer the plain SafeAreaProvider
 // wrapper below doesn't provide.
@@ -44,6 +50,8 @@ import { pondsApi } from '../../../api/ponds';
 import { reportsApi } from '../../../api/reports';
 import { pondContextApi } from '../../../api/pondContext';
 import { farmMembersApi } from '../../../api/farmMembers';
+import { alertCenterApi } from '../../../api/alertCenter';
+import { waterQualityApi } from '../../../api/waterQuality';
 import { useActiveFarmStore } from '../../../store/activeFarmStore';
 import { useMembershipStore } from '../../../store/membershipStore';
 
@@ -53,6 +61,9 @@ const mockedGetMine = pondsApi.getMine as jest.Mock;
 const mockedDashboard = reportsApi.getDashboardSummary as jest.Mock;
 const mockedPondContext = pondContextApi.get as jest.Mock;
 const mockedListMembers = farmMembersApi.listMembers as jest.Mock;
+const mockedLiveBriefing = alertCenterApi.liveBriefing as jest.Mock;
+const mockedBriefing = alertCenterApi.briefing as jest.Mock;
+const mockedWqGetAll = waterQualityApi.getAll as jest.Mock;
 
 // See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why:
 // react-native-safe-area-context's initialWindowMetrics is statically null
@@ -85,13 +96,21 @@ describe('HomeScreen — Getting Started checklist', () => {
         jest.clearAllMocks();
         await AsyncStorage.clear();
         useActiveFarmStore.setState({ selectedFarm: FARM } as any);
-        useMembershipStore.setState({ memberships: [], loaded: true, loading: false } as any);
+        // Getting Started is gated behind canManageOperations (owner/manager) —
+        // a plain membership-less state no longer shows it at all.
+        useMembershipStore.setState({
+            memberships: [{ farmId: 'farm-1', role: 'owner', farm: FARM }],
+            loaded: true, loading: false,
+        } as any);
         mockedGetAll.mockResolvedValue({ data: [FARM] });
         mockedDashboard.mockResolvedValue({
             data: { activePondsCount: 1, totalPondsCount: 1, lowStockAlerts: 0, todayFeedUsage: 0 },
         });
         mockedPondContext.mockResolvedValue({ data: emptyPondContext });
         mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }] }); // just the owner
+        mockedLiveBriefing.mockResolvedValue({ data: [] });
+        mockedBriefing.mockResolvedValue({ data: [] });
+        mockedWqGetAll.mockResolvedValue({ data: [] });
     });
 
     it('shows the checklist with pond setup unfinished and everything else undone', async () => {
@@ -127,7 +146,10 @@ describe('HomeScreen — Getting Started checklist', () => {
         const { queryByText, findByText } = renderScreen();
         await findByText('Active Ponds'); // wait for the dashboard to settle
 
-        expect(queryByText('Getting started')).toBeNull();
+        // Home now also fires the alerts + daily-progress fetches on focus,
+        // lengthening the promise chain before hasLoggedSomething/hasInvitedWorker
+        // settle — the default 1s waitFor window was occasionally too tight.
+        await waitFor(() => expect(queryByText('Getting started')).toBeNull(), { timeout: 3000 });
     });
 
     it('dismisses for this visit without navigating anywhere', async () => {
@@ -187,6 +209,9 @@ describe('HomeScreen — worker first-run interstitial', () => {
         mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } });
         mockedPondContext.mockResolvedValue({ data: emptyPondContext });
         mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }] });
+        mockedLiveBriefing.mockResolvedValue({ data: [] });
+        mockedBriefing.mockResolvedValue({ data: [] });
+        mockedWqGetAll.mockResolvedValue({ data: [] });
     });
 
     it("shows the worker's farm name and role on first login", async () => {

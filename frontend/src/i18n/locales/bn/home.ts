@@ -119,6 +119,21 @@ const home = {
   cropPnl: 'ফসল লাভ-ক্ষতি',
   marginRoi: 'মার্জিন {{margin}}% · ROI {{roi}}%',
   noActiveCrop: 'কোনো সক্রিয় ফসল নেই',
+
+  needsAttentionTitle: 'মনোযোগ প্রয়োজন',
+  allClearTitle: 'সব ঠিক আছে',
+  allClearBody: 'এখন আপনার মনোযোগ প্রয়োজন এমন কোনো সমস্যা নেই।',
+  moreAlerts: '+{{count}} আরও',
+
+  dailyProgressTitle: 'আজকের রেকর্ড',
+  dailyProgressMorning: 'সকাল',
+  dailyProgressAfternoon: 'দুপুর',
+  dailyProgressEvening: 'সন্ধ্যা',
+  weeklyChemistryLabel: 'সাপ্তাহিক রাসায়নিক পরীক্ষা',
+  weeklyChemistryToday: 'আজ পরীক্ষা করা হয়েছে',
+  weeklyChemistryDaysAgo: '{{days}} দিন আগে',
+  weeklyChemistryOverdue: 'বকেয়া — {{days}} দিন আগে',
+  weeklyChemistryNone: 'এখনো লগ করা হয়নি',
 };
 
 export default home;

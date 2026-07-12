@@ -21,7 +21,23 @@ import { farmsApi } from '../../api/farms';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { pondContextApi } from '../../api/pondContext';
 import { farmMembersApi } from '../../api/farmMembers';
+import { alertCenterApi, type BriefingItem, type AlertSeverity } from '../../api/alertCenter';
+import { waterQualityApi } from '../../api/waterQuality';
+import { toLocalISODate, todayLocalISODate } from '../../utils/localDate';
 import { ONBOARDING_FLAG } from '../onboarding/WelcomeScreen';
+
+const SEVERITY_RANK: Record<AlertSeverity, number> = { critical: 3, watch: 2, info: 1 };
+const SEVERITY_COLOR: Record<AlertSeverity, string> = {
+    critical: theme.roles.light.dangerBorder,
+    watch: theme.roles.light.warningBorder,
+    info: theme.roles.light.infoBorder,
+};
+
+interface DailyWindows {
+    morning: boolean;
+    afternoon: boolean;
+    evening: boolean;
+}
 
 // A worker never sees WelcomeScreen/CreateFarm/PondSetup (those only gate
 // owner accounts — pendingFarmSetup is only set for accountType==='owner'),
@@ -55,6 +71,21 @@ export const HomeScreen = ({ navigation }: any) => {
     const [nudgeDismissed, setNudgeDismissed] = useState(false);
     // Worker first-run interstitial — see WORKER_WELCOME_FLAG above.
     const [showWorkerWelcome, setShowWorkerWelcome] = useState(false);
+    // "Needs Attention" — the cross-pond alert severity data already proven in
+    // MorningBriefingScreen, surfaced at the top of Home so a critical issue
+    // in any pond doesn't sit unseen behind five other sections and a "Today"
+    // tap (docs/UI_UX_AUDIT.md homepage redesign, Phase 1).
+    const [alerts, setAlerts] = useState<BriefingItem[]>([]);
+    const [alertsLoading, setAlertsLoading] = useState(true);
+    // Per-pond severity, keyed by pondId — drives the small severity dot on
+    // "Your Ponds" cards below, from the SAME fetch (no extra round trips).
+    const [pondSeverity, setPondSeverity] = useState<Record<string, AlertSeverity>>({});
+    // "Today's Logs" — morning/afternoon/evening logging checkpoints plus the
+    // weekly chemistry check, for the farm's representative pond (same
+    // single-pond signal already used for the "logged something" checklist
+    // item below — a precise per-pond breakdown isn't needed for a glance widget).
+    const [dailyWindows, setDailyWindows] = useState<DailyWindows | null>(null);
+    const [weeklyChemistryDays, setWeeklyChemistryDays] = useState<number | null>(null);
     // Distinct from summary===null: on a fetch FAILURE we must show a retry state,
     // not the "no farm data / create your first farm" CTA (which is for a genuinely
     // empty account). Conflating them pushes an existing owner to re-create a farm.
@@ -105,6 +136,44 @@ export const HomeScreen = ({ navigation }: any) => {
             .catch(() => setPlannedPondCount(null));
     }, [selectedFarm?.id]);
 
+    // Cross-pond alert summary for the "Needs Attention" card. Mirrors
+    // MorningBriefingScreen's merge (live + persisted, deduped by pond, kept
+    // at the higher severity) — this is a compact top-N view; the full list
+    // with per-item detail still lives in Morning Briefing.
+    const fetchAlerts = useCallback(() => {
+        Promise.all([
+            alertCenterApi.liveBriefing().catch(() => ({ data: [] as BriefingItem[] })),
+            alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
+        ])
+            .then(([live, persisted]) => {
+                const merged = new Map<string, BriefingItem>();
+                [...live.data, ...persisted.data].forEach((item) => {
+                    const key = item.pondId ?? `${item.source}:${item.topTitle}`;
+                    const existing = merged.get(key);
+                    if (!existing) {
+                        merged.set(key, item);
+                        return;
+                    }
+                    const higher = SEVERITY_RANK[item.topSeverity] > SEVERITY_RANK[existing.topSeverity] ? item : existing;
+                    merged.set(key, { ...higher, alertCount: existing.alertCount + item.alertCount });
+                });
+                const sorted = Array.from(merged.values()).sort(
+                    (a, b) => SEVERITY_RANK[b.topSeverity] - SEVERITY_RANK[a.topSeverity],
+                );
+                setAlerts(sorted.slice(0, 3));
+                const sevMap: Record<string, AlertSeverity> = {};
+                sorted.forEach((item) => {
+                    if (item.pondId) sevMap[item.pondId] = item.topSeverity;
+                });
+                setPondSeverity(sevMap);
+            })
+            .catch(() => {
+                setAlerts([]);
+                setPondSeverity({});
+            })
+            .finally(() => setAlertsLoading(false));
+    }, []);
+
     // React Navigation keeps this screen mounted across the stack, so a
     // mount-only effect never re-ran after e.g. PondSetup/CreatePond added a
     // pond and navigated back — the dashboard, pond list, and Getting
@@ -115,7 +184,8 @@ export const HomeScreen = ({ navigation }: any) => {
             fetchSummary();
             fetchPonds();
             fetchPlannedPondCount();
-        }, [fetchSummary, fetchPonds, fetchPlannedPondCount]),
+            fetchAlerts();
+        }, [fetchSummary, fetchPonds, fetchPlannedPondCount, fetchAlerts]),
     );
 
     const onRefresh = useCallback(() => {
@@ -123,7 +193,8 @@ export const HomeScreen = ({ navigation }: any) => {
         fetchSummary();
         fetchPonds();
         fetchPlannedPondCount();
-    }, [fetchSummary, fetchPonds, fetchPlannedPondCount]);
+        fetchAlerts();
+    }, [fetchSummary, fetchPonds, fetchPlannedPondCount, fetchAlerts]);
 
     const onRetry = useCallback(() => {
         setIsLoading(true);
@@ -155,6 +226,49 @@ export const HomeScreen = ({ navigation }: any) => {
             .catch(() => setHasLoggedSomething(false));
     }, [selectedFarm?.id, ponds]);
 
+    // "Today's Logs" — bucket the representative pond's today's water-quality
+    // readings into morning/afternoon/evening windows, and read the last
+    // chemistry check date from pond-context. No new backend endpoint: the
+    // paginated /water-quality list and pond-context snapshot already exist,
+    // this is pure client-side derivation over data fetched elsewhere too.
+    useEffect(() => {
+        const firstPond = selectedFarm?.id ? ponds.find((p) => p.farmId === selectedFarm.id) : ponds[0];
+        if (!firstPond) {
+            setDailyWindows(null);
+            setWeeklyChemistryDays(null);
+            return;
+        }
+        Promise.all([
+            waterQualityApi.getAll(firstPond.id, { take: 30 }),
+            pondContextApi.get(firstPond.id),
+        ])
+            .then(([wqRes, ctxRes]) => {
+                const raw = wqRes.data;
+                const records: { recordedAt?: string }[] = Array.isArray(raw) ? raw : raw?.data || [];
+                const today = todayLocalISODate();
+                const windows: DailyWindows = { morning: false, afternoon: false, evening: false };
+                records.forEach((r) => {
+                    if (!r.recordedAt) return;
+                    const d = new Date(r.recordedAt);
+                    if (toLocalISODate(d) !== today) return;
+                    const hour = d.getHours();
+                    if (hour < 12) windows.morning = true;
+                    else if (hour < 17) windows.afternoon = true;
+                    else windows.evening = true;
+                });
+                setDailyWindows(windows);
+
+                const chemAsOf = ctxRes.data.waterQuality?.chemistryAsOf;
+                setWeeklyChemistryDays(
+                    chemAsOf ? Math.floor((Date.now() - new Date(chemAsOf).getTime()) / 86_400_000) : null,
+                );
+            })
+            .catch(() => {
+                setDailyWindows(null);
+                setWeeklyChemistryDays(null);
+            });
+    }, [selectedFarm?.id, ponds]);
+
     // "Invited your team" — more than just the owner as a farm member.
     const fetchInvitedWorker = useCallback(() => {
         if (!selectedFarm?.id) {
@@ -176,8 +290,13 @@ export const HomeScreen = ({ navigation }: any) => {
     ];
     const checklistLoading = hasLoggedSomething == null || hasInvitedWorker == null;
     const checklistDoneCount = checklistItems.filter((i) => i.done).length;
+    // Two of the three items (ponds, invite) are owner/manager actions — a
+    // plain worker met every other render condition here and saw a checklist
+    // nudging them toward actions they can't take, stacked right above their
+    // own "Log now" CTA. Gate the whole checklist behind the same capability
+    // that gates those actions (docs/UI_UX_AUDIT.md homepage redesign).
     const showGettingStarted =
-        !nudgeDismissed && !!selectedFarm?.id && !checklistLoading && checklistDoneCount < checklistItems.length;
+        !nudgeDismissed && !!selectedFarm?.id && perms.canManageOperations && !checklistLoading && checklistDoneCount < checklistItems.length;
 
     // First-run: a brand-new farmer with no farms and who hasn't seen the welcome
     // gets a one-time guided intro. The flag is set inside WelcomeScreen.
@@ -256,6 +375,82 @@ export const HomeScreen = ({ navigation }: any) => {
                     <MaterialCommunityIcons name="account-circle" size={40} color={theme.roles.light.primary} />
                 </TouchableOpacity>
             </View>
+
+            {/* "Needs Attention" — top of the page, always, so a critical issue in
+                any pond is visible before Getting Started/stats/ponds, not just
+                reachable via a "Today" tap five sections down
+                (docs/UI_UX_AUDIT.md homepage redesign, Phase 1). Reuses the same
+                alert-center data MorningBriefingScreen already shows in full. */}
+            {!alertsLoading && (
+                <TouchableOpacity activeOpacity={0.85} onPress={() => goRoot('MorningBriefing')}>
+                    {alerts.length === 0 ? (
+                        <Card style={styles.allClearCard}>
+                            <MaterialCommunityIcons name="check-circle-outline" size={22} color={theme.roles.light.successText} />
+                            <View style={styles.allClearText}>
+                                <Text style={styles.allClearTitle}>{t('home.allClearTitle', 'All clear')}</Text>
+                                <Text style={styles.allClearBody}>{t('home.allClearBody', 'No issues need your attention right now.')}</Text>
+                            </View>
+                        </Card>
+                    ) : (
+                        <Card style={styles.attentionCard}>
+                            <Text style={styles.attentionTitle}>{t('home.needsAttentionTitle', 'Needs Attention')}</Text>
+                            {alerts.map((item, i) => (
+                                <View key={item.pondId ?? i} style={[styles.attentionRow, i > 0 && styles.attentionRowBorder]}>
+                                    <View style={[styles.severityDot, { backgroundColor: SEVERITY_COLOR[item.topSeverity] }]} />
+                                    <Text style={styles.attentionRowText} numberOfLines={1}>{item.topTitle}</Text>
+                                    {item.alertCount > 1 && (
+                                        <Text style={styles.attentionMore}>{t('home.moreAlerts', { count: item.alertCount - 1 })}</Text>
+                                    )}
+                                </View>
+                            ))}
+                        </Card>
+                    )}
+                </TouchableOpacity>
+            )}
+
+            {/* "Today's Logs" — minimal morning/afternoon/evening progress for the
+                representative pond, plus the weekly chemistry check freshness,
+                so a farmer can tell at a glance whether today's routine is done
+                without opening Daily Routine. */}
+            {dailyWindows && (
+                <Card style={styles.dailyProgressCard}>
+                    <Text style={styles.dailyProgressTitle}>{t('home.dailyProgressTitle', "Today's Logs")}</Text>
+                    <View style={styles.dailyProgressRow}>
+                        {([
+                            ['morning', dailyWindows.morning, t('home.dailyProgressMorning', 'Morning')],
+                            ['afternoon', dailyWindows.afternoon, t('home.dailyProgressAfternoon', 'Afternoon')],
+                            ['evening', dailyWindows.evening, t('home.dailyProgressEvening', 'Evening')],
+                        ] as const).map(([key, done, label]) => (
+                            <View key={key} style={styles.dailyProgressSlot}>
+                                <View style={[styles.dailyProgressDot, done && styles.dailyProgressDotDone]}>
+                                    <MaterialCommunityIcons
+                                        name={done ? 'check' : 'circle-outline'}
+                                        size={14}
+                                        color={done ? theme.roles.light.textInverse : theme.roles.light.textTertiary}
+                                    />
+                                </View>
+                                <Text style={styles.dailyProgressLabel}>{label}</Text>
+                            </View>
+                        ))}
+                    </View>
+                    {weeklyChemistryDays != null && (
+                        <View style={styles.weeklyChemistryRow}>
+                            <MaterialCommunityIcons name="flask-outline" size={16} color={theme.roles.light.textSecondary} />
+                            <Text style={styles.weeklyChemistryLabel}>{t('home.weeklyChemistryLabel', 'Weekly chemistry check')}</Text>
+                            <Text style={[
+                                styles.weeklyChemistryValue,
+                                weeklyChemistryDays > 7 && styles.weeklyChemistryOverdue,
+                            ]}>
+                                {weeklyChemistryDays === 0
+                                    ? t('home.weeklyChemistryToday', 'Checked today')
+                                    : weeklyChemistryDays > 7
+                                        ? t('home.weeklyChemistryOverdue', { days: weeklyChemistryDays })
+                                        : t('home.weeklyChemistryDaysAgo', { days: weeklyChemistryDays })}
+                            </Text>
+                        </View>
+                    )}
+                </Card>
+            )}
 
             {/* Getting Started checklist (onboarding-plan Phase 2): tracks real
                 activation milestones, not just pond count. Reappears every visit
@@ -365,21 +560,33 @@ export const HomeScreen = ({ navigation }: any) => {
                 />
             ) : summary ? (
                 <View style={styles.statsGrid}>
-                    <Card style={styles.statCard}>
-                        <MaterialCommunityIcons name="water" size={32} color={theme.roles.light.primary} />
-                        <Text style={styles.statValue}>{summary.activePondsCount}</Text>
-                        <Text style={styles.statLabel}>{t('home.activePonds')}</Text>
-                    </Card>
-                    <Card style={styles.statCard}>
-                        <MaterialCommunityIcons name="water-outline" size={32} color={theme.roles.light.textSecondary} />
-                        <Text style={styles.statValue}>{summary.totalPondsCount}</Text>
-                        <Text style={styles.statLabel}>{t('home.totalPonds')}</Text>
-                    </Card>
-                    <Card style={styles.statCard}>
-                        <MaterialCommunityIcons name="alert" size={32} color={theme.roles.light.dangerText} />
-                        <Text style={styles.statValue}>{summary.lowStockAlerts}</Text>
-                        <Text style={styles.statLabel}>{t('home.lowStockAlerts')}</Text>
-                    </Card>
+                    <TouchableOpacity style={styles.statCardTouchable} activeOpacity={0.7} onPress={() => navigation.navigate('Farms')}>
+                        <Card style={[styles.statCard, styles.statCardNested]}>
+                            <MaterialCommunityIcons name="water" size={32} color={theme.roles.light.primary} />
+                            <Text style={styles.statValue}>{summary.activePondsCount}</Text>
+                            <Text style={styles.statLabel}>{t('home.activePonds')}</Text>
+                        </Card>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.statCardTouchable} activeOpacity={0.7} onPress={() => navigation.navigate('Farms')}>
+                        <Card style={[styles.statCard, styles.statCardNested]}>
+                            <MaterialCommunityIcons name="water-outline" size={32} color={theme.roles.light.textSecondary} />
+                            <Text style={styles.statValue}>{summary.totalPondsCount}</Text>
+                            <Text style={styles.statLabel}>{t('home.totalPonds')}</Text>
+                        </Card>
+                    </TouchableOpacity>
+                    {/* Low-stock is an actionable alert, not a neutral count — give it
+                        a distinct tint (not just a differently-colored icon) and route
+                        straight to Inventory instead of being a dead end. */}
+                    <TouchableOpacity style={styles.statCardTouchable} activeOpacity={0.7} onPress={() => goRoot('Inventory')}>
+                        <Card style={[styles.statCard, styles.statCardNested, summary.lowStockAlerts > 0 && styles.statCardAlert]}>
+                            <MaterialCommunityIcons name="alert" size={32} color={theme.roles.light.dangerText} />
+                            <Text style={styles.statValue}>{summary.lowStockAlerts}</Text>
+                            <Text style={styles.statLabel}>{t('home.lowStockAlerts')}</Text>
+                        </Card>
+                    </TouchableOpacity>
+                    {/* No single unambiguous farm-wide feed screen to link to (FeedStats
+                        needs a specific pondId) — left as a plain glance card rather
+                        than a misleading/arbitrary navigation target. */}
                     <Card style={styles.statCard}>
                         <MaterialCommunityIcons name="corn" size={32} color={theme.roles.light.warningText} />
                         <Text style={styles.statValue}>{summary.todayFeedUsage}</Text>
@@ -409,7 +616,20 @@ export const HomeScreen = ({ navigation }: any) => {
                 </Card>
             )}
 
-            {/* Your Ponds — one tap from the dashboard into any pond's daily loop. */}
+            {/* Farm-at-a-glance includes expenses + P&L, so it's owner/manager only
+                (VIEW_FINANCIALS); workers/viewers don't see farm economics.
+                Moved above Your Ponds/Moon Phase — financial + operational
+                context outranks a pond-name list and a lunar widget. */}
+            {selectedFarm?.id && perms.canViewFinancials && (
+                <>
+                    <Text style={styles.sectionTitle}>{t('home.farmGlance')}</Text>
+                    <FarmGlanceCards farmId={selectedFarm.id} farmName={selectedFarm.name} navigation={navigation} />
+                </>
+            )}
+
+            {/* Your Ponds — one tap from the dashboard into any pond's daily loop.
+                Each card now carries a severity dot (from the same alert fetch
+                above) so this doubles as a scan-able triage list, not just names. */}
             {ponds.length > 0 && (
                 <>
                     <View style={styles.sectionRow}>
@@ -419,38 +639,35 @@ export const HomeScreen = ({ navigation }: any) => {
                         </TouchableOpacity>
                     </View>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pondRow}>
-                        {ponds.slice(0, 8).map((p) => (
-                            <TouchableOpacity
-                                key={p.id}
-                                activeOpacity={0.85}
-                                onPress={() => goRoot('PondDashboard', { pondId: p.id, pondName: p.displayName || p.name })}
-                            >
-                                <Card style={styles.pondCard}>
-                                    <MaterialCommunityIcons name="water" size={22} color={theme.roles.light.primary} />
-                                    <Text style={styles.pondName} numberOfLines={1}>{p.displayName || p.name}</Text>
-                                    <Text style={styles.pondMeta} numberOfLines={1}>
-                                        {p.activeCycleId ? t('home.pondActive') : t('home.pondIdle')}
-                                    </Text>
-                                </Card>
-                            </TouchableOpacity>
-                        ))}
+                        {ponds.slice(0, 8).map((p) => {
+                            const severity = pondSeverity[p.id];
+                            return (
+                                <TouchableOpacity
+                                    key={p.id}
+                                    activeOpacity={0.85}
+                                    onPress={() => goRoot('PondDashboard', { pondId: p.id, pondName: p.displayName || p.name })}
+                                >
+                                    <Card style={styles.pondCard}>
+                                        {severity && <View style={[styles.pondSeverityDot, { backgroundColor: SEVERITY_COLOR[severity] }]} />}
+                                        <MaterialCommunityIcons name="water" size={22} color={theme.roles.light.primary} />
+                                        <Text style={styles.pondName} numberOfLines={1}>{p.displayName || p.name}</Text>
+                                        <Text style={styles.pondMeta} numberOfLines={1}>
+                                            {p.activeCycleId ? t('home.pondActive') : t('home.pondIdle')}
+                                        </Text>
+                                    </Card>
+                                </TouchableOpacity>
+                            );
+                        })}
                     </ScrollView>
                 </>
             )}
 
-            <Text style={styles.sectionTitle}>{t('home.lunarCycle')}</Text>
-            <View style={styles.moonSection}>
-                <MoonPhaseCard />
+            {/* Lunar phase demoted to a single-line strip — a nice-to-know, not a
+                decision-driving metric, so it no longer carries the same visual
+                weight (full card + section title) as alerts/financials above. */}
+            <View style={styles.moonStrip}>
+                <MoonPhaseCard compact />
             </View>
-
-            {/* Farm-at-a-glance includes expenses + P&L, so it's owner/manager only
-                (VIEW_FINANCIALS); workers/viewers don't see farm economics. */}
-            {selectedFarm?.id && perms.canViewFinancials && (
-                <>
-                    <Text style={styles.sectionTitle}>{t('home.farmGlance')}</Text>
-                    <FarmGlanceCards farmId={selectedFarm.id} farmName={selectedFarm.name} navigation={navigation} />
-                </>
-            )}
 
             <Text style={styles.sectionTitle}>{t('home.quickActions')}</Text>
             <View style={styles.grid}>
@@ -473,6 +690,74 @@ export const HomeScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
+    allClearCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[6],
+        backgroundColor: theme.roles.light.successBg,
+    },
+    allClearText: { flex: 1 },
+    allClearTitle: { ...theme.typeScale.labelLarge, color: theme.roles.light.successText, fontWeight: '600' },
+    allClearBody: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: 2 },
+    attentionCard: {
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[6],
+    },
+    attentionTitle: {
+        ...theme.typeScale.labelLarge,
+        color: theme.roles.light.textPrimary,
+        fontWeight: '600',
+        marginBottom: theme.spacing[2],
+    },
+    attentionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[2],
+        paddingVertical: theme.spacing[2],
+    },
+    attentionRowBorder: {
+        borderTopWidth: 1,
+        borderTopColor: theme.roles.light.borderDefault,
+    },
+    severityDot: { width: 8, height: 8, borderRadius: 4 },
+    attentionRowText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, flex: 1 },
+    attentionMore: { ...theme.typeScale.labelSmall, color: theme.roles.light.textTertiary },
+    dailyProgressCard: {
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[6],
+    },
+    dailyProgressTitle: {
+        ...theme.typeScale.labelLarge,
+        color: theme.roles.light.textPrimary,
+        fontWeight: '600',
+        marginBottom: theme.spacing[3],
+    },
+    dailyProgressRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+    },
+    dailyProgressSlot: { alignItems: 'center', gap: theme.spacing[1] },
+    dailyProgressDot: {
+        width: 28, height: 28, borderRadius: theme.radius.full,
+        backgroundColor: theme.roles.light.surfaceVariant,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    dailyProgressDotDone: { backgroundColor: theme.roles.light.successBorder },
+    dailyProgressLabel: { ...theme.typeScale.caption, color: theme.roles.light.textSecondary },
+    weeklyChemistryRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[2],
+        marginTop: theme.spacing[4],
+        paddingTop: theme.spacing[3],
+        borderTopWidth: 1,
+        borderTopColor: theme.roles.light.borderDefault,
+    },
+    weeklyChemistryLabel: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, flex: 1 },
+    weeklyChemistryValue: { ...theme.typeScale.labelMedium, color: theme.roles.light.textPrimary, fontWeight: '600' },
+    weeklyChemistryOverdue: { color: theme.roles.light.dangerText },
     checklistCard: {
         padding: theme.spacing[4],
         marginBottom: theme.spacing[6],
@@ -544,7 +829,8 @@ const styles = StyleSheet.create({
         color: theme.roles.light.textPrimary,
         marginBottom: theme.spacing[4],
     },
-    moonSection: {
+    moonStrip: {
+        paddingHorizontal: theme.spacing[1],
         marginBottom: theme.spacing[6],
     },
     grid: {
@@ -626,6 +912,10 @@ const styles = StyleSheet.create({
     viewAll: { ...theme.typeScale.labelMedium, color: theme.roles.light.primary },
     pondRow: { gap: theme.spacing[3], paddingBottom: theme.spacing[2], marginBottom: theme.spacing[6] },
     pondCard: { width: 130, padding: theme.spacing[4], gap: theme.spacing[1] },
+    pondSeverityDot: {
+        position: 'absolute', top: theme.spacing[3], right: theme.spacing[3],
+        width: 8, height: 8, borderRadius: 4,
+    },
     pondName: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, fontWeight: '600', marginTop: theme.spacing[1] },
     pondMeta: { ...theme.typeScale.caption, color: theme.roles.light.textSecondary },
     loadingContainer: {
@@ -644,6 +934,15 @@ const styles = StyleSheet.create({
         padding: theme.spacing[4],
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    // Used when a Card is nested inside a `statCardTouchable` wrapper — the
+    // width belongs on the wrapper so 47%-of-47% doesn't double-shrink it.
+    statCardTouchable: { width: '47%' },
+    statCardNested: { width: '100%' },
+    statCardAlert: {
+        backgroundColor: theme.roles.light.dangerBg,
+        borderLeftWidth: 3,
+        borderLeftColor: theme.roles.light.dangerBorder,
     },
     statValue: {
         ...theme.typeScale.h2,

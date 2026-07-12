@@ -119,6 +119,21 @@ const home = {
   cropPnl: 'பயிர் லாப-நஷ்டம்',
   marginRoi: 'மார்ஜின் {{margin}}% · ROI {{roi}}%',
   noActiveCrop: 'செயலில் பயிர் இல்லை',
+
+  needsAttentionTitle: 'கவனம் தேவை',
+  allClearTitle: 'எல்லாம் சரி',
+  allClearBody: 'இப்போது உங்கள் கவனம் தேவைப்படும் பிரச்சினைகள் இல்லை.',
+  moreAlerts: '+{{count}} மேலும்',
+
+  dailyProgressTitle: 'இன்றைய பதிவுகள்',
+  dailyProgressMorning: 'காலை',
+  dailyProgressAfternoon: 'மதியம்',
+  dailyProgressEvening: 'மாலை',
+  weeklyChemistryLabel: 'வாராந்திர வேதியியல் சோதனை',
+  weeklyChemistryToday: 'இன்று சரிபார்க்கப்பட்டது',
+  weeklyChemistryDaysAgo: '{{days}} நாட்களுக்கு முன்',
+  weeklyChemistryOverdue: 'தாமதம் — {{days}} நாட்களுக்கு முன்',
+  weeklyChemistryNone: 'இன்னும் பதிவு செய்யப்படவில்லை',
 };
 
 export default home;

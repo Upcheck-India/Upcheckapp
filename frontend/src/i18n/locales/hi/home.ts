@@ -119,6 +119,21 @@ const home = {
   cropPnl: 'फसल लाभ-हानि',
   marginRoi: 'मार्जिन {{margin}}% · ROI {{roi}}%',
   noActiveCrop: 'कोई सक्रिय फसल नहीं',
+
+  needsAttentionTitle: 'ध्यान देने योग्य',
+  allClearTitle: 'सब ठीक है',
+  allClearBody: 'अभी आपके ध्यान देने योग्य कोई समस्या नहीं है।',
+  moreAlerts: '+{{count}} और',
+
+  dailyProgressTitle: 'आज के रिकॉर्ड',
+  dailyProgressMorning: 'सुबह',
+  dailyProgressAfternoon: 'दोपहर',
+  dailyProgressEvening: 'शाम',
+  weeklyChemistryLabel: 'साप्ताहिक रसायन जांच',
+  weeklyChemistryToday: 'आज जांचा गया',
+  weeklyChemistryDaysAgo: '{{days}} दिन पहले',
+  weeklyChemistryOverdue: 'बकाया — {{days}} दिन पहले',
+  weeklyChemistryNone: 'अभी दर्ज नहीं किया गया',
 };
 
 export default home;
