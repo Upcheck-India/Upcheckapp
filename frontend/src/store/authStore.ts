@@ -73,7 +73,7 @@ interface AuthState {
     enterOfflineSession: () => void;
     recoverSession: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
-    googleLogin: (idToken: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
+    googleLogin: (idToken: string, intent?: 'signin' | 'signup') => Promise<{ requires2FA: boolean; tempToken?: string }>;
     signup: (email: string, password: string, firstName?: string, lastName?: string, accountType?: AccountType) => Promise<void>;
     logout: () => Promise<void>;
     deleteAccount: () => Promise<void>;
@@ -278,10 +278,10 @@ export const useAuthStore = create<AuthState>()(
                 }
             },
 
-            googleLogin: async (idToken: string) => {
+            googleLogin: async (idToken: string, intent?: 'signin' | 'signup') => {
                 set({ isLoading: true, error: null });
                 try {
-                    const { data } = await authApi.googleOAuth(idToken);
+                    const { data } = await authApi.googleOAuth(idToken, intent);
                     if (data.requires2FA && data.tempToken) {
                         // 2FA enabled: session withheld until a TOTP code is
                         // verified. Surfaced so the caller can show the challenge.
@@ -335,6 +335,17 @@ export const useAuthStore = create<AuthState>()(
                     TruecallerAuth.clear();
                 } catch {
                     // Ignore Truecaller clear errors — sign-out must still proceed
+                }
+                // Also forget the cached Google account on logout (belt-and-
+                // suspenders alongside the same signOut() call useGoogleAuth
+                // makes before every signIn() attempt) — clears it immediately
+                // rather than waiting for the next Google sign-in attempt, and
+                // is a no-op if nothing was cached or Google Sign-In isn't
+                // configured on this build.
+                try {
+                    await GoogleSignin.signOut();
+                } catch {
+                    // Ignore — nothing was cached, or the native module isn't configured
                 }
                 get().clearSession();
             },
