@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { farmsApi } from '../../api/farms';
 import { useAuthStore } from '../../store/authStore';
+import { useUIStore } from '../../store/uiStore';
 
 const WATER_SOURCES: { key: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
     { key: 'tidal', icon: 'waves' },
@@ -22,6 +23,7 @@ export const CreateFarmScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
     const pendingFarmSetup = useAuthStore((s) => s.pendingFarmSetup);
     const completeFarmSetup = useAuthStore((s) => s.completeFarmSetup);
+    const showToast = useUIStore((s) => s.showToast);
     const [name, setName] = useState('');
     const [numPonds, setNumPonds] = useState('');
     const [address, setAddress] = useState('');
@@ -76,12 +78,16 @@ export const CreateFarmScreen = ({ navigation }: any) => {
                 latitude: coords?.lat,
                 longitude: coords?.lng,
             });
+            showToast({
+                message: t('farms.farmCreatedToast', { name: name.trim(), defaultValue: '{{name}} created' }),
+                type: 'success',
+            });
+            const newFarmId = res.data?.id;
             if (pendingFarmSetup) {
                 // First-run owner: clear the gate, then walk them through pond setup
                 // for each declared pond. MainApp sits underneath so backing out or
                 // "finish later" lands them in the app.
                 completeFarmSetup();
-                const newFarmId = res.data?.id;
                 if (newFarmId && numPonds && ponds >= 1) {
                     navigation.reset({
                         index: 1,
@@ -93,6 +99,14 @@ export const CreateFarmScreen = ({ navigation }: any) => {
                 } else {
                     navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
                 }
+            } else if (newFarmId && numPonds && ponds >= 1) {
+                // Bug: entering a pond count here previously did nothing — the count
+                // was saved on the farm as a target (plannedPondCount) but no Pond
+                // rows were ever created, so Farm Detail showed no ponds at all.
+                // Route straight into the same per-pond setup wizard the first-run
+                // flow already uses above, pre-filled to the declared count, instead
+                // of fabricating placeholder ponds with made-up dimensions.
+                navigation.navigate('PondSetup', { farmId: newFarmId, totalPonds: ponds });
             } else {
                 navigation.goBack();
             }
