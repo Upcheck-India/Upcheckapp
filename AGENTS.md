@@ -15,7 +15,9 @@ read this file fully before touching any code, and follow it exactly.
   (the repo moved from `Kiransekar/Upcheckapp` — if your local `origin`
   still points at the old URL, fix it first:
   `git remote set-url origin https://github.com/Upcheck-India/Upcheckapp.git`)
-- Default branch: `master`
+- Default branch: `master`. Integration branch for tracked bug-fix/feature
+  work: `development` (see "Branching & commits" below) — Robin merges
+  `development` into `master` in batches.
 - Layout: `frontend/` (Expo / React Native app), `backend/` (NestJS +
   TypeORM + Postgres via Supabase, hosted on Render)
 
@@ -36,12 +38,21 @@ read this file fully before touching any code, and follow it exactly.
 
 ## Branching & commits
 
-- **Never commit directly to `master`.** Every fix/feature/chore gets its
-  own branch cut from an up-to-date `master`:
+- **Never commit directly to `master` (or `development`).** Every
+  fix/feature/chore gets its own branch.
+- **Until further notice, cut feature/fix branches from `development`, not
+  `master`, and open PRs against `development`.** `development` was added
+  as an integration branch so a batch of concurrent bug-fix issues can land
+  and get reviewed together before Robin merges `development` into
+  `master`. Repo-meta changes (docs like this file, CI/config) still target
+  `master` directly, same as before — this only applies to product
+  fix/feature work tracked by a GitHub issue.
   ```
-  git checkout master && git pull && git checkout -b fix/<short-description>
+  git checkout development && git pull && git checkout -b fix/<short-description>
   ```
-  (`feat/...`, `chore/...`, `fix/...` prefixes as appropriate.)
+  (`feat/...`, `chore/...`, `fix/...` prefixes as appropriate.) If
+  `development` doesn't exist or you're unsure which base to use, ask
+  before picking one.
 - Small, focused commits — one logical change per commit. Stage files by
   explicit name after reviewing `git status`; never `git add -A` / `git add .`.
 - Never force-push, never rewrite history that's already been pushed, never
@@ -90,15 +101,18 @@ identity sources.
 ## Opening a PR
 
 - Push your branch: `git push -u origin <branch-name>`
-- Open a PR against `master`, ideally with `gh pr create`, including:
+- Open a PR against `development` (see the branching note above — repo-meta
+  docs/CI changes still target `master`), ideally with `gh pr create`,
+  including:
   - What changed and why (a few bullets — focus on *why*)
   - What you ran to verify it (tests, typecheck, manual check)
   - Anything risky called out explicitly: DB migrations, permission/role
     logic changes, anything touching shared auth or offline-sync code
+  - The GitHub issue it closes (`Closes #<n>`)
 - **Do not self-merge.** Every PR — from any agent — needs a human on the
   team to review and merge it, even once checks are green. Say so
   explicitly in the PR and wait.
-- If master moves before your PR is reviewed, merge/rebase it in, rerun
+- If your PR's base branch moves before review, merge/rebase it in, rerun
   the full test+typecheck gate, and don't force through a conflict.
 - Robin (assisted by his AI agent, acting in a team-lead review capacity)
   is currently the primary reviewer across the team's PRs — expect review
