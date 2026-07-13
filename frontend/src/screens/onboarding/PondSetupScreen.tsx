@@ -71,6 +71,11 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
     const [form, setForm] = useState(emptyForm());
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [submitting, setSubmitting] = useState(false);
+    // Most farms have several near-identical ponds — offered only while
+    // filling in Pond 1 of a multi-pond batch, so the farmer can apply that
+    // same shape/size/species/stocking setup to the rest instead of
+    // re-entering identical data totalPonds times.
+    const [copyToAll, setCopyToAll] = useState(false);
 
     const [loadingRef, setLoadingRef] = useState(true);
     const [speciesOpts, setSpeciesOpts] = useState<SelectOption[]>([]);
@@ -161,6 +166,49 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
 
     const finish = () => navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
 
+    // Creates one pond + its stocked crop from the CURRENT form values, under
+    // a given display name — used both for Pond 1's normal save and for
+    // "copy to all", where ponds 2..totalPonds reuse Pond 1's shape/size/
+    // species/stocking setup verbatim, just with a distinct name/pondCode.
+    const createOnePondAndCrop = async (displayName: string) => {
+        const ac = parseInt(form.aeratorCount, 10);
+        const hp = parseFloat(form.hpPerAerator);
+        const hasAerators = !!form.aeratorCount && !isNaN(ac) && ac > 0;
+        const density = parseFloat(form.stockingDensity);
+
+        const pondRes = await pondsApi.create({
+            farmId,
+            namePrefix: derivePrefix(form.name),
+            displayName,
+            geometryType: form.geometry,
+            constructionType: 'earthen',
+            depthM: parseFloat(form.depthM),
+            ...(form.geometry === 'circular'
+                ? { diameterM: parseFloat(form.diameterM) }
+                : { lengthM: parseFloat(form.lengthM), widthM: parseFloat(form.widthM) }),
+            aeratorCount: form.aeratorCount ? ac : undefined,
+            installedAeratorHp: hasAerators && !isNaN(hp) ? Math.round(ac * hp * 100) / 100 : undefined,
+        });
+
+        const result = pondRes.data as unknown as CreatePondResult;
+        const pondId = result.pond?.id ?? (result as any).id;
+        const areaM2 = result.calculatedAreaM2 ?? previewArea ?? 0;
+        const stockingCount = areaM2 > 0 ? Math.round(density * areaM2) : undefined;
+
+        await cropsApi.create({
+            pondId,
+            name: `${displayName} – ${t('pondSetup.cropSuffix')}`,
+            status: 'active',
+            stockingDate: toISODate(form.stockingDate),
+            stockingCount,
+            stockingDensity: density,
+            speciesId: form.speciesId ?? undefined,
+            speciesType: form.speciesId ? speciesLabels[form.speciesId] : undefined,
+            broodstockId: form.strainId ?? undefined,
+            hatcheryId: form.hatcheryId ?? undefined,
+        });
+    };
+
     const handleSaveStep = async () => {
         if (!validate()) return;
         setSubmitting(true);
@@ -218,7 +266,31 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
             pendingPondIdRef.current = null;
             pendingAreaRef.current = null;
 
-            if (index >= totalPonds - 1) {
+            if (index === 0 && copyToAll && totalPonds > 1) {
+                // Pond 1 is saved; replicate its exact setup for ponds 2..N
+                // (same shape/size/species/stocking, distinct name/pondCode —
+                // the backend's per-prefix sequence numbering handles that).
+                try {
+                    const baseName = form.name.trim();
+                    for (let i = 1; i < totalPonds; i++) {
+                        await createOnePondAndCrop(`${baseName} ${i + 1}`);
+                    }
+                    finish();
+                } catch {
+                    Alert.alert(
+                        t('common.error'),
+                        t(
+                            'pondSetup.errCopyToAll',
+                            'Pond 1 was saved, but copying it to the rest failed partway through. Set up the remaining ponds one at a time.',
+                        ),
+                    );
+                    setCopyToAll(false);
+                    setIndex(1);
+                    setForm(emptyForm());
+                    setErrors({});
+                    scrollRef.current?.scrollTo({ y: 0, animated: false });
+                }
+            } else if (index >= totalPonds - 1) {
                 finish();
             } else {
                 setIndex((i) => i + 1);
@@ -246,7 +318,9 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
         );
     }
 
-    const isLast = index >= totalPonds - 1;
+    // "Copy to all" on Pond 1 finishes the whole batch in one tap, so the
+    // button must say Finish rather than Save & Next in that state.
+    const isLast = index >= totalPonds - 1 || (index === 0 && copyToAll && totalPonds > 1);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -462,6 +536,31 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
                     </Text>
                 )}
 
+                {/* Only offered while filling in Pond 1 of a multi-pond batch —
+                    most farms have several near-identical ponds, so this skips
+                    re-entering the same shape/size/species/stocking totalPonds times. */}
+                {index === 0 && totalPonds > 1 && (
+                    <TouchableOpacity
+                        style={styles.copyToAllRow}
+                        onPress={() => setCopyToAll((v) => !v)}
+                        activeOpacity={0.8}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: copyToAll }}
+                    >
+                        <MaterialCommunityIcons
+                            name={copyToAll ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                            size={22}
+                            color={copyToAll ? theme.roles.light.primary : theme.roles.light.textSecondary}
+                        />
+                        <Text style={styles.copyToAllLabel}>
+                            {t('pondSetup.copyToAllLabel', {
+                                count: totalPonds,
+                                defaultValue: 'Use these same details for all {{count}} ponds',
+                            })}
+                        </Text>
+                    </TouchableOpacity>
+                )}
+
                 <Button
                     title={isLast ? t('pondSetup.finishSetup') : t('pondSetup.saveAndNext')}
                     onPress={handleSaveStep}
@@ -535,5 +634,16 @@ const styles = StyleSheet.create({
         marginTop: -theme.spacing[2],
         marginBottom: theme.spacing[3],
     },
+    copyToAllRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[2],
+        marginTop: theme.spacing[5],
+        padding: theme.spacing[3],
+        borderRadius: theme.radius.md,
+        borderWidth: 1,
+        borderColor: theme.roles.light.borderDefault,
+    },
+    copyToAllLabel: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, flex: 1 },
     saveBtn: { marginTop: theme.spacing[5] },
 });

@@ -389,4 +389,61 @@ describe('PondsService', () => {
       expect(result.data).toEqual([{ id: 'h1' }]);
     });
   });
+
+  // ── countActivePonds (#37) ──────────────────────────────────
+  // Live bug: the dashboard showed 0 active ponds for a farm with a pond
+  // genuinely mid-cycle. CropsService.create() does correctly set
+  // pond.activeCycleId transactionally, but this count previously trusted
+  // that denormalized column alone — these lock in that a pond with a live
+  // active Crop row is still counted even if activeCycleId is stale/null.
+
+  describe('countActivePonds', () => {
+    const cropsRepo = { find: jest.fn() };
+
+    beforeEach(() => {
+      cropsRepo.find.mockReset().mockResolvedValue([]);
+      dataSource.getRepository.mockReturnValue(cropsRepo);
+    });
+
+    it('counts a pond via the denormalized activeCycleId (the fast path)', async () => {
+      pondsRepository.find.mockResolvedValue([
+        { id: 'pond-1', activeCycleId: 'crop-1' },
+        { id: 'pond-2', activeCycleId: null },
+      ]);
+
+      const count = await service.countActivePonds('farm-1');
+
+      expect(count).toBe(1);
+    });
+
+    it('also counts a pond with a live active Crop row even when activeCycleId is stale/null', async () => {
+      pondsRepository.find.mockResolvedValue([
+        { id: 'pond-1', activeCycleId: null },
+        { id: 'pond-2', activeCycleId: null },
+      ]);
+      cropsRepo.find.mockResolvedValue([{ pondId: 'pond-1' }]);
+
+      const count = await service.countActivePonds('farm-1');
+
+      expect(count).toBe(1);
+    });
+
+    it('never double-counts a pond found via both signals', async () => {
+      pondsRepository.find.mockResolvedValue([{ id: 'pond-1', activeCycleId: 'crop-1' }]);
+      cropsRepo.find.mockResolvedValue([{ pondId: 'pond-1' }]);
+
+      const count = await service.countActivePonds('farm-1');
+
+      expect(count).toBe(1);
+    });
+
+    it('short-circuits to 0 without querying crops when the farm has no non-archived ponds', async () => {
+      pondsRepository.find.mockResolvedValue([]);
+
+      const count = await service.countActivePonds('farm-1');
+
+      expect(count).toBe(0);
+      expect(cropsRepo.find).not.toHaveBeenCalled();
+    });
+  });
 });

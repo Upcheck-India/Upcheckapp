@@ -14,12 +14,29 @@ import { theme } from '../../theme';
 import { pondsApi, Pond } from '../../api/ponds';
 import { useMembershipStore } from '../../store/membershipStore';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useActiveFarmStore } from '../../store/activeFarmStore';
 
 export const FarmDetailScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { farmId, farmName } = route.params;
     const loadMemberships = useMembershipStore((s) => s.load);
+    const setSelectedFarm = useActiveFarmStore((s) => s.setSelectedFarm);
     const perms = usePermissions(farmId);
+
+    // #37: Home's dashboard summary (active/total pond counts) reads
+    // useActiveFarmStore's selectedFarm — but until now, the ONLY places that
+    // ever set it were Home/Inventory's own "nothing selected yet, default to
+    // the first farm" fallback. Opening a specific farm here never synced it,
+    // so a multi-farm owner who navigates straight to Farm B (e.g. to start a
+    // cycle on one of its ponds) would return to Home still showing farm A's
+    // (unrelated, correctly-zero) counts — looking exactly like "0 active/
+    // total ponds despite an active cycle" when the pond's farm was simply
+    // never the one Home was summarizing.
+    useFocusEffect(
+        useCallback(() => {
+            if (farmId) setSelectedFarm({ id: farmId, name: farmName ?? '' });
+        }, [farmId, farmName, setSelectedFarm]),
+    );
     const [ponds, setPonds] = useState<Pond[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
