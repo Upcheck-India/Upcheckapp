@@ -6,7 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, Not, IsNull } from 'typeorm';
+import { Repository, DataSource, Not, IsNull, In } from 'typeorm';
 import { Pond } from './pond.entity';
 import { PondDimensionHistory } from './pond-dimension-history.entity';
 import { Crop } from '../crops/crop.entity';
@@ -231,10 +231,39 @@ export class PondsService {
     return new PageDto(ponds, pageMeta);
   }
 
+  /**
+   * #37: the dashboard was reported showing 0 active ponds for a farm with a
+   * pond genuinely mid-cycle. CropsService.create() does correctly set
+   * pond.activeCycleId transactionally, but this denormalized column is the
+   * ONLY thing this count (and the pond's own dashboard) has ever relied on
+   * — any future/edge-case path that starts a crop without going through
+   * that exact transaction (a bulk import, a manual DB fix, a bug) would
+   * silently undercount here with no way to notice. Cross-check against a
+   * live active Crop row so a genuinely active pond is never missed just
+   * because the denormalized column drifted.
+   */
   async countActivePonds(farmId: string): Promise<number> {
-    return this.pondsRepository.count({
-      where: { farmId, status: Not('archived'), activeCycleId: Not(IsNull()) },
+    const nonArchivedPonds = await this.pondsRepository.find({
+      where: { farmId, status: Not('archived') },
+      select: { id: true, activeCycleId: true },
     });
+    if (nonArchivedPonds.length === 0) return 0;
+
+    const activePondIds = new Set(
+      nonArchivedPonds.filter((p) => p.activeCycleId).map((p) => p.id),
+    );
+
+    const activeCrops = await this.dataSource.getRepository(Crop).find({
+      where: {
+        farmId,
+        status: 'active',
+        pondId: In(nonArchivedPonds.map((p) => p.id)),
+      },
+      select: { pondId: true },
+    });
+    for (const crop of activeCrops) activePondIds.add(crop.pondId);
+
+    return activePondIds.size;
   }
 
   async countTotalPonds(farmId: string): Promise<number> {
