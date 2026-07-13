@@ -51,8 +51,8 @@ export const authApi = {
     signout: () =>
         apiClient.post('/auth/supabase/signout'),
 
-    googleOAuth: (idToken: string) =>
-        apiClient.post<AuthResponse>('/auth/supabase/oauth/google', { idToken }),
+    googleOAuth: (idToken: string, intent?: 'signin' | 'signup') =>
+        apiClient.post<AuthResponse>('/auth/supabase/oauth/google', { idToken, intent }),
 
     refresh: (refreshToken: string) =>
         apiClient.post<AuthResponse>('/auth/supabase/refresh', { refreshToken }),

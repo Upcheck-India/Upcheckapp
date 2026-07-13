@@ -4,18 +4,31 @@ import {
   UnauthorizedException,
   BadRequestException,
   ConflictException,
+  NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import * as crypto from 'crypto';
+import { User as UserEntity } from './user.entity';
 
 @Injectable()
 export class SupabaseAuthService {
   private supabase: SupabaseClient;
   private readonly logger = new Logger(SupabaseAuthService.name);
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    // Optional so existing tests that construct this service directly
+    // (`new SupabaseAuthService(config)`) keep working untouched — NestJS's
+    // real DI container always provides it in production regardless of the
+    // TS-level optionality. Only the sign-in-intent check below reads it,
+    // and that check already no-ops when it's undefined.
+    @InjectRepository(UserEntity)
+    private readonly usersRepository?: Repository<UserEntity>,
+  ) {
     const supabaseUrl = this.configService.get('SUPABASE_URL');
     // L5: the anon key is required for config parity with the frontend and
     // to fail fast on an incomplete deployment. The server intentionally
@@ -153,10 +166,66 @@ export class SupabaseAuthService {
   // ==================== OAuth ====================
 
   /**
+   * Best-effort extraction of the `email` claim from a Google ID token, for
+   * the sign-in-intent pre-check below ONLY — this does not verify the
+   * token's signature, so it must never be trusted for an actual auth
+   * decision. The real authentication is still `signInWithIdToken` a few
+   * lines down, which Supabase verifies properly. Returns null on any
+   * malformed input rather than throwing, so a decode hiccup fails OPEN
+   * (falls through to normal sign-in) instead of blocking a legitimate user.
+   */
+  private decodeEmailFromGoogleIdToken(idToken: string): string | null {
+    try {
+      const payload = idToken.split('.')[1];
+      if (!payload) return null;
+      const json = Buffer.from(
+        payload.replace(/-/g, '+').replace(/_/g, '/'),
+        'base64',
+      ).toString('utf8');
+      const claims = JSON.parse(json);
+      return typeof claims.email === 'string' ? claims.email : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Verify OAuth token from frontend (id_token from Google)
    * Note: Frontend should use Supabase Auth UI or handle OAuth flow with deep linking
+   *
+   * `intent` distinguishes the Sign In screen from Create Account — both
+   * call this same method, and Supabase's signInWithIdToken auto-provisions
+   * a brand-new user on first login regardless of which screen sent the
+   * request (bug: "Continue with Google" on Sign In silently creates an
+   * account for an unregistered email, identically to Create Account).
+   * When intent is 'signin', check for an existing account first and fail
+   * with a clear message instead of silently provisioning one. 'signup' (or
+   * omitted, for backwards compatibility) keeps today's auto-provisioning
+   * behavior unchanged.
    */
-  async signInWithIdToken(provider: 'google', idToken: string) {
+  async signInWithIdToken(
+    provider: 'google',
+    idToken: string,
+    intent?: 'signin' | 'signup',
+  ) {
+    if (intent === 'signin' && this.usersRepository) {
+      const email = this.decodeEmailFromGoogleIdToken(idToken);
+      if (email) {
+        const existing = await this.usersRepository.findOne({
+          where: { email: email.toLowerCase() },
+          select: { id: true },
+        });
+        if (!existing) {
+          throw new NotFoundException(
+            'No account found for this Google account. Tap "Create Account" to sign up first.',
+          );
+        }
+      }
+      // If the email claim couldn't be decoded, fall through to the normal
+      // sign-in below rather than blocking — same fail-open reasoning as
+      // the decode helper's own doc comment.
+    }
+
     const { data, error } = await this.supabase.auth.signInWithIdToken({
       provider,
       token: idToken,
