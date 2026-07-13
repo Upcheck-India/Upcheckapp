@@ -24,7 +24,13 @@ export function useGoogleAuth() {
         setIsReady(hasClientIds);
     }, []);
 
-    const signInWithGoogle = async () => {
+    // 'signin' (Login screen) vs 'signup' (Create Account screen) — both call
+    // the same backend endpoint, which otherwise auto-provisions a brand-new
+    // account on first Google login regardless of which screen sent the
+    // request. Defaults to 'signup' so any other/legacy caller keeps today's
+    // auto-provisioning behavior unchanged; only Login explicitly passes
+    // 'signin' to gate on an existing account.
+    const signInWithGoogle = async (intent: 'signin' | 'signup' = 'signup') => {
         if (!hasClientIds) {
             useAuthStore.getState().setError('Google Sign-In is not configured. Please contact support.');
             return;
@@ -51,7 +57,7 @@ export function useGoogleAuth() {
                 if (idToken) {
                     // Propagate the 2FA challenge (if any) so the screen can
                     // navigate to it — the store only sets a session on success.
-                    return await googleLogin(idToken);
+                    return await googleLogin(idToken, intent);
                 } else {
                     useAuthStore.getState().setError('No ID token received from Google.');
                 }

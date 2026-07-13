@@ -343,8 +343,10 @@ export class SupabaseAuthController {
   @Public()
   @Throttle(AUTH_THROTTLE)
   @Post('oauth/google')
-  async googleOAuth(@Body() body: { idToken: string }) {
-    const { idToken } = body;
+  async googleOAuth(
+    @Body() body: { idToken: string; intent?: 'signin' | 'signup' },
+  ) {
+    const { idToken, intent } = body;
 
     if (!idToken) {
       throw new BadRequestException('ID token is required');
@@ -353,6 +355,7 @@ export class SupabaseAuthController {
     const result = await this.supabaseAuthService.signInWithIdToken(
       'google',
       idToken,
+      intent,
     );
     return this.issueSessionOrChallenge(
       result,
