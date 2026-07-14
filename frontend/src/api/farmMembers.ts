@@ -52,4 +52,10 @@ export const farmMembersApi = {
 
     transferOwnership: (farmId: string, newOwnerUserId: string) =>
         apiClient.post(`/farms/${farmId}/transfer-ownership`, { newOwnerUserId }),
+
+    joinFarm: (code: string) =>
+        apiClient.post<{ farmId: string; role: FarmRole; farm: { id: string; name: string } }>(
+            '/farm-members/join',
+            { code },
+        ),
 };

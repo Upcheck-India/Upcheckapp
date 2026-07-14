@@ -15,6 +15,7 @@ import { AddMemberDto } from './dto/add-member.dto';
 import { ChangeRoleDto } from './dto/change-role.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { LookupUserDto } from './dto/lookup-user.dto';
+import { JoinFarmDto } from './dto/join-farm.dto';
 
 @Controller()
 export class FarmMembersController {
@@ -35,6 +36,12 @@ export class FarmMembersController {
   @Get('farm-members/mine')
   mine(@CurrentUser() user) {
     return this.membersService.listMine(user.id);
+  }
+
+  /** Self-serve join: enter/scan a farm's join code to become a worker on it. */
+  @Post('farm-members/join')
+  join(@Body() dto: JoinFarmDto, @CurrentUser() user) {
+    return this.membersService.joinFarm(user.id, dto);
   }
 
   @Get('farms/:farmId/members')

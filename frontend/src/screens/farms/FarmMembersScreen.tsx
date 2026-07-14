@@ -6,6 +6,7 @@
  */
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -16,6 +17,7 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { theme } from '../../theme';
 import { farmMembersApi, type FarmMember, type AssignableRole } from '../../api/farmMembers';
+import { farmsApi } from '../../api/farms';
 import { usePermissions } from '../../hooks/usePermissions';
 import { canManageMember } from '../../permissions/capabilities';
 
@@ -32,6 +34,7 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
     const [members, setMembers] = useState<FarmMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [farmCode, setFarmCode] = useState<string | null>(null);
     const perms = usePermissions(farmId);
 
     const load = useCallback(async () => {
@@ -47,6 +50,19 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
     }, [farmId]);
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
+
+    useFocusEffect(useCallback(() => {
+        if (!perms.canInviteMember) return;
+        farmsApi.getById(farmId)
+            .then(({ data }) => setFarmCode(data.farmCode ?? null))
+            .catch(() => setFarmCode(null));
+    }, [farmId, perms.canInviteMember]));
+
+    const copyFarmCode = async () => {
+        if (!farmCode) return;
+        await Clipboard.setStringAsync(farmCode);
+        Alert.alert(t('members.codeCopiedTitle'), t('members.codeCopiedSub'));
+    };
 
     const remove = (m: FarmMember) => {
         Alert.alert(
@@ -155,6 +171,19 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                 </View>
             </View>
 
+            {farmCode ? (
+                <Card style={styles.codeCard}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.codeLabel}>{t('members.farmCodeLabel')}</Text>
+                        <Text style={styles.codeValue}>{farmCode}</Text>
+                        <Text style={styles.codeHint}>{t('members.farmCodeHint')}</Text>
+                    </View>
+                    <TouchableOpacity onPress={copyFarmCode} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('members.copyCode')}>
+                        <MaterialCommunityIcons name="content-copy" size={22} color={theme.roles.light.primary} />
+                    </TouchableOpacity>
+                </Card>
+            ) : null}
+
             <FlatList
                 data={members}
                 keyExtractor={(m) => m.id}
@@ -190,6 +219,13 @@ const styles = StyleSheet.create({
         backgroundColor: theme.roles.light.surfaceVariant, alignItems: 'center', justifyContent: 'center',
     },
     avatarOwner: { backgroundColor: theme.roles.light.warningBg },
+    codeCard: {
+        flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3],
+        padding: theme.spacing[4], marginBottom: theme.spacing[3],
+    },
+    codeLabel: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
+    codeValue: { ...theme.typeScale.h2, color: theme.roles.light.textPrimary, letterSpacing: 2 },
+    codeHint: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: theme.spacing[1] },
     name: { ...theme.typeScale.bodyLarge, color: theme.roles.light.textPrimary, fontWeight: '600' },
     role: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
     addBtn: { marginTop: theme.spacing[2] },

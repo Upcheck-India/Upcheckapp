@@ -118,6 +118,7 @@ const home = {
   onboarding_exampleFcr: 'FCR',
   onboarding_exampleSurvival: 'जीवितता',
   onboarding_exampleCaption: 'लॉगिंग शुरू करने के बाद तालाब का डैशबोर्ड ऐसा दिखता है — आपके अपने आंकड़े यहां दिखेंगे।',
+  workerJoinFarmCta: 'फार्म जॉइन कोड दर्ज करें',
   reportsViewTransactions: 'लेन-देन देखें',
 
   // Farm-at-a-glance cards (HomeScreen)

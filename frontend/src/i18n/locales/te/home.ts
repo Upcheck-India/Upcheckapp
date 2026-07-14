@@ -118,6 +118,7 @@ const home = {
   onboarding_exampleFcr: 'FCR',
   onboarding_exampleSurvival: 'జీవించే రేటు',
   onboarding_exampleCaption: 'మీరు నమోదు చేయడం ప్రారంభించిన తర్వాత చెరువు డాష్‌బోర్డ్ ఇలా కనిపిస్తుంది — మీ స్వంత సంఖ్యలు ఇక్కడ కనిపిస్తాయి.',
+  workerJoinFarmCta: 'ఫామ్ జాయిన్ కోడ్‌ను నమోదు చేయండి',
   reportsViewTransactions: 'లావాదేవీలను చూడండి',
 
   // Farm-at-a-glance cards
