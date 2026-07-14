@@ -101,6 +101,8 @@ const content = {
   tasks: {
     headerTitle: 'பணிகள்',
     headerWithFarm: 'பணிகள் · {{farmName}}',
+    headerMyTasks: 'எனது பணிகள்',
+    headerMyTasksWithFarm: 'எனது பணிகள் · {{farmName}}',
     addPlaceholder: 'ஒரு பணி சேர்க்கவும்…',
     errorLoad: 'பணிகளை ஏற்ற முடியவில்லை',
     // Status labels

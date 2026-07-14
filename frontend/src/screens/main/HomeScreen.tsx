@@ -21,6 +21,7 @@ import { farmsApi } from '../../api/farms';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { pondContextApi } from '../../api/pondContext';
 import { farmMembersApi } from '../../api/farmMembers';
+import { tasksApi, type Task } from '../../api/tasks';
 import { alertCenterApi, type BriefingItem, type AlertSeverity } from '../../api/alertCenter';
 import { waterQualityApi } from '../../api/waterQuality';
 import { toLocalISODate, todayLocalISODate } from '../../utils/localDate';
@@ -71,6 +72,8 @@ export const HomeScreen = ({ navigation }: any) => {
     const [nudgeDismissed, setNudgeDismissed] = useState(false);
     // Worker first-run interstitial — see WORKER_WELCOME_FLAG above.
     const [showWorkerWelcome, setShowWorkerWelcome] = useState(false);
+    // Worker dashboard v1: tasks assigned to this worker, not yet done.
+    const [myOpenTasks, setMyOpenTasks] = useState<Task[] | null>(null);
     // "Needs Attention" — the cross-pond alert severity data already proven in
     // MorningBriefingScreen, surfaced at the top of Home so a critical issue
     // in any pond doesn't sit unseen behind five other sections and a "Today"
@@ -335,6 +338,24 @@ export const HomeScreen = ({ navigation }: any) => {
         AsyncStorage.setItem(WORKER_WELCOME_FLAG, '1').catch(() => {});
     };
 
+    // Worker dashboard v1: surface the worker's own assigned, not-yet-done
+    // tasks right on Home instead of requiring a drill into Farms → Farm →
+    // Tasks to discover them. Re-fetches on focus (screen stays mounted).
+    const fetchMyTasks = useCallback(() => {
+        if (!perms.isWorker || !selectedFarm?.id || !user?.id) {
+            setMyOpenTasks(null);
+            return;
+        }
+        tasksApi.getAll(selectedFarm.id, { assignedToId: user.id })
+            .then(({ data }) => {
+                const list = Array.isArray(data) ? data : (data as any)?.data ?? [];
+                setMyOpenTasks(list.filter((t: Task) => t.status === 'open' || t.status === 'in_progress'));
+            })
+            .catch(() => setMyOpenTasks(null));
+    }, [perms.isWorker, selectedFarm?.id, user?.id]);
+
+    useFocusEffect(useCallback(() => { fetchMyTasks(); }, [fetchMyTasks]));
+
     // Root-stack screens (CreateFarm, PondDashboard, Settings…) live above the
     // tab navigator; navigate via the parent so they resolve from a tab.
     const goRoot = (screen: string, params?: any) =>
@@ -538,20 +559,84 @@ export const HomeScreen = ({ navigation }: any) => {
                 </Card>
             )}
 
-            {/* Leave requests v1 (#51): worker submit/view own requests, or
-                the farm's pending approvals if the caller can manage
-                operations. Not shown to a read-only viewer. */}
-            {selectedFarm?.id && (perms.isWorker || perms.canManageOperations) && (
-                <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => goRoot('LeaveRequests', { farmId: selectedFarm.id, farmName: selectedFarm.name })}
-                >
-                    <Card style={styles.leaveCard}>
-                        <MaterialCommunityIcons name="calendar-remove-outline" size={28} color={theme.roles.light.primary} />
-                        <Text style={styles.leaveCardText}>{t('home.leaveCta')}</Text>
-                        <MaterialCommunityIcons name="chevron-right" size={22} color={theme.roles.light.textTertiary} />
-                    </Card>
-                </TouchableOpacity>
+            {/* Worker dashboard v1: assigned tasks + attendance + leave, all
+                real (attendance #50, leave #51). */}
+            {perms.isWorker && selectedFarm?.id && (
+                <>
+                    <Text style={styles.sectionTitle}>{t('home.workerDashboardTitle')}</Text>
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => goRoot('TaskList', { farmId: selectedFarm.id, farmName: selectedFarm.name, assignedToId: user?.id })}
+                    >
+                        <Card style={styles.workerModuleCard}>
+                            <MaterialCommunityIcons name="clipboard-check-outline" size={28} color={theme.roles.light.primary} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.workerModuleTitle}>{t('home.myTasksTitle')}</Text>
+                                <Text style={styles.workerModuleSub}>
+                                    {myOpenTasks == null
+                                        ? t('home.myTasksLoading')
+                                        : t('home.myTasksCount', { count: myOpenTasks.length })}
+                                </Text>
+                            </View>
+                            <MaterialCommunityIcons name="chevron-right" size={22} color={theme.roles.light.textTertiary} />
+                        </Card>
+                    </TouchableOpacity>
+                    <View style={styles.workerModuleRow}>
+                        <TouchableOpacity
+                            style={{ flex: 1 }}
+                            activeOpacity={0.7}
+                            onPress={() => goRoot('Attendance', { farmId: selectedFarm.id, farmName: selectedFarm.name })}
+                        >
+                            <View style={[styles.workerModuleCard, styles.workerModuleComingSoon, { opacity: 1 }]}>
+                                <MaterialCommunityIcons name="calendar-check-outline" size={24} color={theme.roles.light.primary} />
+                                <Text style={[styles.workerModuleComingSoonText, { color: theme.roles.light.textPrimary, fontWeight: '600' }]}>
+                                    {t('home.attendanceCta')}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{ flex: 1 }}
+                            activeOpacity={0.7}
+                            onPress={() => goRoot('LeaveRequests', { farmId: selectedFarm.id, farmName: selectedFarm.name })}
+                        >
+                            <View style={[styles.workerModuleCard, styles.workerModuleComingSoon, { opacity: 1 }]}>
+                                <MaterialCommunityIcons name="calendar-remove-outline" size={24} color={theme.roles.light.primary} />
+                                <Text style={[styles.workerModuleComingSoonText, { color: theme.roles.light.textPrimary, fontWeight: '600' }]}>
+                                    {t('home.leaveCta')}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </>
+            )}
+
+            {/* Attendance v1 (#50) / Leave v1 (#51): owner/manager entry
+                points — workers already reach both via the row above; this
+                covers the manage-operations audience the worker-only block
+                skips. */}
+            {selectedFarm?.id && !perms.isWorker && perms.canManageOperations && (
+                <>
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => goRoot('Attendance', { farmId: selectedFarm.id, farmName: selectedFarm.name })}
+                    >
+                        <Card style={styles.attendanceCard}>
+                            <MaterialCommunityIcons name="calendar-check-outline" size={28} color={theme.roles.light.primary} />
+                            <Text style={styles.attendanceCardText}>{t('home.attendanceCta')}</Text>
+                            <MaterialCommunityIcons name="chevron-right" size={22} color={theme.roles.light.textTertiary} />
+                        </Card>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => goRoot('LeaveRequests', { farmId: selectedFarm.id, farmName: selectedFarm.name })}
+                    >
+                        <Card style={styles.leaveCard}>
+                            <MaterialCommunityIcons name="calendar-remove-outline" size={28} color={theme.roles.light.primary} />
+                            <Text style={styles.leaveCardText}>{t('home.leaveCta')}</Text>
+                            <MaterialCommunityIcons name="chevron-right" size={22} color={theme.roles.light.textTertiary} />
+                        </Card>
+                    </TouchableOpacity>
+                </>
             )}
 
             <Text style={styles.sectionTitle}>{t('home.dashboardSummary')}</Text>
@@ -853,6 +938,54 @@ const styles = StyleSheet.create({
         ...theme.typeScale.bodyLarge,
         color: theme.roles.light.textPrimary,
         fontWeight: '600',
+    },
+    attendanceCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[6],
+    },
+    attendanceCardText: {
+        flex: 1,
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textPrimary,
+        fontWeight: '600',
+    },
+    workerModuleRow: {
+        flexDirection: 'row',
+        gap: theme.spacing[3],
+        marginBottom: theme.spacing[4],
+    },
+    workerModuleCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[3],
+    },
+    workerModuleTitle: {
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textPrimary,
+        fontWeight: '600',
+    },
+    workerModuleSub: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
+        marginTop: 2,
+    },
+    workerModuleComingSoon: {
+        flex: 1,
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: theme.spacing[2],
+        paddingVertical: theme.spacing[5],
+        opacity: 0.6,
+    },
+    workerModuleComingSoonText: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textTertiary,
+        textAlign: 'center',
     },
     avatar: {
         width: 44,

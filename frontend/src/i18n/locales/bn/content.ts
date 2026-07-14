@@ -101,6 +101,8 @@ const content = {
   tasks: {
     headerTitle: 'কাজ',
     headerWithFarm: 'কাজ · {{farmName}}',
+    headerMyTasks: 'আমার কাজ',
+    headerMyTasksWithFarm: 'আমার কাজ · {{farmName}}',
     addPlaceholder: 'একটি কাজ যোগ করুন…',
     errorLoad: 'কাজ লোড করা যায়নি',
     // Status labels

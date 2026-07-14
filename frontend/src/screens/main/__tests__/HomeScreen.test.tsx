@@ -26,6 +26,9 @@ jest.mock('../../../api/alertCenter', () => ({
 jest.mock('../../../api/waterQuality', () => ({
     waterQualityApi: { getAll: jest.fn() },
 }));
+jest.mock('../../../api/tasks', () => ({
+    tasksApi: { getAll: jest.fn() },
+}));
 // See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why:
 // useFocusEffect needs a NavigationContainer the plain SafeAreaProvider
 // wrapper below doesn't provide.
@@ -52,8 +55,10 @@ import { pondContextApi } from '../../../api/pondContext';
 import { farmMembersApi } from '../../../api/farmMembers';
 import { alertCenterApi } from '../../../api/alertCenter';
 import { waterQualityApi } from '../../../api/waterQuality';
+import { tasksApi } from '../../../api/tasks';
 import { useActiveFarmStore } from '../../../store/activeFarmStore';
 import { useMembershipStore } from '../../../store/membershipStore';
+import { useAuthStore } from '../../../store/authStore';
 
 const mockedGetAll = farmsApi.getAll as jest.Mock;
 const mockedGetById = farmsApi.getById as jest.Mock;
@@ -64,6 +69,7 @@ const mockedListMembers = farmMembersApi.listMembers as jest.Mock;
 const mockedLiveBriefing = alertCenterApi.liveBriefing as jest.Mock;
 const mockedBriefing = alertCenterApi.briefing as jest.Mock;
 const mockedWqGetAll = waterQualityApi.getAll as jest.Mock;
+const mockedTasksGetAll = tasksApi.getAll as jest.Mock;
 
 // See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why:
 // react-native-safe-area-context's initialWindowMetrics is statically null
@@ -248,5 +254,87 @@ describe('HomeScreen — worker first-run interstitial', () => {
         await findByText('Active Ponds');
 
         expect(queryByText(/You're part of/)).toBeNull();
+    });
+});
+
+describe('HomeScreen — worker dashboard v1 (#48)', () => {
+    beforeEach(async () => {
+        jest.clearAllMocks();
+        await AsyncStorage.clear();
+        useActiveFarmStore.setState({ selectedFarm: FARM } as any);
+        useAuthStore.setState({ user: { id: 'worker-1', email: 'w@pond.in', accountType: 'worker' } } as any);
+        useMembershipStore.setState({
+            memberships: [{ farmId: 'farm-1', role: 'worker', farm: FARM }],
+            loaded: true, loading: false,
+        } as any);
+        mockedGetAll.mockResolvedValue({ data: [FARM] });
+        mockedDashboard.mockResolvedValue({
+            data: { activePondsCount: 1, totalPondsCount: 1, lowStockAlerts: 0, todayFeedUsage: 0 },
+        });
+        mockedGetMine.mockResolvedValue({ data: [POND] });
+        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } });
+        mockedPondContext.mockResolvedValue({ data: emptyPondContext });
+        mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }, { id: 'worker-1' }] });
+        mockedLiveBriefing.mockResolvedValue({ data: [] });
+        mockedBriefing.mockResolvedValue({ data: [] });
+        mockedWqGetAll.mockResolvedValue({ data: [] });
+        await AsyncStorage.setItem(WORKER_WELCOME_FLAG, '1'); // interstitial already seen
+    });
+
+    it("shows the worker's open/in-progress assigned task count", async () => {
+        mockedTasksGetAll.mockResolvedValue({
+            data: [
+                { id: 't1', status: 'open' },
+                { id: 't2', status: 'in_progress' },
+                { id: 't3', status: 'done' },
+            ],
+        });
+
+        const { findByText } = renderScreen();
+
+        expect(await findByText('2 open')).toBeTruthy();
+        expect(mockedTasksGetAll).toHaveBeenCalledWith('farm-1', { assignedToId: 'worker-1' });
+    });
+
+    it('tapping "My tasks" navigates to TaskList filtered to this worker', async () => {
+        mockedTasksGetAll.mockResolvedValue({ data: [] });
+
+        const { findByText } = renderScreen();
+        fireEvent.press(await findByText('My tasks'));
+
+        expect(navigation.navigate).toHaveBeenCalledWith('TaskList', {
+            farmId: 'farm-1', farmName: "Ravi's Farm", assignedToId: 'worker-1',
+        });
+    });
+
+    it('shows real, interactive attendance and leave entry points', async () => {
+        mockedTasksGetAll.mockResolvedValue({ data: [] });
+
+        const { getAllByText } = renderScreen();
+
+        expect(getAllByText('Attendance').length).toBeGreaterThan(0);
+        expect(getAllByText('Leave').length).toBeGreaterThan(0);
+    });
+
+    it('navigates to Attendance when the attendance tile is tapped', async () => {
+        mockedTasksGetAll.mockResolvedValue({ data: [] });
+
+        const { findByText } = renderScreen();
+        fireEvent.press(await findByText('Attendance'));
+
+        expect(navigation.navigate).toHaveBeenCalledWith('Attendance', {
+            farmId: 'farm-1', farmName: "Ravi's Farm",
+        });
+    });
+
+    it('navigates to LeaveRequests when the leave tile is tapped', async () => {
+        mockedTasksGetAll.mockResolvedValue({ data: [] });
+
+        const { findByText } = renderScreen();
+        fireEvent.press(await findByText('Leave'));
+
+        expect(navigation.navigate).toHaveBeenCalledWith('LeaveRequests', {
+            farmId: 'farm-1', farmName: "Ravi's Farm",
+        });
     });
 });

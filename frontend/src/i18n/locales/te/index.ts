@@ -27,6 +27,7 @@ import diagnose from './diagnose';
 import onboarding from './onboarding';
 
 import leave from './leave';
+import attendance from './attendance';
 
 export default {
   common,
@@ -52,4 +53,5 @@ export default {
   diagnose,
   onboarding,
   leave,
+  attendance,
 };
