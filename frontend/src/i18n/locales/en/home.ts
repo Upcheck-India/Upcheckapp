@@ -120,6 +120,12 @@ const home = {
   onboarding_exampleCaption: "This is what a pond's dashboard looks like once you start logging — your own numbers will appear here.",
   workerJoinFarmCta: 'Enter a farm join code',
   reportsViewTransactions: 'View Transactions',
+  workerDashboardTitle: 'Your work',
+  myTasksTitle: 'My tasks',
+  myTasksLoading: 'Loading…',
+  myTasksCount: '{{count}} open',
+  attendanceComingSoon: 'Attendance — coming soon',
+  leaveComingSoon: 'Leave — coming soon',
 
   // ── Farm-at-a-glance dashboard cards ──────────────────────────────────────
   farmGlance: 'Farm at a glance',

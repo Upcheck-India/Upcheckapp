@@ -120,6 +120,12 @@ const home = {
   onboarding_exampleCaption: 'మీరు నమోదు చేయడం ప్రారంభించిన తర్వాత చెరువు డాష్‌బోర్డ్ ఇలా కనిపిస్తుంది — మీ స్వంత సంఖ్యలు ఇక్కడ కనిపిస్తాయి.',
   workerJoinFarmCta: 'ఫామ్ జాయిన్ కోడ్‌ను నమోదు చేయండి',
   reportsViewTransactions: 'లావాదేవీలను చూడండి',
+  workerDashboardTitle: 'మీ పని',
+  myTasksTitle: 'నా పనులు',
+  myTasksLoading: 'లోడ్ అవుతోంది…',
+  myTasksCount: '{{count}} తెరిచి ఉన్నాయి',
+  attendanceComingSoon: 'హాజరు — త్వరలో వస్తుంది',
+  leaveComingSoon: 'సెలవు — త్వరలో వస్తుంది',
 
   // Farm-at-a-glance cards
   farmGlance: 'ఫారం ఒక్క చూపులో',
