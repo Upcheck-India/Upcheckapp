@@ -307,12 +307,23 @@ describe('HomeScreen — worker dashboard v1 (#48)', () => {
         });
     });
 
-    it('shows attendance/leave as coming-soon placeholders', async () => {
+    it('shows a real, interactive attendance entry point and a leave coming-soon placeholder', async () => {
+        mockedTasksGetAll.mockResolvedValue({ data: [] });
+
+        const { findByText, getAllByText } = renderScreen();
+
+        expect(await findByText('Leave — coming soon')).toBeTruthy();
+        expect(getAllByText('Attendance').length).toBeGreaterThan(0);
+    });
+
+    it('navigates to Attendance when the attendance tile is tapped', async () => {
         mockedTasksGetAll.mockResolvedValue({ data: [] });
 
         const { findByText } = renderScreen();
+        fireEvent.press(await findByText('Attendance'));
 
-        expect(await findByText('Attendance — coming soon')).toBeTruthy();
-        expect(await findByText('Leave — coming soon')).toBeTruthy();
+        expect(navigation.navigate).toHaveBeenCalledWith('Attendance', {
+            farmId: 'farm-1', farmName: "Ravi's Farm",
+        });
     });
 });

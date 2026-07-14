@@ -119,6 +119,7 @@ const home = {
   onboarding_exampleSurvival: 'বেঁচে থাকার হার',
   onboarding_exampleCaption: 'আপনি লগ করা শুরু করলে একটি পুকুরের ড্যাশবোর্ড এমন দেখাবে — আপনার নিজের সংখ্যাগুলি এখানে প্রদর্শিত হবে।',
   workerJoinFarmCta: 'খামার জয়েন কোড লিখুন',
+  attendanceCta: 'উপস্থিতি',
   reportsViewTransactions: 'লেনদেন দেখুন',
   workerDashboardTitle: 'আপনার কাজ',
   myTasksTitle: 'আমার কাজ',
