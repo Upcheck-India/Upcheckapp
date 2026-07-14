@@ -91,6 +91,7 @@ import { DiagnoseScreen } from '../screens/diseases/DiagnoseScreen';
 
 // Tasks
 import { TaskListScreen } from '../screens/tasks/TaskListScreen';
+import { LeaveRequestsScreen } from '../screens/leave/LeaveRequestsScreen';
 import { NewsListScreen } from '../screens/news/NewsListScreen';
 import { NewsDetailScreen } from '../screens/news/NewsDetailScreen';
 import { ShopScreen } from '../screens/shop/ShopScreen';
@@ -208,6 +209,9 @@ export type RootStackParamList = {
 
     // Tasks
     TaskList: { farmId: string; farmName?: string };
+
+    // Leave requests
+    LeaveRequests: { farmId: string; farmName?: string };
 
     // News / eShop / Reference
     NewsList: undefined;
@@ -385,6 +389,7 @@ const RootNavigator = () => {
 
                     {/* Tasks */}
                     <Stack.Screen name="TaskList" component={TaskListScreen} />
+                    <Stack.Screen name="LeaveRequests" component={LeaveRequestsScreen} />
 
                     {/* News / eShop / Reference */}
                     <Stack.Screen name="NewsList" component={NewsListScreen} />

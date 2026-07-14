@@ -538,6 +538,22 @@ export const HomeScreen = ({ navigation }: any) => {
                 </Card>
             )}
 
+            {/* Leave requests v1 (#51): worker submit/view own requests, or
+                the farm's pending approvals if the caller can manage
+                operations. Not shown to a read-only viewer. */}
+            {selectedFarm?.id && (perms.isWorker || perms.canManageOperations) && (
+                <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => goRoot('LeaveRequests', { farmId: selectedFarm.id, farmName: selectedFarm.name })}
+                >
+                    <Card style={styles.leaveCard}>
+                        <MaterialCommunityIcons name="calendar-remove-outline" size={28} color={theme.roles.light.primary} />
+                        <Text style={styles.leaveCardText}>{t('home.leaveCta')}</Text>
+                        <MaterialCommunityIcons name="chevron-right" size={22} color={theme.roles.light.textTertiary} />
+                    </Card>
+                </TouchableOpacity>
+            )}
+
             <Text style={styles.sectionTitle}>{t('home.dashboardSummary')}</Text>
             {isLoading ? (
                 // Skeleton placeholders matching the stat grid — perceived speed
@@ -824,6 +840,19 @@ const styles = StyleSheet.create({
         ...theme.typeScale.bodyMedium,
         color: theme.roles.light.textSecondary,
         textAlign: 'center',
+    },
+    leaveCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[6],
+    },
+    leaveCardText: {
+        flex: 1,
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textPrimary,
+        fontWeight: '600',
     },
     avatar: {
         width: 44,
