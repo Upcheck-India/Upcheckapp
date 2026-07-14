@@ -119,6 +119,12 @@ const home = {
   onboarding_exampleSurvival: 'ବଞ୍ଚିବା ହାର',
   onboarding_exampleCaption: 'ଆପଣ ଲଗ୍ କରିବା ଆରମ୍ଭ କଲେ ପୋଖରୀ ଡ୍ୟାସବୋର୍ଡ଼ ଏମିତି ଦେଖାଯିବ — ଆପଣଙ୍କର ନିଜ ସଂଖ୍ୟା ଏଠାରେ ଦେଖାଯିବ।',
   reportsViewTransactions: 'କାରବାର ଦେଖନ୍ତୁ',
+  workerDashboardTitle: 'ଆପଣଙ୍କର କାର୍ଯ୍ୟ',
+  myTasksTitle: 'ମୋର କାର୍ଯ୍ୟ',
+  myTasksLoading: 'ଲୋଡ୍ ହେଉଛି…',
+  myTasksCount: '{{count}} ଖୋଲା',
+  attendanceComingSoon: 'ଉପସ୍ଥିତି — ଶୀଘ୍ର ଆସୁଛି',
+  leaveComingSoon: 'ଛୁଟି — ଶୀଘ୍ର ଆସୁଛି',
 
   // Farm-at-a-glance card
   farmGlance: 'ଏକ ନଜରରେ ଫାର୍ମ',

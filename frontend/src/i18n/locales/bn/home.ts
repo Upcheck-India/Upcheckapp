@@ -119,6 +119,12 @@ const home = {
   onboarding_exampleSurvival: 'বেঁচে থাকার হার',
   onboarding_exampleCaption: 'আপনি লগ করা শুরু করলে একটি পুকুরের ড্যাশবোর্ড এমন দেখাবে — আপনার নিজের সংখ্যাগুলি এখানে প্রদর্শিত হবে।',
   reportsViewTransactions: 'লেনদেন দেখুন',
+  workerDashboardTitle: 'আপনার কাজ',
+  myTasksTitle: 'আমার কাজ',
+  myTasksLoading: 'লোড হচ্ছে…',
+  myTasksCount: '{{count}}টি খোলা',
+  attendanceComingSoon: 'উপস্থিতি — শীঘ্রই আসছে',
+  leaveComingSoon: 'ছুটি — শীঘ্রই আসছে',
 
   // Farm-at-a-glance cards (HomeScreen)
   farmGlance: 'এক নজরে খামার',

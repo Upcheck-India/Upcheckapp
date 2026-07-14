@@ -101,6 +101,8 @@ const content = {
   tasks: {
     headerTitle: 'పనులు',
     headerWithFarm: 'పనులు · {{farmName}}',
+    headerMyTasks: 'నా పనులు',
+    headerMyTasksWithFarm: 'నా పనులు · {{farmName}}',
     addPlaceholder: 'పని జోడించు…',
     errorLoad: 'పనులు లోడ్ కాలేదు',
     // Status labels

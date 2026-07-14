@@ -119,6 +119,12 @@ const home = {
   onboarding_exampleSurvival: 'உயிர்வாழ்வு',
   onboarding_exampleCaption: 'நீங்கள் பதிவு செய்யத் தொடங்கியதும் ஒரு குளத்தின் டாஷ்போர்டு இப்படித்தான் தெரியும் — உங்கள் சொந்த எண்கள் இங்கே தோன்றும்.',
   reportsViewTransactions: 'பரிவர்த்தனைகளைக் காண்க',
+  workerDashboardTitle: 'உங்கள் பணி',
+  myTasksTitle: 'எனது பணிகள்',
+  myTasksLoading: 'ஏற்றுகிறது…',
+  myTasksCount: '{{count}} திறந்துள்ளன',
+  attendanceComingSoon: 'வருகைப் பதிவு — விரைவில்',
+  leaveComingSoon: 'விடுப்பு — விரைவில்',
 
   // Farm-at-a-glance cards (HomeScreen)
   farmGlance: 'பண்ணை ஒரு பார்வையில்',
