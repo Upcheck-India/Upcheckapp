@@ -5,6 +5,12 @@ const members = {
     workerCodeCopied: 'କୋଡ୍ କପି ହୋଇଛି',
     workerCodeShareMessage: 'ମୋ Upcheck ୱାର୍କର କୋଡ୍: {{code}}',
 
+    farmCodeLabel: 'ଫାର୍ମ ଯୋଗଦାନ କୋଡ୍',
+    farmCodeHint: 'ଜଣେ ୱର୍କର ନିଜେ ଏହି ଫାର୍ମରେ ଯୋଗ ଦେବାକୁ ଏହି କୋଡ୍ ସେମାନଙ୍କ ସହିତ ସେୟାର କରନ୍ତୁ।',
+    copyCode: 'କୋଡ୍ କପି କରନ୍ତୁ',
+    codeCopiedTitle: 'କପି ହୋଇଗଲା',
+    codeCopiedSub: 'ଫାର୍ମ କୋଡ୍ କ୍ଲିପବୋର୍ଡକୁ କପି ହୋଇଗଲା।',
+
     title: 'ଫାର୍ମ ଦଳ',
     emptyTitle: 'ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଦଳ ସଦସ୍ୟ ନାହାନ୍ତି',
     emptySub: 'ଜଣେ ୱାର୍କର ଯୋଡ଼ନ୍ତୁ ଯେପରି ସେ ଏହି ଫାର୍ମ ପାଇଁ ଜଳ ଗୁଣବତ୍ତା ଓ ଖାଦ୍ୟ ଲିପିବଦ୍ଧ କରିପାରିବେ।',

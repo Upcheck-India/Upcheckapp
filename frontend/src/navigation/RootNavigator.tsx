@@ -100,6 +100,7 @@ import { ReferenceScreen } from '../screens/reference/ReferenceScreen';
 import { HarvestPlansScreen } from '../screens/harvest/HarvestPlansScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
 import { PondSetupScreen } from '../screens/onboarding/PondSetupScreen';
+import { JoinFarmScreen } from '../screens/onboarding/JoinFarmScreen';
 import { OtpLoginScreen } from '../screens/auth/OtpLoginScreen';
 import { OtpCallbackScreen } from '../screens/auth/OtpCallbackScreen';
 import { TwoFactorChallengeScreen } from '../screens/auth/TwoFactorChallengeScreen';
@@ -224,6 +225,7 @@ export type RootStackParamList = {
     // First-run onboarding
     Welcome: undefined;
     PondSetup: { farmId: string; totalPonds: number };
+    JoinFarm: undefined;
 
     // Additional calculators + feed products
     GrowthAndHarvest: undefined;
@@ -234,7 +236,7 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
-    const { isLoading, isAuthenticated, pendingFarmSetup, initialize } = useAuthStore();
+    const { isLoading, isAuthenticated, pendingFarmSetup, pendingFarmJoin, initialize } = useAuthStore();
     const loadMemberships = useMembershipStore((s) => s.load);
     const resetMemberships = useMembershipStore((s) => s.reset);
 
@@ -260,8 +262,15 @@ const RootNavigator = () => {
     return (
         <Stack.Navigator
             // Owners who just registered land on Create-Farm first (mandatory
-            // first-run setup); everyone else starts on the main app / login.
-            initialRouteName={isAuthenticated && pendingFarmSetup ? 'CreateFarm' : undefined}
+            // first-run setup); workers who just registered land on Join-Farm
+            // first; everyone else starts on the main app / login.
+            initialRouteName={
+                isAuthenticated && pendingFarmSetup
+                    ? 'CreateFarm'
+                    : isAuthenticated && pendingFarmJoin
+                        ? 'JoinFarm'
+                        : undefined
+            }
             screenOptions={{
                 headerShown: false,
                 animation: 'slide_from_right',
@@ -298,6 +307,7 @@ const RootNavigator = () => {
 
                     <Stack.Screen name="CreateFarm" component={CreateFarmScreen} />
                     <Stack.Screen name="PondSetup" component={PondSetupScreen} />
+                    <Stack.Screen name="JoinFarm" component={JoinFarmScreen} />
                     <Stack.Screen name="FarmDetail" component={FarmDetailScreen} />
                     <Stack.Screen name="FarmMembers" component={FarmMembersScreen} />
                     <Stack.Screen name="AllWorkers" component={AllWorkersScreen} />

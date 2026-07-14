@@ -6,6 +6,13 @@ const members = {
     workerCodeCopied: 'Code copied',
     workerCodeShareMessage: 'My Upcheck worker code: {{code}}',
 
+    // Farm join code (shown to owner/manager so a worker can self-join)
+    farmCodeLabel: 'Farm join code',
+    farmCodeHint: 'Share this code with a worker so they can join this farm themselves.',
+    copyCode: 'Copy code',
+    codeCopiedTitle: 'Copied',
+    codeCopiedSub: 'Farm code copied to clipboard.',
+
     // Members list
     title: 'Farm Team',
     emptyTitle: 'No team members yet',

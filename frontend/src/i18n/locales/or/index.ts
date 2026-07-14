@@ -24,6 +24,8 @@ import harvestPlans from './harvestPlans';
 
 import diagnose from './diagnose';
 
+import onboarding from './onboarding';
+
 export default {
   common,
   history,
@@ -46,4 +48,5 @@ export default {
   members,
   harvestPlans,
   diagnose,
+  onboarding,
 };

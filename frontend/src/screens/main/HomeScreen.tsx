@@ -599,10 +599,18 @@ export const HomeScreen = ({ navigation }: any) => {
                         <MaterialCommunityIcons name="barn" size={28} color={theme.roles.light.primary} />
                     </View>
                     {user?.accountType === 'worker' ? (
-                        // A worker with no farm membership yet — guide them, don't push farm creation.
-                        <Text style={styles.ctaText}>
-                            {t('home.workerNoFarm', 'Ask your farm owner to add you to a farm to get started.')}
-                        </Text>
+                        // A worker with no farm membership yet — let them self-serve join
+                        // with a farm code, or ask their owner as before.
+                        <>
+                            <Text style={styles.ctaText}>
+                                {t('home.workerNoFarm', 'Ask your farm owner to add you to a farm to get started.')}
+                            </Text>
+                            <Button
+                                title={t('home.workerJoinFarmCta')}
+                                onPress={() => goRoot('JoinFarm')}
+                                style={styles.ctaBtn}
+                            />
+                        </>
                     ) : (
                         <>
                             <Text style={styles.ctaText}>{t('home.noFarmData')}</Text>

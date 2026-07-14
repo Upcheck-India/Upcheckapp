@@ -54,6 +54,11 @@ interface AuthState {
     // the owner into the Create-Farm screen exactly once after registration.
     pendingFarmSetup: boolean;
 
+    // ── First-run worker farm join ──
+    // True after a worker signs up, until they join a farm (or explicitly skip).
+    // Gates the worker into the Join-Farm screen exactly once after registration.
+    pendingFarmJoin: boolean;
+
     // ── Error ──
     error: string | null;
 
@@ -63,6 +68,7 @@ interface AuthState {
     setPendingVerification: (email: string) => void;
     clearPendingVerification: () => void;
     completeFarmSetup: () => void;
+    completeFarmJoin: () => void;
     setError: (error: string | null) => void;
     clearError: () => void;
     clearSession: () => void;
@@ -113,6 +119,7 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             pendingVerificationEmail: null,
             pendingFarmSetup: false,
+            pendingFarmJoin: false,
             error: null,
 
             setSession: (session) =>
@@ -142,6 +149,10 @@ export const useAuthStore = create<AuthState>()(
             // render lands them on the main app.
             completeFarmSetup: () => set({ pendingFarmSetup: false }),
 
+            // Worker joined a farm (or skipped) — drop the gate so the next
+            // render lands them on the main app.
+            completeFarmJoin: () => set({ pendingFarmJoin: false }),
+
             setError: (error) => set({ error, isLoading: false }),
             clearError: () => set({ error: null }),
 
@@ -161,6 +172,7 @@ export const useAuthStore = create<AuthState>()(
                     status: 'unauthenticated',
                     pendingVerificationEmail: null,
                     pendingFarmSetup: false,
+                    pendingFarmJoin: false,
                     error: null,
                     isLoading: false,
                 });
@@ -306,9 +318,12 @@ export const useAuthStore = create<AuthState>()(
                 try {
                     const { data } = await authApi.signup({ email, password, firstName, lastName, accountType });
                     // Owners must complete first-run farm setup before reaching the
-                    // app; workers go straight to the dashboard. The flag is read by
-                    // RootNavigator once the user becomes authenticated.
-                    set({ pendingFarmSetup: accountType === 'owner' });
+                    // app; workers are gated into a join-a-farm step instead. Both
+                    // flags are read by RootNavigator once the user is authenticated.
+                    set({
+                        pendingFarmSetup: accountType === 'owner',
+                        pendingFarmJoin: accountType === 'worker',
+                    });
                     if (data.session) {
                         get().setSession(data.session);
                     } else {
@@ -390,6 +405,7 @@ export const useAuthStore = create<AuthState>()(
                 userEmail: state.user?.email,
                 pendingVerificationEmail: state.pendingVerificationEmail,
                 pendingFarmSetup: state.pendingFarmSetup,
+                pendingFarmJoin: state.pendingFarmJoin,
             }),
         }
     )

@@ -118,6 +118,7 @@ const home = {
   onboarding_exampleFcr: 'FCR',
   onboarding_exampleSurvival: 'Survival',
   onboarding_exampleCaption: "This is what a pond's dashboard looks like once you start logging — your own numbers will appear here.",
+  workerJoinFarmCta: 'Enter a farm join code',
   reportsViewTransactions: 'View Transactions',
 
   // ── Farm-at-a-glance dashboard cards ──────────────────────────────────────
