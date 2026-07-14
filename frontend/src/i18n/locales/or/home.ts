@@ -119,6 +119,7 @@ const home = {
   onboarding_exampleSurvival: 'ବଞ୍ଚିବା ହାର',
   onboarding_exampleCaption: 'ଆପଣ ଲଗ୍ କରିବା ଆରମ୍ଭ କଲେ ପୋଖରୀ ଡ୍ୟାସବୋର୍ଡ଼ ଏମିତି ଦେଖାଯିବ — ଆପଣଙ୍କର ନିଜ ସଂଖ୍ୟା ଏଠାରେ ଦେଖାଯିବ।',
   workerJoinFarmCta: 'ଫାର୍ମ ଯୋଗଦାନ କୋଡ୍ ପ୍ରବେଶ କରନ୍ତୁ',
+  attendanceCta: 'ଉପସ୍ଥିତି',
   reportsViewTransactions: 'କାରବାର ଦେଖନ୍ତୁ',
 
   // Farm-at-a-glance card
