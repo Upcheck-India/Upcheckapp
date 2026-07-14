@@ -5,6 +5,12 @@ const members = {
     workerCodeCopied: 'কোড কপি হয়েছে',
     workerCodeShareMessage: 'আমার Upcheck কর্মী কোড: {{code}}',
 
+    farmCodeLabel: 'খামার জয়েন কোড',
+    farmCodeHint: 'একজন কর্মী নিজে এই খামারে যোগ দিতে পারার জন্য এই কোডটি তার সাথে শেয়ার করুন।',
+    copyCode: 'কোড কপি করুন',
+    codeCopiedTitle: 'কপি হয়েছে',
+    codeCopiedSub: 'খামার কোড ক্লিপবোর্ডে কপি হয়েছে।',
+
     title: 'খামার দল',
     emptyTitle: 'এখনও কোনো দল সদস্য নেই',
     emptySub: 'একজন কর্মী যোগ করুন যাতে তিনি এই খামারের জন্য জলের গুণমান ও খাদ্য লিপিবদ্ধ করতে পারেন।',

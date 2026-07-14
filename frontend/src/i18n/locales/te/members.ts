@@ -5,6 +5,12 @@ const members = {
     workerCodeCopied: 'కోడ్ కాపీ చేయబడింది',
     workerCodeShareMessage: 'నా Upcheck వర్కర్ కోడ్: {{code}}',
 
+    farmCodeLabel: 'ఫామ్ జాయిన్ కోడ్',
+    farmCodeHint: 'ఒక వర్కర్ ఈ ఫామ్‌లో స్వయంగా చేరడానికి ఈ కోడ్‌ను వారితో పంచుకోండి.',
+    copyCode: 'కోడ్ కాపీ చేయండి',
+    codeCopiedTitle: 'కాపీ అయ్యింది',
+    codeCopiedSub: 'ఫామ్ కోడ్ క్లిప్‌బోర్డ్‌కు కాపీ చేయబడింది.',
+
     title: 'ఫారం టీం',
     emptyTitle: 'ఇంకా టీం సభ్యులు లేరు',
     emptySub: 'ఒక వర్కర్‌ను చేర్చండి, వారు ఈ ఫారం కోసం నీటి నాణ్యత మరియు మేత నమోదు చేయగలరు.',

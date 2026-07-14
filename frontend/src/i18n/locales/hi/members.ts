@@ -5,6 +5,12 @@ const members = {
     workerCodeCopied: 'कोड कॉपी हो गया',
     workerCodeShareMessage: 'मेरा Upcheck वर्कर कोड: {{code}}',
 
+    farmCodeLabel: 'फार्म जॉइन कोड',
+    farmCodeHint: 'यह कोड किसी वर्कर के साथ साझा करें ताकि वे खुद इस फार्म से जुड़ सकें।',
+    copyCode: 'कोड कॉपी करें',
+    codeCopiedTitle: 'कॉपी हो गया',
+    codeCopiedSub: 'फार्म कोड क्लिपबोर्ड पर कॉपी हो गया।',
+
     title: 'फ़ार्म टीम',
     emptyTitle: 'अभी कोई टीम सदस्य नहीं',
     emptySub: 'एक वर्कर जोड़ें ताकि वह इस फ़ार्म के लिए जल गुणवत्ता और फ़ीड दर्ज कर सके।',
