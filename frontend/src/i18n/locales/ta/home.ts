@@ -121,6 +121,12 @@ const home = {
   workerJoinFarmCta: 'பண்ணை இணைப்புக் குறியீட்டை உள்ளிடவும்',
   attendanceCta: 'வருகைப் பதிவு',
   reportsViewTransactions: 'பரிவர்த்தனைகளைக் காண்க',
+  workerDashboardTitle: 'உங்கள் பணி',
+  myTasksTitle: 'எனது பணிகள்',
+  myTasksLoading: 'ஏற்றுகிறது…',
+  myTasksCount: '{{count}} திறந்துள்ளன',
+  attendanceComingSoon: 'வருகைப் பதிவு — விரைவில்',
+  leaveComingSoon: 'விடுப்பு — விரைவில்',
 
   // Farm-at-a-glance cards (HomeScreen)
   farmGlance: 'பண்ணை ஒரு பார்வையில்',

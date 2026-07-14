@@ -101,6 +101,8 @@ const content = {
   tasks: {
     headerTitle: 'कार्य',
     headerWithFarm: 'कार्य · {{farmName}}',
+    headerMyTasks: 'मेरे कार्य',
+    headerMyTasksWithFarm: 'मेरे कार्य · {{farmName}}',
     addPlaceholder: 'कार्य जोड़ें…',
     errorLoad: 'कार्य लोड नहीं हो सके',
     // Status labels

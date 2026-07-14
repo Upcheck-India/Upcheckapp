@@ -121,6 +121,12 @@ const home = {
   workerJoinFarmCta: 'फार्म जॉइन कोड दर्ज करें',
   attendanceCta: 'हाज़िरी',
   reportsViewTransactions: 'लेन-देन देखें',
+  workerDashboardTitle: 'आपका काम',
+  myTasksTitle: 'मेरे कार्य',
+  myTasksLoading: 'लोड हो रहा है…',
+  myTasksCount: '{{count}} खुले',
+  attendanceComingSoon: 'हाज़िरी — जल्द आ रहा है',
+  leaveComingSoon: 'छुट्टी — जल्द आ रहा है',
 
   // Farm-at-a-glance cards (HomeScreen)
   farmGlance: 'एक नज़र में फार्म',

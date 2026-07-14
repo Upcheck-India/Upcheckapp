@@ -121,6 +121,12 @@ const home = {
   workerJoinFarmCta: 'Enter a farm join code',
   attendanceCta: 'Attendance',
   reportsViewTransactions: 'View Transactions',
+  workerDashboardTitle: 'Your work',
+  myTasksTitle: 'My tasks',
+  myTasksLoading: 'Loading…',
+  myTasksCount: '{{count}} open',
+  attendanceComingSoon: 'Attendance — coming soon',
+  leaveComingSoon: 'Leave — coming soon',
 
   // ── Farm-at-a-glance dashboard cards ──────────────────────────────────────
   farmGlance: 'Farm at a glance',

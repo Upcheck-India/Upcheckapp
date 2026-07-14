@@ -121,6 +121,12 @@ const home = {
   workerJoinFarmCta: 'ఫామ్ జాయిన్ కోడ్‌ను నమోదు చేయండి',
   attendanceCta: 'హాజరు',
   reportsViewTransactions: 'లావాదేవీలను చూడండి',
+  workerDashboardTitle: 'మీ పని',
+  myTasksTitle: 'నా పనులు',
+  myTasksLoading: 'లోడ్ అవుతోంది…',
+  myTasksCount: '{{count}} తెరిచి ఉన్నాయి',
+  attendanceComingSoon: 'హాజరు — త్వరలో వస్తుంది',
+  leaveComingSoon: 'సెలవు — త్వరలో వస్తుంది',
 
   // Farm-at-a-glance cards
   farmGlance: 'ఫారం ఒక్క చూపులో',

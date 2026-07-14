@@ -31,7 +31,7 @@ const NEXT_STATUS: Record<string, string> = {
 };
 
 export const TaskListScreen = ({ route, navigation }: any) => {
-    const { farmId, farmName } = route.params;
+    const { farmId, farmName, assignedToId } = route.params;
     const { t } = useTranslation();
     const perms = usePermissions(farmId);
 
@@ -52,7 +52,7 @@ export const TaskListScreen = ({ route, navigation }: any) => {
     const fetchTasks = useCallback(async () => {
         setError(null);
         try {
-            const { data } = await tasksApi.getAll(farmId);
+            const { data } = await tasksApi.getAll(farmId, assignedToId ? { assignedToId } : undefined);
             const list = Array.isArray(data) ? data : (data as any)?.data ?? [];
             setTasks(list);
         } catch (err) {
@@ -61,7 +61,7 @@ export const TaskListScreen = ({ route, navigation }: any) => {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, [farmId]);
+    }, [farmId, assignedToId]);
 
     useFocusEffect(
         useCallback(() => {
@@ -171,9 +171,13 @@ export const TaskListScreen = ({ route, navigation }: any) => {
                     <MaterialCommunityIcons name="arrow-left" size={24} color={c.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle} numberOfLines={1}>
-                    {farmName
-                        ? t('content.tasks.headerWithFarm', { farmName })
-                        : t('content.tasks.headerTitle')}
+                    {assignedToId
+                        ? (farmName
+                            ? t('content.tasks.headerMyTasksWithFarm', { farmName })
+                            : t('content.tasks.headerMyTasks'))
+                        : (farmName
+                            ? t('content.tasks.headerWithFarm', { farmName })
+                            : t('content.tasks.headerTitle'))}
                 </Text>
                 <View style={{ width: 40 }} />
             </View>

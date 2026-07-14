@@ -121,6 +121,12 @@ const home = {
   workerJoinFarmCta: 'খামার জয়েন কোড লিখুন',
   attendanceCta: 'উপস্থিতি',
   reportsViewTransactions: 'লেনদেন দেখুন',
+  workerDashboardTitle: 'আপনার কাজ',
+  myTasksTitle: 'আমার কাজ',
+  myTasksLoading: 'লোড হচ্ছে…',
+  myTasksCount: '{{count}}টি খোলা',
+  attendanceComingSoon: 'উপস্থিতি — শীঘ্রই আসছে',
+  leaveComingSoon: 'ছুটি — শীঘ্রই আসছে',
 
   // Farm-at-a-glance cards (HomeScreen)
   farmGlance: 'এক নজরে খামার',
