@@ -82,7 +82,7 @@ interface AuthState {
     googleLogin: (idToken: string, intent?: 'signin' | 'signup') => Promise<{ requires2FA: boolean; tempToken?: string }>;
     signup: (email: string, password: string, firstName?: string, lastName?: string, accountType?: AccountType) => Promise<void>;
     logout: () => Promise<void>;
-    deleteAccount: () => Promise<void>;
+    deleteAccount: (password?: string) => Promise<void>;
     forgotPassword: (email: string) => Promise<void>;
 }
 
@@ -365,10 +365,11 @@ export const useAuthStore = create<AuthState>()(
                 get().clearSession();
             },
 
-            deleteAccount: async () => {
+            deleteAccount: async (password?: string) => {
                 // Permanently removes the account + owned data server-side, then
                 // clears the local session (returns the user to the sign-in stack).
-                await profilesApi.deleteMe();
+                // Password is re-verified server-side for email/password accounts.
+                await profilesApi.deleteMe(password);
                 try {
                     TruecallerAuth.clear();
                 } catch {

@@ -41,6 +41,8 @@ const farms = {
 
   // FarmSetupScreen
   setupTitle: 'আপনার খামার সেট করুন',
+  createFarmTitle: 'খামার তৈরি করুন',
+  setupLater: 'পরে সেট করুন',
   setupSubtitle: 'শুরু করতে আপনার খামার সম্পর্কে কিছু বলুন।',
   fieldPondCount: 'পুকুরের সংখ্যা',
   placeholderPondCount: 'যেমন: 4',

@@ -122,6 +122,23 @@ const settings = {
   deleteAccountConfirm: 'This permanently deletes your account and all your farm data. This cannot be undone. Continue?',
   deleteAccountHint: 'Permanently removes your account and all data you own.',
   deleteAccountError: 'Could not delete your account. Please try again.',
+  // Strict delete-account confirmation screen
+  deleteAccountTitle: 'Delete account',
+  deleteAccountWarningTitle: 'This cannot be undone',
+  deleteAccountWarningBody: 'Deleting your account permanently removes it and all data you own. You will be signed out immediately.',
+  deleteAccountWhatTitle: 'What gets deleted',
+  deleteAccountItemFarms: 'All farms you own, and their ponds and cycles',
+  deleteAccountItemLogs: 'All water, feed, sampling and health records',
+  deleteAccountItemFinance: 'All financial records, inventory and reports',
+  deleteAccountItemTeam: 'Your team memberships on other farms',
+  deleteAccountReuseNote: 'Your email will be freed — you can sign up again later as a new user.',
+  deleteConfirmPrompt: 'To confirm, type the text below exactly:',
+  deleteConfirmLabel: 'Confirmation',
+  deleteConfirmWord: 'DELETE',
+  deletePasswordLabel: 'Your password',
+  deletePasswordHint: 'Enter your password to confirm it is you.',
+  deleteAccountButton: 'Permanently delete my account',
+  deleteAccountWrongPassword: 'Password is incorrect.',
 };
 
 export default settings;

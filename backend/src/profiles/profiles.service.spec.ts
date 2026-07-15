@@ -1,3 +1,4 @@
+import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -22,6 +23,7 @@ const createMockRepository = () => ({
 describe('ProfilesService', () => {
   let service: ProfilesService;
   let mockRepository: any;
+  let authService: any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -30,10 +32,27 @@ describe('ProfilesService', () => {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
         },
-        { provide: DataSource, useValue: { transaction: jest.fn() } },
+        {
+          provide: DataSource,
+          useValue: {
+            // Invoke the callback with a manager whose query() is a spy, so
+            // deleteAccount's cascade transaction can be asserted.
+            transaction: jest.fn((cb) =>
+              cb({ query: jest.fn().mockResolvedValue(undefined) }),
+            ),
+          },
+        },
         {
           provide: SupabaseAuthService,
-          useValue: { deleteUser: jest.fn().mockResolvedValue(undefined) },
+          useValue: {
+            deleteUser: jest.fn().mockResolvedValue(undefined),
+            getUserById: jest.fn().mockResolvedValue({
+              id: 'test-id',
+              email: 'user@test.com',
+              identities: [{ provider: 'email' }],
+            }),
+            verifyPassword: jest.fn().mockResolvedValue(undefined),
+          },
         },
         ProfilesService,
         {
@@ -47,6 +66,7 @@ describe('ProfilesService', () => {
     mockRepository = module.get<Repository<Profile>>(
       getRepositoryToken(Profile),
     );
+    authService = module.get(SupabaseAuthService);
   });
 
   it('should be defined', () => {
@@ -105,6 +125,49 @@ describe('ProfilesService', () => {
       expect(mockRepository.update).toHaveBeenCalledWith(profileId, updateDto);
       expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: profileId });
       expect(result).toEqual(updatedProfile);
+    });
+  });
+
+  describe('deleteAccount', () => {
+    it('re-authenticates a password account before deleting', async () => {
+      await service.deleteAccount('test-id', 'correct-password');
+
+      expect(authService.verifyPassword).toHaveBeenCalledWith(
+        'user@test.com',
+        'correct-password',
+      );
+      expect(authService.deleteUser).toHaveBeenCalledWith('test-id');
+    });
+
+    it('rejects a password account when no password is supplied', async () => {
+      await expect(service.deleteAccount('test-id')).rejects.toMatchObject({
+        status: 401,
+      });
+      expect(authService.deleteUser).not.toHaveBeenCalled();
+    });
+
+    it('propagates a wrong-password rejection and never deletes', async () => {
+      authService.verifyPassword.mockRejectedValueOnce(
+        new UnauthorizedException('Password is incorrect'),
+      );
+
+      await expect(
+        service.deleteAccount('test-id', 'wrong-password'),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(authService.deleteUser).not.toHaveBeenCalled();
+    });
+
+    it('skips password re-auth for an OAuth account (no email identity)', async () => {
+      authService.getUserById.mockResolvedValueOnce({
+        id: 'test-id',
+        email: 'oauth@test.com',
+        identities: [{ provider: 'google' }],
+      });
+
+      await service.deleteAccount('test-id');
+
+      expect(authService.verifyPassword).not.toHaveBeenCalled();
+      expect(authService.deleteUser).toHaveBeenCalledWith('test-id');
     });
   });
 });

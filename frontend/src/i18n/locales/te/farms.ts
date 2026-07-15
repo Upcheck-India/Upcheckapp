@@ -41,6 +41,8 @@ const farms = {
 
   // FarmSetupScreen
   setupTitle: 'మీ ఫారాన్ని సెటప్ చేయండి',
+  createFarmTitle: 'ఫారమ్ సృష్టించండి',
+  setupLater: 'తర్వాత సెటప్ చేయండి',
   setupSubtitle: 'ప్రారంభించడానికి మీ ఫారం గురించి కొంచెం చెప్పండి.',
   fieldPondCount: 'చెరువుల సంఖ్య',
   placeholderPondCount: 'ఉదా. 4',

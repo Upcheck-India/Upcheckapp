@@ -319,6 +319,22 @@ export class SupabaseAuthService {
     return { message: 'User deleted successfully' };
   }
 
+  /**
+   * Re-authenticate an email/password account by its current password. Used as
+   * a strict gate before irreversible actions (e.g. account deletion) so a
+   * leaked/stolen access token alone can't trigger them. Same technique as
+   * updatePassword() above — sign in with the credentials and reject on error.
+   */
+  async verifyPassword(email: string, password: string): Promise<void> {
+    const { error } = await this.supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) {
+      throw new UnauthorizedException('Password is incorrect');
+    }
+  }
+
   // ==================== Password Management ====================
 
   async sendPasswordResetEmail(email: string) {
