@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Profile } from './profile.entity';
@@ -107,7 +112,29 @@ export class ProfilesService {
     return this.findOne(id);
   }
 
-  async deleteAccount(userId: string): Promise<void> {
+  async deleteAccount(userId: string, password?: string): Promise<void> {
+    // Strict re-authentication for password accounts before this irreversible
+    // action. A valid access token alone must NOT be enough to permanently
+    // destroy an account and every farm/pond/log it owns — a leaked or stolen
+    // token would otherwise be catastrophic. Google/Truecaller/phone accounts
+    // have no password to verify; for those the client's typed-confirmation
+    // gate is the strict step (there is no server-side secret to re-check).
+    const authUser = await this.supabaseAuthService.getUserById(userId);
+    const identities = (authUser as { identities?: { provider?: string }[] })
+      ?.identities ?? [];
+    const hasPasswordIdentity = identities.some((i) => i.provider === 'email');
+    if (hasPasswordIdentity) {
+      if (!password) {
+        throw new UnauthorizedException(
+          'Your password is required to delete your account.',
+        );
+      }
+      if (!authUser?.email) {
+        throw new BadRequestException('This account has no email to verify.');
+      }
+      await this.supabaseAuthService.verifyPassword(authUser.email, password);
+    }
+
     // Remove the Supabase auth identity FIRST and let a failure abort the
     // request. If we wiped local data first and the auth delete then failed,
     // the auth.users row would survive: the user could still sign in, and the

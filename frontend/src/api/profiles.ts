@@ -76,8 +76,11 @@ export const profilesApi = {
     update: (id: string, data: CompatUpdateProfileDto) =>
         apiClient.patch<Profile>(`/profiles/${id}`, compatToUpdateDto(data)).then(res => ({ ...res, data: toCompat(res.data) })),
 
-    deleteMe: () =>
-        apiClient.delete('/profiles/me'),
+    // Password is required server-side for email/password accounts (strict
+    // re-auth before this irreversible action); omitted for OAuth/phone
+    // accounts, which have no password to verify.
+    deleteMe: (password?: string) =>
+        apiClient.delete('/profiles/me', password ? { data: { password } } : undefined),
 
     checkUsername: (username: string) =>
         apiClient.get<{ available: boolean }>(`/profiles/check-username/${username}`),

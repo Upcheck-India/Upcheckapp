@@ -77,6 +77,7 @@ import { CropPnlScreen } from '../screens/engines/CropPnlScreen';
 import { MorningBriefingScreen } from '../screens/engines/MorningBriefingScreen';
 
 import { ProfileScreen } from '../screens/settings/ProfileScreen';
+import { DeleteAccountScreen } from '../screens/settings/DeleteAccountScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
 import { HelpScreen } from '../screens/settings/HelpScreen';
@@ -124,6 +125,7 @@ export type RootStackParamList = {
     OtpCallback: undefined;
     TwoFactorChallenge: { tempToken: string };
     TwoFactor: undefined;
+    DeleteAccount: undefined;
     PrivacyPolicy: undefined;
     Terms: undefined;
 
@@ -379,6 +381,7 @@ const RootNavigator = () => {
 
                     {/* Phase 5 (Settings & Notifications) */}
                     <Stack.Screen name="Profile" component={ProfileScreen} />
+                    <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
                     <Stack.Screen name="Settings" component={SettingsScreen} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
                     <Stack.Screen name="Help" component={HelpScreen} />

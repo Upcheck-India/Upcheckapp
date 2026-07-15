@@ -18,7 +18,7 @@ import { profilesApi, ProfileCompat, CompatUpdateProfileDto } from '../../api/pr
 
 export const ProfileScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
-    const { user, deleteAccount } = useAuthStore();
+    const { user } = useAuthStore();
     const showToast = useUIStore((s) => s.showToast);
 
     // The worker code was QR-only in practice — no way to get it onto the
@@ -41,27 +41,11 @@ export const ProfileScreen = ({ navigation }: any) => {
         }
     }, [user?.id, t]);
 
-    const handleDeleteAccount = () => {
-        Alert.alert(
-            t('settings.deleteAccount'),
-            t('settings.deleteAccountConfirm'),
-            [
-                { text: t('common.cancel'), style: 'cancel' },
-                {
-                    text: t('settings.deleteAccount'),
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await deleteAccount();
-                            // clearSession() returns the user to the auth stack.
-                        } catch (err: any) {
-                            Alert.alert(t('common.error'), err?.response?.data?.message || t('settings.deleteAccountError'));
-                        }
-                    },
-                },
-            ],
-        );
-    };
+    // Deleting an account wipes every farm/pond/record the user owns and is
+    // irreversible — far too destructive for a single Alert tap. Route to the
+    // dedicated strict-confirmation screen (typed confirmation + password
+    // re-auth) instead of confirming inline here.
+    const handleDeleteAccount = () => navigation.navigate('DeleteAccount');
     const [profile, setProfile] = useState<ProfileCompat | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
