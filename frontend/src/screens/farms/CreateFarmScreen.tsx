@@ -6,6 +6,7 @@ import * as Location from 'expo-location';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import { LanguagePill } from '../../components/ui/LanguagePill';
 import { theme } from '../../theme';
 import { farmsApi } from '../../api/farms';
 import { useAuthStore } from '../../store/authStore';
@@ -33,6 +34,15 @@ export const CreateFarmScreen = ({ navigation }: any) => {
     const [locating, setLocating] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<{ name?: string; numPonds?: string }>({});
+
+    // First-run owners were hard-gated into this screen with no way out — an
+    // owner who wanted to look around first was stuck on a mandatory form. Give
+    // them an explicit escape that clears the gate and drops them into the app;
+    // the Getting-Started checklist on Home still nudges them back to finish.
+    const skipSetup = () => {
+        completeFarmSetup();
+        navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
+    };
 
     const detectLocation = async () => {
         setLocating(true);
@@ -120,12 +130,43 @@ export const CreateFarmScreen = ({ navigation }: any) => {
     return (
         <ScreenWrapper>
             <View style={styles.formContainer}>
-                {pendingFarmSetup && (
-                    <View style={styles.setupHeader}>
-                        <Text style={styles.setupTitle}>{t('farms.setupTitle')}</Text>
+                {/* Persistent top bar: an exit affordance (a back arrow normally,
+                    or a "Set up later" escape during the first-run gate) plus a
+                    language switch — this is the screen the standard email-owner
+                    flow lands on, so it must offer language selection here too,
+                    not only on the pre-auth screens. */}
+                <View style={styles.topBar}>
+                    {pendingFarmSetup ? (
+                        <TouchableOpacity
+                            onPress={skipSetup}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('farms.setupLater')}
+                        >
+                            <Text style={styles.skipText}>{t('farms.setupLater')}</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            onPress={() => navigation.goBack()}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('common.back', 'Back')}
+                            style={styles.backBtn}
+                        >
+                            <MaterialCommunityIcons name="chevron-left" size={26} color={theme.roles.light.textPrimary} />
+                        </TouchableOpacity>
+                    )}
+                    <LanguagePill />
+                </View>
+
+                <View style={styles.setupHeader}>
+                    <Text style={styles.setupTitle}>
+                        {pendingFarmSetup ? t('farms.setupTitle') : t('farms.createFarmTitle')}
+                    </Text>
+                    {pendingFarmSetup && (
                         <Text style={styles.setupSubtitle}>{t('farms.setupSubtitle')}</Text>
-                    </View>
-                )}
+                    )}
+                </View>
 
                 <Input
                     label={t('farms.fieldFarmName')}
@@ -163,7 +204,15 @@ export const CreateFarmScreen = ({ navigation }: any) => {
 
                 {/* GPS location — unlocks weather, lunar tides & regional pricing. */}
                 <Text style={styles.fieldLabel}>{t('farms.fieldLocation')}</Text>
-                <TouchableOpacity style={styles.locationBtn} onPress={detectLocation} activeOpacity={0.8} disabled={locating}>
+                <TouchableOpacity
+                    style={styles.locationBtn}
+                    onPress={detectLocation}
+                    activeOpacity={0.8}
+                    disabled={locating}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('farms.detectLocation')}
+                    accessibilityState={{ disabled: locating, busy: locating }}
+                >
                     <MaterialCommunityIcons
                         name={coords ? 'map-marker-check' : 'crosshairs-gps'}
                         size={20}
@@ -189,6 +238,9 @@ export const CreateFarmScreen = ({ navigation }: any) => {
                                 style={[styles.sourceChip, active && styles.sourceChipActive]}
                                 onPress={() => setWaterSource(active ? null : s.key)}
                                 activeOpacity={0.8}
+                                accessibilityRole="button"
+                                accessibilityLabel={t(`farms.water_${s.key}`)}
+                                accessibilityState={{ selected: active }}
                             >
                                 <MaterialCommunityIcons
                                     name={s.icon}
@@ -217,6 +269,19 @@ export const CreateFarmScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
     formContainer: {
         paddingTop: theme.spacing[4],
+    },
+    topBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: theme.spacing[3],
+        minHeight: 32,
+    },
+    backBtn: { marginLeft: -theme.spacing[2] },
+    skipText: {
+        ...theme.typeScale.labelLarge,
+        color: theme.roles.light.textSecondary,
+        fontWeight: '600',
     },
     setupHeader: {
         marginBottom: theme.spacing[4],

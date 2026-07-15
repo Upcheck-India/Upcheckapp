@@ -41,6 +41,8 @@ const farms = {
 
   // FarmSetupScreen
   setupTitle: 'உங்கள் பண்ணையை அமைக்கவும்',
+  createFarmTitle: 'பண்ணை உருவாக்கு',
+  setupLater: 'பின்னர் அமைக்கவும்',
   setupSubtitle: 'தொடங்க உங்கள் பண்ணையைப் பற்றி சிறிது சொல்லுங்கள்.',
   fieldPondCount: 'குளங்களின் எண்ணிக்கை',
   placeholderPondCount: 'எ.கா. 4',

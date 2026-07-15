@@ -18,6 +18,8 @@ const farms = {
 
   // CreateFarmScreen
   setupTitle: 'Set up your farm',
+  createFarmTitle: 'Create farm',
+  setupLater: 'Set up later',
   setupSubtitle: 'Tell us a bit about your farm to get started.',
   fieldFarmName: 'Farm Name',
   placeholderFarmName: 'e.g. North Site',

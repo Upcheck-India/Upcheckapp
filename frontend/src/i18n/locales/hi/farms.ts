@@ -41,6 +41,8 @@ const farms = {
 
   // FarmSetupScreen
   setupTitle: 'अपना फार्म सेट करें',
+  createFarmTitle: 'फार्म बनाएं',
+  setupLater: 'बाद में सेट करें',
   setupSubtitle: 'शुरू करने के लिए हमें अपने फार्म के बारे में थोड़ा बताएं।',
   fieldPondCount: 'तालाबों की संख्या',
   placeholderPondCount: 'e.g. 4',
