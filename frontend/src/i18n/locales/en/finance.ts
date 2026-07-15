@@ -5,6 +5,8 @@ const finance = {
   // Cycle financials summary card
   cycleFinancials: 'Cycle Financials',
   totalRevenue: 'Total Revenue',
+  revenueFromHarvests: 'Revenue is calculated from your recorded harvest sales.',
+  recordHarvestSale: 'Record a harvest sale',
   totalExpenses: 'Total Expenses',
   netProfit: 'Net Profit',
   marginPercent: 'Margin %',

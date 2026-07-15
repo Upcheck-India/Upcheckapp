@@ -155,6 +155,29 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
                     </View>
                 </View>
 
+                {/* Revenue has no "add" form because it isn't entered here — it's
+                    computed from recorded harvest sales. Say so plainly (issue
+                    #35: users saw a Revenue figure with no way to add to it), and
+                    link straight to the harvest-recording flow when we know the
+                    pond. */}
+                <View style={styles.revenueNote}>
+                    <MaterialCommunityIcons name="information-outline" size={15} color={theme.roles.light.textSecondary} />
+                    <Text style={styles.revenueNoteText}>{t('finance.revenueFromHarvests')}</Text>
+                </View>
+                {pondId && (
+                    <TouchableOpacity
+                        style={styles.revenueCta}
+                        activeOpacity={0.7}
+                        onPress={() => navigation.navigate('HarvestLog', { pondId, pondName, cropId })}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('finance.recordHarvestSale')}
+                    >
+                        <MaterialCommunityIcons name="basket-plus-outline" size={16} color={theme.roles.light.primary} />
+                        <Text style={styles.revenueCtaText}>{t('finance.recordHarvestSale')}</Text>
+                        <MaterialCommunityIcons name="chevron-right" size={18} color={theme.roles.light.primary} />
+                    </TouchableOpacity>
+                )}
+
                 <View style={styles.summaryRow}>
                     <View style={styles.summaryItem}>
                         <Text style={styles.summaryLabel}>{t('finance.netProfit')}</Text>
@@ -476,6 +499,35 @@ const styles = StyleSheet.create({
         ...theme.typeScale.h4,
         color: theme.roles.light.textPrimary,
         textAlign: 'center',
+    },
+    revenueNote: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: theme.spacing[2],
+        paddingVertical: theme.spacing[2],
+        paddingHorizontal: theme.spacing[2],
+        borderRadius: theme.radius.sm,
+        backgroundColor: theme.roles.light.surfaceVariant,
+        marginBottom: theme.spacing[2],
+    },
+    revenueNoteText: {
+        flex: 1,
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
+    },
+    revenueCta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[2],
+        paddingVertical: theme.spacing[2],
+        paddingHorizontal: theme.spacing[2],
+        marginBottom: theme.spacing[3],
+    },
+    revenueCtaText: {
+        flex: 1,
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.primary,
+        fontWeight: '600',
     },
     categoryBreakdown: {
         marginTop: theme.spacing[4],

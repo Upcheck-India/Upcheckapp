@@ -5,6 +5,8 @@ const finance = {
   // Cycle financials summary card
   cycleFinancials: 'సైకిల్ ఆర్థిక వివరాలు',
   totalRevenue: 'మొత్తం ఆదాయం',
+  revenueFromHarvests: 'ఆదాయం మీరు నమోదు చేసిన పంట అమ్మకాల నుండి లెక్కించబడుతుంది.',
+  recordHarvestSale: 'పంట అమ్మకాన్ని నమోదు చేయండి',
   totalExpenses: 'మొత్తం ఖర్చులు',
   netProfit: 'నికర లాభం',
   marginPercent: 'మార్జిన్ %',

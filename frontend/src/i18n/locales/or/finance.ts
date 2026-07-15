@@ -5,6 +5,8 @@ const finance = {
   // Cycle financials summary card
   cycleFinancials: 'ଚକ୍ର ଆର୍ଥିକ ବିବରଣୀ',
   totalRevenue: 'ମୋଟ ଆୟ',
+  revenueFromHarvests: 'ରାଜସ୍ୱ ଆପଣଙ୍କ ରେକର୍ଡ କରାଯାଇଥିବା ଅମଳ ବିକ୍ରୟରୁ ଗଣନା କରାଯାଏ।',
+  recordHarvestSale: 'ଅମଳ ବିକ୍ରୟ ରେକର୍ଡ କରନ୍ତୁ',
   totalExpenses: 'ମୋଟ ଖର୍ଚ',
   netProfit: 'ନିଟ ଲାଭ',
   marginPercent: 'ମାର୍ଜିନ %',
