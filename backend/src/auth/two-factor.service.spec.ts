@@ -1,4 +1,7 @@
-import { UnauthorizedException } from '@nestjs/common';
+import {
+  UnauthorizedException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { authenticator } from 'otplib';
 import { TwoFactorService } from './two-factor.service';
 import { User } from './user.entity';
@@ -125,5 +128,46 @@ describe('TwoFactorService — backup codes (AUTH-4)', () => {
     await service.disable(user.id, totp);
     expect(user.backupCodes).toEqual([]);
     expect(user.is2faEnabled).toBe(false);
+  });
+});
+
+/**
+ * Issue #32 — 2FA threw a generic "internal server error" when the 2FA columns
+ * (is_2fa_enabled / totp_secret / backup_codes) had not been migrated into the
+ * target database. The service now degrades: status() lets the screen load,
+ * and write paths surface a clean 503 instead of a raw 500.
+ */
+describe('TwoFactorService — schema drift (issue #32)', () => {
+  let service: TwoFactorService;
+
+  const driftError = Object.assign(
+    new Error('column users.backup_codes does not exist'),
+    { code: '42703' }, // undefined_column
+  );
+
+  const build = (findOneBy: jest.Mock) => {
+    const repo = { findOneBy, save: jest.fn(), manager: { transaction: jest.fn() } };
+    const redis = { get: jest.fn(), set: jest.fn(), del: jest.fn() };
+    return new TwoFactorService(repo as any, redis as any);
+  };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('status() degrades to { enabled: false } instead of 500ing', async () => {
+    service = build(jest.fn(async () => { throw driftError; }));
+    await expect(service.status('u1')).resolves.toEqual({ enabled: false });
+  });
+
+  it('setup() surfaces a 503 ServiceUnavailable, not a raw 500', async () => {
+    service = build(jest.fn(async () => { throw driftError; }));
+    await expect(service.setup('u1')).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+  });
+
+  it('a non-drift DB error is NOT swallowed (still throws)', async () => {
+    const boom = Object.assign(new Error('connection reset'), { code: '08006' });
+    service = build(jest.fn(async () => { throw boom; }));
+    await expect(service.status('u1')).rejects.toBe(boom);
   });
 });
