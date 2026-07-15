@@ -5,6 +5,8 @@ const finance = {
   // Cycle financials summary card
   cycleFinancials: 'चक्र वित्तीय',
   totalRevenue: 'कुल राजस्व',
+  revenueFromHarvests: 'राजस्व आपकी दर्ज की गई फसल बिक्री से गणना किया जाता है।',
+  recordHarvestSale: 'फसल बिक्री दर्ज करें',
   totalExpenses: 'कुल खर्च',
   netProfit: 'शुद्ध लाभ',
   marginPercent: 'मार्जिन %',

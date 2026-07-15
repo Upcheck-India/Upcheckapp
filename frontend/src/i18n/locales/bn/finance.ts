@@ -5,6 +5,8 @@ const finance = {
   // Cycle financials summary card
   cycleFinancials: 'চক্রের আর্থিক তথ্য',
   totalRevenue: 'মোট রাজস্ব',
+  revenueFromHarvests: 'রাজস্ব আপনার রেকর্ড করা ফসল বিক্রয় থেকে গণনা করা হয়।',
+  recordHarvestSale: 'ফসল বিক্রয় রেকর্ড করুন',
   totalExpenses: 'মোট ব্যয়',
   netProfit: 'নিট মুনাফা',
   marginPercent: 'মার্জিন %',
