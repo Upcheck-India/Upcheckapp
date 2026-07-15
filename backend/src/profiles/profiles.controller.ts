@@ -17,6 +17,7 @@ import {
 import { ProfilesService } from './profiles.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { DeleteAccountDto } from '../auth/dto/delete-account.dto';
 import { InviteDto } from './dto/invite.dto';
 import { Public } from '../auth/decorators/auth.decorators';
 import { EmailService } from '../email.service';
@@ -85,9 +86,9 @@ export class ProfilesController {
 
   @Delete('me')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteMe(@CurrentUser() user) {
+  async deleteMe(@Body() dto: DeleteAccountDto, @CurrentUser() user) {
     this.logger.log(`DELETE /profiles/me — user.id: ${user.id}`);
-    await this.profilesService.deleteAccount(user.id);
+    await this.profilesService.deleteAccount(user.id, dto?.password);
   }
 
   @Patch(':id')
