@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Animated } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -43,10 +44,6 @@ export const ReportsScreen = ({ navigation }: any) => {
     // Animation refs
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
-    // Cache ref
-    const cacheRef = useRef<Map<string, { summary: DashboardSummary; financial: FinancialReport; timestamp: number }>>(new Map());
-    const CACHE_TTL = 60000; // 1 minute for reports
-
     const fadeIn = useCallback(() => {
         Animated.timing(fadeAnim, {
             toValue: 1,
@@ -55,7 +52,7 @@ export const ReportsScreen = ({ navigation }: any) => {
         }).start();
     }, [fadeAnim]);
 
-    const fetchData = useCallback(async (forceRefresh = false, farmIdOverride?: string) => {
+    const fetchData = useCallback(async (farmIdOverride?: string) => {
         setError(null);
         setIsOffline(false);
 
@@ -69,18 +66,14 @@ export const ReportsScreen = ({ navigation }: any) => {
             }
 
             if (farmId) {
-                // Check cache
-                if (!forceRefresh && cacheRef.current.has(farmId)) {
-                    const cached = cacheRef.current.get(farmId)!;
-                    if (Date.now() - cached.timestamp < CACHE_TTL) {
-                        setSummary(cached.summary);
-                        setFinancialReport(cached.financial);
-                        setIsLoading(false);
-                        fadeIn();
-                        return;
-                    }
-                }
-
+                // Always fetch fresh: this screen previously cached the financial
+                // report per farm for 60s, so adding a pond-level expense and
+                // returning to Reports within that window showed the OLD total —
+                // which read exactly like "the new expense didn't roll up into the
+                // farm total" (issue #36). Refetching on focus (see below) with no
+                // cache guarantees the rollup is always current. Old data stays on
+                // screen until the new data lands (no skeleton flash on re-focus).
+                //
                 // getFinancialReport is owner/manager-only server-side (VIEW_FINANCIALS);
                 // a worker/viewer gets a 403 here. That must not fail the whole screen —
                 // it's caught independently so the (permission-appropriate) summary
@@ -92,13 +85,6 @@ export const ReportsScreen = ({ navigation }: any) => {
                 ]);
                 setSummary(summaryRes.data);
                 setFinancialReport(financialRes.data);
-                if (financialRes.data) {
-                    cacheRef.current.set(farmId, {
-                        summary: summaryRes.data,
-                        financial: financialRes.data,
-                        timestamp: Date.now(),
-                    });
-                }
                 fadeIn();
             }
         } catch (err: any) {
@@ -113,18 +99,24 @@ export const ReportsScreen = ({ navigation }: any) => {
         }
     }, [selectedFarmId, fadeIn]);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+    // Refetch every time the Reports tab regains focus, so returning here after
+    // adding an expense (or a harvest sale) elsewhere always shows the current
+    // farm total instead of a stale snapshot (issue #36). The screen stays
+    // mounted across tabs, so a mount-only effect never re-ran.
+    useFocusEffect(
+        useCallback(() => {
+            fetchData();
+        }, [fetchData]),
+    );
 
     const handleRefresh = useCallback(() => {
         setIsRefreshing(true);
-        fetchData(true);
+        fetchData();
     }, [fetchData]);
 
     const handleRetry = useCallback(() => {
         setIsLoading(true);
-        fetchData(true);
+        fetchData();
     }, [fetchData]);
 
     const handleFarmSelect = useCallback((farmId: string) => {
@@ -134,7 +126,7 @@ export const ReportsScreen = ({ navigation }: any) => {
         fadeAnim.setValue(0);
         // Fetch new data for the newly-selected farm — pass it explicitly so we
         // don't read the stale `selectedFarmId` still captured in this closure.
-        fetchData(true, farmId);
+        fetchData(farmId);
     }, [fetchData, fadeAnim]);
 
     const selectedFarm = farms.find(f => f.id === selectedFarmId);
