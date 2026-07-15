@@ -9,12 +9,12 @@ import { ErrorState } from '../../components/ui/ErrorState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { MoonPhaseCard } from '../../components/ui/MoonPhaseCard';
 import { FarmGlanceCards } from '../../components/dashboard/FarmGlanceCards';
+import { FarmContextBar } from '../../components/dashboard/FarmContextBar';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { usePermissions } from '../../hooks/usePermissions';
-import { ROLE_LABEL } from '../../permissions/capabilities';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { reportsApi, DashboardSummary } from '../../api/reports';
 import { farmsApi } from '../../api/farms';
@@ -383,19 +383,22 @@ export const HomeScreen = ({ navigation }: any) => {
             }
         >
             <View style={styles.header}>
-                <View>
+                <View style={styles.headerText}>
                     <Text style={styles.greeting}>{t('home.greeting')}</Text>
-                    <Text style={styles.userName}>
+                    <Text style={styles.userName} numberOfLines={1}>
                         {user?.name || user?.email?.split('@')[0] || t('home.farmerFallback')}
                     </Text>
-                    {perms.role ? (
-                        <Text style={styles.roleLabel}>{ROLE_LABEL[perms.role]}</Text>
-                    ) : null}
                 </View>
                 <TouchableOpacity onPress={() => navigation.getParent()?.navigate('Settings') ?? navigation.navigate('Settings')} style={styles.avatar} accessibilityRole="button" accessibilityLabel={t('common.settings', 'Settings')}>
                     <MaterialCommunityIcons name="account-circle" size={40} color={theme.roles.light.primary} />
                 </TouchableOpacity>
             </View>
+
+            {/* "Which farm am I on, and what's my role here?" — a persistent
+                context bar with a role badge, plus an inline switcher for
+                multi-farm members. This is the core fix for the owner-vs-worker
+                ambiguity: role is now a distinct colored badge, not a faint line. */}
+            <FarmContextBar />
 
             {/* "Needs Attention" — top of the page, always, so a critical issue in
                 any pond is visible before Getting Started/stats/ponds, not just
@@ -530,7 +533,7 @@ export const HomeScreen = ({ navigation }: any) => {
                         <MaterialCommunityIcons name="account-check-outline" size={24} color={theme.roles.light.primary} />
                     </View>
                     <Text style={styles.workerWelcomeTitle}>
-                        {t('home.workerWelcomeTitle', { farmName: selectedFarm.name, role: ROLE_LABEL[perms.role], defaultValue: "You're part of {{farmName}}'s team as a {{role}}" })}
+                        {t('home.workerWelcomeTitle', { farmName: selectedFarm.name, role: t(`members.role_${perms.role}`), defaultValue: "You're part of {{farmName}}'s team as a {{role}}" })}
                     </Text>
                     <Text style={styles.workerWelcomeBody}>
                         {t('home.workerWelcomeBody', 'Tap "Log now" anytime to record today\'s water, feed, or other readings for your ponds.')}
@@ -583,28 +586,28 @@ export const HomeScreen = ({ navigation }: any) => {
                     </TouchableOpacity>
                     <View style={styles.workerModuleRow}>
                         <TouchableOpacity
-                            style={{ flex: 1 }}
+                            style={styles.workerTileWrap}
                             activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('home.attendanceCta')}
                             onPress={() => goRoot('Attendance', { farmId: selectedFarm.id, farmName: selectedFarm.name })}
                         >
-                            <View style={[styles.workerModuleCard, styles.workerModuleComingSoon, { opacity: 1 }]}>
+                            <Card style={styles.workerTile}>
                                 <MaterialCommunityIcons name="calendar-check-outline" size={24} color={theme.roles.light.primary} />
-                                <Text style={[styles.workerModuleComingSoonText, { color: theme.roles.light.textPrimary, fontWeight: '600' }]}>
-                                    {t('home.attendanceCta')}
-                                </Text>
-                            </View>
+                                <Text style={styles.workerTileText}>{t('home.attendanceCta')}</Text>
+                            </Card>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={{ flex: 1 }}
+                            style={styles.workerTileWrap}
                             activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('home.leaveCta')}
                             onPress={() => goRoot('LeaveRequests', { farmId: selectedFarm.id, farmName: selectedFarm.name })}
                         >
-                            <View style={[styles.workerModuleCard, styles.workerModuleComingSoon, { opacity: 1 }]}>
+                            <Card style={styles.workerTile}>
                                 <MaterialCommunityIcons name="calendar-remove-outline" size={24} color={theme.roles.light.primary} />
-                                <Text style={[styles.workerModuleComingSoonText, { color: theme.roles.light.textPrimary, fontWeight: '600' }]}>
-                                    {t('home.leaveCta')}
-                                </Text>
-                            </View>
+                                <Text style={styles.workerTileText}>{t('home.leaveCta')}</Text>
+                            </Card>
                         </TouchableOpacity>
                     </View>
                 </>
@@ -895,8 +898,9 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingTop: theme.spacing[4],
-        paddingBottom: theme.spacing[6],
+        paddingBottom: theme.spacing[4],
     },
+    headerText: { flex: 1, marginRight: theme.spacing[3] },
     greeting: {
         ...theme.typeScale.bodyMedium,
         color: theme.roles.light.textSecondary,
@@ -904,11 +908,6 @@ const styles = StyleSheet.create({
     userName: {
         ...theme.typeScale.h2,
         color: theme.roles.light.textPrimary,
-    },
-    roleLabel: {
-        ...theme.typeScale.labelSmall,
-        color: theme.roles.light.primary,
-        marginTop: 2,
     },
     logNowCard: {
         alignItems: 'center',
@@ -955,7 +954,7 @@ const styles = StyleSheet.create({
     workerModuleRow: {
         flexDirection: 'row',
         gap: theme.spacing[3],
-        marginBottom: theme.spacing[4],
+        marginBottom: theme.spacing[6],
     },
     workerModuleCard: {
         flexDirection: 'row',
@@ -974,17 +973,19 @@ const styles = StyleSheet.create({
         color: theme.roles.light.textSecondary,
         marginTop: 2,
     },
-    workerModuleComingSoon: {
+    workerTileWrap: { flex: 1 },
+    workerTile: {
         flex: 1,
         flexDirection: 'column',
         alignItems: 'center',
         gap: theme.spacing[2],
         paddingVertical: theme.spacing[5],
-        opacity: 0.6,
+        paddingHorizontal: theme.spacing[3],
     },
-    workerModuleComingSoonText: {
-        ...theme.typeScale.bodySmall,
-        color: theme.roles.light.textTertiary,
+    workerTileText: {
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textPrimary,
+        fontWeight: '600',
         textAlign: 'center',
     },
     avatar: {
