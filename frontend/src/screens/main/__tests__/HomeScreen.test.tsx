@@ -307,13 +307,13 @@ describe('HomeScreen — worker dashboard v1 (#48)', () => {
         });
     });
 
-    it('shows a real, interactive attendance entry point and a leave coming-soon placeholder', async () => {
+    it('shows real, interactive attendance and leave entry points', async () => {
         mockedTasksGetAll.mockResolvedValue({ data: [] });
 
-        const { findByText, getAllByText } = renderScreen();
+        const { getAllByText } = renderScreen();
 
-        expect(await findByText('Leave — coming soon')).toBeTruthy();
         expect(getAllByText('Attendance').length).toBeGreaterThan(0);
+        expect(getAllByText('Leave').length).toBeGreaterThan(0);
     });
 
     it('navigates to Attendance when the attendance tile is tapped', async () => {
@@ -323,6 +323,17 @@ describe('HomeScreen — worker dashboard v1 (#48)', () => {
         fireEvent.press(await findByText('Attendance'));
 
         expect(navigation.navigate).toHaveBeenCalledWith('Attendance', {
+            farmId: 'farm-1', farmName: "Ravi's Farm",
+        });
+    });
+
+    it('navigates to LeaveRequests when the leave tile is tapped', async () => {
+        mockedTasksGetAll.mockResolvedValue({ data: [] });
+
+        const { findByText } = renderScreen();
+        fireEvent.press(await findByText('Leave'));
+
+        expect(navigation.navigate).toHaveBeenCalledWith('LeaveRequests', {
             farmId: 'farm-1', farmName: "Ravi's Farm",
         });
     });

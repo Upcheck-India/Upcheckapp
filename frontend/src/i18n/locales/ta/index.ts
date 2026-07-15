@@ -26,6 +26,7 @@ import diagnose from './diagnose';
 
 import onboarding from './onboarding';
 
+import leave from './leave';
 import attendance from './attendance';
 
 export default {
@@ -51,5 +52,6 @@ export default {
   harvestPlans,
   diagnose,
   onboarding,
+  leave,
   attendance,
 };

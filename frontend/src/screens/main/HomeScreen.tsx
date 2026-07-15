@@ -559,9 +559,8 @@ export const HomeScreen = ({ navigation }: any) => {
                 </Card>
             )}
 
-            {/* Worker dashboard v1: assigned tasks, plus a placeholder for
-                leave (tracked separately — see #51) so this card row doesn't
-                need reshaping once that lands. Attendance v1 (#50) is real. */}
+            {/* Worker dashboard v1: assigned tasks + attendance + leave, all
+                real (attendance #50, leave #51). */}
             {perms.isWorker && selectedFarm?.id && (
                 <>
                     <Text style={styles.sectionTitle}>{t('home.workerDashboardTitle')}</Text>
@@ -595,28 +594,49 @@ export const HomeScreen = ({ navigation }: any) => {
                                 </Text>
                             </View>
                         </TouchableOpacity>
-                        <View style={[styles.workerModuleCard, styles.workerModuleComingSoon]}>
-                            <MaterialCommunityIcons name="calendar-remove-outline" size={24} color={theme.roles.light.textTertiary} />
-                            <Text style={styles.workerModuleComingSoonText}>{t('home.leaveComingSoon')}</Text>
-                        </View>
+                        <TouchableOpacity
+                            style={{ flex: 1 }}
+                            activeOpacity={0.7}
+                            onPress={() => goRoot('LeaveRequests', { farmId: selectedFarm.id, farmName: selectedFarm.name })}
+                        >
+                            <View style={[styles.workerModuleCard, styles.workerModuleComingSoon, { opacity: 1 }]}>
+                                <MaterialCommunityIcons name="calendar-remove-outline" size={24} color={theme.roles.light.primary} />
+                                <Text style={[styles.workerModuleComingSoonText, { color: theme.roles.light.textPrimary, fontWeight: '600' }]}>
+                                    {t('home.leaveCta')}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
                     </View>
                 </>
             )}
 
-            {/* Attendance v1 (#50): owner/manager team roster entry point —
-                workers already reach it via the row above; this covers the
-                manage-operations audience the worker-only block skips. */}
+            {/* Attendance v1 (#50) / Leave v1 (#51): owner/manager entry
+                points — workers already reach both via the row above; this
+                covers the manage-operations audience the worker-only block
+                skips. */}
             {selectedFarm?.id && !perms.isWorker && perms.canManageOperations && (
-                <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => goRoot('Attendance', { farmId: selectedFarm.id, farmName: selectedFarm.name })}
-                >
-                    <Card style={styles.attendanceCard}>
-                        <MaterialCommunityIcons name="calendar-check-outline" size={28} color={theme.roles.light.primary} />
-                        <Text style={styles.attendanceCardText}>{t('home.attendanceCta')}</Text>
-                        <MaterialCommunityIcons name="chevron-right" size={22} color={theme.roles.light.textTertiary} />
-                    </Card>
-                </TouchableOpacity>
+                <>
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => goRoot('Attendance', { farmId: selectedFarm.id, farmName: selectedFarm.name })}
+                    >
+                        <Card style={styles.attendanceCard}>
+                            <MaterialCommunityIcons name="calendar-check-outline" size={28} color={theme.roles.light.primary} />
+                            <Text style={styles.attendanceCardText}>{t('home.attendanceCta')}</Text>
+                            <MaterialCommunityIcons name="chevron-right" size={22} color={theme.roles.light.textTertiary} />
+                        </Card>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => goRoot('LeaveRequests', { farmId: selectedFarm.id, farmName: selectedFarm.name })}
+                    >
+                        <Card style={styles.leaveCard}>
+                            <MaterialCommunityIcons name="calendar-remove-outline" size={28} color={theme.roles.light.primary} />
+                            <Text style={styles.leaveCardText}>{t('home.leaveCta')}</Text>
+                            <MaterialCommunityIcons name="chevron-right" size={22} color={theme.roles.light.textTertiary} />
+                        </Card>
+                    </TouchableOpacity>
+                </>
             )}
 
             <Text style={styles.sectionTitle}>{t('home.dashboardSummary')}</Text>
@@ -905,6 +925,19 @@ const styles = StyleSheet.create({
         ...theme.typeScale.bodyMedium,
         color: theme.roles.light.textSecondary,
         textAlign: 'center',
+    },
+    leaveCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[6],
+    },
+    leaveCardText: {
+        flex: 1,
+        ...theme.typeScale.bodyLarge,
+        color: theme.roles.light.textPrimary,
+        fontWeight: '600',
     },
     attendanceCard: {
         flexDirection: 'row',

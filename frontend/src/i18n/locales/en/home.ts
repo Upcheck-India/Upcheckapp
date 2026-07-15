@@ -119,6 +119,7 @@ const home = {
   onboarding_exampleSurvival: 'Survival',
   onboarding_exampleCaption: "This is what a pond's dashboard looks like once you start logging — your own numbers will appear here.",
   workerJoinFarmCta: 'Enter a farm join code',
+  leaveCta: 'Leave',
   attendanceCta: 'Attendance',
   reportsViewTransactions: 'View Transactions',
   workerDashboardTitle: 'Your work',

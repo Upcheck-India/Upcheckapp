@@ -40,6 +40,7 @@ import { FeedingTrayChecksModule } from './feeding-tray-checks/feeding-tray-chec
 import { FinancesModule } from './finances/finances.module';
 import { ReportsModule } from './reports/reports.module';
 import { TasksModule } from './tasks/tasks.module';
+import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { PushModule } from './push/push.module';
 import { HealthModule } from './health/health.module';
@@ -162,6 +163,7 @@ import { PondContextModule } from './pond-context/pond-context.module';
     FinancesModule,
     ReportsModule,
     TasksModule,
+    LeaveRequestsModule,
     AttendanceModule,
     PushModule,
     MeasurementModule,

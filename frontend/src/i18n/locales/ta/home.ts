@@ -119,6 +119,7 @@ const home = {
   onboarding_exampleSurvival: 'உயிர்வாழ்வு',
   onboarding_exampleCaption: 'நீங்கள் பதிவு செய்யத் தொடங்கியதும் ஒரு குளத்தின் டாஷ்போர்டு இப்படித்தான் தெரியும் — உங்கள் சொந்த எண்கள் இங்கே தோன்றும்.',
   workerJoinFarmCta: 'பண்ணை இணைப்புக் குறியீட்டை உள்ளிடவும்',
+  leaveCta: 'விடுப்பு',
   attendanceCta: 'வருகைப் பதிவு',
   reportsViewTransactions: 'பரிவர்த்தனைகளைக் காண்க',
   workerDashboardTitle: 'உங்கள் பணி',
