@@ -41,6 +41,8 @@ const farms = {
 
   // Farm setup
   setupTitle: 'ଆପଣଙ୍କ ଫାର୍ମ ସେଟଅପ କରନ୍ତୁ',
+  createFarmTitle: 'ଫାର୍ମ ତିଆରି କରନ୍ତୁ',
+  setupLater: 'ପରେ ସେଟଅପ କରନ୍ତୁ',
   setupSubtitle: 'ଆରମ୍ଭ କରିବାକୁ ଆପଣଙ୍କ ଫାର୍ମ ବିଷୟରେ ଟିକେ କୁହନ୍ତୁ।',
   fieldPondCount: 'ପୋଖରୀ ସଂଖ୍ୟା',
   placeholderPondCount: 'e.g. 4',
