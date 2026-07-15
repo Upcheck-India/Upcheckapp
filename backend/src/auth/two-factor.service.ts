@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   UnauthorizedException,
+  ServiceUnavailableException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,6 +14,23 @@ import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { User } from './user.entity';
 import { RedisService } from '../redis/redis.service';
+
+/**
+ * Schema-drift guard: a migration that adds a `User` column/table can land in
+ * the deployed CODE before it is actually applied to the DATABASE (this repo
+ * runs migrations manually — `migrationsRun: false`). Every 2FA endpoint reads
+ * the User entity, which selects `is_2fa_enabled` / `totp_secret` /
+ * `backup_codes`; if any of those columns is missing, the SELECT throws a raw
+ * Postgres error and the whole flow 500s with a generic "internal server
+ * error" (issue #32). Because login goes through Supabase and never touches
+ * these columns, 2FA is the only feature that breaks — exactly the reported
+ * symptom. Detect both undefined_table (42P01) and undefined_column (42703) so
+ * the service can degrade to a clear, actionable state instead of a 500.
+ */
+function isSchemaDrift(err: any): boolean {
+  const code = err?.code ?? err?.driverError?.code;
+  return code === '42P01' || code === '42703';
+}
 
 /**
  * TOTP-based two-factor authentication (otplib + qrcode).
@@ -48,7 +66,37 @@ export class TwoFactorService {
     return user;
   }
 
+  /**
+   * Run a 2FA operation, converting a schema-drift failure (missing 2FA
+   * column/table) into a clean 503 with an actionable message instead of a
+   * raw 500. Genuine HttpExceptions thrown inside (BadRequest/Unauthorized/
+   * NotFound) have no Postgres error code, so `isSchemaDrift` returns false and
+   * they pass through untouched.
+   */
+  private async guardSchema<T>(context: string, op: () => Promise<T>): Promise<T> {
+    try {
+      return await op();
+    } catch (err: any) {
+      if (isSchemaDrift(err)) {
+        this.logger.error(
+          `2FA ${context} failed: the database is missing a 2FA column/table. ` +
+            `Apply the Add2faAndPushColumns + AddBackupCodesColumn migrations to this environment. ${err?.message}`,
+        );
+        throw new ServiceUnavailableException(
+          'Two-factor authentication is temporarily unavailable. Please try again later.',
+        );
+      }
+      throw err;
+    }
+  }
+
   async setup(
+    userId: string,
+  ): Promise<{ secret: string; otpauthUrl: string; qrCodeDataUrl: string }> {
+    return this.guardSchema('setup', () => this.setupImpl(userId));
+  }
+
+  private async setupImpl(
     userId: string,
   ): Promise<{ secret: string; otpauthUrl: string; qrCodeDataUrl: string }> {
     const user = await this.getUser(userId);
@@ -75,6 +123,13 @@ export class TwoFactorService {
     userId: string,
     token: string,
   ): Promise<{ enabled: true; backupCodes: string[] }> {
+    return this.guardSchema('enable', () => this.enableImpl(userId, token));
+  }
+
+  private async enableImpl(
+    userId: string,
+    token: string,
+  ): Promise<{ enabled: true; backupCodes: string[] }> {
     const secret = await this.redisService.get(
       `${TwoFactorService.PENDING_PREFIX}${userId}`,
     );
@@ -95,6 +150,13 @@ export class TwoFactorService {
   }
 
   async disable(userId: string, token: string): Promise<{ enabled: false }> {
+    return this.guardSchema('disable', () => this.disableImpl(userId, token));
+  }
+
+  private async disableImpl(
+    userId: string,
+    token: string,
+  ): Promise<{ enabled: false }> {
     const user = await this.getUser(userId);
     if (!user.is2faEnabled || !user.totpSecret) {
       return { enabled: false };
@@ -115,6 +177,15 @@ export class TwoFactorService {
    * codes. The old codes are replaced (invalidated) atomically.
    */
   async regenerateBackupCodes(
+    userId: string,
+    token: string,
+  ): Promise<{ backupCodes: string[] }> {
+    return this.guardSchema('regenerateBackupCodes', () =>
+      this.regenerateBackupCodesImpl(userId, token),
+    );
+  }
+
+  private async regenerateBackupCodesImpl(
     userId: string,
     token: string,
   ): Promise<{ backupCodes: string[] }> {
@@ -149,8 +220,22 @@ export class TwoFactorService {
   }
 
   async status(userId: string): Promise<{ enabled: boolean }> {
-    const user = await this.getUser(userId);
-    return { enabled: !!user.is2faEnabled };
+    try {
+      const user = await this.getUser(userId);
+      return { enabled: !!user.is2faEnabled };
+    } catch (err: any) {
+      // Let the settings screen LOAD even under schema drift — reporting
+      // "not enabled" is safe and lets the user reach the setup flow (which
+      // then returns the actionable 503 above) rather than the screen itself
+      // 500ing on open. Non-drift errors (e.g. a genuine NotFound) still throw.
+      if (isSchemaDrift(err)) {
+        this.logger.warn(
+          `2FA status() degraded to "disabled" — database missing a 2FA column/table. ${err?.message}`,
+        );
+        return { enabled: false };
+      }
+      throw err;
+    }
   }
 
   /** True if the user has 2FA enabled (used to gate sign-in). */
