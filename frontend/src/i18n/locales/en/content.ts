@@ -101,6 +101,8 @@ const content = {
   tasks: {
     headerTitle: 'Tasks',
     headerWithFarm: 'Tasks · {{farmName}}',
+    headerMyTasks: 'My tasks',
+    headerMyTasksWithFarm: 'My tasks · {{farmName}}',
     addPlaceholder: 'Add a task…',
     errorLoad: "Couldn't Load Tasks",
     // Status labels

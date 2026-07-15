@@ -1,0 +1,20 @@
+const attendance = {
+  title: 'హాజరు',
+  notCheckedIn: 'మీరు ఈరోజు ఇంకా చెక్ ఇన్ చేయలేదు',
+  checkInCta: 'చెక్ ఇన్',
+  checkOutCta: 'చెక్ అవుట్',
+  checkInAt: '{{time}} కు చెక్ ఇన్ చేశారు',
+  checkOutAt: '{{time}} కు చెక్ అవుట్ చేశారు',
+  stillCheckedIn: 'ఇంకా చెక్ ఇన్‌లో ఉన్నారు',
+  checkedInTitle: 'చెక్ ఇన్ నమోదైంది',
+  checkedInSub: 'మీ చెక్ ఇన్ నమోదు చేయబడింది.',
+  checkInError: 'చెక్ ఇన్ చేయలేకపోయాము. మళ్లీ ప్రయత్నించండి.',
+  checkedOutTitle: 'చెక్ అవుట్ నమోదైంది',
+  checkedOutSub: 'మీ చెక్ అవుట్ నమోదు చేయబడింది.',
+  checkOutError: 'చెక్ అవుట్ చేయలేకపోయాము. మళ్లీ ప్రయత్నించండి.',
+  teamTodayTitle: 'ఈరోజు టీం',
+  teamTodayEmpty: 'ఈరోజు ఇంకా ఎవరూ చెక్ ఇన్ చేయలేదు.',
+  myHistoryTitle: 'నా చరిత్ర',
+};
+
+export default attendance;

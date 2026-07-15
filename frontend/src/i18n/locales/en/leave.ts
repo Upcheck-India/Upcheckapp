@@ -1,0 +1,26 @@
+const leave = {
+  title: 'Leave',
+  requestFormTitle: 'Request leave',
+  startDateLabel: 'Start date',
+  endDateLabel: 'End date',
+  reasonLabel: 'Reason (optional)',
+  reasonPlaceholder: 'e.g. Family event',
+  submitCta: 'Submit request',
+  submittedTitle: 'Request submitted',
+  submittedSub: 'Your leave request was sent for approval.',
+  submitError: 'Could not submit your request. Try again.',
+  errorDateRange: 'End date cannot be before start date.',
+  decideError: 'Could not update this request. Try again.',
+  pendingTitle: 'Pending approvals',
+  pendingEmpty: 'No pending leave requests.',
+  myRequestsTitle: 'My requests',
+  myRequestsEmpty: "You haven't requested any leave yet.",
+  dateRange: '{{start}} to {{end}}',
+  approve: 'Approve',
+  reject: 'Reject',
+  status_pending: 'Pending',
+  status_approved: 'Approved',
+  status_rejected: 'Rejected',
+};
+
+export default leave;
