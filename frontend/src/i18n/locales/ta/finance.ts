@@ -5,6 +5,8 @@ const finance = {
   // Cycle financials summary card
   cycleFinancials: 'சுழற்சி நிதி விவரம்',
   totalRevenue: 'மொத்த வருவாய்',
+  revenueFromHarvests: 'வருவாய் நீங்கள் பதிவு செய்த அறுவடை விற்பனையிலிருந்து கணக்கிடப்படுகிறது.',
+  recordHarvestSale: 'அறுவடை விற்பனையைப் பதிவு செய்',
   totalExpenses: 'மொத்த செலவுகள்',
   netProfit: 'நிகர லாபம்',
   marginPercent: 'லாப விகிதம் %',
