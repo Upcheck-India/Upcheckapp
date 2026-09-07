@@ -8,9 +8,20 @@
  *     in AndroidManifest.xml are granted automatically.
  *   - API 23+: request READ_PHONE_STATE at runtime.
  *
- * The restricted READ_CALL_LOG / RECEIVE_SMS / CALL_PHONE / ANSWER_PHONE_CALLS
- * permissions (legacy missed-call / SMS-retriever fallback) were removed for
- * Play Store compliance, so they are no longer requested.
+ * SCOPE WARNING — this helper covers the One-Tap path ONLY.
+ *
+ * This comment used to say the restricted READ_CALL_LOG / ANSWER_PHONE_CALLS
+ * permissions "were removed for Play Store compliance, so they are no longer
+ * requested". That is true of THIS FILE and false of the app: the missed-call
+ * path in `screens/auth/TruecallerPhoneScreen.tsx` runs its own
+ * `PermissionsAndroid.requestMultiple` and still asks for both, and
+ * `plugins/withTruecaller` still injects both into AndroidManifest.xml. Two
+ * docs repeated the claim and were corrected on 2026-09-07.
+ *
+ * RECEIVE_SMS and CALL_PHONE really are gone. READ_CALL_LOG and
+ * ANSWER_PHONE_CALLS are kept deliberately and declared to Play — see
+ * docs/PLAY_STORE_LAUNCH.md §0. If Play refuses them, that section names all
+ * three places to strip.
  *
  * On non-Android platforms (iOS, web) this helper is a no-op that resolves to
  * `granted = true` so callers can use it unconditionally.
