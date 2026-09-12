@@ -16,6 +16,7 @@
 | Artifact | Android App Bundle (`.aab`) |
 | EAS build | `2631ae7d-9051-41b4-9d9f-188dcf2da753` |
 | Built from | `72cd8ac` — includes the onboarding, money, inventory, export and Sentry fixes |
+| Download | https://expo.dev/artifacts/eas/gHjKdNktKRGiODomARpoJ4ocakl7KGZy2JCl9kDb0wk.aab |
 | **Artifact expires** | **7 October 2026** — download and keep a local copy |
 | OTA channel | `production`, runtimeVersion `2.0.0` |
 | Signing | EAS-managed keystore (`Upcheck-preview` — the label is cosmetic; it is the default Android keystore and MUST stay the same one, or the upload key changes) |
