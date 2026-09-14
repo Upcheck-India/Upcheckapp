@@ -427,8 +427,11 @@ export class DailyBriefService {
         };
         return computeDayScore(input);
       };
-      const score = scoreFor(dd, D, moltD.phase, dR.end);
-      const prevScore = scoreFor(pd, P, moltP.phase, pR.end);
+      // A score rates a crop. A pond with no cycle that day (empty, drying,
+      // being prepared) still shows its readings, but one water test there
+      // scored 100 and lifted the farm score in production data.
+      const score = active ? scoreFor(dd, D, moltD.phase, dR.end) : null;
+      const prevScore = cycleOn(p, P) ? scoreFor(pd, P, moltP.phase, pR.end) : null;
       if (prevScore && prevScore.reasons.length && prevScore.value < worstPrevValue) {
         worstPrevValue = prevScore.value;
         worstPrevious = { pondId: p.id, reason: prevScore.reasons[0] };
@@ -578,8 +581,12 @@ export class DailyBriefService {
     const moltPending: DailyBrief['carriedOver']['moltPending'] = [];
     for (const pm of moltList) {
       if (!pm.eligible) continue;
-      for (const i of pm.items) moltItems.push({ pondId: pm.pondId, key: i.key, priority: i.priority, status: i.status, route: i.route ?? null });
-      const keys = pm.items.filter((i) => i.status !== 'done' && i.priority !== 'routine').map((i) => i.key);
+      // Only the phase the day is in. Earlier phases' items can no longer be
+      // acted on (spec 2026-09-14-attendance-and-molt-fixes Q1: they are
+      // "missed", not to-dos) — listing them put "Cut feed" on a post-molt day.
+      const current = pm.items.filter((i) => i.phase === pm.phase);
+      for (const i of current) moltItems.push({ pondId: pm.pondId, key: i.key, priority: i.priority, status: i.status, route: i.route ?? null });
+      const keys = current.filter((i) => i.status !== 'done' && i.priority !== 'routine').map((i) => i.key);
       if (keys.length) moltPending.push({ pondId: pm.pondId, keys });
     }
 

@@ -228,6 +228,41 @@ describe('DailyBriefService — assembling a day', () => {
     expect(brief.hasAnyData).toBe(true);
   });
 
+  // Found against production data: an empty pond's single water test scored
+  // 100 and lifted the farm score.
+  it('a pond with readings but no cycle shows them, is not scored, and does not move the farm score', async () => {
+    const withIdle = {
+      ...rows,
+      wq: [...rows.wq, { pond_id: 'p2', recorded_at: '2026-09-14T01:00:00Z', do: 6, ph: 8, temperature: 30 }],
+    };
+    const brief = await build({ rows: withIdle }).svc.get('u1', { date: D }, NOW);
+    const p2 = brief.ponds.find((p) => p.pondId === 'p2')!;
+    expect(p2.cycleActive).toBe(false);
+    expect(p2.water.tests).toBe(1);
+    expect(p2.score).toBeNull();
+    expect(p2.previousScore).toBeNull();
+    const p1 = brief.ponds.find((p) => p.pondId === 'p1')!;
+    expect(brief.score?.value).toBe(p1.score!.value);
+  });
+
+  // Found against production data: a post-molt day listed peak "cut feed" items.
+  it('molt to-dos list only the phase the day is in', async () => {
+    const b = build({ rows });
+    const item = (key: string, phase: string, priority: string, status = 'pending') => ({ key, phase, priority, status, source: 'auto', route: null });
+    b.molt.checklistsFor.mockResolvedValue(new Map([['p1', {
+      pondId: 'p1', eligible: true, phase: 'post', pendingCritical: 0, window: null, sizeUnknown: false, abwG: 10,
+      items: [
+        item('minerals', 'pre', 'important'),
+        item('feed_cut', 'peak', 'critical'),
+        item('restore_feed', 'post', 'important'),
+        item('post_sampling', 'post', 'routine', 'done'),
+      ],
+    }]]));
+    const brief = await b.svc.get('u1', { date: D }, NOW);
+    expect(brief.todo.moltItems.map((i) => i.key)).toEqual(['restore_feed', 'post_sampling']);
+    expect(brief.carriedOver.moltPending).toEqual([{ pondId: 'p1', keys: ['restore_feed'] }]);
+  });
+
   it('low stock is only shown for today', async () => {
     const inv = { ...rows, inventory: [{ id: 'i1', name: 'Feed', quantity: 2, unit: 'bag', reorder_level: 5 }, { id: 'i2', name: 'Lime', quantity: 9, unit: 'kg', reorder_level: 5 }] };
     const today = await build({ rows: inv }).svc.get('u1', { date: D }, NOW);
