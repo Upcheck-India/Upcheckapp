@@ -44,4 +44,6 @@ export default {
   completeFailed: 'ଅମଳ ଯୋଜନା ସମ୍ପୂର୍ଣ୍ଣ କରିବାରେ ବିଫଳ',
   deleteFailed: 'ଅମଳ ଯୋଜନା ଡିଲିଟ୍ କରିବାରେ ବିଫଳ',
   createFailed: 'ଅମଳ ଯୋଜନା ସୃଷ୍ଟି କରିବାରେ ବିଫଳ',
+  moltWindowTitle: 'ମୋଲ୍ଟ ୱିଣ୍ଡୋ',
+  moltWindowWarning: 'ଏହି ତାରିଖ ମୋଲ୍ଟ ୱିଣ୍ଡୋରେ ଅଛି ({{start}} – {{end}}): ନରମ ଖୋଳ ଓ କମ ଦାମର ସମ୍ଭାବନା।',
 };

@@ -47,6 +47,7 @@ import {
     type TelemetryPrefs,
 } from '../../features/telemetryPrefs';
 import { syncAnalyticsConsent } from '../../features/analytics';
+import { resolveFlag, useRemoteFlagsStore, type RemoteFlagKey } from '../../features/remoteFlags';
 import { setCrashReportingEnabled } from '../../utils/sentry';
 import { alertCenterApi } from '../../api/alertCenter';
 import { pondsApi } from '../../api/ponds';
@@ -206,7 +207,21 @@ export const SettingsScreen = ({ navigation }: any) => {
         ]);
     };
 
-    const tools: LinkRow[] = [
+    // Remote kill switches (features/remoteFlags.ts): a row whose flag is off is
+    // simply not listed. Rows with no entry here are never hidden.
+    const remoteFlags = useRemoteFlagsStore((s) => s.flags);
+    const ROW_FLAG: Record<string, RemoteFlagKey> = {
+        calculators: 'calculators',
+        simulations: 'simulators',
+        diseases: 'diseaseEncyclopedia',
+        news: 'news',
+        export: 'export',
+        shop: 'shop',
+    };
+    const flagged = (rows: LinkRow[]) =>
+        rows.filter((r) => !ROW_FLAG[r.key] || resolveFlag(remoteFlags, ROW_FLAG[r.key]));
+
+    const tools: LinkRow[] = flagged([
         { key: 'calculators', icon: 'insights', label: t('home.moreCalculators'), route: 'CalculatorHub' },
         { key: 'simulations', icon: 'show_chart', label: t('home.moreSimulations'), route: 'SimulationList' },
         { key: 'diseases', icon: 'science', label: t('home.moreDiseaseEncyclopedia'), route: 'DiseaseList' },
@@ -215,14 +230,14 @@ export const SettingsScreen = ({ navigation }: any) => {
         // The always-reachable way in. The cycle report has its own button, but
         // "send my books to the bank" does not start from a cycle screen.
         { key: 'export', icon: 'share', label: t('export.entry'), route: 'Export' },
-    ];
+    ]);
 
-    const farmLinks: LinkRow[] = [
+    const farmLinks: LinkRow[] = flagged([
         { key: 'workers', icon: 'groups', label: t('home.moreAllWorkers'), route: 'AllWorkers' },
         { key: 'inventory', icon: 'warehouse', label: t('home.moreInventory'), route: 'Inventory' },
         { key: 'feedProducts', icon: 'set_meal', label: t('home.moreFeedProducts'), route: 'FeedProducts' },
         { key: 'shop', icon: 'workspace_premium', label: t('home.moreShop'), route: 'Shop' },
-    ];
+    ]);
 
     // The four reminder slots, paired with their translated labels — a single
     // list so the row and the sheet title always agree on what "morning"
@@ -410,6 +425,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                 ))}
 
                 <SectionHeader label={t('settings.security')} />
+                <Row row={{ key: 'account', icon: 'badge', label: t('settings.account.entry'), route: 'Account' }} />
                 <Row row={{ key: '2fa', icon: 'key', label: t('settings.twoFactor'), route: 'TwoFactor' }} />
 
                 {/* Not in p6 — kept so these eleven screens keep an entry point. */}

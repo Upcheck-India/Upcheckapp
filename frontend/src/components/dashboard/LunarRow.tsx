@@ -6,38 +6,62 @@ import { theme } from '../../theme';
 import { Icon } from '../ui/Icon';
 import { moonPhase } from '../../features/moonPhase';
 import { localizePhaseName } from '../../features/lunarPhaseI18n';
+import { formatDate } from '../../utils/formatDate';
+import type { MoltWindowSummary } from '../../api/molt';
 
 /**
  * Lunar phase and molting status, on Today.
  *
- * Artboard 1b does not draw this, and the redesign dropped it. That was wrong:
- * shrimp molt around the new and full moon, and a molting pond is soft-shelled
+ * Shrimp molt around the new and full moon, and a molting pond is soft-shelled
  * — you feed it less, you do not handle it, and you do not harvest it. That is
  * a decision a farmer makes about today, which is exactly what this screen is
- * for. It came off the screen because the old placement made it look like
- * decoration: a lunar widget at the bottom of a wall of cards, carrying the
- * same weight on an ordinary Tuesday as on a full moon.
+ * for.
  *
- * So it earns its weight instead of being given it. Inside the molting window
- * the row is tinted and states the consequence; outside it, it is one quiet
- * line of context. Same rule the rest of the screen follows.
+ * It earns its weight instead of being given it: inside a molt window the row
+ * is tinted, names the dates and how many ponds still need action; outside it,
+ * it is one quiet line naming the next window.
  *
- * Costs nothing to show: the phase is pure arithmetic on the date
- * (features/moonPhase.ts), not a request.
+ * The window comes from the server (`today.moltWindow`, true Meeus phase in
+ * IST) — the same math the alerts and checklists use. The old client-side
+ * mean-phase window disagreed with the backend at the edges. The phase emoji
+ * and illumination are still local arithmetic (features/moonPhase.ts).
  */
 
 export interface LunarRowProps {
+    /** From `/alert-center/today`; null/undefined on an older backend or while loading. */
+    moltWindow?: MoltWindowSummary | null;
     /** Injectable for tests; defaults to now. */
     date?: Date;
     /** Opens the full lunar / molt screen. */
     onPress?: () => void;
 }
 
-export const LunarRow: React.FC<LunarRowProps> = ({ date, onPress }) => {
+/** IST calendar day → short date, rendered at local noon so no TZ can shift it. */
+const day = (d: string) => formatDate(`${d}T12:00:00`);
+
+export const LunarRow: React.FC<LunarRowProps> = ({ moltWindow, date, onPress }) => {
     const { t } = useTranslation();
     const phase = moonPhase(date ?? new Date());
-    const molting = phase.isMoltingWindow;
     const phaseLabel = localizePhaseName(phase.name, t);
+    const w = moltWindow?.window ?? null;
+    const molting = w !== null;
+
+    const title = w
+        ? t('home.moltWindowTitle', { start: day(w.preStart), end: day(w.postEnd), peak: day(w.peakDate) })
+        : phaseLabel;
+    const meta = w
+        ? moltWindow!.eligiblePonds > 0
+            ? t('home.moltPondsNeedAction', {
+                  pending: moltWindow!.pondsWithPending,
+                  total: moltWindow!.eligiblePonds,
+              })
+            : t('home.lunarMoltingBody')
+        : moltWindow?.next
+          ? t('home.moltNextWindow', { date: day(moltWindow.next.preStart) })
+          : [
+                phaseLabel,
+                t('engines.lunar.illuminated', { pct: Math.round(phase.illumination * 100) }),
+            ].join(' · ');
 
     return (
         <TouchableOpacity
@@ -47,26 +71,17 @@ export const LunarRow: React.FC<LunarRowProps> = ({ date, onPress }) => {
             accessibilityRole={onPress ? 'button' : undefined}
             // The emoji IS the phase — no icon font draws a waxing gibbous — so
             // it is announced by name rather than read out as a glyph.
-            accessibilityLabel={`${phaseLabel}. ${
-                molting ? t('home.lunarMoltingBody') : t('home.lunarQuiet')
-            }`}
+            accessibilityLabel={`${phaseLabel}. ${title}. ${meta}`}
         >
             <Text style={styles.emoji} accessibilityElementsHidden importantForAccessibility="no">
                 {phase.emoji}
             </Text>
             <View style={styles.text}>
                 <Text style={[styles.title, molting && styles.titleMolting]} numberOfLines={1}>
-                    {molting ? t('home.lunarMoltingTitle') : phaseLabel}
+                    {title}
                 </Text>
                 <Text style={[styles.meta, molting && styles.metaMolting]} numberOfLines={2}>
-                    {molting
-                        ? t('home.lunarMoltingBody')
-                        : [
-                              phaseLabel,
-                              t('engines.lunar.illuminated', {
-                                  pct: Math.round(phase.illumination * 100),
-                              }),
-                          ].join(' · ')}
+                    {meta}
                 </Text>
             </View>
             {!!onPress && (

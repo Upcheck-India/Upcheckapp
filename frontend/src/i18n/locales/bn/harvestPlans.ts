@@ -44,4 +44,6 @@ export default {
   completeFailed: 'ফসল কাটার পরিকল্পনা সম্পন্ন করতে ব্যর্থ',
   deleteFailed: 'ফসল কাটার পরিকল্পনা মুছতে ব্যর্থ',
   createFailed: 'ফসল কাটার পরিকল্পনা তৈরি করতে ব্যর্থ',
+  moltWindowTitle: 'মোল্ট উইন্ডো',
+  moltWindowWarning: 'এই তারিখটি মোল্ট উইন্ডোতে ({{start}} – {{end}}): নরম খোলস ও কম দামের সম্ভাবনা।',
 };

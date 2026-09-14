@@ -6,7 +6,7 @@ import { AlertCenterController } from './alert-center.controller';
 import { AlertsModule } from '../alerts/alerts.module';
 import { Pond } from '../ponds/pond.entity';
 import { PondContextModule } from '../pond-context/pond-context.module';
-import { LunarModule } from '../lunar/lunar.module';
+import { MoltModule } from '../molt/molt.module';
 
 /**
  * Unified Alert Center on top of the existing AlertsService — every engine
@@ -18,7 +18,7 @@ import { LunarModule } from '../lunar/lunar.module';
     AlertsModule,
     TypeOrmModule.forFeature([Pond]),
     PondContextModule,
-    LunarModule,
+    MoltModule,
   ],
   controllers: [AlertCenterController],
   providers: [AlertCenterService, EngineAlertService],

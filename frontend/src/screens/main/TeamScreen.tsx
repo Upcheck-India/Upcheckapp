@@ -57,6 +57,7 @@ import { personName } from '../../utils/personName';
 import { formatWeekday } from '../../utils/formatDate';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
+import { useFlag } from '../../features/remoteFlags';
 
 /** Scope value meaning "every farm I can see". */
 const ALL = 'all';
@@ -119,6 +120,7 @@ const STATUS_TONE: Record<string, StatusType> = {
 
 export const TeamScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
+    const tasksOn = useFlag('tasks');
     const { selectedFarm, setSelectedFarm } = useActiveFarmStore();
     const userId = useAuthStore((s) => s.user?.id);
 
@@ -627,6 +629,8 @@ export const TeamScreen = ({ navigation }: any) => {
                     />
                 )}
 
+                {/* Remote kill switch: the whole tasks section goes. */}
+                {tasksOn && (<>
                 <SectionHeader
                     label={t('team.tasksToday')}
                     actionLabel={canCreateTasks ? t('team.assign') : undefined}
@@ -694,6 +698,7 @@ export const TeamScreen = ({ navigation }: any) => {
                         onPress={() => startAction('repeating')}
                     />
                 )}
+                </>)}
             </ScrollView>
 
             {/* Which farm? Only the ones the farmer can actually do this on. */}

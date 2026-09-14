@@ -26,6 +26,7 @@ import { EngineUnavailable } from '../../components/ui/EngineUnavailable';
 import { missingInputs, type RequiredInput } from '../../features/engineInputs';
 import { localizePhaseName } from '../../features/lunarPhaseI18n';
 import { apiErrorMessage } from '../../api/errors';
+import { MoltTimeline, MoltChecklist, MoltPondList } from '../../components/molt/MoltPanels';
 
 const bandSeverity = (b: string): Severity =>
   b === 'Critical' ? 'critical' : b === 'Watch' ? 'watch' : 'low';
@@ -135,11 +136,9 @@ export const LunarScreen = ({ route }: any) => {
             <View style={{ flex: 1 }}>
               <Text style={styles.phaseName}>{localizePhaseName(phase.name, t)}</Text>
               <Text style={styles.phaseMeta}>{t('engines.lunar.illuminated', { pct: Math.round(phase.illumination * 100) })}</Text>
-              {phase.inMoltWindow ? (
-                <SeverityPill severity="watch" label={t('engines.lunar.moltWindow', { days: phase.daysToSpringTide.toFixed(1) })} icon="waves" />
-              ) : (
-                <SeverityPill severity="low" label={t('engines.lunar.toNextWindow', { days: phase.daysToSpringTide.toFixed(1) })} icon="calendar-blank-outline" />
-              )}
+              {/* The molt window itself (dates, current phase) is the timeline
+                  card below — server-side true phase. The mean-phase
+                  "Xd to spring tide" pill disagreed with it at the edges. */}
               {/*
                 * The actual DATES (E5.1) — true phase, corrected per Meeus,
                 * and already bucketed into IST by the server.
@@ -163,6 +162,13 @@ export const LunarScreen = ({ route }: any) => {
               )}
             </View>
           </Card>
+        )}
+
+        <MoltTimeline />
+        {pondId ? (
+          <MoltChecklist pondId={pondId} pondName={pondName} cropId={ctx?.cropId} />
+        ) : (
+          <MoltPondList />
         )}
 
         {ctxError ? <EngineUnavailable onRetry={refetch} /> : null}

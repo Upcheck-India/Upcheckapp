@@ -6,6 +6,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import { MoltPeakBanner } from '../../components/molt/MoltPeakBanner';
 import { theme } from '../../theme';
 import { harvestsApi } from '../../api/harvests';
 import { useUIStore } from '../../store/uiStore';
@@ -101,6 +102,7 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
             </View>
 
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+                <MoltPeakBanner messageKey="logs.moltPeakHarvest" />
                 <Card style={styles.card}>
                     <Text style={styles.sectionTitle}>{t('logs.harvest_sectionDetails')}</Text>
 

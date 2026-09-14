@@ -16,6 +16,8 @@ const common = {
   close: 'बंद करें',
   confirm: 'पुष्टि करें',
   back: 'वापस',
+  featureUnavailable: 'अभी उपलब्ध नहीं है',
+  featureUnavailableBody: 'यह सुविधा अभी बंद है। कृपया बाद में फिर देखें।',
   next: 'अगला',
   done: 'हो गया',
   retry: 'पुनः प्रयास करें',

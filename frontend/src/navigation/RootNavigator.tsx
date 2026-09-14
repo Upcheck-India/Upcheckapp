@@ -28,6 +28,7 @@ import {
 //  - LanguageScreen: the first route of the unauthenticated stack.
 //  - WelcomeScreen: one tap after Language, and its assets are shared with it.
 import { MainNavigator } from './MainNavigator';
+import { withFlag } from '../components/FeatureGate';
 import { LanguageScreen } from '../screens/onboarding/LanguageScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
 
@@ -47,6 +48,7 @@ export type RootStackParamList = {
     TwoFactorChallenge: { tempToken: string };
     TwoFactor: undefined;
     DeleteAccount: undefined;
+    Account: undefined;
     PrivacyPolicy: undefined;
     Terms: undefined;
 
@@ -389,7 +391,7 @@ const RootNavigator = () => {
                         same as AttendanceLog. */}
                     <Stack.Screen name="Activity" getComponent={() => require('../screens/activity/ActivityScreen').ActivityScreen} />
                     <Stack.Screen name="PondDimensionHistory" getComponent={() => require('../screens/ponds/PondDimensionHistoryScreen').PondDimensionHistoryScreen} />
-                    <Stack.Screen name="CycleAnalysis" getComponent={() => require('../screens/reports/CycleAnalysisScreen').CycleAnalysisScreen} />
+                    <Stack.Screen name="CycleAnalysis" getComponent={() => withFlag('cycleAnalysis', require('../screens/reports/CycleAnalysisScreen').CycleAnalysisScreen)} />
 
                     <Stack.Screen name="WaterQualityLog" getComponent={() => require('../screens/logs/WaterQualityLogScreen').WaterQualityLogScreen} />
                     <Stack.Screen name="FeedLog" getComponent={() => require('../screens/logs/FeedLogScreen').FeedLogScreen} />
@@ -404,15 +406,15 @@ const RootNavigator = () => {
                     <Stack.Screen name="DiseaseLog" getComponent={() => require('../screens/logs/DiseaseLogScreen').DiseaseLogScreen} />
 
                     {/* Phase 4 */}
-                    <Stack.Screen name="CalculatorHub" getComponent={() => require('../screens/calculators/CalculatorHubScreen').CalculatorHubScreen} />
-                    <Stack.Screen name="CultivationPerformance" getComponent={() => require('../screens/calculators/CultivationPerformanceScreen').CultivationPerformanceScreen} />
-                    <Stack.Screen name="DailyFeedCalculator" getComponent={() => require('../screens/calculators/DailyFeedCalculatorScreen').DailyFeedCalculatorScreen} />
-                    <Stack.Screen name="ProductAmount" getComponent={() => require('../screens/calculators/ProductAmountScreen').ProductAmountScreen} />
-                    <Stack.Screen name="FreeAmmonia" getComponent={() => require('../screens/calculators/FreeAmmoniaScreen').FreeAmmoniaScreen} />
+                    <Stack.Screen name="CalculatorHub" getComponent={() => withFlag('calculators', require('../screens/calculators/CalculatorHubScreen').CalculatorHubScreen)} />
+                    <Stack.Screen name="CultivationPerformance" getComponent={() => withFlag('calculators', require('../screens/calculators/CultivationPerformanceScreen').CultivationPerformanceScreen)} />
+                    <Stack.Screen name="DailyFeedCalculator" getComponent={() => withFlag('calculators', require('../screens/calculators/DailyFeedCalculatorScreen').DailyFeedCalculatorScreen)} />
+                    <Stack.Screen name="ProductAmount" getComponent={() => withFlag('calculators', require('../screens/calculators/ProductAmountScreen').ProductAmountScreen)} />
+                    <Stack.Screen name="FreeAmmonia" getComponent={() => withFlag('calculators', require('../screens/calculators/FreeAmmoniaScreen').FreeAmmoniaScreen)} />
 
-                    <Stack.Screen name="SimulationList" getComponent={() => require('../screens/simulation/SimulationListScreen').SimulationListScreen} />
-                    <Stack.Screen name="SimulationCreate" getComponent={() => require('../screens/simulation/SimulationCreateScreen').SimulationCreateScreen} />
-                    <Stack.Screen name="SimulationResults" getComponent={() => require('../screens/simulation/SimulationResultsScreen').SimulationResultsScreen} />
+                    <Stack.Screen name="SimulationList" getComponent={() => withFlag('simulators', require('../screens/simulation/SimulationListScreen').SimulationListScreen)} />
+                    <Stack.Screen name="SimulationCreate" getComponent={() => withFlag('simulators', require('../screens/simulation/SimulationCreateScreen').SimulationCreateScreen)} />
+                    <Stack.Screen name="SimulationResults" getComponent={() => withFlag('simulators', require('../screens/simulation/SimulationResultsScreen').SimulationResultsScreen)} />
 
                     {/* Phase 5 (History) */}
                     <Stack.Screen name="WaterQualityHistory" getComponent={() => require('../screens/logs/History/WaterQualityHistoryScreen').WaterQualityHistoryScreen} />
@@ -435,17 +437,18 @@ const RootNavigator = () => {
                     {/* Own back header, matching WaterQualityHistoryScreen. */}
                     <Stack.Screen name="WeeklyChemistryHistory" getComponent={() => require('../screens/logs/History/WeeklyChemistryHistoryScreen').WeeklyChemistryHistoryScreen} options={{ headerShown: false }} />
                     <Stack.Screen name="EnginesHub" getComponent={() => require('../screens/engines/EnginesHubScreen').EnginesHubScreen} options={{ headerShown: true, title: 'Decision Engines', headerTintColor: theme.roles.light.primary }} />
-                    <Stack.Screen name="FeedAdvisor" getComponent={() => require('../screens/engines/FeedAdvisorScreen').FeedAdvisorScreen} options={{ headerShown: true, title: 'Feed Advisor', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="FeedAdvisor" getComponent={() => withFlag('feedAdvisor', require('../screens/engines/FeedAdvisorScreen').FeedAdvisorScreen)} options={{ headerShown: true, title: 'Feed Advisor', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="HarvestTiming" getComponent={() => require('../screens/engines/HarvestTimingScreen').HarvestTimingScreen} options={{ headerShown: true, title: 'Harvest Timing', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="DiseaseRisk" getComponent={() => require('../screens/engines/DiseaseRiskScreen').DiseaseRiskScreen} options={{ headerShown: true, title: 'Disease Early-Warning', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="Aeration" getComponent={() => require('../screens/engines/AerationScreen').AerationScreen} options={{ headerShown: true, title: 'Aeration & Power', headerTintColor: theme.roles.light.primary }} />
-                    <Stack.Screen name="Lunar" getComponent={() => require('../screens/engines/LunarScreen').LunarScreen} options={{ headerShown: true, title: 'Lunar Molt', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="Lunar" getComponent={() => withFlag('lunar', require('../screens/engines/LunarScreen').LunarScreen)} options={{ headerShown: true, title: 'Lunar Molt', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="CropPnl" getComponent={() => require('../screens/engines/CropPnlScreen').CropPnlScreen} options={{ headerShown: true, title: 'Crop P&L', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="MorningBriefing" getComponent={() => require('../screens/engines/MorningBriefingScreen').MorningBriefingScreen} options={{ headerShown: true, title: 'Morning Briefing', headerTintColor: theme.roles.light.primary }} />
 
                     {/* Phase 5 (Settings & Notifications) */}
                     <Stack.Screen name="Profile" getComponent={() => require('../screens/settings/ProfileScreen').ProfileScreen} />
                     <Stack.Screen name="DeleteAccount" getComponent={() => require('../screens/settings/DeleteAccountScreen').DeleteAccountScreen} />
+                    <Stack.Screen name="Account" getComponent={() => require('../screens/settings/AccountScreen').AccountScreen} />
                     <Stack.Screen name="Notifications" getComponent={() => require('../screens/notifications/NotificationsScreen').NotificationsScreen} />
                     <Stack.Screen name="Help" getComponent={() => require('../screens/settings/HelpScreen').HelpScreen} />
                     <Stack.Screen name="ReportIssue" getComponent={() => require('../screens/settings/ReportIssueScreen').ReportIssueScreen} />
@@ -459,22 +462,22 @@ const RootNavigator = () => {
                     <Stack.Screen name="InventoryForm" getComponent={() => require('../screens/inventory/InventoryFormScreen').InventoryFormScreen} options={{ headerShown: false }} />
 
                     {/* Disease Encyclopedia */}
-                    <Stack.Screen name="DiseaseList" getComponent={() => require('../screens/diseases/DiseaseListScreen').DiseaseListScreen} />
+                    <Stack.Screen name="DiseaseList" getComponent={() => withFlag('diseaseEncyclopedia', require('../screens/diseases/DiseaseListScreen').DiseaseListScreen)} />
                     <Stack.Screen name="DiseaseDetail" getComponent={() => require('../screens/diseases/DiseaseDetailScreen').DiseaseDetailScreen} />
-                    <Stack.Screen name="Diagnose" getComponent={() => require('../screens/diseases/DiagnoseScreen').DiagnoseScreen} />
+                    <Stack.Screen name="Diagnose" getComponent={() => withFlag('diseaseDiagnosis', require('../screens/diseases/DiagnoseScreen').DiagnoseScreen)} />
 
                     {/* Tasks */}
-                    <Stack.Screen name="TaskList" getComponent={() => require('../screens/tasks/TaskListScreen').TaskListScreen} />
-                    <Stack.Screen name="TaskCompose" getComponent={() => require('../screens/tasks/TaskComposerScreen').TaskComposerScreen} />
-                    <Stack.Screen name="RecurringTasks" getComponent={() => require('../screens/tasks/RecurringTasksScreen').RecurringTasksScreen} />
+                    <Stack.Screen name="TaskList" getComponent={() => withFlag('tasks', require('../screens/tasks/TaskListScreen').TaskListScreen)} />
+                    <Stack.Screen name="TaskCompose" getComponent={() => withFlag('tasks', require('../screens/tasks/TaskComposerScreen').TaskComposerScreen)} />
+                    <Stack.Screen name="RecurringTasks" getComponent={() => withFlag('tasks', require('../screens/tasks/RecurringTasksScreen').RecurringTasksScreen)} />
                     <Stack.Screen name="LeaveRequests" getComponent={() => require('../screens/leave/LeaveRequestsScreen').LeaveRequestsScreen} />
                     <Stack.Screen name="Attendance" getComponent={() => require('../screens/attendance/AttendanceScreen').AttendanceScreen} />
                     <Stack.Screen name="AttendanceLog" getComponent={() => require('../screens/attendance/AttendanceLogScreen').AttendanceLogScreen} />
 
                     {/* News / eShop / Reference */}
-                    <Stack.Screen name="NewsList" getComponent={() => require('../screens/news/NewsListScreen').NewsListScreen} />
-                    <Stack.Screen name="NewsDetail" getComponent={() => require('../screens/news/NewsDetailScreen').NewsDetailScreen} />
-                    <Stack.Screen name="Shop" getComponent={() => require('../screens/shop/ShopScreen').ShopScreen} />
+                    <Stack.Screen name="NewsList" getComponent={() => withFlag('news', require('../screens/news/NewsListScreen').NewsListScreen)} />
+                    <Stack.Screen name="NewsDetail" getComponent={() => withFlag('news', require('../screens/news/NewsDetailScreen').NewsDetailScreen)} />
+                    <Stack.Screen name="Shop" getComponent={() => withFlag('shop', require('../screens/shop/ShopScreen').ShopScreen)} />
                     <Stack.Screen name="Reference" getComponent={() => require('../screens/reference/ReferenceScreen').ReferenceScreen} />
 
                     {/* Finance */}
@@ -495,7 +498,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="TwoFactorChallenge" getComponent={() => require('../screens/auth/TwoFactorChallengeScreen').TwoFactorChallengeScreen} />
 
                     {/* Additional calculators + feed products */}
-                    <Stack.Screen name="GrowthAndHarvest" getComponent={() => require('../screens/calculators/GrowthAndHarvestScreen').GrowthAndHarvestScreen} />
+                    <Stack.Screen name="GrowthAndHarvest" getComponent={() => withFlag('calculators', require('../screens/calculators/GrowthAndHarvestScreen').GrowthAndHarvestScreen)} />
                     <Stack.Screen name="FeedProducts" getComponent={() => require('../screens/feedProducts/FeedProductsScreen').FeedProductsScreen} />
                     <Stack.Screen
                         name="FeedStats"
@@ -504,7 +507,7 @@ const RootNavigator = () => {
                     />
 
                     {/* Export — reachable from the cycle report and from Settings */}
-                    <Stack.Screen name="Export" getComponent={() => require('../screens/export/ExportScreen').ExportScreen} />
+                    <Stack.Screen name="Export" getComponent={() => withFlag('export', require('../screens/export/ExportScreen').ExportScreen)} />
 
                     {/* Legal */}
                     <Stack.Screen name="PrivacyPolicy" getComponent={() => require('../screens/legal/PrivacyPolicyScreen').PrivacyPolicyScreen} />

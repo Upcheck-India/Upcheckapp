@@ -152,6 +152,11 @@ interface AuthState {
     logout: () => Promise<void>;
     deleteAccount: (password?: string) => Promise<void>;
     forgotPassword: (email: string) => Promise<void>;
+    /**
+     * Fold a fresh GET /profiles/me into `user` after a name or email change.
+     * Identity display only — never touches the session or tokens.
+     */
+    refreshUser: (profile: { fullName?: string | null; email?: string | null; emailIsInternal?: boolean }) => void;
 }
 
 /**
@@ -173,10 +178,14 @@ export const isInternalEmail = (email?: string | null): boolean =>
  */
 const displayNameOf = (user: User): string => {
     const meta: any = user.user_metadata ?? {};
-    const fromParts = [meta.first_name, meta.last_name]
-        .map((p: unknown) => (typeof p === 'string' ? p.trim() : ''))
-        .filter(Boolean)
-        .join(' ');
+    const join = (a: unknown, b: unknown) =>
+        [a, b]
+            .map((p) => (typeof p === 'string' ? p.trim() : ''))
+            .filter(Boolean)
+            .join(' ');
+    // Email signup wrote only camelCase firstName/lastName for years, so
+    // those accounts saw their email prefix as a name. Read both spellings.
+    const fromParts = join(meta.first_name, meta.last_name) || join(meta.firstName, meta.lastName);
 
     return (
         meta.full_name ||
@@ -678,6 +687,19 @@ export const useAuthStore = create<AuthState>()(
                     // ignore
                 }
                 get().clearSession();
+            },
+
+            refreshUser: (profile) => {
+                const user = get().user;
+                if (!user) return;
+                const name = profile.fullName?.trim();
+                const email =
+                    !profile.email
+                        ? user.email
+                        : profile.emailIsInternal || isInternalEmail(profile.email)
+                            ? ''
+                            : profile.email;
+                set({ user: { ...user, name: name || user.name, email } });
             },
 
             forgotPassword: async (email) => {

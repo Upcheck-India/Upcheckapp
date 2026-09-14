@@ -4,6 +4,12 @@ const members = {
     workerCodeHint: 'ఈ కోడ్‌ను ఫారం యజమానికి చూపించండి, వారు మిమ్మల్ని వారి ఫారంలో చేర్చగలరు.',
     workerCodeCopied: 'కోడ్ కాపీ చేయబడింది',
     workerCodeShareMessage: 'నా Neerani వర్కర్ కోడ్: {{code}}',
+    qr: {
+        shareImage: 'చిత్రం షేర్ చేయి',
+        shareCode: 'కోడ్ షేర్ చేయి',
+        workerDialogTitle: 'వర్కర్ కోడ్ — {{name}}',
+        inviteDialogTitle: 'Neeraniలో {{farm}}లో చేరండి',
+    },
 
     farmCodeLabel: 'ఫామ్ జాయిన్ కోడ్',
     farmCodeHint: 'ఒక వర్కర్ ఈ ఫామ్‌లో స్వయంగా చేరడానికి ఈ కోడ్‌ను వారితో పంచుకోండి.',

@@ -44,8 +44,8 @@ import type { User } from '@supabase/supabase-js';
 
 // L2: tighter per-endpoint rate limits for credential-guessing surfaces
 // (the global guard is a coarse 60/min/IP for everything).
-const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
-const SENSITIVE_THROTTLE = { default: { limit: 5, ttl: 60_000 } };
+export const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
+export const SENSITIVE_THROTTLE = { default: { limit: 5, ttl: 60_000 } };
 
 const TWO_FA_TEMP_PREFIX = 'auth:2fa:temp:';
 const TWO_FA_TEMP_TTL_SECONDS = 300;
@@ -610,6 +610,8 @@ export class SupabaseAuthController {
     return await this.supabaseAuthService.sendPasswordResetEmail(email);
   }
 
+  // Throttled: it checks the current password, so it is a guessing surface.
+  @Throttle(SENSITIVE_THROTTLE)
   @Post('update-password')
   @UseGuards(SupabaseAuthGuard)
   async updatePassword(@Req() request: any, @Body() body: ChangePasswordDto) {

@@ -76,8 +76,29 @@ export const authApi = {
             { accessToken, refreshToken },
         ),
 
-    updatePassword: (newPassword: string) =>
-        apiClient.post('/auth/supabase/update-password', { newPassword }),
+    // The server re-checks the CURRENT password before changing it; without it
+    // the request always failed validation.
+    updatePassword: (currentPassword: string, newPassword: string) =>
+        apiClient.post('/auth/supabase/update-password', { currentPassword, newPassword }),
+
+    // ── Account management (see AccountScreen) ──
+    account: {
+        requestEmailCode: (purpose: 'set_password' | 'change_email', newEmail?: string) =>
+            apiClient.post<{ sent: true; expiresInSeconds: number; cooldownSeconds: number }>(
+                '/auth/supabase/account/email-code',
+                { purpose, newEmail },
+            ),
+        setPassword: (code: string, newPassword: string) =>
+            apiClient.post<{ passwordSet: true }>('/auth/supabase/account/set-password', { code, newPassword }),
+        changeEmail: (newEmail: string, code: string, currentPassword?: string) =>
+            apiClient.post<{ email: string }>('/auth/supabase/account/change-email', {
+                newEmail,
+                code,
+                currentPassword,
+            }),
+        linkGoogle: (idToken: string) =>
+            apiClient.post<{ linked: true }>('/auth/supabase/account/link-google', { idToken }),
+    },
 
     resendVerification: (email: string) =>
         apiClient.post('/auth/supabase/resend-verification', { email }),

@@ -318,6 +318,32 @@ export function screenView(name: string): void {
 }
 
 /**
+ * Report that a remote flag was READ — PostHog's `$feature_flag_called`.
+ *
+ * The one sanctioned event outside EVENTS, and why: it is PostHog's own
+ * reserved name, the only thing its experiments count exposures from, and it
+ * carries exactly two facts — which `app-` flag (a key we named, from the
+ * closed REMOTE_FLAGS table) and whether it was on. No farm data, and no
+ * free-form property can ride along: the payload is built here, not passed in.
+ *
+ * Returns whether it was sent, so the caller dedupes only real reports
+ * (no consent → false, and a later grant in the same session still reports).
+ */
+export function reportFeatureFlagExposure(flag: `app-${string}`, response: boolean): boolean {
+    if (!client) return false;
+    try {
+        client.capture('$feature_flag_called', {
+            ...ambient,
+            $feature_flag: flag,
+            $feature_flag_response: response,
+        });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Tie events to a stable person, by irreversible hash only.
  *
  * Everything that counts PEOPLE rather than events — retention, growth,

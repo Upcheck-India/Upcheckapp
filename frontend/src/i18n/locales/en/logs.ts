@@ -214,5 +214,9 @@ const logs = {
   weeklyChem_groupHint_buffering: 'How well the pond holds its pH. Low values swing the pH and stall moulting.',
   weeklyChem_groupHint_clarity: 'Secchi depth — how deep you can still see the disc. Reads the plankton bloom.',
   waterQuality_sectionDaily: "Today's Reading",
+  moltPeakTitle: 'Molt peak — shrimp are soft-shelled',
+  moltPeakSampling: 'Avoid sampling or netting until {{date}}. You can still save this log.',
+  moltPeakHarvest: 'Harvesting now means soft shells and a lower price. Wait until {{date}} if you can.',
+  moltPeakTreatment: 'Molting shrimp are stressed — hold non-urgent treatments until {{date}}.',
 };
 export default logs;

@@ -7,6 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { AlertBanner } from '../../components/ui/AlertBanner';
+import { MoltPeakBanner } from '../../components/molt/MoltPeakBanner';
 import { theme } from '../../theme';
 import { treatmentsApi } from '../../api/treatments';
 import { apiErrorMessage } from '../../api/errors';
@@ -113,6 +114,7 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
 
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
+                <MoltPeakBanner messageKey="logs.moltPeakTreatment" />
 
                 {flagged.length > 0 ? (
                     <AlertBanner

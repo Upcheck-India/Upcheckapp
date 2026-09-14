@@ -90,8 +90,37 @@ export function useGoogleAuth() {
         }
     };
 
+    /**
+     * Pick a Google account and return its ID token WITHOUT signing in — for
+     * linking Google to the account that is already signed in. Returns null
+     * when cancelled or unconfigured; throws other native errors. Kept apart
+     * from signInWithGoogle on purpose so the sign-in path stays untouched.
+     */
+    const pickGoogleIdToken = async (): Promise<string | null> => {
+        if (!hasClientIds) return null;
+        try {
+            await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+            try {
+                await GoogleSignin.signOut();
+            } catch {
+                // no-op if nothing was cached
+            }
+            const response = await GoogleSignin.signIn();
+            return isSuccessResponse(response) ? response.data.idToken ?? null : null;
+        } catch (error: any) {
+            if (
+                isErrorWithCode(error) &&
+                (error.code === statusCodes.SIGN_IN_CANCELLED || error.code === statusCodes.IN_PROGRESS)
+            ) {
+                return null;
+            }
+            throw error;
+        }
+    };
+
     return {
         signInWithGoogle,
+        pickGoogleIdToken,
         isReady,
         isLoading,
     };

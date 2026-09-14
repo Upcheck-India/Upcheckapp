@@ -16,6 +16,8 @@ const common = {
   close: 'మూసివేయి',
   confirm: 'నిర్ధారించు',
   back: 'వెనుకకు',
+  featureUnavailable: 'ప్రస్తుతం అందుబాటులో లేదు',
+  featureUnavailableBody: 'ఈ సదుపాయం ప్రస్తుతం ఆపివేయబడింది. తర్వాత మళ్లీ చూడండి.',
   next: 'తదుపరి',
   done: 'పూర్తయింది',
   retry: 'మళ్ళీ ప్రయత్నించు',

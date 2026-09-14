@@ -16,6 +16,8 @@ const common = {
   close: 'Close',
   confirm: 'Confirm',
   back: 'Back',
+  featureUnavailable: 'Not available right now',
+  featureUnavailableBody: 'This feature is switched off for now. Please check again later.',
   next: 'Next',
   done: 'Done',
   retry: 'Retry',

@@ -44,6 +44,7 @@ import { alertCenterApi, type BriefingItem, type AlertSeverity } from '../../api
 import { toLocalISODate, todayLocalISODate } from '../../utils/localDate';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
+import { useFlag } from '../../features/remoteFlags';
 import Svg, { Ellipse, Path } from 'react-native-svg';
 
 /** Stable empty fallbacks — a fresh `[]` each render would break the memos. */
@@ -106,6 +107,9 @@ export const CHECKLIST_HIDDEN_FLAG = '@upcheck:checklist_hidden';
 
 export const HomeScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
+    const tasksOn = useFlag('tasks');
+    const teamTabOn = useFlag('teamTab');
+    const lunarOn = useFlag('lunar');
     const { user } = useAuthStore();
     const { selectedFarm, setSelectedFarm } = useActiveFarmStore();
     const perms = usePermissions(selectedFarm?.id);
@@ -978,14 +982,14 @@ export const HomeScreen = ({ navigation }: any) => {
                     )}
 
                     {/* "My tasks" — mine only. The Team tab shows the whole team's. */}
-                    <MyTasksList
+                    {tasksOn && <MyTasksList
                         tasks={myOpenTasks ?? []}
                         userId={user?.id}
                         farmNameForTask={(task) => farms.find((f) => f.id === task.farmId)?.name}
                         // The whole board, not just mine — an owner who has
                         // handed every task to someone else still has to see
                         // whether it is getting done.
-                        onSeeAll={() => navigation.navigate('Team')}
+                        onSeeAll={teamTabOn ? () => navigation.navigate('Team') : undefined}
                         onOpen={(task) =>
                             goRoot('TaskList', {
                                 farmId: task.farmId,
@@ -995,7 +999,7 @@ export const HomeScreen = ({ navigation }: any) => {
                                 assignedToId: user?.id,
                             })
                         }
-                    />
+                    />}
 
                     {/* The three figures that close 1b. */}
                     <TodayStats
@@ -1008,7 +1012,9 @@ export const HomeScreen = ({ navigation }: any) => {
                         a soft-shelled pond is fed less and never handled, which
                         is a decision about today. It costs no request — the
                         phase is arithmetic on the date. */}
-                    <LunarRow onPress={() => goRoot('Lunar')} />
+                    {lunarOn && (
+                    <LunarRow moltWindow={alertsQuery.data?.moltWindow} onPress={() => goRoot('Lunar')} />
+                    )}
 
                     {/* Everything above answers "what needs me now" and then
                         stops, so on a calm day the screen ran out of things to

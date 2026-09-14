@@ -12,6 +12,7 @@ import { useMembershipStore } from '../store/membershipStore';
 import { canDecideOnTeam, fetchTeamOverview, teamBadgeCount } from '../api/teamOverview';
 import { qk } from '../query/client';
 import { useAppQuery } from '../query/hooks';
+import { useFlag } from '../features/remoteFlags';
 
 // Import screens
 import { HomeScreen } from '../screens/main/HomeScreen';
@@ -66,6 +67,9 @@ export const MainNavigator = () => {
     // matrix the backend enforces rather than from any global account flag.
     // Hidden, not disabled: a tab a worker may not open should not be there.
     const perms = usePermissions();
+    // Remote kill switches — hidden the same way Money is, not disabled.
+    const teamTabOn = useFlag('teamTab');
+    const newsOn = useFlag('news');
 
     /**
      * The Team tab's badge.
@@ -125,16 +129,18 @@ export const MainNavigator = () => {
                     tabBarIcon: ({ color }) => <Icon name="grid_view" color={color} size={22} />,
                 }}
             />
-            <Tab.Screen
-                name="Team"
-                component={TeamScreen}
-                options={{
-                    tabBarLabel: t('common.tabTeam'),
-                    tabBarIcon: ({ color }) => <Icon name="groups" color={color} size={22} />,
-                    // ABSENT at zero, not a "0" — an empty queue is not news.
-                    tabBarBadge: badge > 0 ? badge : undefined,
-                }}
-            />
+            {teamTabOn && (
+                <Tab.Screen
+                    name="Team"
+                    component={TeamScreen}
+                    options={{
+                        tabBarLabel: t('common.tabTeam'),
+                        tabBarIcon: ({ color }) => <Icon name="groups" color={color} size={22} />,
+                        // ABSENT at zero, not a "0" — an empty queue is not news.
+                        tabBarBadge: badge > 0 ? badge : undefined,
+                    }}
+                />
+            )}
             {/* Center quick-log action — opens the Quick Log modal, never a tab.
                 Sits fourth of seven so the blue FAB lands in the middle of the
                 bar. A worker without Money has six tabs and the FAB therefore
@@ -162,14 +168,16 @@ export const MainNavigator = () => {
                     }}
                 />
             )}
-            <Tab.Screen
-                name="NewsTab"
-                component={NewsListScreen}
-                options={{
-                    tabBarLabel: t('common.tabNews'),
-                    tabBarIcon: ({ color }) => <Icon name="newspaper" color={color} size={22} />,
-                }}
-            />
+            {newsOn && (
+                <Tab.Screen
+                    name="NewsTab"
+                    component={NewsListScreen}
+                    options={{
+                        tabBarLabel: t('common.tabNews'),
+                        tabBarIcon: ({ color }) => <Icon name="newspaper" color={color} size={22} />,
+                    }}
+                />
+            )}
             <Tab.Screen
                 name="Settings"
                 component={SettingsScreen}

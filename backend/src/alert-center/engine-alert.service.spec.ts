@@ -1,11 +1,11 @@
 import { EngineAlertService } from './engine-alert.service';
-import { LunarService } from '../lunar/lunar.service';
+import { deriveItems, PondMolt } from '../molt/molt.service';
 
 function makeService() {
   return new EngineAlertService(
     null as any, // pondRepo (unused by evaluate)
     null as any, // pondContext
-    new LunarService(),
+    null as any, // molt (unused by evaluate)
     null as any, // alertCenter
     null as any, // farmAccess (unused by evaluate)
   );
@@ -67,6 +67,64 @@ describe('EngineAlertService.evaluate', () => {
   });
 });
 
+describe('EngineAlertService.evaluate — molt checklist', () => {
+  const svc = makeService();
+  const window: any = { key: '2026-09-11-new', kind: 'new', peakDate: '2026-09-11' };
+  const allDone = {
+    minerals: true,
+    alkalinity: true,
+    peakDo: true,
+    handlingInPeak: false,
+    postSampling: true,
+    feedBaselineKg: 100,
+    peakFeedDaysKg: [80],
+  };
+  const molt = (over: Partial<PondMolt> & { ev?: any; manual?: string[] }): PondMolt => {
+    const phase = over.phase ?? 'peak';
+    return {
+      pondId: 'p1',
+      window,
+      phase,
+      eligible: true,
+      sizeUnknown: false,
+      abwG: 12,
+      pendingCritical: 0,
+      items: deriveItems(phase, { ...allDone, ...over.ev }, new Set(over.manual ?? [])),
+      ...over,
+    } as PondMolt;
+  };
+  const lunar = (m: PondMolt) =>
+    svc.evaluate(baseCtx, m).filter((d) => d.source === 'lunar');
+
+  it('no alert when every item is done', () => {
+    expect(lunar(molt({ phase: 'peak', manual: ['aerator_service'] }))).toEqual([]);
+  });
+
+  it('critical at peak with a pending critical item, steps list pending items', () => {
+    const [a] = lunar(molt({ phase: 'peak', ev: { peakDo: false } }));
+    expect(a.severity).toBe('critical');
+    expect(a.title).toBe('Molt peak — 1 action pending');
+    expect(a.steps).toEqual(['Check and log night/pre-dawn DO']);
+  });
+
+  it('critical at peak when handling was logged (violated)', () => {
+    const [a] = lunar(molt({ phase: 'peak', ev: { handlingInPeak: true } }));
+    expect(a.severity).toBe('critical');
+  });
+
+  it('watch in pre with a pending important item', () => {
+    const [a] = lunar(molt({ phase: 'pre', ev: { minerals: false } }));
+    expect(a.severity).toBe('watch');
+  });
+
+  it('ineligible and size-unknown ponds get no molt alert', () => {
+    const pending = { phase: 'peak' as const, ev: { peakDo: false } };
+    expect(lunar(molt({ ...pending, eligible: false }))).toEqual([]);
+    expect(lunar(molt({ ...pending, eligible: false, sizeUnknown: true, abwG: null }))).toEqual([]);
+    expect(lunar(molt({ ...pending, window: null }))).toEqual([]);
+  });
+});
+
 /**
  * activeContexts backs BOTH /alert-center/live-briefing and /alert-center/today.
  *
@@ -97,14 +155,17 @@ const buildSvc = (over: any = {}) => {
       .fn()
       .mockResolvedValue(over.readablePonds ?? ['p1', 'p2']),
   };
+  const moltSvc = {
+    checklistsFor: jest.fn(async () => new Map()),
+  };
   const svc = new EngineAlertService(
     pondRepo as any,
     { buildContextsFor } as any,
-    new LunarService(),
+    moltSvc as any,
     { buildBriefing: jest.fn((drafts) => drafts) } as any,
     farmAccess as any,
   );
-  return { svc, buildContextsFor, pondRepo, farmAccess };
+  return { svc, buildContextsFor, pondRepo, farmAccess, moltSvc };
 };
 
 describe('EngineAlertService.activeContexts', () => {
@@ -177,5 +238,20 @@ describe('EngineAlertService.today', () => {
     for (const item of briefing) {
       expect(contexts.some((c) => c.pondId === item.pondId)).toBe(true);
     }
+  });
+
+  it('adds moltWindow from ONE bulk checklist call', async () => {
+    const { svc, moltSvc } = buildSvc();
+    moltSvc.checklistsFor.mockResolvedValueOnce(
+      new Map<string, any>([
+        ['p1', { eligible: true, window: { peakDate: 'x' }, phase: 'peak', items: [{ key: 'night_do_check', priority: 'critical', status: 'pending' }] }],
+        ['p2', { eligible: false, window: null, phase: 'peak', items: [] }],
+      ]),
+    );
+    const { moltWindow, briefing } = await svc.today('user-1');
+    expect(moltSvc.checklistsFor).toHaveBeenCalledTimes(1);
+    expect(moltWindow).toMatchObject({ eligiblePonds: 1, pondsWithPending: 1 });
+    expect(moltWindow.next.key).toMatch(/-(new|full)$/);
+    expect(briefing.filter((b: any) => b.data?.source === 'lunar' || b.source === 'lunar')).toHaveLength(1);
   });
 });

@@ -340,6 +340,58 @@ export async function syncReminders(
     }
 }
 
+const MOLT_REMINDER_TAG = 'molt-reminder';
+
+/**
+ * One local notification at 18:00 on the evening before each upcoming molt
+ * window's pre-start, so minerals and aerators happen BEFORE the peak.
+ *
+ * Idempotent: cancels only its own tag and re-schedules from the windows the
+ * server returned, so calling it on every foreground never duplicates. Never
+ * prompts — syncReminders owns the permission request; without a grant this
+ * leaves whatever is already scheduled alone (same rule as syncReminders).
+ */
+export async function syncMoltReminders(
+    windows: { key: string; kind: 'new' | 'full'; preStart: string }[],
+    now: Date = new Date(),
+): Promise<void> {
+    if (Platform.OS === 'web') return;
+    try {
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted' || windows.length === 0) return;
+        await ensureNotificationChannel();
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        await Promise.all(
+            scheduled
+                .filter((n: any) => n?.content?.data?.tag === MOLT_REMINDER_TAG)
+                .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+        );
+        for (const w of windows) {
+            const [y, m, d] = w.preStart.split('-').map(Number);
+            // Local 18:00 on the day before preStart.
+            const when = new Date(y, m - 1, d - 1, 18, 0, 0, 0);
+            if (when <= now) continue;
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: i18n.t('engines.lunar.reminderTitle', 'Molt window starts tomorrow'),
+                    body: i18n.t(
+                        'engines.lunar.reminderBody',
+                        'Dose minerals, check alkalinity and service aerators before the peak.',
+                    ),
+                    data: { tag: MOLT_REMINDER_TAG, windowKey: w.key },
+                },
+                trigger: {
+                    type: Notifications.SchedulableTriggerInputTypes.DATE,
+                    date: when,
+                    channelId: REMINDER_CHANNEL_ID,
+                },
+            });
+        }
+    } catch (e) {
+        console.warn('[Notifications] Could not sync molt reminders', e);
+    }
+}
+
 /** Next occurrence of `weekday` (1 = Sunday) at the given time, after `now`. */
 function nextWeekday(now: Date, t: { weekday: number; hour: number; minute: number }): Date {
     const when = new Date(now);

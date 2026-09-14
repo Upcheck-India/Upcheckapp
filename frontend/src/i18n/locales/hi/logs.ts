@@ -214,5 +214,9 @@ const logs = {
   waterQuality_placeholderNotes: 'कोई असामान्य अवलोकन...',
   waterQuality_saveBtn: 'लॉग सहेजें',
   waterQuality_errorSave: 'जल गुणवत्ता लॉग सहेजने में विफल',
+  moltPeakTitle: 'मोल्ट चरम — झींगों का खोल नरम है',
+  moltPeakSampling: '{{date}} तक सैंपलिंग या जाल डालने से बचें। आप यह लॉग फिर भी सहेज सकते हैं।',
+  moltPeakHarvest: 'अभी हार्वेस्ट करने पर खोल नरम और दाम कम मिलेगा। हो सके तो {{date}} तक रुकें।',
+  moltPeakTreatment: 'मोल्ट के समय झींगे तनाव में होते हैं — गैर-ज़रूरी उपचार {{date}} तक रोकें।',
 };
 export default logs;

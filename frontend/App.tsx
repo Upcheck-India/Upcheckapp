@@ -15,7 +15,7 @@ import { routeForNotification } from './src/features/notificationRouting';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ToastHost } from './src/components/ui/ToastHost';
 import { WhatsNewCard } from './src/components/ui/WhatsNewCard';
-import { registerForPushNotificationsAsync, syncReminders } from './src/utils/notifications';
+import { registerForPushNotificationsAsync, syncReminders, syncMoltReminders } from './src/utils/notifications';
 import { alertCenterApi } from './src/api/alertCenter';
 import { pondsApi } from './src/api/ponds';
 import { loadReminderTimes } from './src/features/reminderTimes';
@@ -32,6 +32,7 @@ import {
   clearAmbientProps,
 } from './src/features/analytics';
 import { initSentry, setSentryUser } from './src/utils/sentry';
+import { clearRemoteFlags, fetchRemoteFlags, restoreRemoteFlags } from './src/features/remoteFlags';
 import { useAuthStore } from './src/store/authStore';
 import { useActiveFarmStore } from './src/store/activeFarmStore';
 import { useMembershipStore } from './src/store/membershipStore';
@@ -221,6 +222,21 @@ export default function App() {
     void identifyUser(isAuthenticated ? userId : null, person);
   }, [isAuthenticated, userId, farmRole]);
 
+  // Remote feature flags (features/remoteFlags.ts): cached copy first, then a
+  // fresh fetch on sign-in, and again on foreground (throttled to 5 min).
+  // Signed out → defaults.
+  useEffect(() => {
+    if (!isAuthenticated || !userId) {
+      clearRemoteFlags();
+      return;
+    }
+    void restoreRemoteFlags(userId).then(() => fetchRemoteFlags(userId, true));
+    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') void fetchRemoteFlags(userId);
+    });
+    return () => sub.remove();
+  }, [isAuthenticated, userId]);
+
   /*
    * The analytics consent question, asked ONCE.
    *
@@ -296,6 +312,11 @@ export default function App() {
       // code assumed unconditionally.
       const hasPonds = pondRes ? (pondRes.data?.length ?? 0) > 0 : contexts.length > 0;
       await syncReminders(contexts, times, new Date(), hasPonds);
+      // Evening-before molt reminder, only for accounts with a running cycle.
+      const mw = ctxRes?.data?.moltWindow;
+      if (mw && contexts.length > 0) {
+        await syncMoltReminders([mw.window, mw.next].filter((w): w is NonNullable<typeof w> => !!w));
+      }
     };
     const arm = () =>
       armReminders().catch((e) =>

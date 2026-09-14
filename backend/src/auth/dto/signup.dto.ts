@@ -9,6 +9,16 @@ import {
 } from 'class-validator';
 
 /**
+ * The one password policy. Signup, set-password and change-password all use
+ * it, so a password accepted at signup can always be set again later — and
+ * frontend `features/passwordPolicy.ts` mirrors exactly this.
+ */
+export const PASSWORD_POLICY_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
+export const PASSWORD_POLICY_MESSAGE =
+  'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (any non-letter, non-digit character such as # - _ . @ ! etc.)';
+
+/**
  * Server-side validation for POST /auth/supabase/signup.
  *
  * Enforces email format and password strength at the trust boundary — the
@@ -28,10 +38,7 @@ export class SignupDto {
   // this exact rule. (min length is enforced separately by @MinLength(8).)
   @IsString()
   @MinLength(8)
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/, {
-    message:
-      'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (any non-letter, non-digit character such as # - _ . @ ! etc.)',
-  })
+  @Matches(PASSWORD_POLICY_REGEX, { message: PASSWORD_POLICY_MESSAGE })
   password: string;
 
   @IsOptional()

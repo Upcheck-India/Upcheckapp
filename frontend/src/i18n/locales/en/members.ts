@@ -5,6 +5,12 @@ const members = {
     workerCodeHint: 'Show this code to a farm owner so they can add you to their farm.',
     workerCodeCopied: 'Code copied',
     workerCodeShareMessage: 'My Neerani worker code: {{code}}',
+    qr: {
+        shareImage: 'Share image',
+        shareCode: 'Share code',
+        workerDialogTitle: 'Worker code — {{name}}',
+        inviteDialogTitle: 'Join {{farm}} on Neerani',
+    },
 
     // Farm join code (shown to owner/manager so a worker can self-join)
     farmCodeLabel: 'Farm join code',

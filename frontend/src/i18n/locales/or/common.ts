@@ -16,6 +16,8 @@ const common = {
   close: 'ବନ୍ଦ',
   confirm: 'ନିଶ୍ଚିତ',
   back: 'ପଛକୁ',
+  featureUnavailable: 'ବର୍ତ୍ତମାନ ଉପଲବ୍ଧ ନାହିଁ',
+  featureUnavailableBody: 'ଏହି ସୁବିଧା ବର୍ତ୍ତମାନ ବନ୍ଦ ଅଛି। ପରେ ପୁଣି ଦେଖନ୍ତୁ।',
   next: 'ପରବର୍ତ୍ତୀ',
   done: 'ସମ୍ପନ୍ନ',
   retry: 'ପୁନଃ ଚେଷ୍ଟା',

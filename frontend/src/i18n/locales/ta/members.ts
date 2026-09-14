@@ -4,6 +4,12 @@ const members = {
     workerCodeHint: 'இந்தக் குறியீட்டைப் பண்ணை உரிமையாளரிடம் காட்டுங்கள், அவர் உங்களை அவரது பண்ணையில் சேர்க்கலாம்.',
     workerCodeCopied: 'குறியீடு நகலெடுக்கப்பட்டது',
     workerCodeShareMessage: 'எனது Neerani பணியாளர் குறியீடு: {{code}}',
+    qr: {
+        shareImage: 'படத்தைப் பகிர்',
+        shareCode: 'குறியீட்டைப் பகிர்',
+        workerDialogTitle: 'பணியாளர் குறியீடு — {{name}}',
+        inviteDialogTitle: 'Neerani-இல் {{farm}} பண்ணையில் இணையுங்கள்',
+    },
 
     farmCodeLabel: 'பண்ணை இணைப்புக் குறியீடு',
     farmCodeHint: 'ஒரு பணியாளர் இந்தப் பண்ணையில் தானாக இணைய இந்தக் குறியீட்டைப் பகிரவும்.',

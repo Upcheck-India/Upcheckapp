@@ -1,5 +1,6 @@
 import apiClient from './client';
 import type { PondContext } from './pondContext';
+import type { MoltWindowSummary } from './molt';
 
 export type AlertSeverity = 'info' | 'watch' | 'critical';
 
@@ -26,9 +27,12 @@ export const alertCenterApi = {
    * visit. This returns both from one pass.
    */
   today: () =>
-    apiClient.get<{ contexts: PondContext[]; briefing: BriefingItem[] }>(
-      '/alert-center/today',
-    ),
+    apiClient.get<{
+      contexts: PondContext[];
+      briefing: BriefingItem[];
+      /** Absent on a backend older than the molt-window deploy. */
+      moltWindow?: MoltWindowSummary | null;
+    }>('/alert-center/today'),
 
   /** Live briefing — engine alerts recomputed from each pond's latest data. */
   liveBriefing: () => apiClient.get<BriefingItem[]>('/alert-center/live-briefing'),

@@ -44,6 +44,7 @@ import { farmsApi } from '../../api/farms';
 import { pondsApi } from '../../api/ponds';
 import { usePermissions } from '../../hooks/usePermissions';
 import { personName } from '../../utils/personName';
+import { shareQrImage } from '../../utils/shareQrImage';
 import { capture, EVENTS } from '../../features/analytics';
 
 const c = theme.roles.light;
@@ -189,6 +190,14 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
         }
     };
 
+    const inviteQrRef = useRef<any>(null);
+    const shareInviteImage = (code: string) =>
+        shareQrImage(inviteQrRef.current, {
+            filename: 'neerani-invite-qr.png',
+            dialogTitle: t('members.qr.inviteDialogTitle', { farm: farmName ?? '' }),
+            fallbackMessage: t('members.shareInviteMessage', { code, farm: farmName ?? '' }),
+        });
+
     // AddWorkerScreen's "send an invite instead" (for someone with no
     // account) lands here with autoShare — fire the share sheet ourselves
     // once a live invite is on screen, instead of making the owner hunt for
@@ -314,7 +323,14 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                             </View>
                             {!!activeInvite && (
                                 <View style={styles.qr}>
-                                    <QRCode value={activeInvite.code} size={72} />
+                                    {/* White + quiet zone baked into the SVG so the shared PNG scans. */}
+                                    <QRCode
+                                        value={activeInvite.code}
+                                        size={72}
+                                        backgroundColor="#FFFFFF"
+                                        quietZone={8}
+                                        getRef={(c) => { inviteQrRef.current = c; }}
+                                    />
                                 </View>
                             )}
                         </View>
@@ -335,6 +351,13 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                                 style={styles.codeBtn}
                             />
                         </View>
+                        {!!activeInvite && (
+                            <Button
+                                title={t('members.qr.shareImage')}
+                                variant="text"
+                                onPress={() => shareInviteImage(activeInvite.code)}
+                            />
+                        )}
                     </View>
                 )}
 

@@ -214,5 +214,9 @@ const logs = {
   waterQuality_placeholderNotes: 'ଅସ୍ୱାଭାବିକ ଅବଲୋକନ...',
   waterQuality_saveBtn: 'ଲଗ ସଞ୍ଚୟ',
   waterQuality_errorSave: 'ଜଳ ଗୁଣ ଲଗ ସଞ୍ଚୟ ବିଫଳ',
+  moltPeakTitle: 'ମୋଲ୍ଟ ଶୀର୍ଷ ସମୟ — ଚିଙ୍ଗୁଡ଼ି ଖୋଳ ନରମ',
+  moltPeakSampling: '{{date}} ପର୍ଯ୍ୟନ୍ତ ନମୁନା ନେବା ବା ଜାଲ ପକାଇବା ଏଡ଼ାନ୍ତୁ। ଏହି ଲଗ ତଥାପି ସଞ୍ଚୟ କରିପାରିବେ।',
+  moltPeakHarvest: 'ଏବେ ଅମଳ କଲେ ଖୋଳ ନରମ ଓ ଦାମ କମ ହେବ। ସମ୍ଭବ ହେଲେ {{date}} ପର୍ଯ୍ୟନ୍ତ ଅପେକ୍ଷା କରନ୍ତୁ।',
+  moltPeakTreatment: 'ଖୋଳ ବଦଳାଉଥିବା ଚିଙ୍ଗୁଡ଼ି ଚାପରେ ଥାଏ — ଜରୁରୀ ନଥିବା ଚିକିତ୍ସା {{date}} ପର୍ଯ୍ୟନ୍ତ ବନ୍ଦ ରଖନ୍ତୁ।',
 };
 export default logs;

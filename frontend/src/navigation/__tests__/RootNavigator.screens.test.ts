@@ -17,7 +17,8 @@ jest.mock('../../lib/supabase', () => ({ supabase: {} }));
 const SOURCE = fs.readFileSync(path.join(__dirname, '..', 'RootNavigator.tsx'), 'utf8');
 
 // getComponent={() => require('../screens/foo/BarScreen').BarScreen}
-const GET_COMPONENT = /getComponent=\{\(\) => require\('([^']+)'\)\.(\w+)\}/g;
+// or, behind a remote flag: getComponent={() => withFlag('x', require('...').BarScreen)}
+const GET_COMPONENT = /getComponent=\{\(\) => (?:withFlag\('\w+', )?require\('([^']+)'\)\.(\w+)\)?\}/g;
 // component={Foo} — the deliberately eager ones.
 const COMPONENT = /component=\{(\w+)\}/g;
 

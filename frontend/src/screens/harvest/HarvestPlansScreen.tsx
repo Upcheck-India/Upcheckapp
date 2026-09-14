@@ -18,6 +18,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { MoltPeakBanner } from '../../components/molt/MoltPeakBanner';
 import { theme } from '../../theme';
 import { harvestPlansApi, HarvestPlan } from '../../api/harvestPlans';
 import { apiErrorMessage } from '../../api/errors';
@@ -428,6 +429,9 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
                                     required
                                     leftIcon="calendar-outline"
                                 />
+                                {/^\d{4}-\d{2}-\d{2}$/.test(formPlannedDate) && (
+                                    <MoltPeakBanner messageKey="harvestPlans.moltWindowWarning" date={formPlannedDate} />
+                                )}
                                 <Input
                                     label={t('harvestPlans.targetWeightKg', 'Target Weight (kg)')}
                                     value={formTargetWeight}

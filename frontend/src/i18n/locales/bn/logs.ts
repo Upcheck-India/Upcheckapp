@@ -214,5 +214,9 @@ const logs = {
   waterQuality_placeholderNotes: 'যেকোনো অস্বাভাবিক পর্যবেক্ষণ...',
   waterQuality_saveBtn: 'লগ সংরক্ষণ করুন',
   waterQuality_errorSave: 'পানির গুণগত মান লগ সংরক্ষণ ব্যর্থ',
+  moltPeakTitle: 'মোল্টের চূড়ান্ত সময় — চিংড়ির খোলস নরম',
+  moltPeakSampling: '{{date}} পর্যন্ত নমুনা নেওয়া বা জাল ফেলা এড়িয়ে চলুন। লগটি তবুও সংরক্ষণ করা যাবে।',
+  moltPeakHarvest: 'এখন ফসল তুললে খোলস নরম ও দাম কম হবে। সম্ভব হলে {{date}} পর্যন্ত অপেক্ষা করুন।',
+  moltPeakTreatment: 'খোলস বদলের সময় চিংড়ি চাপে থাকে — জরুরি নয় এমন চিকিৎসা {{date}} পর্যন্ত বন্ধ রাখুন।',
 };
 export default logs;

@@ -214,5 +214,9 @@ const logs = {
   waterQuality_placeholderNotes: 'ఏదైనా అసాధారణ పరిశీలనలు...',
   waterQuality_saveBtn: 'లాగ్ సేవ్ చేయి',
   waterQuality_errorSave: 'నీటి నాణ్యత లాగ్ సేవ్ చేయడం విఫలమైంది',
+  moltPeakTitle: 'మోల్ట్ గరిష్ఠ దశ — రొయ్యల పెంకు మెత్తగా ఉంది',
+  moltPeakSampling: '{{date}} వరకు నమూనా తీయడం లేదా వల వేయడం మానండి. ఈ లాగ్‌ను ఇప్పటికీ సేవ్ చేయవచ్చు.',
+  moltPeakHarvest: 'ఇప్పుడు పంట కోస్తే పెంకు మెత్తగా, ధర తక్కువగా ఉంటుంది. వీలైతే {{date}} వరకు ఆగండి.',
+  moltPeakTreatment: 'కుబుసం విడిచే రొయ్యలు ఒత్తిడిలో ఉంటాయి — అత్యవసరం కాని చికిత్సలను {{date}} వరకు ఆపండి.',
 };
 export default logs;

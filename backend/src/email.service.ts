@@ -149,6 +149,37 @@ export class EmailService {
   }
 
   /**
+   * A 6-digit code proving the recipient controls this address, for setting a
+   * first password or changing the account email. English only: the code is
+   * the payload and reads the same in every language. Throws like sendEmail.
+   */
+  async sendAccountCodeEmail(
+    toEmail: string,
+    code: string,
+    purpose: 'set_password' | 'change_email',
+  ): Promise<void> {
+    const action =
+      purpose === 'set_password'
+        ? 'set a password for your account'
+        : 'use this email address for your account';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#333;">
+          <h2 style="margin:0 0 12px;">${esc(this.appName)} verification code</h2>
+          <p>Enter this code in the app to ${esc(action)}:</p>
+          <p style="font-size:32px;font-weight:700;letter-spacing:6px;margin:16px 0;">${esc(code)}</p>
+          <p style="color:#666;">It expires in 10 minutes. If you did not ask for this, ignore this email — nothing changes without the code.</p>
+        </body>
+      </html>`;
+    await this.sendEmail(
+      toEmail,
+      `${this.appName} code: ${code}`,
+      html,
+    );
+  }
+
+  /**
    * Tells the team a farmer filed a report, so it is not sat on until someone
    * happens to open the dashboard.
    *

@@ -44,6 +44,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
+import { useFlag } from '../../features/remoteFlags';
 import {
     buildPondRows,
     mergeBriefings,
@@ -62,6 +63,7 @@ const kg = (n: number) => n.toLocaleString('en-IN');
 
 export const FarmDetailScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
+    const tasksOn = useFlag('tasks');
     const { farmId, farmName } = route.params;
     const loadMemberships = useMembershipStore((s) => s.load);
     const roleForFarm = useMembershipStore((s) => s.roleForFarm);
@@ -360,7 +362,9 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 />
 
                 <View style={styles.tiles}>
-                    <Tile icon="checklist" label={t('farms.tasks')} onPress={() => navigation.navigate('TaskList', { farmId, farmName })} />
+                    {tasksOn && (
+                        <Tile icon="checklist" label={t('farms.tasks')} onPress={() => navigation.navigate('TaskList', { farmId, farmName })} />
+                    )}
                     <Tile icon="groups" label={t('farms.members')} onPress={() => navigation.navigate('FarmMembers', { farmId, farmName })} />
                     {/* Every cycle across every pond on this farm — the season
                         view the per-pond dashboards cannot give. */}

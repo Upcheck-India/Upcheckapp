@@ -4,6 +4,12 @@ const members = {
     workerCodeHint: 'এই কোডটি খামার মালিককে দেখান যাতে তারা আপনাকে তাদের খামারে যোগ করতে পারে।',
     workerCodeCopied: 'কোড কপি হয়েছে',
     workerCodeShareMessage: 'আমার Neerani কর্মী কোড: {{code}}',
+    qr: {
+        shareImage: 'ছবি শেয়ার করুন',
+        shareCode: 'কোড শেয়ার করুন',
+        workerDialogTitle: 'কর্মী কোড — {{name}}',
+        inviteDialogTitle: 'Neerani-তে {{farm}}-এ যোগ দিন',
+    },
 
     farmCodeLabel: 'খামার জয়েন কোড',
     farmCodeHint: 'একজন কর্মী নিজে এই খামারে যোগ দিতে পারার জন্য এই কোডটি তার সাথে শেয়ার করুন।',

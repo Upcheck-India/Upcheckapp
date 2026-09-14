@@ -687,10 +687,16 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                 </Text>
                             )}
                         </View>
-                        {perms.canRecordData && (
+                        {(perms.canRecordData || alert.source === 'lunar') && (
                             <TouchableOpacity
                                 style={styles.alertBtn}
-                                onPress={() => navigation.navigate('WaterQualityLog', { pondId, pondName, cropId: cycle?.id })}
+                                // A molt alert resolves through its checklist, not
+                                // a water reading — open Lunar for this pond.
+                                onPress={() =>
+                                    alert.source === 'lunar'
+                                        ? navigation.navigate('Lunar', { pondId, pondName })
+                                        : navigation.navigate('WaterQualityLog', { pondId, pondName, cropId: cycle?.id })
+                                }
                                 accessibilityRole="button"
                             >
                                 <Text style={styles.alertBtnLabel}>{t('ponds.markDone')}</Text>

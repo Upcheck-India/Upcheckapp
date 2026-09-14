@@ -8,8 +8,19 @@ export interface Profile {
     avatarUrl?: string;
     website?: string;
     languagePreference: string;
-    createdAt?: string;
     updatedAt: string;
+    // ── Account facts, GET /profiles/me only ──
+    /** When the account was created (users.created_at). */
+    createdAt?: string | null;
+    /** Truecaller-verified phone, digits only. */
+    phone?: string | null;
+    phoneVerified?: boolean;
+    /** False for Google-only and Truecaller accounts until one is set. */
+    hasPassword?: boolean;
+    /** Supabase providers, e.g. ['email', 'google']. */
+    providers?: string[];
+    /** The email is the internal Truecaller login address, not a real one. */
+    emailIsInternal?: boolean;
 }
 
 /**
@@ -19,7 +30,6 @@ export interface Profile {
 export interface ProfileCompat extends Profile {
     firstName?: string;
     lastName?: string;
-    phone?: string;
 }
 
 export interface UpdateProfileDto {
@@ -72,6 +82,10 @@ export const profilesApi = {
 
     getById: (id: string) =>
         apiClient.get<Profile>(`/profiles/${id}`).then(res => ({ ...res, data: toCompat(res.data) })),
+
+    /** The caller's display name — written to profile, users row and auth metadata. */
+    updateMyName: (fullName: string) =>
+        apiClient.patch<Profile>('/profiles/me', { fullName }).then(res => ({ ...res, data: toCompat(res.data) })),
 
     update: (id: string, data: CompatUpdateProfileDto) =>
         apiClient.patch<Profile>(`/profiles/${id}`, compatToUpdateDto(data)).then(res => ({ ...res, data: toCompat(res.data) })),

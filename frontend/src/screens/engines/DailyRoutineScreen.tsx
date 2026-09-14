@@ -25,6 +25,7 @@ import { toLocalISODate } from '../../utils/localDate';
 import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
 import { useFocusEffect } from '@react-navigation/native';
+import { useFlag } from '../../features/remoteFlags';
 
 const isToday = (iso: string | null | undefined) =>
   !!iso && new Date(iso).toDateString() === new Date().toDateString();
@@ -37,6 +38,7 @@ const TRAYS: { key: TrayResidue; tkey: string; icon: any }[] = [
 
 export const DailyRoutineScreen = ({ route, navigation }: any) => {
   const { t } = useTranslation();
+  const feedAdvisorOn = useFlag('feedAdvisor');
   const showToast = useUIStore((s) => s.showToast);
   const { pondId, pondName, cropId: cropParam } = route.params ?? {};
   const [ctx, setCtx] = useState<PondContext | null>(null);
@@ -144,15 +146,17 @@ export const DailyRoutineScreen = ({ route, navigation }: any) => {
           onPress={() => navigation.navigate('WaterQualityLog', params)}
         />
 
-        {/* Step 2 — Feed advice (informational) */}
-        <StepCard
-          n={2}
-          icon="silo-outline"
-          title={t('engines.routine.feedAdvice')}
-          subtitle={ctx?.runningFcr != null ? t('engines.routine.runningFcr', { value: ctx.runningFcr }) : t('engines.routine.feedAdviceSub')}
-          accent
-          onPress={() => navigation.navigate('FeedAdvisor', params)}
-        />
+        {/* Step 2 — Feed advice (informational). Remote kill switch hides it. */}
+        {feedAdvisorOn && (
+          <StepCard
+            n={2}
+            icon="silo-outline"
+            title={t('engines.routine.feedAdvice')}
+            subtitle={ctx?.runningFcr != null ? t('engines.routine.runningFcr', { value: ctx.runningFcr }) : t('engines.routine.feedAdviceSub')}
+            accent
+            onPress={() => navigation.navigate('FeedAdvisor', params)}
+          />
+        )}
 
         {/* Step 3 — Log feed fed */}
         <StepCard

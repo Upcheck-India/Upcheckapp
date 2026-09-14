@@ -43,14 +43,9 @@ export class ProfilesService {
   ): Promise<Partial<Profile> | null> {
     const profile = await this.profilesRepository.findOne({
       where: { username },
-      select: [
-        'id',
-        'username',
-        'fullName',
-        'avatarUrl',
-        'website',
-        'createdAt',
-      ] as any,
+      // No createdAt: profiles has no such column, and selecting it made
+      // TypeORM throw on every public profile lookup.
+      select: ['id', 'username', 'fullName', 'avatarUrl', 'website'],
     });
     return profile ?? null;
   }
@@ -62,6 +57,16 @@ export class ProfilesService {
     username?: string,
   ): Promise<Profile> {
     let profile = await this.profilesRepository.findOneBy({ id });
+    // Signup never wrote a name here (fullName ''), so every email account
+    // showed no name. Heal from users.first/last_name, which the signup
+    // trigger does fill — on creation, and for existing rows on next read.
+    if (!fullName && !profile?.fullName) {
+      fullName = (await this.nameFromUsers(id)) || fullName;
+      if (profile && fullName) {
+        profile.fullName = fullName;
+        await this.profilesRepository.save(profile);
+      }
+    }
     if (!profile) {
       const generated =
         username || `user_${id.replace(/-/g, '').substring(0, 10)}`;
@@ -105,6 +110,18 @@ export class ProfilesService {
       }
     }
     return profile;
+  }
+
+  private async nameFromUsers(id: string): Promise<string> {
+    const rows: { first_name: string | null; last_name: string | null }[] =
+      await this.dataSource.query(
+        `SELECT first_name, last_name FROM users WHERE id = $1`,
+        [id],
+      );
+    return [rows[0]?.first_name, rows[0]?.last_name]
+      .map((p) => (p ?? '').trim())
+      .filter(Boolean)
+      .join(' ');
   }
 
   async update(id: string, updateProfileDto: UpdateProfileDto) {

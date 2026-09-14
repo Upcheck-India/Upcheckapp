@@ -19,6 +19,8 @@ import { theme } from '../../theme';
 import { feedAdvisorApi, type RationResult, type TrayResidue } from '../../api/feedAdvisor';
 import { apiErrorMessage } from '../../api/errors';
 import { usePondContext } from '../../hooks/usePondContext';
+import { useMoltWindows } from '../../components/molt/MoltPeakBanner';
+import { istDateString, windowContaining } from '../../features/moltWindow';
 import { MissingInputs } from '../../components/ui/MissingInputs';
 import { EngineUnavailable } from '../../components/ui/EngineUnavailable';
 import {
@@ -61,6 +63,14 @@ export const FeedAdvisorScreen = ({ route }: any) => {
   const [tray, setTray] = useState<TrayResidue | null>(null);
   const [molt, setMolt] = useState(false);
   const [fasting, setFasting] = useState(false);
+
+  // Default the molt-peak cut from the SAME window the alerts and checklist use
+  // (server true phase, IST). Still a toggle: the farmer can override it.
+  const { data: moltWindows } = useMoltWindows();
+  const inPeak = windowContaining(moltWindows, istDateString(new Date()))?.phase === 'peak';
+  useEffect(() => {
+    if (inPeak) setMolt(true);
+  }, [inPeak]);
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RationResult | null>(null);

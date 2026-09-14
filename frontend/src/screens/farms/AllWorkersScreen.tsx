@@ -51,6 +51,7 @@ import {
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { capture, EVENTS } from '../../features/analytics';
+import { useFlag } from '../../features/remoteFlags';
 
 /** The roster is always every farm — narrowing it is what the Team tab is for. */
 const ALL = 'all';
@@ -151,6 +152,7 @@ export const AllWorkersScreen = ({ navigation }: any) => {
         () => navigation.navigate('MainApp', { screen: 'Team' }),
         [navigation],
     );
+    const teamTabOn = useFlag('teamTab');
 
     const renderSelfCard = () => (
         <Card style={styles.selfCard}>
@@ -167,12 +169,16 @@ export const AllWorkersScreen = ({ navigation }: any) => {
                         : t('team.checkInSub')}
                 </Text>
             </View>
-            <Button
-                title={myAttendance ? t('team.checkOut') : t('team.checkInCta')}
-                onPress={myAttendance ? checkOut : goCheckIn}
-                disabled={busyKey !== null}
-                style={styles.selfBtn}
-            />
+            {/* Check-in's farm chooser lives on the Team tab; with that tab
+                flagged off the button would navigate nowhere, so it goes too. */}
+            {(myAttendance || teamTabOn) && (
+                <Button
+                    title={myAttendance ? t('team.checkOut') : t('team.checkInCta')}
+                    onPress={myAttendance ? checkOut : goCheckIn}
+                    disabled={busyKey !== null}
+                    style={styles.selfBtn}
+                />
+            )}
         </Card>
     );
 

@@ -18,11 +18,14 @@ import { theme } from '../../theme';
 import { diseaseApi, DiseaseLibrary } from '../../api/diseases';
 import { apiErrorMessage } from '../../api/errors';
 import { isFeatureEnabled } from '../../config/features';
+import { useFlag } from '../../features/remoteFlags';
 
 type Severity = 'low' | 'medium' | 'high';
 
 export const DiseaseListScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
+    // Subscribes to the remote flag so the CTA appears/disappears when flags load.
+    const diagnosisOn = useFlag('diseaseDiagnosis') && isFeatureEnabled('diseaseDiagnosis');
 
     const SEVERITY_CONFIG: Record<Severity, { label: string; color: string; bg: string }> = {
         low: { label: t('content.diseases.severityLow'), color: theme.roles.light.successText, bg: theme.roles.light.successBg },
@@ -202,7 +205,7 @@ export const DiseaseListScreen = ({ navigation }: any) => {
                     />
                 </View>
             </View>
-            {isFeatureEnabled('diseaseDiagnosis') && (
+            {diagnosisOn && (
                 <TouchableOpacity style={styles.diagnoseCta} onPress={() => navigation.navigate('Diagnose')} activeOpacity={0.85}>
                     <MaterialCommunityIcons name="stethoscope" size={20} color={theme.roles.light.primary} />
                     <Text style={styles.diagnoseText}>{t('diagnose.cta', 'Diagnose from symptoms')}</Text>

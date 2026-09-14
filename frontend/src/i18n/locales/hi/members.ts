@@ -4,6 +4,12 @@ const members = {
     workerCodeHint: 'यह कोड फ़ार्म मालिक को दिखाएँ ताकि वे आपको अपने फ़ार्म में जोड़ सकें।',
     workerCodeCopied: 'कोड कॉपी हो गया',
     workerCodeShareMessage: 'मेरा Neerani वर्कर कोड: {{code}}',
+    qr: {
+        shareImage: 'इमेज साझा करें',
+        shareCode: 'कोड साझा करें',
+        workerDialogTitle: 'वर्कर कोड — {{name}}',
+        inviteDialogTitle: 'Neerani पर {{farm}} से जुड़ें',
+    },
 
     farmCodeLabel: 'फार्म जॉइन कोड',
     farmCodeHint: 'यह कोड किसी वर्कर के साथ साझा करें ताकि वे खुद इस फार्म से जुड़ सकें।',

@@ -41,6 +41,7 @@ import { pondsApi, type Pond } from '../../api/ponds';
 import { cropsApi, type Crop } from '../../api/crops';
 import { useAppQuery } from '../../query/hooks';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useFlag } from '../../features/remoteFlags';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { useSyncStore } from '../../store/syncStore';
 import { capture, EVENTS } from '../../features/analytics';
@@ -174,9 +175,14 @@ export const ExportScreen = ({ route, navigation }: any) => {
      * A farmer without VIEW_FINANCIALS is not offered the money dataset at all
      * — not offered-and-disabled, which only teaches them the app is broken.
      */
+    // Same rule for the tasks remote kill switch: not offered while it is off.
+    const tasksOn = useFlag('tasks');
     const datasets = useMemo(
-        () => DATASETS.filter((d) => d !== 'money' || perms.canViewFinancials),
-        [perms.canViewFinancials],
+        () =>
+            DATASETS.filter(
+                (d) => (d !== 'money' || perms.canViewFinancials) && (d !== 'tasks' || tasksOn),
+            ),
+        [perms.canViewFinancials, tasksOn],
     );
 
     // Losing the permission (or arriving with a deep-linked dataset that is not
