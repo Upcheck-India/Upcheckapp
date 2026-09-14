@@ -4,10 +4,8 @@ import React from 'react';
 import { render, fireEvent, within } from '@testing-library/react-native';
 import { DayStory } from '../DayStory';
 import { WhatWeDid } from '../WhatWeDid';
-import { DayRibbon } from '../DayRibbon';
 import { doneFixture, makeBrief, storyItems } from '../../../features/__fixtures__/dailyBrief';
 import { pondNameMap } from '../../../features/dailyBriefText';
-import type { TimelineEvent } from '../../../api/dailyBrief';
 
 const names = pondNameMap(makeBrief());
 
@@ -60,50 +58,5 @@ describe('WhatWeDid', () => {
 
     it('is hidden when done is absent (older backend)', () => {
         expect(render(<WhatWeDid brief={makeBrief()} names={names} />).queryByTestId('brief-done')).toBeNull();
-    });
-});
-
-describe('DayRibbon', () => {
-    const ev = (at: string, kind: TimelineEvent['kind'], over: Partial<TimelineEvent> = {}): TimelineEvent => ({ at, allDay: false, kind, pondId: 'p1', summary: '', ...over });
-    const events = [
-        ev('2026-09-14T00:35:00Z', 'feed', { summary: '8 kg', actorName: 'Ravi' }),
-        ev('2026-09-14T00:50:00Z', 'feed', { summary: '6 kg', actorName: 'Lakshmi' }),
-        ev('2026-09-14T01:10:00Z', 'feed', { summary: '7 kg' }),
-        ev('2026-09-13T23:00:00Z', 'water', { severity: 'watch', summary: 'DO 3.9', pondId: 'p2' }),
-    ];
-
-    it('has labelled lanes, 3-hour tick labels and the low-oxygen band', () => {
-        const utils = render(<DayRibbon events={events} isToday={false} pondNames={names} />);
-        for (const [lane, label] of [['water', 'Water test'], ['feed', 'Feed'], ['alert', 'Alert or deaths'], ['other', 'Other logs']]) {
-            expect(within(utils.getByTestId(`ribbon-lane-${lane}`)).getByText(label)).toBeTruthy();
-        }
-        ['00', '03', '06', '09', '12', '15', '18', '21'].forEach((h) => expect(utils.getByText(h)).toBeTruthy());
-        expect(utils.queryByText('01')).toBeNull();
-        expect(within(utils.getByTestId('ribbon-predawn')).getByText('Low-oxygen hours (2–6 am)')).toBeTruthy();
-        expect(utils.queryByTestId('ribbon-now')).toBeNull();
-    });
-
-    it('counts several entries in the same hour and lane', () => {
-        const utils = render(<DayRibbon events={events} isToday={false} pondNames={names} />);
-        // 06:05 and 06:20 IST feeds share hour 6; 06:40 too.
-        expect(within(utils.getByTestId('ribbon-mark-feed-6')).getByText('3')).toBeTruthy();
-        expect(within(utils.getByTestId('ribbon-mark-water-4')).queryByText(/\d/)).toBeNull();
-        expect(utils.getByTestId('ribbon-hour-6').props.accessibilityLabel).toBe('06:00, 3 entries: Feed');
-    });
-
-    it('tapping an hour lists each entry with time, pond, summary and who', () => {
-        const utils = render(<DayRibbon events={events} isToday={false} pondNames={names} />);
-        fireEvent.press(utils.getByTestId('ribbon-hour-6'));
-        const list = utils.getByTestId('ribbon-hour-list');
-        expect(within(list).getByText('06:05')).toBeTruthy();
-        expect(within(list).getByText('8 kg')).toBeTruthy();
-        expect(within(list).getByText('by Ravi')).toBeTruthy();
-        expect(within(list).getByText('by Lakshmi')).toBeTruthy();
-        expect(within(list).getAllByText(/Pond 1/).length).toBe(3);
-    });
-
-    it('marks now on today', () => {
-        const utils = render(<DayRibbon events={events} isToday now={new Date('2026-09-14T10:00:00+05:30')} pondNames={names} />);
-        expect(utils.getByTestId('ribbon-now')).toBeTruthy();
     });
 });

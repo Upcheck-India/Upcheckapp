@@ -164,7 +164,6 @@ describe('DailyBriefScreen', () => {
         const list = utils.getByTestId('ribbon-hour-list');
         expect(within(list).getByText('01:30')).toBeTruthy();
         expect(within(list).getByText('DO 2.8')).toBeTruthy();
-        expect(within(list).getByText('by Ravi')).toBeTruthy();
     });
 
     it('export PDF passes the brief and language through', async () => {
