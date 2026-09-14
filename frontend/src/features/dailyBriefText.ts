@@ -7,7 +7,7 @@
  * the backend's day is an IST day, and a phone set to another zone must still
  * put a 01:30 IST feed at hour 1.
  */
-import type { Band, DailyBrief, DayScore, Reason, ScorePart } from '../api/dailyBrief';
+import type { Band, DailyBrief, DayScore, Reason, ScorePart, StalePond } from '../api/dailyBrief';
 
 export type T = (key: string, options?: Record<string, unknown>) => string;
 
@@ -77,11 +77,20 @@ export const reasonText = (r: Reason, t: T): string =>
               limit: r.limit == null ? '' : fmtNum(r.limit),
           });
 
-/** The verdict sentence from the day's pond counts. */
+/**
+ * The verdict sentence from the day's pond counts. Every farm-level claim counts
+ * STOCKED ponds (spec addendum): "most" needs more than half of them good, and
+ * "all" needs every one of them scored — an unlogged pond never vanishes.
+ */
 export const verdictSentence = (brief: DailyBrief, t: T): string => {
     const v = brief.verdict;
     const scored = v.pondsGood + v.pondsWatch + v.pondsAttention;
+    // A copy cached before the coverage fields existed counts only what was scored.
+    const stocked = Math.max(v.stockedPonds ?? 0, scored);
     if (scored === 0) {
+        if (stocked > 0) {
+            return t(brief.isToday ? 'dailyBrief.verdict.noneLoggedToday' : 'dailyBrief.verdict.noneLoggedPast', { count: stocked });
+        }
         return t(brief.isToday ? 'dailyBrief.verdict.noScoreToday' : 'dailyBrief.verdict.noScorePast');
     }
     const names = pondNameMap(brief);
@@ -90,29 +99,55 @@ export const verdictSentence = (brief: DailyBrief, t: T): string => {
     const worstBand: Band = v.pondsAttention > 0 ? 'attention' : v.pondsWatch > 0 ? 'watch' : 'good';
     const fallback = brief.ponds.find((p) => p.score?.band === worstBand);
     const pond = (v.weakestPondId && names[v.weakestPondId]) || fallback?.name || '';
+    const every = scored === stocked;
+    const most = v.pondsGood > stocked / 2;
 
     if (scored === 1) {
         const key = worstBand === 'good' ? 'oneGood' : worstBand === 'watch' ? 'oneWatch' : 'oneAttention';
         return t(`dailyBrief.verdict.${key}`, { pond });
     }
     if (v.pondsAttention > 0) {
-        if (v.pondsAttention === scored) return t('dailyBrief.verdict.allAttention', { count: scored });
+        if (v.pondsAttention === scored) {
+            return t(every ? 'dailyBrief.verdict.allAttention' : 'dailyBrief.verdict.loggedAttention', { count: scored });
+        }
         if (v.pondsAttention > 1) return t('dailyBrief.verdict.attentionMany', { count: v.pondsAttention, pond });
         if (v.pondsWatch > 0) return t('dailyBrief.verdict.attentionAndWatch', { count: v.pondsWatch, pond });
-        return t('dailyBrief.verdict.attentionOthersSteady', { pond });
+        return t(most ? 'dailyBrief.verdict.attentionOthersSteady' : 'dailyBrief.verdict.oneAttention', { pond });
     }
     if (v.pondsWatch > 0) {
-        if (v.pondsWatch === scored) return t('dailyBrief.verdict.allWatch', { count: scored });
+        if (v.pondsWatch === scored) return t(every ? 'dailyBrief.verdict.allWatch' : 'dailyBrief.verdict.loggedWatch', { count: scored });
+        // watchSome_one says "Most ponds are steady", so it needs a real majority.
+        if (v.pondsWatch === 1 && !most) return t('dailyBrief.verdict.oneWatch', { pond });
         return t('dailyBrief.verdict.watchSome', { count: v.pondsWatch, pond });
     }
-    return t('dailyBrief.verdict.allGood', { count: scored });
+    return t(every ? 'dailyBrief.verdict.allGood' : 'dailyBrief.verdict.loggedGood', { count: scored });
 };
 
-/** "5 ponds had too little logged to score", or null. A separate sentence, not a suffix. */
-export const unscoredSentence = (brief: DailyBrief, t: T): string | null => {
-    const v = brief.verdict;
-    const scored = v.pondsGood + v.pondsWatch + v.pondsAttention;
-    return scored > 0 && v.pondsUnscored > 0 ? t('dailyBrief.verdict.unscored', { count: v.pondsUnscored }) : null;
+/** "Based on 2 of 3 stocked ponds", or null when every stocked pond was scored (or none was). */
+export const coverageSentence = (brief: DailyBrief, t: T): string | null => {
+    const { stockedPonds, scoredStockedPonds } = brief.verdict;
+    return stockedPonds > 0 && scoredStockedPonds > 0 && scoredStockedPonds < stockedPonds
+        ? t('dailyBrief.verdict.coverage', { scored: scoredStockedPonds, count: stockedPonds })
+        : null;
+};
+
+/**
+ * Which lapse to name for an unwatched pond: nothing at all logged, or no water
+ * test. Water days are never fewer than any-log days, so "nothing" is named only
+ * when the two agree — the pond went fully quiet.
+ */
+export const staleLapse = (s: StalePond): { kind: 'nothing' | 'water'; days: number } =>
+    s.daysSinceAny != null && s.daysSinceAny >= 3 && (s.daysSinceWater == null || s.daysSinceWater === s.daysSinceAny)
+        ? { kind: 'nothing', days: s.daysSinceAny }
+        : { kind: 'water', days: s.daysSinceWater ?? s.daysSinceAny ?? 0 };
+
+/** "IND06 — nothing logged for 7 days" / "IND06 — no water test for 2 days". */
+export const staleSentence = (s: StalePond, names: Record<string, string>, t: T): string => {
+    const { kind, days } = staleLapse(s);
+    return t(kind === 'nothing' ? 'dailyBrief.carried.staleNothing' : 'dailyBrief.carried.staleWater', {
+        pond: names[s.pondId] ?? '',
+        count: days,
+    });
 };
 
 const listParts = (parts: ScorePart[], t: T): string =>
@@ -138,6 +173,9 @@ export const deltaText = (value: number, previous: number | null, t: T): string 
 /** The single most useful thing to do next, for the Home card. */
 export const topTodo = (brief: DailyBrief, t: T): string | null => {
     const names = pondNameMap(brief);
+    // A pond nobody has looked at for a week outranks everything else.
+    const stale = (brief.carriedOver.stalePonds ?? []).find((p) => p.severity === 'critical');
+    if (stale) return staleSentence(stale, names, t);
     const molt = brief.todo.moltItems.find((m) => m.status === 'pending' && m.priority === 'critical');
     if (molt) return t(`engines.lunar.item_${molt.key}`);
     const task = brief.todo.tasks.find((k) => k.status === 'open' || k.status === 'in_progress');

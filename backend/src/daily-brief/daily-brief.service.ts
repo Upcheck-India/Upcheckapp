@@ -11,12 +11,15 @@ import { PondContextService } from '../pond-context/pond-context.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
 import { isLowStock } from '../inventory/inventory.constants';
 import { DayScoreInput, MinMax, TrayStatus, combineScores, combineValues, computeDayScore } from './day-score';
-import { BriefTask, DailyBrief, ParamDay, PondDay, Severity, TimelineEvent } from './daily-brief.types';
+import { BriefTask, DailyBrief, ParamDay, PondDay, Severity, StalePond, TimelineEvent } from './daily-brief.types';
 
 export const MIN_DATE = '2020-01-01';
 /** Days of feed history searched for the "previous 3 logged days" baseline. */
 const FEED_LOOKBACK_DAYS = 30;
+/** How far back "last logged" looks. Past this a stocked pond counts from stocking. */
+const LAST_LOG_LOOKBACK_DAYS = 60;
 const DONE = ['done', 'verified'];
+const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400_000);
 const TZ = `'Asia/Kolkata'`;
 
 /** 12:00 IST on an IST day — where DATE-only records sit on the timeline. */
@@ -116,7 +119,7 @@ export class DailyBriefService {
     const [
       farms, ponds, wq, chem, feedDays, feedRows, trays, mortDays, mortCum,
       samplings, abwRows, harvests, treatments, tasks, alerts, plans,
-      checkIns, members, items, money,
+      checkIns, members, items, money, lastLogs,
     ] = await Promise.all([
       farmIds.length ? q_('farms', `SELECT id, name FROM farms WHERE id = ANY($1::uuid[]) ORDER BY name`, [farmIds]) : none,
       hasPonds
@@ -311,6 +314,34 @@ export class DailyBriefService {
                WHERE farm_id = ANY($1::uuid[]) AND type = 'income' AND transaction_date BETWEEN $2 AND $3)::float AS income`,
           [farmIds, dR.start, dR.end, D])
         : none,
+      hasPonds
+        ? q_('last_log',
+          // Bounded to LAST_LOG_LOOKBACK_DAYS before D; nothing in the window ⇒
+          // the caller falls back to the stocking date (either way ≥ 7 ⇒ critical).
+          `SELECT pond_id,
+                  to_char(max(day) FILTER (WHERE kind = 'water'), 'YYYY-MM-DD') AS water,
+                  to_char(max(day) FILTER (WHERE kind = 'feed'), 'YYYY-MM-DD') AS feed,
+                  to_char(max(day), 'YYYY-MM-DD') AS any_day
+             FROM (
+                  SELECT pond_id, (recorded_at AT TIME ZONE ${TZ})::date AS day, 'water' AS kind
+                    FROM water_quality_records WHERE pond_id = ANY($1::uuid[]) AND recorded_at BETWEEN $2 AND $3
+                  UNION ALL
+                  SELECT pond_id, (recorded_at AT TIME ZONE ${TZ})::date, 'feed'
+                    FROM feed_records WHERE pond_id = ANY($1::uuid[]) AND recorded_at BETWEEN $2 AND $3
+                  UNION ALL
+                  SELECT pond_id, sampling_date, 'other'
+                    FROM sampling_data WHERE pond_id = ANY($1::uuid[]) AND sampling_date BETWEEN $4 AND $5
+                  UNION ALL
+                  ${[
+                    ['chemical_data', 'measurement_date'], ['feeding_tray_checks', 'check_date'],
+                    ['mortality_records', 'record_date'], ['treatments', 'treatment_date'], ['harvests', 'harvest_date'],
+                  ].map(([table, col]) =>
+                    `SELECT c.pond_id, r.${col}, 'other' FROM ${table} r JOIN crops c ON c.id = r.crop_id
+                      WHERE c.pond_id = ANY($1::uuid[]) AND r.${col} BETWEEN $4 AND $5`).join('\n                  UNION ALL\n                  ')}
+             ) t
+            GROUP BY pond_id`,
+          [pondIds, istDayRangeUtc(addDays(D, -LAST_LOG_LOOKBACK_DAYS)).start, dR.end, addDays(D, -LAST_LOG_LOOKBACK_DAYS), D])
+        : none,
     ]);
 
     // ── bucket rows by pond + day ──
@@ -361,6 +392,8 @@ export class DailyBriefService {
     const milestones: DailyBrief['happening']['milestones'] = [];
     let worstPrevious: DailyBrief['carriedOver']['worstPrevious'] = null;
     let worstPrevValue = Infinity;
+    const stalePonds: StalePond[] = [];
+    const lastLogByPond = new Map<string, any>(lastLogs.map((r: any) => [r.pond_id, r]));
 
     for (const p of ponds) {
       const day = (d: string) => {
@@ -453,6 +486,28 @@ export class DailyBriefService {
         if (kinds.length) missingLogs.push({ pondId: p.id, kinds });
       }
 
+      // A stocked pond counts from its stocking date when never logged — or when
+      // its last log predates stocking (pond prep, previous cycle).
+      const ll = lastLogByPond.get(p.id);
+      const since = (date: string | null) => {
+        const from = active && (!date || date < p.stocking_date) ? p.stocking_date : date;
+        return from ? Math.max(0, daysBetween(from, D)) : null;
+      };
+      const lastLog = {
+        waterDate: ll?.water ?? null,
+        feedDate: ll?.feed ?? null,
+        anyDate: ll?.any_day ?? null,
+        daysSinceWater: since(ll?.water ?? null),
+        daysSinceFeed: since(ll?.feed ?? null),
+        daysSinceAny: since(ll?.any_day ?? null),
+      };
+      if (active) {
+        const w = lastLog.daysSinceWater ?? 0;
+        const a = lastLog.daysSinceAny ?? 0;
+        const severity: Severity | null = w >= 7 || a >= 7 ? 'critical' : w >= 2 || a >= 3 ? 'watch' : null;
+        if (severity) stalePonds.push({ pondId: p.id, daysSinceWater: lastLog.daysSinceWater, daysSinceAny: lastLog.daysSinceAny, severity });
+      }
+
       const abwG = abwByPond.get(p.id) ?? null;
       const pm = molts.get(p.id);
       pondDays.push({
@@ -483,6 +538,7 @@ export class DailyBriefService {
           treatments: dd.treat.length,
         },
         molt: pm?.eligible ? { phase: pm.phase, pendingCritical: pm.pendingCritical } : null,
+        lastLog,
         areaM2: num(p.area),
         prevValue: prevScore?.value ?? null,
       });
@@ -492,6 +548,11 @@ export class DailyBriefService {
     const { score, weakestPondId } = combineScores(pondDays.map((p) => ({ pondId: p.pondId, areaM2: p.areaM2, score: p.score })));
     const previousScore = combineValues(pondDays.map((p) => ({ areaM2: p.areaM2, value: p.prevValue })));
     const bandCount = (b: string) => pondDays.filter((p) => p.score?.band === b).length;
+    const stocked = pondDays.filter((p) => p.cycleActive);
+    const stockedPonds = stocked.length;
+    const scoredStockedPonds = stocked.filter((p) => p.score).length;
+    const worstDays = (s: StalePond) => Math.max(s.daysSinceWater ?? 0, s.daysSinceAny ?? 0);
+    stalePonds.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'critical' ? -1 : 1) || worstDays(b) - worstDays(a));
 
     // ── tasks ──
     const pondSet = new Set(pondIds);
@@ -610,11 +671,14 @@ export class DailyBriefService {
       score,
       previousScore,
       verdict: {
-        band: score?.band ?? 'none',
+        // Fewer than half the stocked ponds scored ⇒ the farm score is not a verdict.
+        band: !score ? 'none' : scoredStockedPonds * 2 < stockedPonds ? 'incomplete' : score.band,
         pondsGood: bandCount('good'),
         pondsWatch: bandCount('watch'),
         pondsAttention: bandCount('attention'),
         pondsUnscored: pondDays.filter((p) => !p.score).length,
+        stockedPonds,
+        scoredStockedPonds,
         weakestPondId,
       },
       ponds: pondDays.map(({ areaM2: _a, prevValue: _p, ...rest }) => rest),
@@ -628,6 +692,7 @@ export class DailyBriefService {
           .map(toTask),
         worstPrevious,
         moltPending,
+        stalePonds,
       },
       todo: {
         tasks: visibleTasks.filter((t: any) => t.due_date === D).map(toTask),

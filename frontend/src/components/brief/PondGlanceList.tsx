@@ -48,6 +48,9 @@ export const PondGlanceList: React.FC<{
                 const avg = p.feed.prev3DayAvgKg;
                 const feedArrow = avg != null && avg > 0 && p.feed.kg > 0 ? (p.feed.kg >= avg ? '↑' : '↓') : undefined;
                 const deaths = p.health.mortality;
+                // `?.` — a brief cached before lastLog existed has none.
+                const feedDays = p.lastLog?.daysSinceFeed ?? 0;
+                const waterDays = p.lastLog?.daysSinceWater ?? 0;
                 const scoreLabel = p.score ? `${p.score.value}, ${t(`dailyBrief.bands.${p.score.band}`)}` : t('dailyBrief.ponds.noScore');
                 return (
                     <View key={p.pondId} style={[styles.row, i === 0 && styles.firstRow]}>
@@ -96,6 +99,9 @@ export const PondGlanceList: React.FC<{
                                     color={deaths == null ? c.textTertiary : p.score?.reasons.some((r) => r.code.startsWith('mortality')) ? c.dangerText : c.textPrimary}
                                 />
                             </View>
+                            {/* A Good score from water alone must not hide days of unlogged feeding. */}
+                            {feedDays >= 2 && <Text style={styles.stale}>{t('dailyBrief.ponds.feedStale', { count: feedDays })}</Text>}
+                            {waterDays >= 2 && <Text style={styles.stale}>{t('dailyBrief.ponds.waterStale', { count: waterDays })}</Text>}
                         </TouchableOpacity>
                         {isToday && p.cycleActive && (
                             <TouchableOpacity onPress={() => onRoutine(p)} hitSlop={HIT} accessibilityRole="button" style={styles.routine}>
@@ -133,6 +139,7 @@ const styles = StyleSheet.create({
     figValue: { ...theme.typeScale.numericMedium },
     figUnit: { ...theme.typeScale.bodySmall, color: c.textTertiary },
     figLabel: { ...theme.typeScale.bodySmall, color: c.textTertiary },
+    stale: { ...theme.typeScale.bodySmall, color: c.warningText, marginTop: theme.spacing[1] },
     routine: { alignSelf: 'flex-start', marginTop: theme.spacing[2], minHeight: 28, justifyContent: 'center' },
     routineText: { ...theme.typeScale.labelMedium, color: c.textLink },
 });

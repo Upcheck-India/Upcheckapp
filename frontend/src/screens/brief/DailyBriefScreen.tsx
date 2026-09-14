@@ -114,7 +114,7 @@ export const DailyBriefScreen = ({ navigation, route }: any) => {
     const onRoute = (r: string, pondId: string) => navigation.navigate(r, { pondId, pondName: names[pondId] });
 
     const blocks = (b: DailyBrief) => {
-        const carried = <CarriedOver key="carried" brief={b} mode={mode} names={names} />;
+        const carried = <CarriedOver key="carried" brief={b} mode={mode} names={names} onRoute={onRoute} />;
         const todo = <TodoToday key="todo" brief={b} isPast={!isToday} names={names} onLog={onLog} onRoute={onRoute} />;
         const happening = <HappeningToday key="happening" brief={b} isPast={!isToday} names={names} />;
         const ponds = (

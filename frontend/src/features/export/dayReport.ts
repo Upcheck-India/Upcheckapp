@@ -26,7 +26,7 @@ import * as Sharing from 'expo-sharing';
 
 import i18n, { loadLocale } from '../../i18n';
 import type { Band, DailyBrief, ScorePart } from '../../api/dailyBrief';
-import { localNoon, reasonText as briefReasonText, verdictSentence } from '../dailyBriefText';
+import { coverageSentence, localNoon, reasonText as briefReasonText, staleLapse, verdictSentence } from '../dailyBriefText';
 import { svgToPngBase64, type SvgRef } from '../../utils/shareQrImage';
 import { makeFmt, type Fmt } from './collect';
 import { deliver, safeFilename } from './deliver';
@@ -46,6 +46,10 @@ const signed = (f: Fmt, now: number, prev: number | null, digits = 2) =>
 const rangeText = (f: Fmt, min: number | null | undefined, max: number | null | undefined) =>
     min == null && max == null ? DASH : min === max || max == null ? f.num(min) : `${f.num(min)}–${f.num(max)}`;
 
+/** The farm band to print: too few stocked ponds scored ⇒ 'incomplete', never Good/Watch/Attention. */
+const bandKey = (brief: DailyBrief): Band | 'incomplete' | 'none' =>
+    !brief.score ? 'none' : brief.verdict.band === 'incomplete' ? 'incomplete' : brief.score.band;
+
 // ── PDF ──────────────────────────────────────────────────────────────────────
 
 export const buildDayReportData = async (brief: DailyBrief, lang: string, now: Date = new Date()): Promise<ReportData> => {
@@ -56,10 +60,12 @@ export const buildDayReportData = async (brief: DailyBrief, lang: string, now: D
     const past = !brief.isToday;
     const s = brief.score;
     const tot = brief.totals;
+    const band = bandKey(brief);
+    const coverage = coverageSentence(brief, t);
 
     const stats: ReportStat[] = [
         s
-            ? { label: t('dayReport.score'), value: `${s.value}/100`, hint: t(`dayReport.band_${s.band}`) }
+            ? { label: t('dayReport.score'), value: `${s.value}/100`, hint: t(`dayReport.band_${band}`) }
             : { label: t('dayReport.score'), value: t('dayReport.noScore') },
         { label: t('dayReport.feedKg'), value: `${f.num(tot.feedKg)} kg`, hint: signed(f, tot.feedKg, tot.feedKgPrev) },
         { label: t('dayReport.deaths'), value: f.num(tot.mortality, 0), hint: signed(f, tot.mortality, tot.mortalityPrev, 0) },
@@ -78,7 +84,8 @@ export const buildDayReportData = async (brief: DailyBrief, lang: string, now: D
     const summaryRows: string[][] = [[t('dayReport.verdict'), verdictSentence(brief, t)]];
     if (s) {
         summaryRows.push(
-            [t('dayReport.score'), `${s.value}/100 · ${t(`dayReport.band_${s.band}`)}`],
+            [t('dayReport.score'), `${s.value}/100 · ${t(`dayReport.band_${band}`)}`],
+            ...(coverage ? [[t('dayReport.coverage'), coverage]] : []),
             [t('dayReport.basedOn'), partNames(s.basedOn)],
             [t('dayReport.notLogged'), partNames(s.missing)],
         );
@@ -150,6 +157,15 @@ export const buildDayReportData = async (brief: DailyBrief, lang: string, now: D
             title: t('dayReport.carriedTitle'),
             columns: detail(t('dayReport.detail')),
             rows: [
+                // Unwatched ponds lead, as on the screen.
+                ...(brief.carriedOver.stalePonds ?? []).map((sp) => {
+                    const { kind, days } = staleLapse(sp);
+                    return [
+                        t(`dayReport.stalePond_${sp.severity}`),
+                        pondName(sp.pondId),
+                        t(kind === 'nothing' ? 'dayReport.staleNothing' : 'dayReport.staleWater', { count: days }),
+                    ];
+                }),
                 ...brief.carriedOver.openAlerts.map((a) => [a.title, pondName(a.pondId), t(`dayReport.severity_${a.severity}`)]),
                 ...brief.carriedOver.overdueTasks.map((tk) => [tk.title, pondName(tk.pondId), t('dayReport.overdueSince', { date: f.date(tk.dueDate) })]),
                 ...(brief.carriedOver.worstPrevious
@@ -245,11 +261,12 @@ export interface DayCardModel {
     weakest: string[];
 }
 
-const BAND_COLORS: Record<Band | 'none', DayCardModel['colors']> = {
+const BAND_COLORS: Record<Band | 'none' | 'incomplete', DayCardModel['colors']> = {
     good: { text: '#1A6B3A', bg: '#EAF7EE', border: '#27A855' },
     watch: { text: '#8A4700', bg: '#FEF6E4', border: '#F08C00' },
     attention: { text: '#A41B1B', bg: '#FDF0F0', border: '#E03535' },
     none: { text: '#3E5163', bg: '#F5F8FA', border: '#C8D4DA' },
+    incomplete: { text: '#7A8A96', bg: '#F0F3F5', border: '#C8D4DA' },
 };
 
 /** Indic / non-Latin glyphs run wider than Latin at the same size. */
@@ -291,9 +308,14 @@ export const buildDayCardModel = (brief: DailyBrief, lang: string): DayCardModel
     const s = brief.score;
     const tot = brief.totals;
     const weakest = brief.ponds.find((p) => p.pondId === brief.verdict.weakestPondId);
-    const note = s
-        ? s.capped && s.capReasons[0] ? t('dayReport.cappedNote', { reason: reasonText(f, s.capReasons[0]) }) : ''
-        : t('dayReport.noScoreWhy');
+    const band = bandKey(brief);
+    const coverage = coverageSentence(brief, t);
+    // An incomplete day leads with how little it rests on; otherwise the cap, then coverage.
+    const note = !s
+        ? t('dayReport.noScoreWhy')
+        : band === 'incomplete'
+          ? coverage ?? ''
+          : s.capped && s.capReasons[0] ? t('dayReport.cappedNote', { reason: reasonText(f, s.capReasons[0]) }) : coverage ?? '';
 
     return {
         appName: t('common.appName'),
@@ -301,9 +323,9 @@ export const buildDayCardModel = (brief: DailyBrief, lang: string): DayCardModel
         date: f.date(localNoon(brief.date)),
         score: s ? String(s.value) : t('dayReport.noScore'),
         hasScore: !!s,
-        band: s ? t(`dayReport.band_${s.band}`) : '',
+        band: s ? t(`dayReport.band_${band}`) : '',
         scoreNote: note ? wrapText(note, 36, 860, 2) : [],
-        colors: BAND_COLORS[s?.band ?? 'none'],
+        colors: BAND_COLORS[band],
         verdict: wrapText(verdictSentence(brief, t), 48, 952, 3),
         numbers: [
             { label: t('dayReport.feedKg'), value: f.num(tot.feedKg, 1) },

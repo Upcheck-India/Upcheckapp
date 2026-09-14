@@ -8,14 +8,24 @@ import {
     ribbonX,
     shiftDate,
     topTodo,
-    unscoredSentence,
+    coverageSentence,
+    staleSentence,
     verdictSentence,
 } from '../dailyBriefText';
-import { makeBrief, pond, score } from '../__fixtures__/dailyBrief';
+import { founderBrief, incompleteBrief, makeBrief, pond, score } from '../__fixtures__/dailyBrief';
 
 const t = i18n.t.bind(i18n) as any;
-const verdict = (v: Partial<ReturnType<typeof makeBrief>['verdict']>, over = {}) =>
-    verdictSentence(makeBrief({ verdict: { band: 'good', pondsGood: 0, pondsWatch: 0, pondsAttention: 0, pondsUnscored: 0, weakestPondId: 'p2', ...v }, ...over }), t);
+/** Every stocked pond scored unless the test says otherwise. */
+const verdict = (v: Partial<ReturnType<typeof makeBrief>['verdict']>, over = {}) => {
+    const scored = (v.pondsGood ?? 0) + (v.pondsWatch ?? 0) + (v.pondsAttention ?? 0);
+    return verdictSentence(
+        makeBrief({
+            verdict: { band: 'good', pondsGood: 0, pondsWatch: 0, pondsAttention: 0, pondsUnscored: 0, stockedPonds: scored, scoredStockedPonds: scored, weakestPondId: 'p2', ...v },
+            ...over,
+        }),
+        t,
+    );
+};
 
 describe('IST time math — never the device zone', () => {
     it('places a 01:30 IST event at hour 1.5 (x for hour 1) whatever the phone is set to', () => {
@@ -71,15 +81,53 @@ describe('verdictSentence', () => {
         expect(verdict({ pondsGood: 2, pondsWatch: 1 })).toBe('Most ponds are steady — Pond 2 needs watching');
     });
     it('never names a pond that is fine when the weakest id is missing', () => {
-        expect(verdict({ pondsGood: 1, pondsAttention: 1, weakestPondId: null })).toBe('Most ponds are steady — Pond 2 needs attention');
+        expect(verdict({ pondsGood: 1, pondsAttention: 1, weakestPondId: null })).toBe('Pond 2 needs attention');
     });
     it('no score: today vs a past day', () => {
         expect(verdict({ pondsUnscored: 2 })).toBe('Not enough has been logged yet to judge today');
         expect(verdict({ pondsUnscored: 2 }, { isToday: false })).toBe('Too little was logged on this day to judge it');
     });
-    it('keeps the unscored count as its own sentence', () => {
-        const b = makeBrief({ verdict: { band: 'good', pondsGood: 2, pondsWatch: 0, pondsAttention: 0, pondsUnscored: 1, weakestPondId: null } });
-        expect(unscoredSentence(b, t)).toBe('1 pond had too little logged to score');
+});
+
+describe('coverage — stocked ponds are the denominator', () => {
+    it("founder's case: 1 good + 1 watch of 3 stocked is not \"most ponds are steady\"", () => {
+        const b = founderBrief();
+        expect(verdictSentence(b, t)).toBe('P02 needs watching');
+        expect(verdictSentence(b, t)).not.toMatch(/most/i);
+        expect(coverageSentence(b, t)).toBe('Based on 2 of 3 stocked ponds');
+    });
+    it('"most" only with a real majority of stocked ponds', () => {
+        expect(verdict({ pondsGood: 2, pondsWatch: 1, stockedPonds: 4, scoredStockedPonds: 3 })).toBe('Pond 2 needs watching');
+        expect(verdict({ pondsGood: 3, pondsWatch: 1, stockedPonds: 5, scoredStockedPonds: 4 })).toBe('Most ponds are steady — Pond 2 needs watching');
+        expect(verdict({ pondsGood: 2, pondsAttention: 1, stockedPonds: 4, scoredStockedPonds: 3 })).toBe('Pond 2 needs attention');
+    });
+    it('all scored ponds good but some stocked ponds unscored: never "All N ponds"', () => {
+        expect(verdict({ pondsGood: 2, stockedPonds: 3, scoredStockedPonds: 2 })).toBe('The 2 ponds logged are doing well');
+        expect(verdict({ pondsWatch: 2, stockedPonds: 3, scoredStockedPonds: 2 })).toBe('The 2 ponds logged need watching');
+        expect(verdict({ pondsGood: 3 })).toBe('All 3 ponds are doing well');
+    });
+    it('zero scored with stocked ponds names the count, today and past', () => {
+        expect(verdict({ pondsUnscored: 3, stockedPonds: 3, scoredStockedPonds: 0 })).toBe('None of your 3 stocked ponds were logged today');
+        expect(verdict({ pondsUnscored: 3, stockedPonds: 3, scoredStockedPonds: 0 }, { isToday: false })).toBe(
+            'None of your 3 stocked ponds were logged on this day',
+        );
+    });
+    it('incomplete (1 of 3): names the pond and shows the coverage', () => {
+        const b = incompleteBrief();
+        expect(verdictSentence(b, t)).toBe('P01 is doing well');
+        expect(coverageSentence(b, t)).toBe('Based on 1 of 3 stocked ponds');
+    });
+    it('no coverage line when every stocked pond scored', () => {
+        expect(coverageSentence(makeBrief(), t)).toBeNull();
+    });
+    it('names the lapse of an unwatched pond', () => {
+        const names = { ind06: 'IND06' };
+        expect(staleSentence({ pondId: 'ind06', daysSinceWater: 7, daysSinceAny: 7, severity: 'critical' }, names, t)).toBe('IND06 — nothing logged for 7 days');
+        expect(staleSentence({ pondId: 'ind06', daysSinceWater: 2, daysSinceAny: 0, severity: 'watch' }, names, t)).toBe('IND06 — no water test for 2 days');
+    });
+    it('the Home top to-do prefers a critical stale pond over everything', () => {
+        const b = founderBrief({ todo: { tasks: [], missingLogs: [{ pondId: 'p02', kinds: ['feed'] }], moltItems: [{ pondId: 'p01', key: 'feed_cut', priority: 'critical', status: 'pending', route: 'FeedLog' }] } });
+        expect(topTodo(b, t)).toBe('IND06 — nothing logged for 7 days');
     });
     it('uses whole translated sentences in another language', async () => {
         await i18n.changeLanguage('ta');

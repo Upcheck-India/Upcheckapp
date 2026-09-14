@@ -17,7 +17,7 @@ import { render, fireEvent } from '@testing-library/react-native';
 import { YourDayCard } from '../YourDayCard';
 import { dailyBriefApi } from '../../../api/dailyBrief';
 import { useRemoteFlagsStore } from '../../../features/remoteFlags';
-import { makeBrief } from '../../../features/__fixtures__/dailyBrief';
+import { incompleteBrief, makeBrief } from '../../../features/__fixtures__/dailyBrief';
 
 const mockedGet = dailyBriefApi.get as jest.Mock;
 
@@ -34,11 +34,21 @@ describe('YourDayCard (Home)', () => {
         const card = await utils.findByTestId('home-your-day');
         expect(utils.getByText('71')).toBeTruthy();
         expect(utils.getByText('Watch')).toBeTruthy();
-        expect(utils.getByText('Most ponds are steady — Pond 2 needs attention')).toBeTruthy();
+        expect(utils.getByText('Pond 2 needs attention')).toBeTruthy();
         expect(utils.getByText('Next: Log feed in Pond 2')).toBeTruthy();
         expect(mockedGet).toHaveBeenCalledWith(expect.objectContaining({ farmId: 'f1' }));
         fireEvent.press(card);
         expect(onOpen).toHaveBeenCalled();
+    });
+
+    it('incomplete day: grey "Incomplete", no band word, coverage shown, top to-do is the critical stale pond', async () => {
+        mockedGet.mockResolvedValue({ data: incompleteBrief() });
+        const utils = render(<YourDayCard onOpen={jest.fn()} farmId="f-incomplete" />);
+        await utils.findByTestId('home-your-day');
+        expect(utils.getByText('Incomplete')).toBeTruthy();
+        expect(utils.queryByText('Good')).toBeNull();
+        expect(utils.getByText('Based on 1 of 3 stocked ponds')).toBeTruthy();
+        expect(utils.getByText('Next: IND06 — nothing logged for 7 days')).toBeTruthy();
     });
 
     it('is hidden, and never fetches, when the dailyBrief flag is off', async () => {

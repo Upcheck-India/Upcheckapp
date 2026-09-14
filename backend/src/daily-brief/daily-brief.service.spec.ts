@@ -3,6 +3,7 @@ import { DailyBriefService, assertBriefDate } from './daily-brief.service';
 import { DailyBriefQueryDto } from './daily-brief.controller';
 import { PondContextService } from '../pond-context/pond-context.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
+import { addDays } from '../molt/molt-window';
 
 const NOW = new Date('2026-09-14T10:00:00Z'); // 15:30 IST, 14 Sep
 const FARM = '11111111-1111-4111-8111-111111111111';
@@ -271,6 +272,88 @@ describe('DailyBriefService — assembling a day', () => {
     const pastBrief = await past.svc.get('u1', { date: '2026-09-10' }, NOW);
     expect(pastBrief.happening.lowStock).toEqual([]);
     expect(past.calls.map((c) => c.tag)).not.toContain('inventory');
+  });
+});
+
+describe('DailyBriefService — coverage and unwatched ponds', () => {
+  const D = '2026-09-14';
+  const ago = (n: number) => addDays(D, -n);
+  const wqOn = (pondId: string) => ({ pond_id: pondId, recorded_at: '2026-09-14T00:30:00Z', do: 5.5, ph: 7.9, temperature: 30 });
+  const get = (rows: Rows) => build({ rows }).svc.get('u1', { date: D }, NOW);
+
+  it('lastLog: days from the date, since stocking when never logged or last logged before stocking, nulls without a cycle', async () => {
+    const brief = await get({
+      ponds: [
+        pondRow('p1'),
+        pondRow('p2', { stocking_date: ago(10) }),
+        pondRow('p3', { crop_id: null, stocking_date: null, end_day: null }),
+        pondRow('p4', { stocking_date: ago(1) }),
+      ],
+      wq: [wqOn('p3')],
+      last_log: [
+        { pond_id: 'p1', water: D, feed: ago(1), any_day: D },
+        { pond_id: 'p4', water: ago(9), feed: null, any_day: ago(9) },
+      ],
+    });
+    const ll = (id: string) => brief.ponds.find((p) => p.pondId === id)!.lastLog;
+    expect(ll('p1')).toEqual({ waterDate: D, feedDate: ago(1), anyDate: D, daysSinceWater: 0, daysSinceFeed: 1, daysSinceAny: 0 });
+    expect(ll('p2')).toEqual({ waterDate: null, feedDate: null, anyDate: null, daysSinceWater: 10, daysSinceFeed: 10, daysSinceAny: 10 });
+    expect(ll('p3')).toEqual({ waterDate: null, feedDate: null, anyDate: null, daysSinceWater: null, daysSinceFeed: null, daysSinceAny: null });
+    expect(ll('p4')).toMatchObject({ waterDate: ago(9), daysSinceWater: 1, daysSinceFeed: 1, daysSinceAny: 1 });
+  });
+
+  it('stale thresholds: water 2 days, any 3 days ⇒ watch; either 7 ⇒ critical', async () => {
+    const severity = async (water: number, any: number) => {
+      const brief = await get({ ponds: [pondRow('p1')], last_log: [{ pond_id: 'p1', water: ago(water), feed: null, any_day: ago(any) }] });
+      return brief.carriedOver.stalePonds[0]?.severity ?? null;
+    };
+    expect(await severity(1, 1)).toBeNull();
+    expect(await severity(2, 0)).toBe('watch');
+    expect(await severity(0, 2)).toBeNull();
+    expect(await severity(0, 3)).toBe('watch');
+    expect(await severity(6, 6)).toBe('watch');
+    expect(await severity(7, 0)).toBe('critical');
+    expect(await severity(0, 7)).toBe('critical');
+  });
+
+  it('stale ponds sort critical first, then most days; only stocked ponds', async () => {
+    const brief = await get({
+      ponds: [pondRow('w4'), pondRow('c8'), pondRow('c10'), pondRow('w2'), pondRow('idle', { crop_id: null, stocking_date: null, end_day: null })],
+      wq: [wqOn('idle')],
+      last_log: [
+        { pond_id: 'w4', water: ago(4), any_day: ago(1) },
+        { pond_id: 'c8', water: ago(8), any_day: ago(8) },
+        { pond_id: 'c10', water: ago(1), any_day: ago(10) },
+        { pond_id: 'w2', water: ago(2), any_day: ago(2) },
+        { pond_id: 'idle', water: ago(30), any_day: ago(30) },
+      ],
+    });
+    expect(brief.carriedOver.stalePonds.map((s) => [s.pondId, s.severity])).toEqual([
+      ['c10', 'critical'], ['c8', 'critical'], ['w4', 'watch'], ['w2', 'watch'],
+    ]);
+  });
+
+  it("verdict band: 'incomplete' below half scored, a real band at exactly half, 'none' when nothing scored", async () => {
+    const one = await get({ ponds: [pondRow('a'), pondRow('b'), pondRow('c')], wq: [wqOn('a')] });
+    expect(one.verdict).toMatchObject({ band: 'incomplete', stockedPonds: 3, scoredStockedPonds: 1 });
+    expect(one.score?.value).toEqual(expect.any(Number));
+
+    const half = await get({ ponds: [pondRow('a'), pondRow('b'), pondRow('c'), pondRow('d')], wq: [wqOn('a'), wqOn('b')] });
+    expect(half.verdict).toMatchObject({ stockedPonds: 4, scoredStockedPonds: 2 });
+    expect(half.verdict.band).toBe(half.score!.band);
+
+    const zero = await get({ ponds: [pondRow('a'), pondRow('b')] });
+    expect(zero.verdict).toMatchObject({ band: 'none', stockedPonds: 2, scoredStockedPonds: 0 });
+  });
+
+  it('last_log is one bounded query for all ponds', async () => {
+    const { svc, calls } = build({ rows: { ponds: [pondRow('p1'), pondRow('p2')] } });
+    await svc.get('u1', { date: D }, NOW);
+    const ll = calls.filter((c) => c.tag === 'last_log');
+    expect(ll).toHaveLength(1);
+    expect(ll[0].params[0]).toEqual(['p1', 'p2']);
+    expect(ll[0].params[3]).toBe(ago(60));
+    expect(ll[0].params[4]).toBe(D);
   });
 });
 

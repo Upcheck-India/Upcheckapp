@@ -39,7 +39,9 @@ export type ReasonCode =
     | 'water_not_logged'
     | 'tray_not_checked'
     | 'task_missed'
-    | 'alert_open';
+    | 'alert_open'
+    // coverage
+    | 'pond_not_logged';
 
 export interface Reason {
     code: ReasonCode;
@@ -113,6 +115,32 @@ export interface PondDay {
         treatments: number;
     };
     molt: { phase: 'pre' | 'peak' | 'post' | 'inter'; pendingCritical: number } | null;
+    /**
+     * How long since this pond was last logged, as of the brief's date (IST).
+     * Days are counted from the date: logged on the date = 0. For a stocked pond
+     * with no log ever, days count from its stocking date. Null when no cycle and
+     * nothing logged.
+     */
+    lastLog: {
+        waterDate: string | null;
+        feedDate: string | null;
+        anyDate: string | null;
+        daysSinceWater: number | null;
+        daysSinceFeed: number | null;
+        daysSinceAny: number | null;
+    };
+}
+
+/**
+ * A stocked pond that has gone unwatched (founder decision 2026-09-14):
+ * watch when ≥ 2 days without a water test OR ≥ 3 days with no log of any kind;
+ * critical when either reaches ≥ 7 days.
+ */
+export interface StalePond {
+    pondId: string;
+    daysSinceWater: number | null;
+    daysSinceAny: number | null;
+    severity: Severity;
 }
 
 export type TimelineKind =
@@ -163,11 +191,20 @@ export interface DailyBrief {
     score: DayScore | null;
     previousScore: number | null;
     verdict: {
-        band: Band | 'none';
+        /**
+         * 'incomplete' when fewer than half of the stocked ponds were scored
+         * (founder decision 2026-09-14): the farm score value is still sent but
+         * must not be presented as Good/Watch/Attention. 'none' = nothing scored.
+         */
+        band: Band | 'none' | 'incomplete';
         pondsGood: number;
         pondsWatch: number;
         pondsAttention: number;
         pondsUnscored: number;
+        /** Ponds with a cycle on the date — the denominator every farm-level sentence uses. */
+        stockedPonds: number;
+        /** Of those, how many got a score. */
+        scoredStockedPonds: number;
         weakestPondId: string | null;
     };
 
@@ -180,6 +217,8 @@ export interface DailyBrief {
         overdueTasks: BriefTask[];
         worstPrevious: { pondId: string; reason: Reason } | null;
         moltPending: { pondId: string; keys: string[] }[];
+        /** Worst first (critical, then most days). */
+        stalePonds: StalePond[];
     };
 
     /** What to do on this day. */

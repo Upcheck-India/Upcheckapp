@@ -16,7 +16,7 @@ import {
     deltaText,
     pondNameMap,
     reasonText,
-    unscoredSentence,
+    coverageSentence,
     verdictSentence,
 } from '../../features/dailyBriefText';
 import { BAND_TONE, SEVERITY_MARK, HIT, c } from './Section';
@@ -24,11 +24,12 @@ import { BAND_TONE, SEVERITY_MARK, HIT, c } from './Section';
 export const VerdictScore: React.FC<{ brief: DailyBrief; onExplain: () => void }> = ({ brief, onExplain }) => {
     const { t } = useTranslation();
     const score = brief.score;
-    const band = score?.band ?? 'none';
+    const incomplete = !!score && brief.verdict.band === 'incomplete';
+    const band = !score ? 'none' : incomplete ? 'incomplete' : score.band;
     const tone = BAND_TONE[band];
     const names = pondNameMap(brief);
-    const delta = score ? deltaText(score.value, brief.previousScore, t) : null;
-    const unscored = unscoredSentence(brief, t);
+    const delta = score && !incomplete ? deltaText(score.value, brief.previousScore, t) : null;
+    const coverage = coverageSentence(brief, t);
     // Cap reasons first — they are why the number is what it is.
     const reasons = score
         ? [...score.capReasons, ...score.reasons.filter((r) => !score.capReasons.some((k) => k.code === r.code && k.pondId === r.pondId))].slice(0, 3)
@@ -71,7 +72,11 @@ export const VerdictScore: React.FC<{ brief: DailyBrief; onExplain: () => void }
             <Text style={styles.verdict} testID="brief-verdict">
                 {verdictSentence(brief, t)}
             </Text>
-            {!!unscored && <Text style={styles.sub}>{unscored}</Text>}
+            {!!coverage && (
+                <Text style={incomplete ? styles.coverage : styles.sub} testID="brief-coverage">
+                    {coverage}
+                </Text>
+            )}
 
             {!!score?.capped && <Text style={[styles.sub, { color: c.dangerText }]}>{t('dailyBrief.score.heldBelow')}</Text>}
             {reasons.map((r, i) => (
@@ -118,6 +123,7 @@ const styles = StyleSheet.create({
     delta: { ...theme.typeScale.bodySmall, color: c.textSecondary },
     verdict: { ...theme.typeScale.h1, color: c.textPrimary, marginTop: theme.spacing[4] },
     sub: { ...theme.typeScale.bodySmall, color: c.textSecondary, marginTop: theme.spacing[1] },
+    coverage: { ...theme.typeScale.bodyMedium, fontFamily: 'DMSans-SemiBold', color: c.textPrimary, marginTop: theme.spacing[1] },
     reason: { flexDirection: 'row', gap: theme.spacing[2.5], marginTop: theme.spacing[2.5], alignItems: 'flex-start' },
     reasonMark: { width: 3, alignSelf: 'stretch', borderRadius: 2 },
     reasonText: { ...theme.typeScale.bodyMedium, color: c.textPrimary, flex: 1 },

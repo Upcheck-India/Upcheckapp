@@ -11,11 +11,13 @@ import type { Band, Severity } from '../../api/dailyBrief';
 
 export const c = theme.roles.light;
 
-export const BAND_TONE: Record<Band | 'none', { text: string; bg: string; mark: string }> = {
+export const BAND_TONE: Record<Band | 'none' | 'incomplete', { text: string; bg: string; mark: string }> = {
     good: { text: c.successText, bg: c.successBg, mark: c.successBorder },
     watch: { text: c.warningText, bg: c.warningBg, mark: c.warningBorder },
     attention: { text: c.dangerText, bg: c.dangerBg, mark: c.dangerBorder },
     none: { text: c.staleText, bg: c.staleBg, mark: c.staleBorder },
+    // Too few stocked ponds scored: grey, never a band colour.
+    incomplete: { text: c.textTertiary, bg: c.surfaceVariant, mark: c.borderStrong },
 };
 
 export const SEVERITY_MARK: Record<Severity, string> = {
@@ -48,13 +50,15 @@ export const Line: React.FC<{
     /** Muted text — a quiet, reassuring or finished line. */
     muted?: boolean;
     struck?: boolean;
+    /** Status-coloured text for a line that must not read as routine. */
+    tone?: 'danger' | 'warning';
     actionLabel?: string;
     onAction?: () => void;
-}> = ({ text, meta, mark, muted, struck, actionLabel, onAction }) => (
+}> = ({ text, meta, mark, muted, struck, tone, actionLabel, onAction }) => (
     <View style={styles.line}>
         <View style={[styles.dot, { backgroundColor: mark ?? 'transparent' }]} />
         <View style={styles.lineText}>
-            <Text style={[styles.lineMain, muted && styles.muted, struck && styles.struck]}>{text}</Text>
+            <Text style={[styles.lineMain, muted && styles.muted, struck && styles.struck, tone && styles[tone]]}>{text}</Text>
             {!!meta && <Text style={styles.meta}>{meta}</Text>}
         </View>
         {!!actionLabel && (
@@ -96,6 +100,8 @@ const styles = StyleSheet.create({
     lineMain: { ...theme.typeScale.bodyMedium, color: c.textPrimary },
     muted: { color: c.textSecondary },
     struck: { color: c.textTertiary, textDecorationLine: 'line-through' },
+    danger: { color: c.dangerText, fontFamily: 'DMSans-SemiBold' },
+    warning: { color: c.warningText },
     meta: { ...theme.typeScale.bodySmall, color: c.textTertiary, marginTop: 1 },
     action: { minHeight: 32, justifyContent: 'center' },
     actionText: { ...theme.typeScale.labelLarge, color: c.textLink },

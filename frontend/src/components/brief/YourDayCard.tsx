@@ -15,7 +15,7 @@ import { dailyBriefApi, type DailyBrief } from '../../api/dailyBrief';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { useFlag } from '../../features/remoteFlags';
-import { briefMode, istDate, topTodo, verdictSentence } from '../../features/dailyBriefText';
+import { briefMode, coverageSentence, istDate, topTodo, verdictSentence } from '../../features/dailyBriefText';
 import { Icon } from '../ui/Icon';
 import { BAND_TONE, c } from './Section';
 
@@ -37,8 +37,10 @@ const YourDay: React.FC<{ farmId?: string | null; onOpen: () => void }> = ({ far
 
     const mode = t(`dailyBrief.modes.${briefMode(date)}`);
     const score = brief.score;
-    const tone = BAND_TONE[score?.band ?? 'none'];
+    const band = !score ? 'none' : brief.verdict.band === 'incomplete' ? 'incomplete' : score.band;
+    const tone = BAND_TONE[band];
     const verdict = verdictSentence(brief, t);
+    const coverage = coverageSentence(brief, t);
     const next = topTodo(brief, t);
 
     return (
@@ -49,7 +51,8 @@ const YourDay: React.FC<{ farmId?: string | null; onOpen: () => void }> = ({ far
             accessibilityRole="button"
             accessibilityLabel={[
                 t('dailyBrief.homeCard.a11y', { mode, verdict }),
-                score ? t('dailyBrief.score.a11y', { value: score.value, band: t(`dailyBrief.bands.${score.band}`) }) : null,
+                score ? t('dailyBrief.score.a11y', { value: score.value, band: t(`dailyBrief.bands.${band}`) }) : null,
+                coverage,
                 next ? t('dailyBrief.homeCard.topTodo', { item: next }) : null,
             ].filter(Boolean).join('. ')}
             testID="home-your-day"
@@ -58,12 +61,13 @@ const YourDay: React.FC<{ farmId?: string | null; onOpen: () => void }> = ({ far
             <View style={styles.scoreCol}>
                 <Text style={[styles.score, { color: score ? tone.text : c.textDisabled }]}>{score ? score.value : '–'}</Text>
                 <Text style={[styles.band, { color: tone.text }]} numberOfLines={1}>
-                    {t(`dailyBrief.bands.${score?.band ?? 'none'}`)}
+                    {t(`dailyBrief.bands.${band}`)}
                 </Text>
             </View>
             <View style={styles.text}>
                 <Text style={styles.mode}>{`${t('dailyBrief.yourDay')} · ${mode}`}</Text>
                 <Text style={styles.verdict}>{verdict}</Text>
+                {!!coverage && <Text style={band === 'incomplete' ? styles.coverageStrong : styles.next}>{coverage}</Text>}
                 {!!next && (
                     <Text style={styles.next} numberOfLines={2}>
                         {t('dailyBrief.homeCard.topTodo', { item: next })}
@@ -98,4 +102,5 @@ const styles = StyleSheet.create({
     mode: { ...theme.typeScale.bodySmall, color: c.textTertiary },
     verdict: { ...theme.typeScale.labelLarge, fontSize: 15, lineHeight: 21, color: c.textPrimary },
     next: { ...theme.typeScale.bodySmall, color: c.textSecondary, marginTop: 2 },
+    coverageStrong: { ...theme.typeScale.labelMedium, color: c.textPrimary, marginTop: 2 },
 });

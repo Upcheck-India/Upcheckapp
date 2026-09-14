@@ -131,3 +131,26 @@ Frontend: screen renders from fixture brief (each mode, empty, no score), verdic
 ribbon event placement (IST hour), notification scheduling idempotence, export collector, image
 card builder fallback. localeParity + `bash frontend/scripts/check-calculator-i18n.sh`.
 Full suites + tsc both sides before commit.
+
+## Addendum — coverage and unwatched ponds (founder, 2026-09-14)
+
+Reported: "One of my ponds was logged 7 days before. My morning brief shows most ponds are
+steady with a score of 82 Good." Verified on production data: 2 of the stocked ponds were
+scored (1 good, 1 watch); IND06 (stocked) had nothing logged since 5–7 Sep and was invisible
+except a small "too little logged" line; P01 scored Good with no feed logged for 9 days.
+"Not logged = not counted" held per pond but let unlogged ponds vanish at farm level.
+
+Decisions:
+1. **Denominator = stocked ponds** (cycle on the date). Every farm-level sentence counts them.
+   "Most ponds are steady" only when good ponds > half of stocked ponds. "All N ponds are doing
+   well" only when every stocked pond was scored good; otherwise "The N ponds logged today…".
+2. **Coverage shown with the farm score**: "based on X of Y stocked ponds". If scored stocked
+   ponds < 50% of stocked ponds ⇒ `verdict.band = 'incomplete'`: grey "Incomplete", no
+   Good/Watch/Attention colour or word (score number may still show, muted). Applies to screen,
+   Home card, PDF and image card.
+3. **Unwatched stocked pond** (`carriedOver.stalePonds`, reason `pond_not_logged`): watch at ≥ 2
+   days without a water test OR ≥ 3 days with no log of any kind; critical at ≥ 7 days (either).
+   Never logged ⇒ days since stocking. Shown FIRST in "Woke up with"/"From the day before",
+   naming the pond and the days; counts toward the Home card's top to-do.
+4. **Pond rows** show "feed not logged for N days" (and water, if stale) when ≥ 2 days, so a
+   Good score from water alone can't hide missing feeding.

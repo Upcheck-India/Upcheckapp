@@ -33,7 +33,9 @@ export type ReasonCode =
   | 'water_not_logged'
   | 'tray_not_checked'
   | 'task_missed'
-  | 'alert_open';
+  | 'alert_open'
+  // coverage
+  | 'pond_not_logged';
 
 export interface Reason {
   code: ReasonCode;
@@ -102,6 +104,23 @@ export interface PondDay {
     treatments: number;
   };
   molt: { phase: 'pre' | 'peak' | 'post' | 'inter'; pendingCritical: number } | null;
+  /** Days since last log as of the date (IST; same day = 0). Stocked + never logged ⇒ since stocking. */
+  lastLog: {
+    waterDate: string | null;
+    feedDate: string | null;
+    anyDate: string | null;
+    daysSinceWater: number | null;
+    daysSinceFeed: number | null;
+    daysSinceAny: number | null;
+  };
+}
+
+/** Stocked pond gone unwatched: watch ≥ 2 days no water OR ≥ 3 days no log; critical when either ≥ 7. */
+export interface StalePond {
+  pondId: string;
+  daysSinceWater: number | null;
+  daysSinceAny: number | null;
+  severity: Severity;
 }
 
 export type TimelineKind =
@@ -149,11 +168,13 @@ export interface DailyBrief {
   score: DayScore | null;
   previousScore: number | null;
   verdict: {
-    band: Band | 'none';
+    band: Band | 'none' | 'incomplete';
     pondsGood: number;
     pondsWatch: number;
     pondsAttention: number;
     pondsUnscored: number;
+    stockedPonds: number;
+    scoredStockedPonds: number;
     weakestPondId: string | null;
   };
 
@@ -165,6 +186,7 @@ export interface DailyBrief {
     overdueTasks: BriefTask[];
     worstPrevious: { pondId: string; reason: Reason } | null;
     moltPending: { pondId: string; keys: string[] }[];
+    stalePonds: StalePond[];
   };
 
   todo: {

@@ -62,7 +62,7 @@ const fixture = (over: Partial<DailyBrief> = {}): DailyBrief => ({
     hasAnyData: true,
     score: score(),
     previousScore: 70,
-    verdict: { band: 'watch', pondsGood: 1, pondsWatch: 1, pondsAttention: 0, pondsUnscored: 0, weakestPondId: 'p2' },
+    verdict: { band: 'watch', pondsGood: 1, pondsWatch: 1, pondsAttention: 0, pondsUnscored: 0, stockedPonds: 2, scoredStockedPonds: 2, weakestPondId: 'p2' },
     ponds: [
         {
             pondId: 'p2', name: 'Pond 3', farmId: 'f1', cycleActive: true, doc: 41, score: score(), previousScore: 70,
@@ -73,6 +73,7 @@ const fixture = (over: Partial<DailyBrief> = {}): DailyBrief => ({
             feed: { kg: 42.5, prev3DayAvgKg: 40, sessions: [], trayWorst: 'few_left' },
             health: { mortality: 12, mortalityPct: 0.01, mortality7DayAvg: 5, abwG: 8, biomassKg: 900, livePopulation: 110000, treatments: 0 },
             molt: null,
+            lastLog: { waterDate: '2026-09-13', feedDate: '2026-09-13', anyDate: '2026-09-13', daysSinceWater: 0, daysSinceFeed: 0, daysSinceAny: 0 },
         },
     ],
     timeline: [],
@@ -81,6 +82,7 @@ const fixture = (over: Partial<DailyBrief> = {}): DailyBrief => ({
         overdueTasks: [],
         worstPrevious: null,
         moltPending: [],
+        stalePonds: [],
     },
     todo: {
         tasks: [
@@ -150,6 +152,29 @@ describe('buildDayReportData', () => {
         const row = table(d, 'How the day went')?.rows.find((r) => r[0] === 'Held at 59 because');
         expect(row).toBeDefined();
         expect(row?.[1]).not.toBe('—');
+    });
+
+    it('an incomplete day prints "Incomplete" with the coverage, and stale ponds lead carried over', async () => {
+        const b = fixture({
+            score: score({ value: 88, band: 'good' }),
+            verdict: { band: 'incomplete', pondsGood: 1, pondsWatch: 0, pondsAttention: 0, pondsUnscored: 2, stockedPonds: 3, scoredStockedPonds: 1, weakestPondId: 'p2' },
+            carriedOver: { ...fixture().carriedOver, stalePonds: [{ pondId: 'p2', daysSinceWater: 7, daysSinceAny: 7, severity: 'critical' }] },
+        });
+        const d = await buildDayReportData(b, 'en');
+        expect(d.stats[0]).toMatchObject({ value: '88/100', hint: 'Incomplete' });
+        const summary = table(d, 'How the day went')?.rows ?? [];
+        expect(summary).toContainEqual(['Day score', '88/100 · Incomplete']);
+        expect(summary).toContainEqual(['Ponds counted', 'Based on 1 of 3 stocked ponds']);
+        expect(JSON.stringify(summary)).not.toContain('Good');
+        expect(table(d, 'Carried over')?.rows).toEqual([
+            ['Pond not being logged — critical', 'Pond 3', 'Nothing logged for 7 days'],
+            ['Low DO', 'Pond 3', 'Critical'],
+        ]);
+
+        const card = buildDayCardModel(b, 'en');
+        expect(card.band).toBe('Incomplete');
+        expect(card.colors.border).not.toBe('#27A855');
+        expect(card.scoreNote.join(' ')).toContain('Based on 1 of 3 stocked ponds');
     });
 
     it('translates into the document language', async () => {

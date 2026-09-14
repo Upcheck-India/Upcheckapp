@@ -59,7 +59,7 @@ describe('DailyBriefScreen', () => {
     it('morning brief: score, verdict, ribbon, and carried-over leads the blocks', async () => {
         mockedGet.mockResolvedValue({ data: makeBrief() });
         const utils = renderAt('2026-09-14T08:00:00+05:30');
-        expect(await utils.findByTestId('brief-verdict')).toHaveTextContent('Most ponds are steady — Pond 2 needs attention');
+        expect(await utils.findByTestId('brief-verdict')).toHaveTextContent('Pond 2 needs attention');
         expect(utils.getByText('Morning brief')).toBeTruthy();
         expect(utils.getByTestId('brief-score')).toHaveTextContent('71');
         expect(utils.getByText('Up 6 from the day before')).toBeTruthy();
@@ -105,7 +105,7 @@ describe('DailyBriefScreen', () => {
                 score: null,
                 previousScore: null,
                 ponds: [pond('p1', 'Pond 1', null)],
-                verdict: { band: 'none', pondsGood: 0, pondsWatch: 0, pondsAttention: 0, pondsUnscored: 1, weakestPondId: null },
+                verdict: { band: 'none', pondsGood: 0, pondsWatch: 0, pondsAttention: 0, pondsUnscored: 1, stockedPonds: 0, scoredStockedPonds: 0, weakestPondId: null },
             }),
         });
         const utils = renderAt('2026-09-14T08:00:00+05:30');
