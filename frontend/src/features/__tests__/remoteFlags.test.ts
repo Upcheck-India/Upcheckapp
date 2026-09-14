@@ -60,6 +60,10 @@ describe('defaults', () => {
         expect(REMOTE_FLAGS.tasks).toBe('app-tasks');
     });
 
+    it('includes the daily brief flag', () => {
+        expect(REMOTE_FLAGS.dailyBrief).toBe('app-daily-brief');
+    });
+
     it('absent from the response → on; present false → off; variant string → on', async () => {
         mockGet.mockResolvedValue({ data: { flags: { 'app-news': false, 'app-shop': 'test' }, payloads: {} } });
         await fetchRemoteFlags(U, true);

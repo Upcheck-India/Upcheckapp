@@ -49,6 +49,28 @@ describe('EngineAlertService.evaluate', () => {
     ).toBeUndefined();
   });
 
+  it('DO limits are per-species from the shared table (boundary: 3 is watch, 4 is fine)', () => {
+    const aer = (ctx: any) => svc.evaluate(ctx).find((d) => d.source === 'aeration')?.severity;
+    expect(aer({ ...baseCtx, waterQuality: { dissolvedOxygen: 3 } })).toBe('watch');
+    expect(aer({ ...baseCtx, waterQuality: { dissolvedOxygen: 4 } })).toBeUndefined();
+  });
+
+  it('free NH3 boundaries unchanged: 0.1 is fine, 0.3 is watch, above 0.3 critical', () => {
+    const w = (v: number) => svc.evaluate({ ...baseCtx, freeAmmoniaMgL: v }).find((d) => d.source === 'water')?.severity;
+    expect(w(0.1)).toBeUndefined();
+    expect(w(0.3)).toBe('watch');
+    expect(w(0.31)).toBe('critical');
+  });
+
+  // New rule (deliberate): pH outside the species' critical limits.
+  it('emits a critical pH alert outside 7.0–9.0 (vannamei), 6.5 low limit for scampi', () => {
+    const ph = (ctx: any) => svc.evaluate(ctx).find((d) => d.title === 'pH out of safe range')?.severity;
+    expect(ph({ ...baseCtx, waterQuality: { dissolvedOxygen: 6, ph: 6.9 } })).toBe('critical');
+    expect(ph({ ...baseCtx, waterQuality: { dissolvedOxygen: 6, ph: 9.2 } })).toBe('critical');
+    expect(ph({ ...baseCtx, waterQuality: { dissolvedOxygen: 6, ph: 7.2 } })).toBeUndefined();
+    expect(ph({ ...baseCtx, species: 'Macrobrachium rosenbergii', waterQuality: { dissolvedOxygen: 6, ph: 6.8 } })).toBeUndefined();
+  });
+
   it('flags poor feed efficiency when running FCR is high', () => {
     expect(
       svc

@@ -89,6 +89,12 @@ export const qk = {
     home: (scopeFarmId?: string | null) => ['home', scopeFarmId ?? 'all'] as const,
     /** Cross-pond alerts + the good-day routine checklist. */
     briefing: () => ['briefing'] as const,
+    /**
+     * One IST day's Daily Brief. Under the `briefing` root on purpose: it is
+     * already persisted for the offline first paint, and every log write
+     * already invalidates it.
+     */
+    dailyBrief: (date: string, farmId?: string | null) => ['briefing', 'daily', date, farmId ?? 'all'] as const,
     /** Money tab, scoped to one farm or all of them. */
     money: (scope?: string) => ['money', scope ?? 'all'] as const,
     /** Team tab, scoped to one farm or all of them. */

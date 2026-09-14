@@ -31,6 +31,7 @@ export const REMOTE_FLAGS = {
     export: 'app-export',
     cycleAnalysis: 'app-cycle-analysis',
     tasks: 'app-tasks',
+    dailyBrief: 'app-daily-brief',
 } as const;
 
 export type RemoteFlagKey = keyof typeof REMOTE_FLAGS;

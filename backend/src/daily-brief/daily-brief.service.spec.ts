@@ -1,0 +1,257 @@
+import { BadRequestException, ForbiddenException, NotFoundException, ValidationPipe } from '@nestjs/common';
+import { DailyBriefService, assertBriefDate } from './daily-brief.service';
+import { DailyBriefQueryDto } from './daily-brief.controller';
+import { PondContextService } from '../pond-context/pond-context.service';
+import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
+
+const NOW = new Date('2026-09-14T10:00:00Z'); // 15:30 IST, 14 Sep
+const FARM = '11111111-1111-4111-8111-111111111111';
+const FARM2 = '22222222-2222-4222-8222-222222222222';
+
+type Rows = Record<string, any[]>;
+
+const pondRow = (id: string, over: any = {}) => ({
+  id, farm_id: FARM, name: `Pond ${id}`, area: 1000, crop_id: `crop-${id}`,
+  stocking_date: '2026-08-01', initial_age_days: 0, stocking_count: 100000,
+  target_cultivation_days: 120, end_day: '9999-12-31', species: 'Penaeus vannamei', ...over,
+});
+
+function build(opts: {
+  rows?: Rows;
+  role?: string | ((farmId: string) => string);
+  farms?: string[];
+  ponds?: Record<string, string[]>;
+} = {}) {
+  const calls: { tag: string; sql: string; params: any[] }[] = [];
+  const rows = opts.rows ?? {};
+  const dataSource = {
+    query: jest.fn(async (sql: string, params: any[]) => {
+      const tag = /\/\*daily-brief:(\w+)\*\//.exec(sql)![1];
+      calls.push({ tag, sql, params });
+      if (tag === 'farms') return params[0].map((id: string) => ({ id, name: `Farm ${id.slice(0, 1)}` }));
+      if (tag === 'ponds') {
+        const all = rows.ponds ?? [];
+        return all.filter((p) => params[0].includes(p.id));
+      }
+      return rows[tag] ?? [];
+    }),
+  };
+  const farms = opts.farms ?? [FARM];
+  const pondMap = opts.ponds ?? { [FARM]: (rows.ponds ?? []).map((p) => p.id) };
+  const roleOf = (f: string) => (typeof opts.role === 'function' ? opts.role(f) : (opts.role ?? 'owner'));
+  const farmAccess = {
+    getAccessibleFarmIds: jest.fn().mockResolvedValue(farms),
+    assertCanAccessFarm: jest.fn().mockResolvedValue({}),
+    getMembershipOnFarm: jest.fn(async (_u: string, f: string) => ({ role: roleOf(f), overrides: null, policy: null })),
+    getAccessiblePondIds: jest.fn(async (_u: string, f: string) => pondMap[f] ?? []),
+  };
+  const molt = { checklistsFor: jest.fn().mockResolvedValue(new Map()) };
+  const svc = new DailyBriefService(
+    dataSource as any,
+    farmAccess as any,
+    molt as any,
+    Object.create(PondContextService.prototype),
+    new ShrimpCalculationsService(),
+  );
+  return { svc, calls, farmAccess, dataSource, molt };
+}
+
+describe('assertBriefDate', () => {
+  it('accepts today IST even when it is still yesterday in UTC', () => {
+    // 20:00 UTC on 13 Sep = 01:30 IST on 14 Sep.
+    expect(() => assertBriefDate('2026-09-14', new Date('2026-09-13T20:00:00Z'))).not.toThrow();
+    expect(() => assertBriefDate('2026-09-15', new Date('2026-09-13T20:00:00Z'))).toThrow(BadRequestException);
+  });
+  it('rejects future, before 2020-01-01, malformed and impossible dates', () => {
+    expect(() => assertBriefDate('2026-09-15', NOW)).toThrow(BadRequestException);
+    expect(() => assertBriefDate('2019-12-31', NOW)).toThrow(BadRequestException);
+    expect(() => assertBriefDate('2020-01-01', NOW)).not.toThrow();
+    expect(() => assertBriefDate('2026-02-30', NOW)).toThrow(BadRequestException);
+    expect(() => assertBriefDate('14-09-2026', NOW)).toThrow(BadRequestException);
+  });
+  it('the service rejects before touching the database', async () => {
+    const { svc, dataSource, farmAccess } = build();
+    await expect(svc.get('u1', { date: '2026-09-15' }, NOW)).rejects.toBeInstanceOf(BadRequestException);
+    expect(dataSource.query).not.toHaveBeenCalled();
+    expect(farmAccess.getAccessibleFarmIds).not.toHaveBeenCalled();
+  });
+});
+
+describe('DailyBriefService — access', () => {
+  it('propagates 404/403 for an explicit farm', async () => {
+    const a = build();
+    a.farmAccess.assertCanAccessFarm.mockRejectedValueOnce(new NotFoundException());
+    await expect(a.svc.get('u1', { date: '2026-09-14', farmId: FARM }, NOW)).rejects.toBeInstanceOf(NotFoundException);
+    const b = build();
+    b.farmAccess.assertCanAccessFarm.mockRejectedValueOnce(new ForbiddenException());
+    await expect(b.svc.get('u1', { date: '2026-09-14', farmId: FARM }, NOW)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(b.farmAccess.assertCanAccessFarm).toHaveBeenCalledWith('u1', FARM, 'READ');
+  });
+
+  it('pond scoping: only scoped ponds are queried and returned', async () => {
+    const { svc, calls } = build({
+      rows: { ponds: [pondRow('p1'), pondRow('p2')] },
+      role: 'worker',
+      ponds: { [FARM]: ['p1'] },
+    });
+    const brief = await svc.get('u1', { date: '2026-09-14' }, NOW);
+    expect(brief.ponds.map((p) => p.pondId)).toEqual(['p1']);
+    for (const c of calls) {
+      for (const param of c.params) {
+        if (Array.isArray(param) && param.some((x) => typeof x === 'string' && x.startsWith('p'))) {
+          expect(param).toEqual(['p1']);
+        }
+      }
+    }
+  });
+
+  it('no farms ⇒ empty brief, no data queries', async () => {
+    const { svc, calls } = build({ farms: [] });
+    const brief = await svc.get('u1', { date: '2026-09-14' }, NOW);
+    expect(brief.ponds).toEqual([]);
+    expect(brief.score).toBeNull();
+    expect(brief.verdict.band).toBe('none');
+    expect(calls).toEqual([]);
+  });
+
+  it('a fixed number of queries regardless of pond count', async () => {
+    const many = Array.from({ length: 30 }, (_, i) => pondRow(`p${i}`));
+    const a = build({ rows: { ponds: many.slice(0, 2) } });
+    await a.svc.get('u1', { date: '2026-09-14' }, NOW);
+    const b = build({ rows: { ponds: many } });
+    await b.svc.get('u1', { date: '2026-09-14' }, NOW);
+    expect(b.calls.length).toBe(a.calls.length);
+    expect(b.molt.checklistsFor).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('DailyBriefService — VIEW_FINANCIALS', () => {
+  const money = { money: [{ spend: 1500.5, income: 9000 }] };
+
+  it('owner sees spend/income', async () => {
+    const { svc } = build({ rows: money });
+    const brief = await svc.get('u1', { date: '2026-09-14' }, NOW);
+    expect(brief.canViewFinancials).toBe(true);
+    expect(brief.totals.spend).toBe(1500.5);
+    expect(brief.totals.income).toBe(9000);
+  });
+
+  it('worker gets null money and the money query is never issued', async () => {
+    const { svc, calls } = build({ rows: money, role: 'worker' });
+    const brief = await svc.get('u1', { date: '2026-09-14' }, NOW);
+    expect(brief.canViewFinancials).toBe(false);
+    expect(brief.totals.spend).toBeNull();
+    expect(brief.totals.income).toBeNull();
+    expect(calls.map((c) => c.tag)).not.toContain('money');
+  });
+
+  it('must hold it on EVERY farm in scope', async () => {
+    const { svc } = build({ rows: money, farms: [FARM, FARM2], role: (f) => (f === FARM ? 'owner' : 'viewer') });
+    const brief = await svc.get('u1', { date: '2026-09-14' }, NOW);
+    expect(brief.canViewFinancials).toBe(false);
+    expect(brief.totals.spend).toBeNull();
+  });
+});
+
+describe('DailyBriefService — IST day boundaries', () => {
+  const rows = {
+    ponds: [pondRow('p1')],
+    wq: [
+      // 23:45 IST on 14 Sep
+      { pond_id: 'p1', recorded_at: '2026-09-14T18:15:00Z', do: 5, ph: 8 },
+      // 00:15 IST on 15 Sep
+      { pond_id: 'p1', recorded_at: '2026-09-14T18:45:00Z', do: 2.5, ph: 8 },
+    ],
+  };
+
+  it('asks for D−1 00:00 IST .. D 23:59:59.999 IST', async () => {
+    const { svc, calls } = build({ rows });
+    await svc.get('u1', { date: '2026-09-14' }, NOW);
+    const wq = calls.find((c) => c.tag === 'wq')!;
+    expect(wq.params[1].toISOString()).toBe('2026-09-12T18:30:00.000Z');
+    expect(wq.params[2].toISOString()).toBe('2026-09-14T18:29:59.999Z');
+  });
+
+  it('a 23:45 IST reading belongs to that day; 00:15 IST to the next', async () => {
+    const { svc } = build({ rows });
+    const d14 = await svc.get('u1', { date: '2026-09-14' }, new Date('2026-09-15T01:00:00Z'));
+    expect(d14.ponds[0].water.tests).toBe(1);
+    expect(d14.ponds[0].water.do).toMatchObject({ min: 5, zone: 'optimal' });
+
+    const d15 = await svc.get('u1', { date: '2026-09-15' }, new Date('2026-09-15T01:00:00Z'));
+    expect(d15.ponds[0].water.do).toMatchObject({ min: 2.5, zone: 'critical' });
+    expect(d15.ponds[0].score?.capped).toBe(true);
+    // The 23:45 reading of the 14th scores the previous day.
+    expect(d15.ponds[0].previousScore).not.toBeNull();
+  });
+});
+
+describe('DailyBriefService — assembling a day', () => {
+  const D = '2026-09-14';
+  const rows: Rows = {
+    ponds: [pondRow('p1'), pondRow('p2', { crop_id: null, stocking_date: null, end_day: null })],
+    wq: [{ pond_id: 'p1', recorded_at: '2026-09-14T00:30:00Z', do: 5.5, ph: 7.9, temperature: 30, ammonia: 0.05 }],
+    feed_days: [
+      { pond_id: 'p1', day: D, kg: 20 },
+      { pond_id: 'p1', day: '2026-09-13', kg: 22 },
+      { pond_id: 'p1', day: '2026-09-12', kg: 18 },
+      { pond_id: 'p1', day: '2026-09-10', kg: 20 },
+      { pond_id: 'p1', day: '2026-09-01', kg: 99 },
+    ],
+    feed_rows: [{ pond_id: 'p1', recorded_at: '2026-09-14T01:00:00Z', kg: 20, feeding_time: 'morning' }],
+    mortality_days: [{ pond_id: 'p1', day: D, qty: 40 }, { pond_id: 'p1', day: '2026-09-10', qty: 7 }],
+    mortality_cum: [{ crop_id: 'crop-p1', d: 1000, p: 900 }],
+    abw: [{ pond_id: 'p1', mbw: 10 }],
+  };
+
+  it('scores the active pond, leaves the idle pond out, DATE rows at 12:00 IST allDay', async () => {
+    const { svc } = build({ rows });
+    const brief = await svc.get('u1', { date: D }, NOW);
+    expect(brief.isToday).toBe(true);
+    expect(brief.ponds.map((p) => p.pondId)).toEqual(['p1']);
+    const p1 = brief.ponds[0];
+    expect(p1.doc).toBe(45);
+    expect(p1.feed).toEqual({ kg: 20, prev3DayAvgKg: 20, sessions: ['morning'], trayWorst: null });
+    expect(p1.health).toMatchObject({ mortality: 40, livePopulation: 99000, mortality7DayAvg: 1, abwG: 10, biomassKg: 990 });
+    expect(p1.health.mortalityPct).toBe(0.04);
+    expect(p1.score).not.toBeNull();
+    expect(p1.score!.basedOn).toEqual(['water', 'feeding', 'health', 'care']);
+    expect(brief.score?.value).toBe(p1.score!.value);
+    expect(brief.todo.missingLogs).toEqual([{ pondId: 'p1', kinds: ['tray'] }]);
+
+    const mort = brief.timeline.find((e) => e.kind === 'mortality')!;
+    expect(mort).toEqual({ at: '2026-09-14T06:30:00.000Z', allDay: true, kind: 'mortality', pondId: 'p1', summary: '×40' });
+    const water = brief.timeline.find((e) => e.kind === 'water')!;
+    expect(water.summary).toBe('DO 5.5 · pH 7.9 · 30 °C · NH₃ 0.05');
+    expect(water.allDay).toBe(false);
+    expect(brief.totals).toMatchObject({ feedKg: 20, feedKgPrev: 22, mortality: 40, waterTests: 1 });
+    expect(brief.hasAnyData).toBe(true);
+  });
+
+  it('low stock is only shown for today', async () => {
+    const inv = { ...rows, inventory: [{ id: 'i1', name: 'Feed', quantity: 2, unit: 'bag', reorder_level: 5 }, { id: 'i2', name: 'Lime', quantity: 9, unit: 'kg', reorder_level: 5 }] };
+    const today = await build({ rows: inv }).svc.get('u1', { date: D }, NOW);
+    expect(today.happening.lowStock).toEqual([{ itemId: 'i1', name: 'Feed', quantity: 2, unit: 'bag' }]);
+    const past = build({ rows: inv });
+    const pastBrief = await past.svc.get('u1', { date: '2026-09-10' }, NOW);
+    expect(pastBrief.happening.lowStock).toEqual([]);
+    expect(past.calls.map((c) => c.tag)).not.toContain('inventory');
+  });
+});
+
+describe('DailyBriefQueryDto (controller validation)', () => {
+  const pipe = new ValidationPipe({ whitelist: true, transform: true });
+  const through = (query: Record<string, unknown>) =>
+    pipe.transform(query, { type: 'query', metatype: DailyBriefQueryDto } as any);
+
+  it('accepts a date with or without a uuid farmId', async () => {
+    await expect(through({ date: '2026-09-14' })).resolves.toMatchObject({ date: '2026-09-14' });
+    await expect(through({ date: '2026-09-14', farmId: FARM })).resolves.toMatchObject({ farmId: FARM });
+  });
+  it('rejects missing/malformed date and non-uuid farmId', async () => {
+    await expect(through({})).rejects.toBeInstanceOf(BadRequestException);
+    await expect(through({ date: '2026-9-14' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(through({ date: '2026-09-14T00:00:00Z' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(through({ date: '2026-09-14', farmId: 'farm-1' })).rejects.toBeInstanceOf(BadRequestException);
+  });
+});

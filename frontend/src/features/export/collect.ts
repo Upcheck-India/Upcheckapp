@@ -60,7 +60,7 @@ const DASH = '—';
 type T = (key: string, opts?: Record<string, unknown>) => string;
 
 /** Everything downstream needs to turn a value into a cell, bound to one locale. */
-interface Fmt {
+export interface Fmt {
     t: T;
     date: (v?: string | number | Date | null) => string;
     time: (v?: string | number | Date | null) => string;
@@ -93,7 +93,7 @@ const toNumber = (v: unknown): number | null => {
     return Number.isFinite(n) ? n : null;
 };
 
-const makeFmt = (language: string): Fmt => {
+export const makeFmt = (language: string): Fmt => {
     const tag = LOCALE_TAGS[language] ?? 'en-IN';
     const t = i18n.getFixedT(language) as unknown as T;
 

@@ -15,7 +15,13 @@ import { routeForNotification } from './src/features/notificationRouting';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ToastHost } from './src/components/ui/ToastHost';
 import { WhatsNewCard } from './src/components/ui/WhatsNewCard';
-import { registerForPushNotificationsAsync, syncReminders, syncMoltReminders } from './src/utils/notifications';
+import {
+  registerForPushNotificationsAsync,
+  syncReminders,
+  syncMoltReminders,
+  syncBriefReminders,
+  loadBriefRemindersPref,
+} from './src/utils/notifications';
 import { alertCenterApi } from './src/api/alertCenter';
 import { pondsApi } from './src/api/ponds';
 import { loadReminderTimes } from './src/features/reminderTimes';
@@ -32,7 +38,7 @@ import {
   clearAmbientProps,
 } from './src/features/analytics';
 import { initSentry, setSentryUser } from './src/utils/sentry';
-import { clearRemoteFlags, fetchRemoteFlags, restoreRemoteFlags } from './src/features/remoteFlags';
+import { clearRemoteFlags, fetchRemoteFlags, isRemoteFlagOn, restoreRemoteFlags } from './src/features/remoteFlags';
 import { useAuthStore } from './src/store/authStore';
 import { useActiveFarmStore } from './src/store/activeFarmStore';
 import { useMembershipStore } from './src/store/membershipStore';
@@ -110,6 +116,9 @@ function navigateForNotification(data: unknown): void {
       break;
     case 'LeaveRequests':
       navigationRef.navigate('LeaveRequests', route.params);
+      break;
+    case 'DailyBrief':
+      navigationRef.navigate('DailyBrief', route.params);
       break;
   }
 }
@@ -312,6 +321,10 @@ export default function App() {
       // code assumed unconditionally.
       const hasPonds = pondRes ? (pondRes.data?.length ?? 0) > 0 : contexts.length > 0;
       await syncReminders(contexts, times, new Date(), hasPonds);
+      // 06:00 morning brief + 19:00 day wrap. Re-armed every foreground so the
+      // text follows the current language; cleared when the kill switch or the
+      // Settings toggle is off.
+      await syncBriefReminders(isRemoteFlagOn('dailyBrief') && (await loadBriefRemindersPref()));
       // Evening-before molt reminder, only for accounts with a running cycle.
       const mw = ctxRes?.data?.moltWindow;
       if (mw && contexts.length > 0) {

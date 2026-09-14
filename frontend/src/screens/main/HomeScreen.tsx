@@ -45,6 +45,7 @@ import { toLocalISODate, todayLocalISODate } from '../../utils/localDate';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { useFlag } from '../../features/remoteFlags';
+import { YourDayCard } from '../../components/brief/YourDayCard';
 import Svg, { Ellipse, Path } from 'react-native-svg';
 
 /** Stable empty fallbacks — a fresh `[]` each render would break the memos. */
@@ -110,6 +111,8 @@ export const HomeScreen = ({ navigation }: any) => {
     const tasksOn = useFlag('tasks');
     const teamTabOn = useFlag('teamTab');
     const lunarOn = useFlag('lunar');
+    // The day page; the old route name still serves it (legacy screen while the flag is off).
+    const briefRoute = useFlag('dailyBrief') ? 'DailyBrief' : 'MorningBriefing';
     const { user } = useAuthStore();
     const { selectedFarm, setSelectedFarm } = useActiveFarmStore();
     const perms = usePermissions(selectedFarm?.id);
@@ -868,6 +871,12 @@ export const HomeScreen = ({ navigation }: any) => {
                 </View>
             ) : (
                 <>
+                    {/* "Your day" — flag-gated inside; renders nothing until it has a brief. */}
+                    <YourDayCard
+                        farmId={scopeFarmId}
+                        onOpen={() => goRoot('DailyBrief', scopeFarmId ? { farmId: scopeFarmId } : undefined)}
+                    />
+
                     {/* Overall / per farm / per pond log progress for the
                         current slot — reads the contexts this screen already
                         fetched, no new request. See LogProgressCard.tsx. */}
@@ -956,11 +965,11 @@ export const HomeScreen = ({ navigation }: any) => {
                             <ThenList
                                 items={thenActions}
                                 farmNameForPond={farmNameForPond}
-                                onSeeAll={() => goRoot('MorningBriefing')}
+                                onSeeAll={() => goRoot(briefRoute)}
                                 onOpen={(item) =>
                                     item.pondId
                                         ? goRoot('PondDashboard', { pondId: item.pondId })
-                                        : goRoot('MorningBriefing')
+                                        : goRoot(briefRoute)
                                 }
                             />
                         ) : nextActions.length === 0 && !firstStep ? (
@@ -969,7 +978,7 @@ export const HomeScreen = ({ navigation }: any) => {
                             // about. With setup unfinished it claimed nothing had
                             // gone wrong on a farm nothing was watching yet, so it
                             // waits until the hero has no setup step left to show.
-                            <TouchableOpacity activeOpacity={0.85} onPress={() => goRoot('MorningBriefing')}>
+                            <TouchableOpacity activeOpacity={0.85} onPress={() => goRoot(briefRoute)}>
                                 <Card style={styles.allClearCard}>
                                     <MaterialCommunityIcons name="check-circle-outline" size={22} color={theme.roles.light.successText} />
                                     <View style={styles.allClearText}>

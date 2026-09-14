@@ -38,6 +38,8 @@ import activity from './activity';
 // `export` is a reserved word, so the binding is renamed; the NAMESPACE below
 // is still `export`, which is what every t('export.…') call looks up.
 import exportNs from './export';
+import dayReport from './dayReport';
+import dailyBrief from './dailyBrief';
 
 export default {
   common,
@@ -72,4 +74,6 @@ export default {
   whatsNew,
   activity,
   export: exportNs,
+  dayReport,
+  dailyBrief,
 };

@@ -39,6 +39,10 @@ jest.mock('../../../api/tasks', () => ({
 jest.mock('../../../api/teamOverview', () => ({
     fetchTeamOverview: jest.fn(),
 }));
+// The "Your day" card has its own tests (components/brief); here it just must not hit the network.
+jest.mock('../../../api/dailyBrief', () => ({
+    dailyBriefApi: { get: jest.fn(() => Promise.reject(new Error('not under test'))) },
+}));
 // See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why:
 // useFocusEffect needs a NavigationContainer the plain SafeAreaProvider
 // wrapper below doesn't provide.

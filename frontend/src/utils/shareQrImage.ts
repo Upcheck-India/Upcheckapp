@@ -25,9 +25,10 @@ export interface ShareQrImageOptions {
     fallbackMessage: string;
 }
 
-type SvgRef = { toDataURL?: (cb: (base64: string) => void, options?: object) => void } | null | undefined;
+export type SvgRef = { toDataURL?: (cb: (base64: string) => void, options?: object) => void } | null | undefined;
 
-const toBase64 = (ref: SvgRef): Promise<string> =>
+/** PNG base64 of a mounted react-native-svg <Svg>, redrawn at `width`×`height`. Also used by the day card. */
+export const svgToPngBase64 = (ref: SvgRef, width = QR_EXPORT_PX, height = width): Promise<string> =>
     new Promise((resolve, reject) => {
         if (!ref?.toDataURL) return reject(new Error('QR ref not ready'));
         // Android waits for the view's first draw before answering; never hang the button on it.
@@ -41,7 +42,7 @@ const toBase64 = (ref: SvgRef): Promise<string> =>
                     if (clean) resolve(clean);
                     else reject(new Error('empty QR image'));
                 },
-                { width: QR_EXPORT_PX, height: QR_EXPORT_PX },
+                { width, height },
             );
         } catch (e) {
             clearTimeout(timer);
@@ -63,7 +64,7 @@ export const shareQrImage = async (ref: SvgRef, options: ShareQrImageOptions): P
     let uri: string;
     try {
         if (!(await Sharing.isAvailableAsync())) throw new Error('sharing unavailable');
-        const base64 = await toBase64(ref);
+        const base64 = await svgToPngBase64(ref);
         const file = new File(Paths.cache, filename);
         if (file.exists) file.delete();
         file.create();

@@ -18,6 +18,7 @@ import {
 } from '../molt/molt-window';
 import { AlertCenterService, BriefingItem } from './alert-center.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { FREE_NH3, classify, thresholdFor } from '../common/wq-thresholds';
 
 /**
  * Home's molt line. `window` is null outside a window; `next` is always the
@@ -74,9 +75,14 @@ export class EngineAlertService {
     ) =>
       drafts.push({ pondId: ctx.pondId, source, severity, title, body, steps });
 
+    // Limits come from the shared per-species table (common/wq-thresholds), the
+    // same one the Day Score and the app's colours read.
+    const nh3Zone =
+      ctx.freeAmmoniaMgL != null ? classify(ctx.freeAmmoniaMgL, FREE_NH3) : null;
+
     // Free ammonia (toxic fraction).
-    if (ctx.freeAmmoniaMgL != null) {
-      if (ctx.freeAmmoniaMgL > 0.3) {
+    if (nh3Zone) {
+      if (nh3Zone === 'critical') {
         push(
           'critical',
           'water',
@@ -88,7 +94,7 @@ export class EngineAlertService {
             'Add probiotics; verify pH is not spiking',
           ],
         );
-      } else if (ctx.freeAmmoniaMgL > 0.1) {
+      } else if (nh3Zone === 'caution') {
         push(
           'watch',
           'water',
@@ -100,8 +106,12 @@ export class EngineAlertService {
     }
 
     // Dissolved oxygen.
-    if (wq?.dissolvedOxygen != null && wq.dissolvedOxygen < 4) {
-      const severity = wq.dissolvedOxygen < 3 ? 'critical' : 'watch';
+    const doZone =
+      wq?.dissolvedOxygen != null
+        ? classify(wq.dissolvedOxygen, thresholdFor(ctx.species, 'do'))
+        : 'optimal';
+    if (wq?.dissolvedOxygen != null && doZone !== 'optimal') {
+      const severity = doZone === 'critical' ? 'critical' : 'watch';
       push(
         severity,
         'aeration',
@@ -113,6 +123,16 @@ export class EngineAlertService {
           'Avoid handling/stocking stress',
         ],
       );
+    }
+
+    // pH — critical band only (outside the species' critical limits); the
+    // caution band is a colour on the log screen, not an alert.
+    if (wq?.ph != null && classify(wq.ph, thresholdFor(ctx.species, 'ph')) === 'critical') {
+      push('critical', 'water', 'pH out of safe range', `pH ${wq.ph}`, [
+        'Check the reading again',
+        'Partial water exchange',
+        'Correct with lime (low pH) or molasses (high pH)',
+      ]);
     }
 
     // Feed efficiency.

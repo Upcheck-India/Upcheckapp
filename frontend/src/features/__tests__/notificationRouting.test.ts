@@ -14,6 +14,12 @@ describe('routeForNotification', () => {
         expect(routeForNotification({ tag: 'wq-reminder', slot: 'morning' })).toBeNull();
     });
 
+    it('opens the Daily Brief on the IST day the brief reminder is tapped', () => {
+        // 19:30 UTC on the 14th is 01:00 IST on the 15th.
+        expect(routeForNotification({ tag: 'brief-reminder', slot: 'wrap' }, new Date('2026-09-14T19:30:00Z')))
+            .toEqual({ screen: 'DailyBrief', params: { date: '2026-09-15' } });
+    });
+
     it('ignores an unknown or malformed payload rather than crashing', () => {
         expect(routeForNotification({})).toBeNull();
         expect(routeForNotification({ type: 'feedback_reply' })).toBeNull();

@@ -36,6 +36,8 @@ import notifications from './notifications';
 import whatsNew from './whatsNew';
 import activity from './activity';
 import exportNs from './export';
+import dayReport from './dayReport';
+import dailyBrief from './dailyBrief';
 
 export default {
   common,
@@ -70,4 +72,6 @@ export default {
   whatsNew,
   activity,
   export: exportNs,
+  dayReport,
+  dailyBrief,
 };

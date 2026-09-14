@@ -10,13 +10,22 @@ import { PageOptionsDto } from '../common/dto/page-options.dto';
 import { PageMetaDto, PageDto } from '../common/dto/page.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { latestNonNull } from '../pond-context/pond-context.service';
+import { thresholdFor } from '../common/wq-thresholds';
 
-// Critical thresholds for water quality alerts
-const CRITICAL_THRESHOLDS = {
-  ph: { min: 6.5, max: 9.0 },
-  dissolvedOxygen: { min: 3.0 },
-  ammonia: { max: 0.5 },
-};
+/**
+ * Critical limits for persisted water-quality alerts, from the shared
+ * per-species table (common/wq-thresholds) — the same one the Day Score and
+ * the app's colours use. Was a private copy with pH min 6.5 (vannamei's table
+ * says 7.0), so a 6.8 reading showed red on screen but raised no alert.
+ */
+export function criticalThresholds(species: string | null | undefined) {
+  const ph = thresholdFor(species, 'ph');
+  return {
+    ph: { min: ph.criticalLow as number, max: ph.criticalHigh as number },
+    dissolvedOxygen: { min: thresholdFor(species, 'do').criticalLow as number },
+    ammonia: { max: thresholdFor(species, 'ammonia').criticalHigh as number },
+  };
+}
 
 /**
  * The weekly-chemistry parameters (test kit / lab), as opposed to the daily
@@ -103,9 +112,12 @@ export class WaterQualityService {
    */
   private async checkAndGenerateAlerts(
     record: WaterQualityRecord,
-    pond: { id: string; farmId: string; name?: string },
+    pond: { id: string; farmId: string; name?: string; activeCycleId?: string | null },
     userId: string,
   ) {
+    const CRITICAL_THRESHOLDS = criticalThresholds(
+      await this.speciesOf(pond.activeCycleId ?? null),
+    );
     const alerts: Array<{
       title: string;
       message: string;
@@ -203,6 +215,25 @@ export class WaterQualityService {
           (error as Error)?.stack,
         );
       }
+    }
+  }
+
+  /**
+   * The active crop's species, for per-species limits. Best-effort: a failed
+   * lookup falls back to vannamei limits rather than dropping the alert.
+   */
+  private async speciesOf(cropId: string | null): Promise<string | null> {
+    if (!cropId) return null;
+    try {
+      const [row] = await this.recordsRepository.query(
+        `SELECT coalesce(s.scientific_name, c.species_type) AS species
+           FROM crops c LEFT JOIN species s ON s.id = c.species_id
+          WHERE c.id = $1`,
+        [cropId],
+      );
+      return row?.species ?? null;
+    } catch {
+      return null;
     }
   }
 

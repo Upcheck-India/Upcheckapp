@@ -129,7 +129,10 @@ export type RootStackParamList = {
     Aeration: { pondId?: string; pondName?: string; cropId?: string };
     Lunar: { pondId?: string; pondName?: string; cropId?: string };
     CropPnl: { pondId?: string; pondName?: string; cropId?: string };
-    MorningBriefing: undefined;
+    // Old name for the day page — renders DailyBriefScreen (legacy screen only while the flag is off).
+    MorningBriefing: { date?: string; farmId?: string } | undefined;
+    // One IST day at a glance. No date = today (IST); no farmId = all farms.
+    DailyBrief: { date?: string; farmId?: string } | undefined;
 
     Profile: undefined;
     Notifications: undefined;
@@ -443,7 +446,8 @@ const RootNavigator = () => {
                     <Stack.Screen name="Aeration" getComponent={() => require('../screens/engines/AerationScreen').AerationScreen} options={{ headerShown: true, title: 'Aeration & Power', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="Lunar" getComponent={() => withFlag('lunar', require('../screens/engines/LunarScreen').LunarScreen)} options={{ headerShown: true, title: 'Lunar Molt', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="CropPnl" getComponent={() => require('../screens/engines/CropPnlScreen').CropPnlScreen} options={{ headerShown: true, title: 'Crop P&L', headerTintColor: theme.roles.light.primary }} />
-                    <Stack.Screen name="MorningBriefing" getComponent={() => require('../screens/engines/MorningBriefingScreen').MorningBriefingScreen} options={{ headerShown: true, title: 'Morning Briefing', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="MorningBriefing" getComponent={() => require('../screens/brief/MorningBriefingRoute').MorningBriefingRoute} />
+                    <Stack.Screen name="DailyBrief" getComponent={() => withFlag('dailyBrief', require('../screens/brief/DailyBriefScreen').DailyBriefScreen)} />
 
                     {/* Phase 5 (Settings & Notifications) */}
                     <Stack.Screen name="Profile" getComponent={() => require('../screens/settings/ProfileScreen').ProfileScreen} />

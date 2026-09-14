@@ -64,6 +64,7 @@ import { PondContextModule } from './pond-context/pond-context.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { FeaturesModule } from './features/features.module';
+import { DailyBriefModule } from './daily-brief/daily-brief.module';
 
 @Module({
   imports: [
@@ -241,6 +242,7 @@ import { FeaturesModule } from './features/features.module';
     FeedbackModule,
     AnnouncementsModule,
     FeaturesModule,
+    DailyBriefModule,
   ],
   controllers: [AppController],
   providers: [

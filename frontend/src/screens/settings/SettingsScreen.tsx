@@ -33,6 +33,9 @@ import { appVersion } from '../../utils/appVersion';
 import {
     registerForPushNotificationsAsync,
     syncReminders,
+    syncBriefReminders,
+    loadBriefRemindersPref,
+    saveBriefRemindersPref,
     getReminderStatus,
     DEFAULT_REMINDER_TIMES,
     type ReminderTimes,
@@ -141,6 +144,20 @@ export const SettingsScreen = ({ navigation }: any) => {
     }, []);
 
     useFocusEffect(refreshReminderStatus);
+
+    // Daily Brief reminders (06:00 / 19:00). Default on; never asks for
+    // permission itself — without a grant the row says what to do instead.
+    const briefOn = resolveFlag(useRemoteFlagsStore((s) => s.flags), 'dailyBrief');
+    const [briefReminders, setBriefReminders] = useState(true);
+    useEffect(() => {
+        loadBriefRemindersPref().then(setBriefReminders);
+    }, []);
+    const updateBriefReminders = useCallback((on: boolean) => {
+        setBriefReminders(on);
+        saveBriefRemindersPref(on)
+            .then(() => syncBriefReminders(on))
+            .catch((e) => console.warn('[Settings] Could not save brief reminder preference', e));
+    }, []);
 
     const updateReminderTime = useCallback(
         (slot: ReminderSlot, field: keyof HM, value: number) => {
@@ -384,6 +401,24 @@ export const SettingsScreen = ({ navigation }: any) => {
                         trackColor={{ false: c.borderDefault, true: c.primaryHover }}
                     />
                 </View>
+                {briefOn && (
+                    <View style={styles.row}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={styles.rowLabel}>{t('dailyBrief.settings.toggle')}</Text>
+                            <Text style={styles.rowSub}>
+                                {briefReminders && blocked
+                                    ? t('dailyBrief.settings.needsPermission')
+                                    : t('dailyBrief.settings.toggleDesc')}
+                            </Text>
+                        </View>
+                        <Switch
+                            value={briefReminders}
+                            onValueChange={updateBriefReminders}
+                            trackColor={{ false: c.borderDefault, true: c.primaryHover }}
+                            accessibilityLabel={t('dailyBrief.settings.toggle')}
+                        />
+                    </View>
+                )}
                 <Row
                     row={{
                         key: 'notifications',
