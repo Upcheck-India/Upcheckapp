@@ -1,7 +1,7 @@
 import apiClient from './client';
 import type { MoltPhase, MoltWindow } from '../features/moltWindow';
 
-export type MoltItemStatus = 'done' | 'pending' | 'violated';
+export type MoltItemStatus = 'done' | 'pending' | 'violated' | 'missed';
 export type MoltRoute = 'ChemicalLog' | 'WaterQualityLog' | 'FeedLog' | 'SamplingLog';
 
 export interface MoltItem {
@@ -11,6 +11,11 @@ export interface MoltItem {
   status: MoltItemStatus;
   source: 'auto' | 'manual';
   route?: MoltRoute;
+  /** IST YYYY-MM-DD. Absent on a backend older than the missed/actionable deploy. */
+  actionableFrom?: string;
+  actionableUntil?: string;
+  /** Can still be done today. Undefined (old backend) means yes. */
+  actionable?: boolean;
 }
 
 export interface PondMolt {

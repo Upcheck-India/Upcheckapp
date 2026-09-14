@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
-import { deriveItems, MoltEvidence, MoltService } from './molt.service';
+import { deriveItems, MoltEvidence, MoltItem, MoltService, MOLT_ITEMS, moltAlertFor, PondMolt } from './molt.service';
+import { windowForPeak } from './molt-window';
 import { MoltActionDto, MoltController } from './molt.controller';
 
 const none: MoltEvidence = {
@@ -11,63 +12,169 @@ const none: MoltEvidence = {
   postSampling: false,
   feedBaselineKg: null,
   peakFeedDaysKg: [],
+  postFeedDaysKg: [],
 };
 const byKey = (items: ReturnType<typeof deriveItems>) =>
   Object.fromEntries(items.map((i) => [i.key, i]));
 
+const W0 = windowForPeak(new Date('2026-09-11T03:28:07Z'), 'new');
+const DAY = { pre: '2026-09-08', peak: '2026-09-11', post: '2026-09-13', inter: '2026-09-20' } as const;
+const dv = (phase: keyof typeof DAY, ev: MoltEvidence, manual: Set<string>) =>
+  deriveItems(phase, ev, manual, DAY[phase], W0);
+
 describe('deriveItems', () => {
   it('shows only the current and earlier phases', () => {
-    expect(deriveItems('pre', none, new Set()).map((i) => i.key)).toEqual([
+    expect(dv('pre', none, new Set()).map((i) => i.key)).toEqual([
       'minerals',
       'alkalinity_check',
       'aerator_service',
     ]);
-    expect(deriveItems('post', none, new Set())).toHaveLength(9);
-    expect(deriveItems('inter', none, new Set())).toEqual([]);
+    expect(dv('post', none, new Set())).toHaveLength(9);
+    expect(dv('inter', none, new Set())).toEqual([]);
   });
 
   it('auto items are done from evidence, pending without it', () => {
     const on = byKey(
-      deriveItems('post', { ...none, minerals: true, alkalinity: true, peakDo: true, postSampling: true }, new Set()),
+      dv('post', { ...none, minerals: true, alkalinity: true, peakDo: true, postSampling: true }, new Set()),
     );
     expect(on.minerals).toMatchObject({ status: 'done', source: 'auto', route: 'ChemicalLog' });
     expect(on.alkalinity_check.status).toBe('done');
     expect(on.night_do_check.status).toBe('done');
     expect(on.post_sampling.status).toBe('done');
-    const off = byKey(deriveItems('post', none, new Set()));
-    expect(off.minerals.status).toBe('pending');
-    expect(off.night_do_check.status).toBe('pending');
+    const off = byKey(dv('post', none, new Set()));
+    // Their days are over and nothing was logged: missed, not pending.
+    expect(off.minerals.status).toBe('missed');
+    expect(off.night_do_check.status).toBe('missed');
+    expect(off.restore_feed.status).toBe('pending');
   });
 
   it('no_handling is done unless sampling/harvest was logged in peak → violated', () => {
-    expect(byKey(deriveItems('peak', none, new Set())).no_handling).toMatchObject({
+    expect(byKey(dv('peak', none, new Set())).no_handling).toMatchObject({
       status: 'done',
       source: 'auto',
     });
     expect(
-      byKey(deriveItems('peak', { ...none, handlingInPeak: true }, new Set())).no_handling.status,
+      byKey(dv('peak', { ...none, handlingInPeak: true }, new Set())).no_handling.status,
     ).toBe('violated');
   });
 
   it('manual items follow ticks', () => {
-    const items = byKey(deriveItems('post', none, new Set(['aerator_service', 'restore_feed'])));
+    const items = byKey(dv('post', none, new Set(['aerator_service', 'restore_feed'])));
     expect(items.aerator_service).toMatchObject({ status: 'done', source: 'manual' });
     expect(items.restore_feed.status).toBe('done');
     expect(items.soft_shell_check).toMatchObject({ status: 'pending', source: 'manual' });
   });
 
   it('feed_cut: no baseline → manual; ≤85% on every logged peak day → done', () => {
-    expect(byKey(deriveItems('peak', none, new Set())).feed_cut.source).toBe('manual');
+    expect(byKey(dv('peak', none, new Set())).feed_cut.source).toBe('manual');
     expect(
-      byKey(deriveItems('peak', none, new Set(['feed_cut']))).feed_cut.status,
+      byKey(dv('peak', none, new Set(['feed_cut']))).feed_cut.status,
     ).toBe('done');
     const ev = { ...none, feedBaselineKg: 100 };
-    expect(byKey(deriveItems('peak', { ...ev, peakFeedDaysKg: [85, 70] }, new Set())).feed_cut)
+    expect(byKey(dv('peak', { ...ev, peakFeedDaysKg: [85, 70] }, new Set())).feed_cut)
       .toMatchObject({ status: 'done', source: 'auto' });
-    expect(byKey(deriveItems('peak', { ...ev, peakFeedDaysKg: [85, 90] }, new Set())).feed_cut.status)
+    expect(byKey(dv('peak', { ...ev, peakFeedDaysKg: [85, 90] }, new Set())).feed_cut.status)
       .toBe('pending');
     // Baseline exists but nothing logged yet in peak: not done.
-    expect(byKey(deriveItems('peak', ev, new Set())).feed_cut.status).toBe('pending');
+    expect(byKey(dv('peak', ev, new Set())).feed_cut.status).toBe('pending');
+  });
+});
+
+// Regression (spec 2026-09-14-attendance-and-molt-fixes A.7): window 2026-09-11-new,
+// pre 08..09 · peak 10..12 · post 13..14 Sep.
+describe('molt alert — only what can still be done today', () => {
+  const W = windowForPeak(new Date('2026-09-11T03:28:07Z'), 'new');
+  const derive = (phase: 'pre' | 'peak' | 'post', today: string, ev: MoltEvidence = none, manual: string[] = []) =>
+    deriveItems(phase, ev, new Set(manual), today, W);
+  const pm = (phase: 'pre' | 'peak' | 'post', items: MoltItem[]): PondMolt => ({
+    pondId: 'p1', window: W, phase, eligible: true, sizeUnknown: false, abwG: 12, items, pendingCritical: 0,
+  });
+
+  it('R1 post with nothing logged → "1 action pending", one step', () => {
+    const a = moltAlertFor(pm('post', derive('post', '2026-09-14')))!;
+    expect(a.title).toBe('Post-molt — 1 action pending');
+    expect(a.steps).toHaveLength(1);
+  });
+
+  it('R2 no peak advice in post; feed_cut is missed', () => {
+    const items = derive('post', '2026-09-14');
+    const a = moltAlertFor(pm('post', items))!;
+    expect(a.steps.some((s) => s.includes('Cut feed'))).toBe(false);
+    expect(byKey(items).feed_cut.status).toBe('missed');
+  });
+
+  it('R3 post with restore_feed ticked → no alert', () => {
+    expect(moltAlertFor(pm('post', derive('post', '2026-09-14', none, ['restore_feed'])))).toBeNull();
+  });
+
+  it('R4 peak with nothing logged → critical: feed_cut, night DO, minerals, alkalinity', () => {
+    const items = derive('peak', '2026-09-12');
+    const a = moltAlertFor(pm('peak', items))!;
+    expect(a.severity).toBe('critical');
+    expect(a.steps).toEqual(
+      ['feed_cut', 'night_do_check', 'minerals', 'alkalinity_check'].map((k) => MOLT_ITEMS.find((d) => d.key === k)!.text),
+    );
+    expect(a.title).toBe('Molt peak — 4 actions pending');
+  });
+
+  it('actionable ranges per item (A.4)', () => {
+    const items = byKey(derive('post', '2026-09-13'));
+    expect(items.minerals).toMatchObject({ actionableFrom: '2026-09-08', actionableUntil: '2026-09-12', actionable: false, status: 'missed' });
+    expect(items.aerator_service).toMatchObject({ actionableFrom: '2026-09-08', actionableUntil: '2026-09-09' });
+    expect(items.night_do_check).toMatchObject({ actionableFrom: '2026-09-10', actionableUntil: '2026-09-12' });
+    expect(items.soft_shell_check).toMatchObject({ actionableFrom: '2026-09-13', actionableUntil: '2026-09-14', actionable: true });
+    // minerals still actionable at peak end, not missed
+    expect(byKey(derive('peak', '2026-09-12')).minerals).toMatchObject({ actionable: true, status: 'pending' });
+    // aerator_service not done by peak → missed, routine → never counted
+    expect(byKey(derive('peak', '2026-09-10')).aerator_service.status).toBe('missed');
+  });
+
+  it('violated stays violated after its days, and is not counted', () => {
+    const items = derive('post', '2026-09-14', { ...none, handlingInPeak: true }, ['restore_feed']);
+    expect(byKey(items).no_handling.status).toBe('violated');
+    expect(moltAlertFor(pm('post', items))).toBeNull();
+  });
+
+  it('alert carries actions for the counted items, same order as steps', () => {
+    const a = moltAlertFor(pm('peak', derive('peak', '2026-09-11')))!;
+    expect(a.actions).toEqual({
+      pondId: 'p1',
+      windowKey: '2026-09-11-new',
+      items: [
+        { key: 'feed_cut', source: 'manual', route: 'FeedLog' },
+        { key: 'night_do_check', source: 'auto', route: 'WaterQualityLog' },
+        { key: 'minerals', source: 'auto', route: 'ChemicalLog' },
+        { key: 'alkalinity_check', source: 'auto', route: 'WaterQualityLog' },
+      ],
+    });
+  });
+
+  it('post step texts are phase-appropriate', () => {
+    const text = (k: string) => MOLT_ITEMS.find((d) => d.key === k)!.text;
+    expect(text('feed_cut')).toBe('Cut feed 15–30% today (molt peak)');
+    expect(text('restore_feed')).toBe('Restore feed as trays clear (+5–10% over 2–3 days)');
+    expect(text('soft_shell_check')).toBe('Check for soft shells and cannibalism');
+    expect(text('post_sampling')).toBe('Sample once shells harden');
+  });
+
+  describe('restore_feed (Q2: auto + manual)', () => {
+    const fed = (peak: number[], post: number[]) => ({ ...none, peakFeedDaysKg: peak, postFeedDaysKg: post });
+    it('auto done when a post day beats the max peak day', () => {
+      expect(byKey(derive('post', '2026-09-14', fed([60, 80], [70, 81]))).restore_feed)
+        .toMatchObject({ status: 'done', source: 'auto' });
+    });
+    it('equal to the max peak day is not enough', () => {
+      expect(byKey(derive('post', '2026-09-14', fed([60, 80], [80]))).restore_feed)
+        .toMatchObject({ status: 'pending', source: 'manual' });
+    });
+    it('no peak feed logged → manual only', () => {
+      expect(byKey(derive('post', '2026-09-14', fed([], [200]))).restore_feed)
+        .toMatchObject({ status: 'pending', source: 'manual' });
+    });
+    it('manual tick wins', () => {
+      expect(byKey(derive('post', '2026-09-14', fed([80], [10]), ['restore_feed'])).restore_feed)
+        .toMatchObject({ status: 'done', source: 'manual' });
+    });
   });
 });
 
@@ -105,6 +212,7 @@ const makeService = (opts: { abw?: number | null; rows?: Record<string, any[]>; 
 // 2026-09-11 true new moon → peak 10..12 Sep IST.
 const PEAK = new Date('2026-09-11T06:00:00Z');
 const PRE = new Date('2026-09-08T06:00:00Z');
+const POST = new Date('2026-09-14T06:00:00Z');
 
 describe('MoltService', () => {
   it('ABW < 5 g is not eligible and runs no evidence queries', async () => {
@@ -150,6 +258,24 @@ describe('MoltService', () => {
     expect((await svc.forPond('p1', 'u1', PEAK)).pendingCritical).toBe(2);
   });
 
+  it('restore_feed auto-done from post feed in the same feed query (no extra queries)', async () => {
+    const { svc, query } = makeService({
+      abw: 12,
+      rows: {
+        feed_records: [
+          { pondId: 'p1', day: '2026-09-11', kg: '80' },
+          { pondId: 'p1', day: '2026-09-13', kg: '85' },
+        ],
+      },
+    });
+    const pm = await svc.forPond('p1', 'u1', POST);
+    expect(byKey(pm.items).restore_feed).toMatchObject({ status: 'done', source: 'auto' });
+    expect(query).toHaveBeenCalledTimes(7); // ABW + 6 set-based evidence queries
+    const feedSql = query.mock.calls.find((c: any[]) => String(c[0]).includes('feed_records'))! as any[];
+    // Feed range runs through post end (IST 14 Sep ends 18:29:59.999Z).
+    expect((feedSql[1] as any[])[2].toISOString()).toBe('2026-09-14T18:29:59.999Z');
+  });
+
   it('checks READ on the pond through FarmAccessService', async () => {
     const { svc, farmAccess } = makeService({ abw: 12 });
     await svc.forPond('p1', 'u1', PEAK);
@@ -186,6 +312,26 @@ describe('MoltController POST /molt/ponds/:pondId/actions', () => {
     expect(actions.delete).toHaveBeenCalledWith({
       pondId: 'p1', windowKey: '2026-09-11-new', actionKey: 'aerator_service',
     });
+  });
+
+  it('rejects ticking a missed item (its days are over) with 400', async () => {
+    const { svc, actions } = makeService({ abw: 12 });
+    await expect(
+      svc.setAction('p1', 'u1', { windowKey: '2026-09-11-new', actionKey: 'aerator_service', done: true }, POST),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(actions.createQueryBuilder).not.toHaveBeenCalled();
+  });
+
+  it('restore_feed stays tickable in post, even when feed logs already satisfy it', async () => {
+    const { svc, actions } = makeService({
+      abw: 12,
+      rows: { feed_records: [{ pondId: 'p1', day: '2026-09-11', kg: '80' }, { pondId: 'p1', day: '2026-09-13', kg: '90' }] },
+    });
+    const pm = await svc.setAction(
+      'p1', 'u1', { windowKey: '2026-09-11-new', actionKey: 'restore_feed', done: true }, POST,
+    );
+    expect(actions.createQueryBuilder).toHaveBeenCalled();
+    expect(pm.items.find((i) => i.key === 'restore_feed')).toMatchObject({ status: 'done', source: 'manual' });
   });
 
   it('controller passes through to the service', async () => {

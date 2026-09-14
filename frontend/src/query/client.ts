@@ -223,6 +223,9 @@ const ENTITY_QUERY_KEYS: Record<string, readonly (readonly string[])[]> = {
     // below entirely, so every cycle write invalidated nothing and the pond kept
     // reading "idle" until a manual pull-to-refresh.
     crop: [['pond'], ['ponds'], ['farm'], ['farms'], ['home'], ['briefing'], ['money']],
+    // A molt tick moves the pond checklist (['pond','molt',id]), the pond list
+    // and every briefing/home alert built from it (['briefing',...]).
+    molt: [['pond'], ['briefing'], ['home']],
 };
 
 /** Anything not in the table above still moves the pond and the dashboard. */
@@ -261,6 +264,7 @@ const URL_ENTITY_MAP: readonly (readonly [path: string, entity: string])[] = [
     ['/crops', 'crop'],
     ['/ponds', 'pond'],
     ['/farms', 'farm'],
+    ['/molt', 'molt'],
 ];
 
 /** The entity a write to `path` could have changed, or `undefined` for "none". */

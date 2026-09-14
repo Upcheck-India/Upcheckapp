@@ -78,6 +78,26 @@ describe('MorningBriefingScreen — alerts vs. good-day routine view', () => {
         expect(queryByText("Today's routine")).toBeNull();
     });
 
+    // R6: the title counts every step; printing two of three read as "the app
+    // says 3 but shows 2".
+    it('prints every step of a lunar alert, but only two of any other', async () => {
+        mockedLive.mockResolvedValue({
+            data: [
+                { pondId: 'p1', source: 'lunar', topSeverity: 'critical', topTitle: 'Molt peak — 3 actions pending', steps: ['L1', 'L2', 'L3'], alertCount: 1 },
+                { pondId: 'p2', source: 'disease', topSeverity: 'watch', topTitle: 'WSSV', steps: ['D1', 'D2', 'D3'], alertCount: 1 },
+            ],
+        });
+        mockedPersisted.mockResolvedValue({ data: [] });
+
+        const { findByText, getByText, queryByText } = renderScreen();
+
+        expect(await findByText('L3')).toBeTruthy();
+        expect(getByText('L1')).toBeTruthy();
+        expect(getByText('L2')).toBeTruthy();
+        expect(getByText('D2')).toBeTruthy();
+        expect(queryByText('D3')).toBeNull();
+    });
+
     it('shows a routine checklist per active pond when there are zero alerts, not just "all clear"', async () => {
         mockedLive.mockResolvedValue({ data: [] });
         mockedPersisted.mockResolvedValue({ data: [] });

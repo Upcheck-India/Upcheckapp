@@ -79,6 +79,7 @@ const STATUS_ICON: Record<MoltItem['status'], { name: keyof typeof MaterialCommu
   done: { name: 'check-circle', color: c.successText ?? c.primary },
   pending: { name: 'checkbox-blank-circle-outline', color: c.textTertiary },
   violated: { name: 'alert-circle', color: c.dangerText },
+  missed: { name: 'minus-circle-outline', color: c.textTertiary },
 };
 
 export const MoltChecklist: React.FC<{ pondId: string; pondName?: string; cropId?: string | null; canWrite?: boolean }> = ({
@@ -132,18 +133,25 @@ export const MoltChecklist: React.FC<{ pondId: string; pondName?: string; cropId
   } else if (!pm.window) {
     body = <Text style={styles.note}>{t('engines.lunar.noWindowNow')}</Text>;
   } else {
-    body = pm.items.map((item) => {
+    // Items whose days are over are history: no buttons, below a divider.
+    // `actionable` is undefined on an older backend, which means "still doable".
+    const renderItem = (item: MoltItem) => {
       const icon = STATUS_ICON[item.status];
+      const live = item.actionable !== false;
+      const missed = item.status === 'missed';
+      // A chemical log needs the cycle; opened before the pond context loads
+      // it would save against no crop and never satisfy the item.
+      const blocked = item.route === 'ChemicalLog' && !cropId;
       return (
-        <View key={item.key} style={styles.itemRow}>
+        <View key={item.key} style={[styles.itemRow, missed && styles.itemMissed]} testID={`molt-item-${item.key}`}>
           <MaterialCommunityIcons name={icon.name} size={22} color={icon.color} />
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.itemText}>{t(`engines.lunar.item_${item.key}`)}</Text>
+            <Text style={[styles.itemText, missed && { color: c.textTertiary }]}>{t(`engines.lunar.item_${item.key}`)}</Text>
             <Text style={[styles.itemMeta, item.status === 'violated' && { color: c.dangerText }]}>
               {t(`engines.lunar.priority_${item.priority}`)} · {t(`engines.lunar.status_${item.status}`)}
             </Text>
           </View>
-          {canWrite && item.source === 'manual' && (
+          {live && canWrite && item.source === 'manual' && (
             <TouchableOpacity
               style={styles.itemBtn}
               onPress={() => toggle(item)}
@@ -155,18 +163,33 @@ export const MoltChecklist: React.FC<{ pondId: string; pondName?: string; cropId
               </Text>
             </TouchableOpacity>
           )}
-          {canWrite && item.source === 'auto' && item.status === 'pending' && item.route && (
+          {live && canWrite && item.source === 'auto' && item.status === 'pending' && item.route && (
             <TouchableOpacity
-              style={styles.itemBtn}
+              style={[styles.itemBtn, blocked && { opacity: 0.4 }]}
               onPress={() => navigation.navigate(item.route, params)}
+              disabled={blocked}
               accessibilityRole="button"
+              accessibilityState={{ disabled: blocked }}
             >
               <Text style={styles.itemBtnLabel}>{t('engines.lunar.logIt')}</Text>
             </TouchableOpacity>
           )}
         </View>
       );
-    });
+    };
+    // Not doable AND its days have started: over. (A not-yet-open step stays in
+    // the main list, still without buttons.)
+    const today = istDateString(new Date());
+    const isEarlier = (i: MoltItem) => i.actionable === false && !(i.actionableFrom && i.actionableFrom > today);
+    const current = pm.items.filter((i) => !isEarlier(i));
+    const earlier = pm.items.filter(isEarlier);
+    body = (
+      <>
+        {current.map(renderItem)}
+        {earlier.length > 0 && <Text style={styles.sectionLabelTop}>{t('engines.lunar.earlierInWindow')}</Text>}
+        {earlier.map(renderItem)}
+      </>
+    );
   }
 
   return (
@@ -241,6 +264,7 @@ const styles = StyleSheet.create({
   note: { ...theme.typeScale.bodyMedium, color: c.textSecondary, marginBottom: theme.spacing[2] },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3], paddingVertical: theme.spacing[2] },
   itemText: { ...theme.typeScale.bodyMedium, color: c.textPrimary },
+  itemMissed: { opacity: 0.6 },
   itemMeta: { ...theme.typeScale.caption, color: c.textTertiary },
   itemBtn: {
     paddingHorizontal: theme.spacing[3],

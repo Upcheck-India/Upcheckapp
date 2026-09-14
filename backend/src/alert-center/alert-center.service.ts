@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AlertsService } from '../alerts/alerts.service';
+import type { MoltAlertActions } from '../molt/molt.service';
 
 export type AlertSeverity = 'info' | 'watch' | 'critical';
 
@@ -21,6 +22,8 @@ export interface BriefingItem {
   source: string;
   steps: string[];
   alertCount: number;
+  /** Lunar molt alerts: items the client can tick or route. */
+  actions?: MoltAlertActions;
 }
 
 /** Higher severity sorts first. */
@@ -85,6 +88,8 @@ export class AlertCenterService {
         source: data.source ?? top.type ?? 'unknown',
         steps: data.steps ?? [],
         alertCount: list.length,
+        // The top alert's own actions only — never another alert's.
+        ...(data.actions ? { actions: data.actions } : {}),
       });
     }
     return items.sort((a, b) => rank(b.topSeverity) - rank(a.topSeverity));

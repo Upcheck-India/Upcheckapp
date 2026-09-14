@@ -11,6 +11,14 @@ export interface BriefingItem {
   source: string;
   steps: string[];
   alertCount: number;
+  /** Lunar only, and absent on an older backend: one entry per step, so a client can tick or route. */
+  actions?: BriefingActions;
+}
+
+export interface BriefingActions {
+  pondId: string;
+  windowKey: string;
+  items: { key: string; source: 'auto' | 'manual'; route: string | null }[];
 }
 
 export const alertCenterApi = {

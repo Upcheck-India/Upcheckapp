@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 import { SectionHeader } from '../ui/SectionHeader';
 import type { BriefingItem, AlertSeverity } from '../../api/alertCenter';
+import { MoltInlineAction, type MoltInlineActionProps } from '../molt/MoltInlineAction';
 
 /**
  * "Then" — everything that needs doing after the one thing in the hero.
@@ -33,9 +34,12 @@ export interface ThenListProps {
     onOpen: (item: BriefingItem) => void;
     /** Opens the full briefing. Home shows a top-N; this is the rest of it. */
     onSeeAll?: () => void;
+    /** A lunar row's single auto step: open its log. */
+    onLog?: MoltInlineActionProps['onLog'];
+    cropIdForPond?: MoltInlineActionProps['cropIdForPond'];
 }
 
-export const ThenList: React.FC<ThenListProps> = ({ items, farmNameForPond, onOpen, onSeeAll }) => {
+export const ThenList: React.FC<ThenListProps> = ({ items, farmNameForPond, onOpen, onSeeAll, onLog, cropIdForPond }) => {
     const { t } = useTranslation();
     if (items.length === 0) return null;
 
@@ -72,6 +76,7 @@ export const ThenList: React.FC<ThenListProps> = ({ items, farmNameForPond, onOp
                                 </Text>
                             )}
                         </View>
+                        <MoltInlineAction item={item} onLog={onLog} cropIdForPond={cropIdForPond} labelStyle={styles.open} />
                         <Text style={styles.open}>{t('home.open')}</Text>
                     </TouchableOpacity>
                 );

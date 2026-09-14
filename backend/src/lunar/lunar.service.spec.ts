@@ -115,6 +115,17 @@ describe('LunarService — signed days + action playbook (spec §5)', () => {
     expect(playbookFor(FIRST_QUARTER).phaseRel).toBe('inter');
   });
 
+  // R5: one phase model — the true-phase molt window, not mean phase.
+  it('13 Sep 2026 (post of the 11 Sep new moon) is post in both playbook and risk', () => {
+    const d = new Date('2026-09-13T06:00:00Z');
+    const p = svc.moonPhase(d);
+    const r = svc.computeMoltRisk(p, 25, {});
+    expect(r.phaseRel).toBe('post');
+    expect(svc.buildPlaybook(p, r, {}).phaseRel).toBe('post');
+    expect(playbookFor(new Date('2026-09-15T06:00:00Z')).phaseRel).toBe('inter');
+    expect(svc.computeMoltRisk(svc.moonPhase(new Date('2026-09-15T06:00:00Z')), 25, {}).phaseRel).toBe('none');
+  });
+
   it('every phase yields at least one management step', () => {
     for (const d of [
       NEW_MOON,

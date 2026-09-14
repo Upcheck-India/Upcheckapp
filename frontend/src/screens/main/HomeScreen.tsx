@@ -577,6 +577,8 @@ export const HomeScreen = ({ navigation }: any) => {
         if (!pond) return scopeFarm?.name;
         return farms.find((f) => f.id === pond.farmId)?.name ?? scopeFarm?.name;
     };
+    const cropIdForPond = (pondId: string) =>
+        alertsQuery.data?.contexts.find((ctx) => ctx.pondId === pondId)?.cropId;
 
     /**
      * "Wed 25 Aug · 3 farms · 24 ponds" — the header's context line.
@@ -927,12 +929,14 @@ export const HomeScreen = ({ navigation }: any) => {
                                 // finding that reappeared pond by pond after each tap
                                 // would be five heroes for one decision.
                                 setDeferred((d) => [...d, ...deferKeys(group)]);
-                                goRoot(
-                                    'QuickLog',
-                                    group.pondIds.length === 1 ? { pondId: group.pondIds[0] } : undefined,
-                                );
+                                const onePond = group.pondIds.length === 1 ? { pondId: group.pondIds[0] } : undefined;
+                                // A molt step is cleared by its checklist (a tick or a
+                                // log dated inside its phase), which Quick Log never shows.
+                                goRoot(group.items[0].source === 'lunar' ? 'Lunar' : 'QuickLog', onePond);
                             }}
                             onLater={(group) => setDeferred((d) => [...d, ...deferKeys(group)])}
+                            onLog={goRoot}
+                            cropIdForPond={cropIdForPond}
                         />
                     )}
 
@@ -968,9 +972,11 @@ export const HomeScreen = ({ navigation }: any) => {
                                 onSeeAll={() => goRoot(briefRoute)}
                                 onOpen={(item) =>
                                     item.pondId
-                                        ? goRoot('PondDashboard', { pondId: item.pondId })
+                                        ? goRoot(item.source === 'lunar' ? 'Lunar' : 'PondDashboard', { pondId: item.pondId })
                                         : goRoot(briefRoute)
                                 }
+                                onLog={goRoot}
+                                cropIdForPond={cropIdForPond}
                             />
                         ) : nextActions.length === 0 && !firstStep ? (
                             // All clear is a RESULT, not an empty list — and it only

@@ -4,7 +4,7 @@ import { DataSource, In, IsNull, Not, Repository } from 'typeorm';
 import { MoltAction } from './molt-action.entity';
 import { Pond } from '../ponds/pond.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
-import { istDayRangeUtc } from '../common/ist-date';
+import { istDayRangeUtc, toIstDateString } from '../common/ist-date';
 import {
   MoltPhase,
   MoltWindow,
@@ -14,7 +14,8 @@ import {
 } from './molt-window';
 
 export type MoltPriority = 'critical' | 'important' | 'routine';
-export type MoltItemStatus = 'done' | 'pending' | 'violated';
+/** `missed` = never done and its days are over (spec 2026-09-14-attendance-and-molt-fixes Q1). */
+export type MoltItemStatus = 'done' | 'pending' | 'violated' | 'missed';
 export type MoltRoute = 'ChemicalLog' | 'WaterQualityLog' | 'FeedLog' | 'SamplingLog';
 
 export interface MoltItem {
@@ -24,6 +25,18 @@ export interface MoltItem {
   status: MoltItemStatus;
   source: 'auto' | 'manual';
   route?: MoltRoute;
+  /** IST `YYYY-MM-DD` days in which the item can still be acted on (spec A.4). */
+  actionableFrom: string;
+  actionableUntil: string;
+  /** today ∈ [actionableFrom, actionableUntil]. */
+  actionable: boolean;
+}
+
+/** Lets a client tick or route an alert's items without another fetch. */
+export interface MoltAlertActions {
+  pondId: string;
+  windowKey: string;
+  items: { key: string; source: 'auto' | 'manual'; route: string | null }[];
 }
 
 export interface PondMolt {
@@ -53,6 +66,8 @@ export interface MoltEvidence {
   feedBaselineKg: number | null;
   /** Daily feed totals (kg) for each logged peak day. */
   peakFeedDaysKg: number[];
+  /** Daily feed totals (kg) for each logged post day. */
+  postFeedDaysKg: number[];
 }
 
 /** Below this ABW molting is not lunar-locked, so no window checklist. */
@@ -65,18 +80,21 @@ interface ItemDef {
   priority: MoltPriority;
   manual?: true;
   route?: MoltRoute;
+  /** Still worth doing until peak end, not just its own phase's end (spec A.4). */
+  untilPeakEnd?: true;
   /** English step text for the alert-center briefing (sibling-engine convention). */
   text: string;
 }
 
 export const MOLT_ITEMS: ItemDef[] = [
-  { key: 'minerals', phase: 'pre', priority: 'important', route: 'ChemicalLog', text: 'Dose minerals (Ca/Mg/K) and log it' },
-  { key: 'alkalinity_check', phase: 'pre', priority: 'important', route: 'WaterQualityLog', text: 'Check and log alkalinity (target ≥120 ppm)' },
+  { key: 'minerals', phase: 'pre', priority: 'important', route: 'ChemicalLog', untilPeakEnd: true, text: 'Dose minerals (Ca/Mg/K) and log it' },
+  { key: 'alkalinity_check', phase: 'pre', priority: 'important', route: 'WaterQualityLog', untilPeakEnd: true, text: 'Check and log alkalinity (target ≥120 ppm)' },
   { key: 'aerator_service', phase: 'pre', priority: 'routine', manual: true, text: 'Service aerators before the peak' },
-  { key: 'feed_cut', phase: 'peak', priority: 'critical', route: 'FeedLog', text: 'Cut feed 15–30% on peak days' },
+  { key: 'feed_cut', phase: 'peak', priority: 'critical', route: 'FeedLog', text: 'Cut feed 15–30% today (molt peak)' },
   { key: 'no_handling', phase: 'peak', priority: 'critical', text: 'No sampling, netting or harvest during the peak' },
   { key: 'night_do_check', phase: 'peak', priority: 'critical', route: 'WaterQualityLog', text: 'Check and log night/pre-dawn DO' },
-  { key: 'restore_feed', phase: 'post', priority: 'important', manual: true, text: 'Restore feed as appetite returns' },
+  // Manual tick always allowed; also auto-done from feed logs (Q2).
+  { key: 'restore_feed', phase: 'post', priority: 'important', manual: true, text: 'Restore feed as trays clear (+5–10% over 2–3 days)' },
   { key: 'post_sampling', phase: 'post', priority: 'routine', route: 'SamplingLog', text: 'Sample once shells harden' },
   { key: 'soft_shell_check', phase: 'post', priority: 'routine', manual: true, text: 'Check for soft shells and cannibalism' },
 ];
@@ -84,25 +102,56 @@ export const MOLT_ITEMS: ItemDef[] = [
 const PHASE_ORDER: Record<MoltPhase, number> = { pre: 0, peak: 1, post: 2, inter: -1 };
 const PRIORITY_ORDER: Record<MoltPriority, number> = { critical: 0, important: 1, routine: 2 };
 
-/** Checklist for the current phase (and earlier phases of the same window). */
+/** IST days in which an item can still be acted on (spec A.4). */
+const actionableRange = (d: ItemDef, w: MoltWindow): [string, string] => {
+  const until = d.untilPeakEnd ? w.peakEnd : undefined;
+  if (d.phase === 'pre') return [w.preStart, until ?? addDays(w.peakStart, -1)];
+  if (d.phase === 'peak') return [w.peakStart, until ?? w.peakEnd];
+  return [addDays(w.peakEnd, 1), until ?? w.postEnd];
+};
+
+/** Items counted by the alert: can still be acted on today and are not done. */
+const isOpen = (i: MoltItem) =>
+  i.actionable && (i.status === 'pending' || i.status === 'violated');
+
+/**
+ * Checklist for the current phase and earlier phases of the same window.
+ * Earlier items whose days are over and were never done come back `missed`.
+ */
 export function deriveItems(
   phase: MoltPhase,
   ev: MoltEvidence,
   manualDone: Set<string>,
+  today: string,
+  w: MoltWindow,
 ): MoltItem[] {
   return MOLT_ITEMS.filter((d) => PHASE_ORDER[d.phase] <= PHASE_ORDER[phase]).map(
     (d) => {
+      const [actionableFrom, actionableUntil] = actionableRange(d, w);
       const item = (status: MoltItemStatus, source: 'auto' | 'manual'): MoltItem => ({
         key: d.key,
         phase: d.phase,
         priority: d.priority,
-        status,
+        status: status === 'pending' && actionableUntil < today ? 'missed' : status,
         source,
         ...(d.route ? { route: d.route } : {}),
+        actionableFrom,
+        actionableUntil,
+        actionable: actionableFrom <= today && today <= actionableUntil,
       });
       const manual = () => item(manualDone.has(d.key) ? 'done' : 'pending', 'manual');
       const auto = (ok: boolean) => item(ok ? 'done' : 'pending', 'auto');
 
+      if (d.key === 'restore_feed') {
+        // Done when any post day's feed beats the busiest peak day; without a
+        // peak feed log there is nothing to compare, so manual only.
+        const peakMax = Math.max(...ev.peakFeedDaysKg);
+        return !manualDone.has(d.key) &&
+          ev.peakFeedDaysKg.length > 0 &&
+          ev.postFeedDaysKg.some((kg) => kg > peakMax)
+          ? auto(true)
+          : manual();
+      }
       if (d.manual) return manual();
       switch (d.key) {
         case 'minerals':
@@ -133,10 +182,16 @@ export function deriveItems(
 /** The one alert a pond's molt checklist produces, or null. */
 export function moltAlertFor(
   pm: PondMolt,
-): { severity: 'critical' | 'watch'; title: string; body: string; steps: string[] } | null {
+): {
+  severity: 'critical' | 'watch';
+  title: string;
+  body: string;
+  steps: string[];
+  actions: MoltAlertActions;
+} | null {
   if (!pm.eligible || !pm.window) return null;
   const open = pm.items
-    .filter((i) => i.status !== 'done' && i.priority !== 'routine')
+    .filter((i) => isOpen(i) && i.priority !== 'routine')
     .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
   if (open.length === 0) return null;
   const n = open.length;
@@ -149,8 +204,16 @@ export function moltAlertFor(
     title: `${label} — ${pending}`,
     body: `${pm.window.kind === 'new' ? 'New' : 'Full'} moon ${pm.window.peakDate}`,
     steps: open.map((i) => MOLT_ITEMS.find((d) => d.key === i.key)!.text),
+    actions: {
+      pondId: pm.pondId,
+      windowKey: pm.window.key,
+      items: open.map((i) => ({ key: i.key, source: i.source, route: i.route ?? null })),
+    },
   };
 }
+
+const countPendingCritical = (items: MoltItem[]) =>
+  items.filter((i) => i.priority === 'critical' && isOpen(i)).length;
 
 export interface PondRef {
   pondId: string;
@@ -199,12 +262,17 @@ export class MoltService {
     if (!window || eligible.length === 0) return out;
 
     const { evidence, manual } = await this.loadEvidence(eligible, window);
+    const today = toIstDateString(now);
     for (const r of eligible) {
       const pm = out.get(r.pondId)!;
-      pm.items = deriveItems(phase, evidence.get(r.pondId)!, manual.get(r.pondId) ?? new Set());
-      pm.pendingCritical = pm.items.filter(
-        (i) => i.priority === 'critical' && i.status !== 'done',
-      ).length;
+      pm.items = deriveItems(
+        phase,
+        evidence.get(r.pondId)!,
+        manual.get(r.pondId) ?? new Set(),
+        today,
+        window,
+      );
+      pm.pendingCritical = countPendingCritical(pm.items);
     }
     return out;
   }
@@ -256,7 +324,7 @@ export class MoltService {
            FROM feed_records
           WHERE pond_id = ANY($1::uuid[]) AND recorded_at BETWEEN $2 AND $3
           GROUP BY 1, 2`,
-        [pondIds, istDayRangeUtc(baselineStart).start, istDayRangeUtc(w.peakEnd).end],
+        [pondIds, istDayRangeUtc(baselineStart).start, istDayRangeUtc(w.postEnd).end],
       ),
       q(
         `SELECT pond_id AS "pondId",
@@ -287,6 +355,7 @@ export class MoltService {
       const days = feed.filter((f: any) => f.pondId === r.pondId);
       const base = days.filter((f: any) => f.day >= baselineStart && f.day <= baselineEnd);
       const peak = days.filter((f: any) => f.day >= w.peakStart && f.day <= w.peakEnd);
+      const post = days.filter((f: any) => f.day >= postStart && f.day <= w.postEnd);
       evidence.set(r.pondId, {
         minerals: chemBy.has(cid) || treated.has(cid),
         alkalinity: !!chemBy.get(cid)?.alk || !!wqBy.get(r.pondId)?.alk,
@@ -299,6 +368,7 @@ export class MoltService {
           ? base.reduce((s: number, f: any) => s + Number(f.kg), 0) / base.length
           : null,
         peakFeedDaysKg: peak.map((f: any) => Number(f.kg)),
+        postFeedDaysKg: post.map((f: any) => Number(f.kg)),
       });
     }
 
@@ -359,6 +429,7 @@ export class MoltService {
     );
     return ponds.map((p) => {
       const pm = map.get(p.id)!;
+      const actionable = pm.items.filter((i) => i.actionable);
       return {
         pondId: p.id,
         pondName: p.displayName || p.name,
@@ -366,8 +437,8 @@ export class MoltService {
         eligible: pm.eligible,
         sizeUnknown: pm.sizeUnknown,
         abwG: pm.abwG,
-        done: pm.items.filter((i) => i.status === 'done').length,
-        total: pm.items.length,
+        done: actionable.filter((i) => i.status === 'done').length,
+        total: actionable.length,
         pendingCritical: pm.pendingCritical,
         needsAction: moltAlertFor(pm) !== null,
       };
@@ -387,8 +458,13 @@ export class MoltService {
       throw new BadRequestException('windowKey is not the current molt window');
     }
     const item = pm.items.find((i) => i.key === body.actionKey);
-    if (!item || item.source !== 'manual') {
+    const def = MOLT_ITEMS.find((d) => d.key === body.actionKey);
+    // restore_feed may already be auto-done from feed logs; a manual tick is still allowed.
+    if (!item || (item.source !== 'manual' && !def?.manual)) {
       throw new BadRequestException('actionKey is not a manual item for this pond');
+    }
+    if (!item.actionable) {
+      throw new BadRequestException('actionKey can no longer be acted on in this window');
     }
     if (body.done) {
       await this.actions
@@ -400,10 +476,11 @@ export class MoltService {
     } else {
       await this.actions.delete({ pondId, windowKey: body.windowKey, actionKey: body.actionKey });
     }
+    // ponytail: un-ticking an item the feed logs already satisfy shows pending
+    // until the next fetch re-derives it.
     item.status = body.done ? 'done' : 'pending';
-    pm.pendingCritical = pm.items.filter(
-      (i) => i.priority === 'critical' && i.status !== 'done',
-    ).length;
+    item.source = 'manual';
+    pm.pendingCritical = countPendingCritical(pm.items);
     return pm;
   }
 }

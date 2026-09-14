@@ -148,7 +148,7 @@ describe('reasonText / topTodo', () => {
         const b = makeBrief();
         expect(topTodo(b, t)).toBe('Log feed in Pond 2');
         const molt = makeBrief({ todo: { ...b.todo, moltItems: [{ pondId: 'p1', key: 'feed_cut', priority: 'critical', status: 'pending', route: 'FeedLog' }] } });
-        expect(topTodo(molt, t)).toBe('Cut feed 15–30% on peak days');
+        expect(topTodo(molt, t)).toBe('Cut feed 15–30% today (molt peak)');
         const none = makeBrief({ ponds: [pond('p1', 'Pond 1', score(90))], todo: { tasks: [], missingLogs: [], moltItems: [] } });
         expect(topTodo(none, t)).toBeNull();
     });

@@ -4,8 +4,13 @@
 //
 // The ranking is the part worth pinning — if it picks the wrong item, the whole
 // screen points the farmer at the wrong pond.
+const mockSetAction = jest.fn();
+const mockInvalidate = jest.fn();
+jest.mock('../../../api/molt', () => ({ moltApi: { setAction: (...a: any[]) => mockSetAction(...a) } }));
+jest.mock('../../../query/client', () => ({ queryClient: { invalidateQueries: (...a: any[]) => mockInvalidate(...a) } }));
+
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { NextActionCard, rankActions, groupActions } from '../NextActionCard';
 import type { BriefingItem } from '../../../api/alertCenter';
 
@@ -168,5 +173,78 @@ describe('NextActionCard', () => {
         expect(onLater).toHaveBeenCalledWith(
             expect.objectContaining({ title: critical.topTitle }),
         );
+    });
+});
+
+describe('NextActionCard — lunar', () => {
+    const noop = () => undefined;
+    const lunar = (over: Partial<BriefingItem> = {}) =>
+        item({ source: 'lunar', topSeverity: 'watch', topTitle: 'Post-molt — 1 action pending', steps: ['Restore feed'], ...over });
+    const actions = (source: 'auto' | 'manual', route: string | null = null) => ({
+        pondId: 'pond-1',
+        windowKey: '2026-09-11-new',
+        items: [{ key: source === 'manual' ? 'restore_feed' : 'post_sampling', source, route }],
+    });
+
+    beforeEach(() => {
+        mockSetAction.mockReset().mockResolvedValue({ data: {} });
+        mockInvalidate.mockClear();
+    });
+
+    // R8: the per-pond count is in the title, and keying on it made one farm-wide
+    // molt window a hero per pond.
+    it('groups "4 pending" and "5 pending" into one finding across both ponds', () => {
+        const groups = groupActions([
+            lunar({ pondId: 'p1', topTitle: 'Post-molt — 4 actions pending' }),
+            lunar({ pondId: 'p2', topTitle: 'Post-molt — 5 actions pending' }),
+        ]);
+        expect(groups).toHaveLength(1);
+        expect(groups[0].pondIds).toEqual(['p1', 'p2']);
+        expect(groups[0].title).toBe('Post-molt');
+    });
+
+    it('ticks a single manual step inline and refreshes every read it moves', async () => {
+        const { getByText } = render(
+            <NextActionCard items={[lunar({ actions: actions('manual') })]} onDone={noop} onLater={noop} />,
+        );
+        fireEvent.press(getByText('Done'));
+        await waitFor(() =>
+            expect(mockSetAction).toHaveBeenCalledWith('pond-1', {
+                windowKey: '2026-09-11-new',
+                actionKey: 'restore_feed',
+                done: true,
+            }),
+        );
+        await waitFor(() => {
+            expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['briefing'] });
+            expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['pond', 'molt', 'pond-1'] });
+            expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['briefing', 'molt', 'ponds'] });
+        });
+    });
+
+    it('opens the log for a single auto step', () => {
+        const onLog = jest.fn();
+        const { getByText } = render(
+            <NextActionCard items={[lunar({ actions: actions('auto', 'SamplingLog') })]} onDone={noop} onLater={noop} onLog={onLog} />,
+        );
+        fireEvent.press(getByText('Log it'));
+        expect(onLog).toHaveBeenCalledWith('SamplingLog', { pondId: 'pond-1' });
+    });
+
+    it('offers no chemical log until the cycle is known', () => {
+        const { queryByText } = render(
+            <NextActionCard items={[lunar({ actions: actions('auto', 'ChemicalLog') })]} onDone={noop} onLater={noop} onLog={jest.fn()} />,
+        );
+        expect(queryByText('Log it')).toBeNull();
+    });
+
+    // Old backend: no `actions`, so the card is exactly what it was.
+    it('shows no inline action without actions', () => {
+        const { queryByText, getByText } = render(
+            <NextActionCard items={[lunar()]} onDone={noop} onLater={noop} onLog={jest.fn()} />,
+        );
+        expect(queryByText('Done')).toBeNull();
+        expect(queryByText('Log it')).toBeNull();
+        expect(getByText('Post-molt — 1 action pending')).toBeTruthy();
     });
 });

@@ -247,21 +247,35 @@ describe('DailyBriefService — assembling a day', () => {
   });
 
   // Found against production data: a post-molt day listed peak "cut feed" items.
-  it('molt to-dos list only the phase the day is in', async () => {
+  it('molt to-dos list only items that can still be acted on today', async () => {
     const b = build({ rows });
-    const item = (key: string, phase: string, priority: string, status = 'pending') => ({ key, phase, priority, status, source: 'auto', route: null });
+    const item = (key: string, phase: string, priority: string, status: string, actionable: boolean) =>
+      ({ key, phase, priority, status, actionable, source: 'auto', route: null });
     b.molt.checklistsFor.mockResolvedValue(new Map([['p1', {
       pondId: 'p1', eligible: true, phase: 'post', pendingCritical: 0, window: null, sizeUnknown: false, abwG: 10,
       items: [
-        item('minerals', 'pre', 'important'),
-        item('feed_cut', 'peak', 'critical'),
-        item('restore_feed', 'post', 'important'),
-        item('post_sampling', 'post', 'routine', 'done'),
+        item('minerals', 'pre', 'important', 'missed', false),
+        item('feed_cut', 'peak', 'critical', 'missed', false),
+        item('restore_feed', 'post', 'important', 'pending', true),
+        item('post_sampling', 'post', 'routine', 'done', true),
+      ],
+    }], ['p2', {
+      // Peak day: a pre-phase item (minerals) is still actionable to peak end.
+      pondId: 'p2', eligible: true, phase: 'peak', pendingCritical: 1, window: null, sizeUnknown: false, abwG: 10,
+      items: [
+        item('minerals', 'pre', 'important', 'pending', true),
+        item('aerator_service', 'pre', 'routine', 'missed', false),
+        item('night_do_check', 'peak', 'critical', 'pending', true),
       ],
     }]]));
     const brief = await b.svc.get('u1', { date: D }, NOW);
-    expect(brief.todo.moltItems.map((i) => i.key)).toEqual(['restore_feed', 'post_sampling']);
-    expect(brief.carriedOver.moltPending).toEqual([{ pondId: 'p1', keys: ['restore_feed'] }]);
+    expect(brief.todo.moltItems.map((i) => `${i.pondId}:${i.key}`)).toEqual(
+      ['p1:restore_feed', 'p1:post_sampling', 'p2:minerals', 'p2:night_do_check'],
+    );
+    expect(brief.carriedOver.moltPending).toEqual([
+      { pondId: 'p1', keys: ['restore_feed'] },
+      { pondId: 'p2', keys: ['minerals', 'night_do_check'] },
+    ]);
   });
 
   it('low stock is only shown for today', async () => {

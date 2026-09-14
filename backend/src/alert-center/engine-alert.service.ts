@@ -9,6 +9,7 @@ import {
 import {
   MoltService,
   PondMolt,
+  MoltAlertActions,
   moltAlertFor,
 } from '../molt/molt.service';
 import {
@@ -39,6 +40,8 @@ export interface AlertDraft {
   title: string;
   body: string;
   steps: string[];
+  /** Lunar only: what the client can tick or route (spec A.5). */
+  actions?: MoltAlertActions;
 }
 
 /**
@@ -148,7 +151,10 @@ export class EngineAlertService {
 
     // Molt window checklist (eligible ponds only; resolves once items are done).
     const a = moltStatus ? moltAlertFor(moltStatus) : null;
-    if (a) push(a.severity, 'lunar', a.title, a.body, a.steps);
+    if (a) {
+      push(a.severity, 'lunar', a.title, a.body, a.steps);
+      drafts[drafts.length - 1].actions = a.actions;
+    }
 
     return drafts;
   }
@@ -232,7 +238,7 @@ export class EngineAlertService {
         pondId: d.pondId,
         severity: d.severity,
         title: d.title,
-        data: { source: d.source, steps: d.steps },
+        data: { source: d.source, steps: d.steps, ...(d.actions ? { actions: d.actions } : {}) },
       })),
     );
   }

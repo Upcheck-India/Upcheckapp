@@ -4,7 +4,7 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import { roleSatisfies } from '../farm-access/farm-capability';
 import { istDayRangeUtc, toIstDateString } from '../common/ist-date';
 import { FREE_NH3, Zone, classify, thresholdFor } from '../common/wq-thresholds';
-import { MoltService, PondMolt, moltAlertFor } from '../molt/molt.service';
+import { MoltItemStatus, MoltService, PondMolt, moltAlertFor } from '../molt/molt.service';
 import { addDays, currentMoltWindow } from '../molt/molt-window';
 import { computeDoc } from '../crops/crop.entity';
 import { PondContextService } from '../pond-context/pond-context.service';
@@ -642,11 +642,11 @@ export class DailyBriefService {
     const moltPending: DailyBrief['carriedOver']['moltPending'] = [];
     for (const pm of moltList) {
       if (!pm.eligible) continue;
-      // Only the phase the day is in. Earlier phases' items can no longer be
-      // acted on (spec 2026-09-14-attendance-and-molt-fixes Q1: they are
-      // "missed", not to-dos) — listing them put "Cut feed" on a post-molt day.
-      const current = pm.items.filter((i) => i.phase === pm.phase);
-      for (const i of current) moltItems.push({ pondId: pm.pondId, key: i.key, priority: i.priority, status: i.status, route: i.route ?? null });
+      // Only items that can still be acted on today (spec
+      // 2026-09-14-attendance-and-molt-fixes A.4): past items are "missed",
+      // not to-dos, but minerals stay open through the peak.
+      const current = pm.items.filter((i) => i.actionable);
+      for (const i of current) moltItems.push({ pondId: pm.pondId, key: i.key, priority: i.priority, status: i.status as Exclude<MoltItemStatus, 'missed'>, route: i.route ?? null });
       const keys = current.filter((i) => i.status !== 'done' && i.priority !== 'routine').map((i) => i.key);
       if (keys.length) moltPending.push({ pondId: pm.pondId, keys });
     }

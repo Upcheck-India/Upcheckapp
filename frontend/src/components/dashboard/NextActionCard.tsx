@@ -1,6 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { StyleSheet } from 'react-native';
 import { HeroCard, DO_FIRST_BG, DO_FIRST_ON } from './HeroCard';
+import { MoltInlineAction, type MoltInlineActionProps } from '../molt/MoltInlineAction';
+import { theme } from '../../theme';
 import type { BriefingItem, AlertSeverity } from '../../api/alertCenter';
 
 /**
@@ -62,10 +65,20 @@ export const rankActions = (items: BriefingItem[]): BriefingItem[] =>
  * mg/L" differs per pond while the action does not, and keying on it would
  * un-group the very case this exists for.
  */
+/**
+ * Lunar titles carry a per-pond count ("Post-molt — 5 actions pending"), so
+ * keying on the whole title split one farm-wide molt window into a hero per
+ * pond. The phase part before the dash is the finding.
+ */
+const lunarPhase = (title: string) => title.split('—')[0].trim();
+
 export const groupActions = (items: BriefingItem[]): ActionGroup[] => {
     const groups = new Map<string, ActionGroup>();
     for (const item of rankActions(items)) {
-        const key = `${item.source}:${item.topTitle}:${item.topSeverity}`;
+        const key =
+            item.source === 'lunar'
+                ? `lunar:${lunarPhase(item.topTitle)}:${item.topSeverity}`
+                : `${item.source}:${item.topTitle}:${item.topSeverity}`;
         const existing = groups.get(key);
         if (!existing) {
             groups.set(key, {
@@ -84,6 +97,8 @@ export const groupActions = (items: BriefingItem[]): ActionGroup[] => {
         if (item.pondId && !existing.pondIds.includes(item.pondId)) {
             existing.pondIds.push(item.pondId);
         }
+        // Several ponds' counts differ; the headline states the phase only.
+        if (item.source === 'lunar') existing.title = lunarPhase(item.topTitle);
     }
     return Array.from(groups.values()).sort(
         (a, b) =>
@@ -101,6 +116,9 @@ export interface NextActionCardProps {
     onDone: (group: ActionGroup) => void;
     /** Secondary: not now. The card then shows the next finding. */
     onLater: (group: ActionGroup) => void;
+    /** A lunar item's single auto step: open its log. */
+    onLog?: MoltInlineActionProps['onLog'];
+    cropIdForPond?: MoltInlineActionProps['cropIdForPond'];
 }
 
 export const NextActionCard: React.FC<NextActionCardProps> = ({
@@ -108,6 +126,8 @@ export const NextActionCard: React.FC<NextActionCardProps> = ({
     farmNameForPond,
     onDone,
     onLater,
+    onLog,
+    cropIdForPond,
 }) => {
     const { t } = useTranslation();
     const groups = groupActions(items);
@@ -145,8 +165,34 @@ export const NextActionCard: React.FC<NextActionCardProps> = ({
             onPrimary={() => onDone(group)}
             secondaryLabel={t('home.later')}
             onSecondary={() => onLater(group)}
+            extra={
+                // One pond only: ticking a step on ponds nobody looked at is not "done".
+                group.items.length === 1 ? (
+                    <MoltInlineAction
+                        item={group.items[0]}
+                        onLog={onLog}
+                        cropIdForPond={cropIdForPond}
+                        style={styles.inlineBtn}
+                        labelStyle={styles.inlineLabel}
+                    />
+                ) : null
+            }
         />
     );
 };
+
+const styles = StyleSheet.create({
+    inlineBtn: {
+        alignSelf: 'flex-start',
+        borderWidth: 1.5,
+        borderColor: DO_FIRST_ON,
+        borderRadius: theme.radius.sm,
+        paddingHorizontal: theme.spacing[4],
+        paddingVertical: theme.spacing[2],
+        minHeight: 44,
+        justifyContent: 'center',
+    },
+    inlineLabel: { ...theme.typeScale.bodyLarge, color: DO_FIRST_ON, fontWeight: '700' },
+});
 
 export default NextActionCard;

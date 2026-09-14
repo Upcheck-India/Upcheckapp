@@ -554,6 +554,23 @@ describe('HomeScreen — the hero before there is any data', () => {
         expect(queryByText('Add your ponds')).toBeNull();
     });
 
+    // R7: a molt step is cleared on its checklist; Quick Log never shows it.
+    it('sends a lunar alert to that pond\'s molt checklist, not Quick Log', async () => {
+        mockedLiveBriefing.mockResolvedValue({
+            data: [{
+                pondId: 'p1', source: 'lunar', topTitle: 'Post-molt — 1 action pending', topSeverity: 'watch',
+                alertCount: 1, steps: ['Restore feed'],
+            }],
+        });
+
+        const { findByText, getByText } = renderScreen();
+        expect(await findByText('Post-molt — 1 action pending')).toBeTruthy();
+
+        fireEvent.press(getByText('Done it'));
+        expect(navigation.navigate).toHaveBeenCalledWith('Lunar', { pondId: 'p1' });
+        expect(navigation.navigate).not.toHaveBeenCalledWith('QuickLog', expect.anything());
+    });
+
     // Ponds and cycles are owner/manager work. Telling a worker to do them is
     // worse than telling them nothing.
     it('shows a worker no setup step they cannot act on', async () => {

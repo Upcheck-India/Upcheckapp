@@ -1,5 +1,6 @@
 import { EngineAlertService } from './engine-alert.service';
 import { deriveItems, PondMolt } from '../molt/molt.service';
+import { windowForPeak } from '../molt/molt-window';
 
 function makeService() {
   return new EngineAlertService(
@@ -91,7 +92,8 @@ describe('EngineAlertService.evaluate', () => {
 
 describe('EngineAlertService.evaluate — molt checklist', () => {
   const svc = makeService();
-  const window: any = { key: '2026-09-11-new', kind: 'new', peakDate: '2026-09-11' };
+  const window = windowForPeak(new Date('2026-09-11T03:28:07Z'), 'new');
+  const DAY = { pre: '2026-09-08', peak: '2026-09-11', post: '2026-09-13', inter: '2026-09-20' } as const;
   const allDone = {
     minerals: true,
     alkalinity: true,
@@ -100,6 +102,7 @@ describe('EngineAlertService.evaluate — molt checklist', () => {
     postSampling: true,
     feedBaselineKg: 100,
     peakFeedDaysKg: [80],
+    postFeedDaysKg: [90],
   };
   const molt = (over: Partial<PondMolt> & { ev?: any; manual?: string[] }): PondMolt => {
     const phase = over.phase ?? 'peak';
@@ -111,7 +114,7 @@ describe('EngineAlertService.evaluate — molt checklist', () => {
       sizeUnknown: false,
       abwG: 12,
       pendingCritical: 0,
-      items: deriveItems(phase, { ...allDone, ...over.ev }, new Set(over.manual ?? [])),
+      items: deriveItems(phase, { ...allDone, ...over.ev }, new Set(over.manual ?? []), DAY[phase], window),
       ...over,
     } as PondMolt;
   };
@@ -127,6 +130,11 @@ describe('EngineAlertService.evaluate — molt checklist', () => {
     expect(a.severity).toBe('critical');
     expect(a.title).toBe('Molt peak — 1 action pending');
     expect(a.steps).toEqual(['Check and log night/pre-dawn DO']);
+    expect(a.actions).toEqual({
+      pondId: 'p1',
+      windowKey: '2026-09-11-new',
+      items: [{ key: 'night_do_check', source: 'auto', route: 'WaterQualityLog' }],
+    });
   });
 
   it('critical at peak when handling was logged (violated)', () => {
@@ -266,7 +274,7 @@ describe('EngineAlertService.today', () => {
     const { svc, moltSvc } = buildSvc();
     moltSvc.checklistsFor.mockResolvedValueOnce(
       new Map<string, any>([
-        ['p1', { eligible: true, window: { peakDate: 'x' }, phase: 'peak', items: [{ key: 'night_do_check', priority: 'critical', status: 'pending' }] }],
+        ['p1', { pondId: 'p1', eligible: true, window: { peakDate: 'x', key: 'k' }, phase: 'peak', items: [{ key: 'night_do_check', priority: 'critical', status: 'pending', actionable: true, source: 'auto', route: 'WaterQualityLog' }] }],
         ['p2', { eligible: false, window: null, phase: 'peak', items: [] }],
       ]),
     );
@@ -274,6 +282,9 @@ describe('EngineAlertService.today', () => {
     expect(moltSvc.checklistsFor).toHaveBeenCalledTimes(1);
     expect(moltWindow).toMatchObject({ eligiblePonds: 1, pondsWithPending: 1 });
     expect(moltWindow.next.key).toMatch(/-(new|full)$/);
+    // briefingFrom hands the molt actions to buildBriefing in data (mocked as identity here).
+    const lunarDraft: any = briefing.find((b: any) => b.data?.source === 'lunar');
+    expect(lunarDraft.data.actions).toEqual({ pondId: 'p1', windowKey: 'k', items: [{ key: 'night_do_check', source: 'auto', route: 'WaterQualityLog' }] });
     expect(briefing.filter((b: any) => b.data?.source === 'lunar' || b.source === 'lunar')).toHaveLength(1);
   });
 });

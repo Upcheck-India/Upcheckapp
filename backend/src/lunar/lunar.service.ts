@@ -85,6 +85,7 @@ export interface MoltRisk {
 
 import { nextPhase, daysToNearestSpringTide } from './moon-phase-meeus';
 import { toIstDateString } from '../common/ist-date';
+import { currentMoltWindow } from '../molt/molt-window';
 
 const SYNODIC = 29.530588853;
 const REF_NEW_MOON_JD = 2451550.26; // 2000-01-06 18:14 UTC new moon
@@ -103,6 +104,15 @@ export class LunarService {
   /** Julian Day from a UTC date. */
   julianDay(date: Date): number {
     return date.getTime() / MS_PER_DAY + JD_UNIX_EPOCH;
+  }
+
+  /** The instant a MoonPhase was computed for (inverse of julianDay). */
+  private dateOf(phase: MoonPhase): Date {
+    return new Date((phase.jd - JD_UNIX_EPOCH) * MS_PER_DAY);
+  }
+
+  private moltWindowAt(phase: MoonPhase) {
+    return currentMoltWindow(this.dateOf(phase));
   }
 
   /** Full moon-phase computation for a date (spec §2). */
@@ -261,11 +271,9 @@ export class LunarService {
     const band: MoltRisk['band'] =
       score >= 60 ? 'Critical' : score >= 30 ? 'Watch' : 'Low';
 
-    // Phase relative to the nearest spring tide (waxing→pre, etc.).
-    let phaseRel: MoltRisk['phaseRel'] = 'none';
-    if (phase.inMoltWindow) {
-      phaseRel = phase.daysToSpringTide <= 1 ? 'peak' : 'pre';
-    }
+    // One phase model: the true-phase molt window (molt-window.ts).
+    const windowPhase = this.moltWindowAt(phase).phase;
+    const phaseRel: MoltRisk['phaseRel'] = windowPhase === 'inter' ? 'none' : windowPhase;
 
     return {
       moltPressure: round4(moltPressure),
@@ -287,19 +295,17 @@ export class LunarService {
     risk: MoltRisk,
     v: MoltVulnerabilityInput,
   ): LunarPlaybook {
-    const sd = phase.signedDaysToSpringTide;
-    const days = Math.abs(sd);
-    const target = phase.illumination > 0.5 ? 'full moon' : 'new moon';
-
-    // 4-way phase classification (computeMoltRisk only distinguishes pre/peak).
-    const phaseRel: LunarPlaybook['phaseRel'] =
-      days <= 1
-        ? 'peak'
-        : sd < 0 && days <= 3
-          ? 'pre'
-          : sd > 0 && days <= 3
-            ? 'post'
-            : 'inter';
+    // Phase and target from the true-phase molt window — the same model the
+    // checklist and alerts use. Mean phase is only for illumination/drawing.
+    const now = this.moltWindowAt(phase);
+    const phaseRel: LunarPlaybook['phaseRel'] = now.phase;
+    const w = now.window ?? now.next;
+    const target = w.kind === 'full' ? 'full moon' : 'new moon';
+    const days = Math.abs(
+      (Date.parse(`${w.peakDate}T00:00:00Z`) -
+        Date.parse(`${toIstDateString(this.dateOf(phase))}T00:00:00Z`)) /
+        MS_PER_DAY,
+    );
 
     const steps: PlaybookStep[] = [];
     const add = (
@@ -464,7 +470,7 @@ export class LunarService {
         );
     } else {
       phaseLabel = 'Between molts — routine operations';
-      const toNext = phase.daysToSpringTide.toFixed(0);
+      const toNext = days.toFixed(0);
       headline = `No molt surge near — next window in ~${toNext} day(s). Good time for routine work.`;
       add(
         'general',
