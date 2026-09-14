@@ -83,6 +83,18 @@ const dayReport = {
   docValue: 'DOC {{doc}}',
   lowStock: 'తక్కువ నిల్వ',
   attendance: 'హాజరు',
+
+  storyTitle: 'క్లుప్తంగా రోజు',
+  peopleTitle: 'ఎవరు ఏం చేశారు',
+  person: 'వ్యక్తి',
+  role: 'పాత్ర',
+  work: 'పని',
+  pondsWorked: 'చెరువులు',
+  shift: 'షిఫ్ట్',
+  pondWorkTitle: 'ఒక్కో చెరువులో పని',
+  feed: 'మేత',
+  sampling: 'నమూనా',
+  people: 'వ్యక్తులు',
 };
 
 export default dayReport;

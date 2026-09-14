@@ -288,3 +288,49 @@ describe('EngineAlertService.today', () => {
     expect(briefing.filter((b: any) => b.data?.source === 'lunar' || b.source === 'lunar')).toHaveLength(1);
   });
 });
+
+describe('EngineAlertService.all', () => {
+  const withSaved = (over: any = {}) => {
+    const built = buildSvc(over);
+    (built.svc as any).alertCenter.savedAlerts = jest.fn(async () => over.saved ?? []);
+    return built;
+  };
+
+  it('returns every live alert uncollapsed — two alerts on one pond both come back', async () => {
+    const { svc } = withSaved({
+      readablePonds: ['p1'],
+      buildContextsFor: jest.fn(async (ids: string[]) =>
+        ids.map((pondId) => ({ ...baseCtx, pondId, farmId: 'farm-1', runningFcr: 2.1, freeAmmoniaMgL: 0.5 })),
+      ),
+    });
+    const { live } = await svc.all('user-1');
+    expect(live.map((a) => a.source)).toEqual(['water', 'feed']);
+    expect(live.every((a) => a.pondId === 'p1' && a.farmId === 'farm-1')).toBe(true);
+    expect(new Set(live.map((a) => a.key)).size).toBe(2);
+    expect(live[0].steps.length).toBeGreaterThan(1);
+  });
+
+  it('orders critical → watch → info, then by pond', async () => {
+    const { svc } = withSaved({
+      buildContextsFor: jest.fn(async () => [
+        { ...baseCtx, pondId: 'p2', farmId: 'f', runningFcr: 2.1 },
+        { ...baseCtx, pondId: 'p1', farmId: 'f', runningFcr: 2.1 },
+        { ...baseCtx, pondId: 'p2', farmId: 'f', freeAmmoniaMgL: 0.5 },
+      ]),
+    });
+    const { live } = await svc.all('user-1');
+    expect(live.map((a) => `${a.severity}:${a.pondId}`)).toEqual(['critical:p2', 'watch:p1', 'watch:p2']);
+  });
+
+  it('keeps the same per-pond scope as today', async () => {
+    const { svc, buildContextsFor } = withSaved({ readablePonds: ['p1'] });
+    await svc.all('scoped-worker');
+    expect(buildContextsFor.mock.calls[0][0]).toEqual(['p1']);
+  });
+
+  it('passes the saved alerts through', async () => {
+    const saved = [{ id: 'a1' }];
+    const { svc } = withSaved({ readablePonds: [], saved });
+    expect(await svc.all('u')).toEqual({ live: [], saved });
+  });
+});

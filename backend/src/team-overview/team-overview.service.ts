@@ -6,6 +6,9 @@ import { TasksService } from '../tasks/tasks.service';
 import { FarmMembersService } from '../farm-members/farm-members.service';
 import { FarmInvitesService } from '../farm-members/farm-invites.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { toIstDateString } from '../common/ist-date';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Everything the Team tab renders, in ONE request.
@@ -65,21 +68,42 @@ export class TeamOverviewService {
       Promise.all(farmIds.map((farmId) => this.forFarm(userId, farmId))),
     ]);
 
-    const allAttendance = perFarm.flatMap((f) => f.all);
-    const mine = perFarm.flatMap((f) => f.mine);
+    const newestFirst = (a: any, b: any) =>
+      new Date(b.checkInAt).getTime() - new Date(a.checkInAt).getTime();
+    const myOpen = perFarm
+      .flatMap((f) => f.myOpen)
+      .filter((r: { checkOutAt?: unknown }) => !r.checkOutAt)
+      .sort(newestFirst);
+
+    const today = toIstDateString(new Date());
+    const approvedLeaveToday = [
+      ...new Map(
+        perFarm
+          .flatMap((f) => [...f.approved, ...f.myLeaveAll])
+          .filter(
+            (l: any) =>
+              l.status === 'approved' &&
+              l.startDate <= today &&
+              today <= l.endDate,
+          )
+          .map((l: any) => [l.id, l]),
+      ).values(),
+    ];
 
     return {
       farms,
-      // The open record is the one with no check-out. In practice you can only
-      // be checked in to one farm at a time; if somehow two, the earliest is
-      // the one you have been on longest. Same rule the client applied.
-      myAttendance:
-        mine
-          .filter((r: { checkOutAt?: unknown }) => !r.checkOutAt)
-          .sort((a: { checkInAt: string }, b: { checkInAt: string }) =>
-            a.checkInAt.localeCompare(b.checkInAt),
-          )[0] ?? null,
-      allAttendance,
+      // Newest open record. It used to be the EARLIEST, so a check-out forgotten
+      // last week beat today's shift (B4). Kept for old clients; new ones read
+      // myOpen.
+      myAttendance: myOpen[0] ?? null,
+      myOpen,
+      myToday: perFarm.flatMap((f) => f.myToday).sort(newestFirst),
+      // Today's check-ins plus still-open ones (≤14 days), not the farm's whole
+      // history (B7). WRITE_MANAGEMENT only, as before.
+      allAttendance: perFarm.flatMap((f) => f.all),
+      approvedLeaveToday,
+      // READ-level: names only, no timestamps (Q5).
+      presentNow: perFarm.flatMap((f) => f.presentNow),
       pendingLeave: perFarm.flatMap((f) => f.leave),
       // Badge counts. `pendingJoins` is owner/manager-only by construction:
       // listPending needs MANAGE_WORKERS, so a worker's per-farm call is
@@ -101,28 +125,58 @@ export class TeamOverviewService {
    * it reject would blank the whole tab for exactly the people who use it most.
    */
   private async forFarm(userId: string, farmId: string) {
-    const [mine, all, leave, members, pending, myLeave] =
-      await Promise.allSettled([
-        this.attendance.findMine(userId, farmId),
-        this.attendance.findAllForFarm(userId, farmId),
-        this.leaveRequests.findAllForFarm(userId, farmId, 'pending'),
-        this.members.listMembers(farmId, userId),
-        this.invites.listPending(farmId, userId),
-        this.leaveRequests.findMine(userId, farmId),
-      ]);
+    const now = new Date();
+    const today = toIstDateString(now);
+    const openFrom = toIstDateString(new Date(now.getTime() - 14 * DAY_MS));
+    const [
+      myOpen,
+      myToday,
+      allToday,
+      allOpen,
+      leave,
+      members,
+      pending,
+      myLeave,
+      approved,
+      presentNow,
+    ] = await Promise.allSettled([
+      this.attendance.findMine(userId, farmId, undefined, undefined, undefined, true),
+      this.attendance.findMine(userId, farmId, today),
+      this.attendance.findAllForFarm(userId, farmId, today),
+      this.attendance.findAllForFarm(userId, farmId, undefined, openFrom, undefined, true),
+      this.leaveRequests.findAllForFarm(userId, farmId, 'pending'),
+      this.members.listMembers(farmId, userId),
+      this.invites.listPending(farmId, userId),
+      this.leaveRequests.findMine(userId, farmId),
+      this.leaveRequests.findAllForFarm(userId, farmId, 'approved'),
+      this.attendance.presentNow(userId, farmId, now),
+    ]);
 
     const val = <T>(r: PromiseSettledResult<T>, fallback: T): T =>
       r.status === 'fulfilled' ? r.value : fallback;
 
+    // An open record checked in today is in both reads.
+    const all = [
+      ...new Map(
+        [...val(allToday, [] as any[]), ...val(allOpen, [] as any[])].map(
+          (r: any) => [r.id, r],
+        ),
+      ).values(),
+    ];
+
     return {
-      mine: val(mine, [] as any[]),
-      all: val(all, [] as any[]),
+      myOpen: val(myOpen, [] as any[]),
+      myToday: val(myToday, [] as any[]),
+      all,
       leave: val(leave, [] as any[]),
       members: val(members, [] as any[]),
       pending: val(pending, [] as any[]),
+      myLeaveAll: val(myLeave, [] as any[]),
       myLeave: val(myLeave, [] as any[]).filter(
         (r: { status?: string }) => r.status === 'pending',
       ),
+      approved: val(approved, [] as any[]),
+      presentNow: val(presentNow, [] as any[]),
     };
   }
 }

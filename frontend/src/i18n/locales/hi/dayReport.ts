@@ -83,6 +83,18 @@ const dayReport = {
   docValue: 'DOC {{doc}}',
   lowStock: 'कम स्टॉक',
   attendance: 'हाज़िरी',
+
+  storyTitle: 'दिन एक नज़र में',
+  peopleTitle: 'किसने क्या किया',
+  person: 'व्यक्ति',
+  role: 'भूमिका',
+  work: 'काम',
+  pondsWorked: 'तालाब',
+  shift: 'शिफ्ट',
+  pondWorkTitle: 'हर तालाब में काम',
+  feed: 'दाना',
+  sampling: 'सैंपलिंग',
+  people: 'लोग',
 };
 
 export default dayReport;

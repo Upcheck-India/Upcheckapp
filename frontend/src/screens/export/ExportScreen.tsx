@@ -161,9 +161,10 @@ export const ExportScreen = ({ route, navigation }: any) => {
     const [farmId, setFarmId] = useState<string | null>(params.farmId ?? activeFarmId ?? null);
     const [pondId, setPondId] = useState<string | null>(params.pondId ?? null);
     const [cropId, setCropId] = useState<string | null>(params.cropId ?? null);
-    const [period, setPeriod] = useState<Exclude<MoneyPeriod, 'all'>>('month');
-    const [customStart, setCustomStart] = useState<string | null>(toLocalISODate(new Date()));
-    const [customEnd, setCustomEnd] = useState<string | null>(toLocalISODate(new Date()));
+    // A range handed in (the attendance log's month) opens as that custom range.
+    const [period, setPeriod] = useState<Exclude<MoneyPeriod, 'all'>>(params.startDate ? 'custom' : 'month');
+    const [customStart, setCustomStart] = useState<string | null>(params.startDate ?? toLocalISODate(new Date()));
+    const [customEnd, setCustomEnd] = useState<string | null>(params.endDate ?? toLocalISODate(new Date()));
     const [toggles, setToggles] = useState<ExportSections>(ALL_SECTIONS);
     const [language, setLanguage] = useState<string>(i18n.language || 'en');
     const [busy, setBusy] = useState(false);
@@ -251,10 +252,12 @@ export const ExportScreen = ({ route, navigation }: any) => {
             farmId: farmId ?? undefined,
             pondId: pondId ?? undefined,
             cropId: cropId ?? undefined,
+            // One person's attendance, only while that is the dataset.
+            userId: dataset === 'attendance' ? params.userId : undefined,
             sections,
             language,
         };
-    }, [dataset, format, period, customStart, customEnd, farmId, pondId, cropId, relevantSections, toggles, language]);
+    }, [dataset, format, period, customStart, customEnd, farmId, pondId, cropId, relevantSections, toggles, language, params.userId]);
 
     /** A cycle report without a cycle is not a report. Everything else is optional. */
     const missing =

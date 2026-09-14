@@ -101,3 +101,21 @@ describe('AlertCenterService', () => {
     expect(b[0].topTitle).toBe('WSSV');
   });
 });
+
+describe('AlertCenterService.savedAlerts', () => {
+  it('returns every unread alert, "warning" normalised to "watch", steps from data', async () => {
+    const createdAt = new Date();
+    const alerts = {
+      findByUser: jest.fn().mockResolvedValue([
+        { id: '1', pondId: 'A', farmId: 'F', type: 'disease', severity: 'warning', title: 'T1', message: 'M1', data: { steps: ['s'] }, createdAt },
+        { id: '2', pondId: 'A', farmId: 'F', type: 'system', severity: 'critical', title: 'T2', message: 'M2', data: null, createdAt },
+      ]),
+    };
+    const out = await new AlertCenterService(alerts as any).savedAlerts('u');
+    expect(alerts.findByUser).toHaveBeenCalledWith('u', true);
+    expect(out).toEqual([
+      { id: '1', pondId: 'A', farmId: 'F', type: 'disease', severity: 'watch', title: 'T1', message: 'M1', steps: ['s'], createdAt },
+      { id: '2', pondId: 'A', farmId: 'F', type: 'system', severity: 'critical', title: 'T2', message: 'M2', steps: [], createdAt },
+    ]);
+  });
+});

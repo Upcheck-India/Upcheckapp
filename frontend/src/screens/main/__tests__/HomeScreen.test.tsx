@@ -571,6 +571,24 @@ describe('HomeScreen — the hero before there is any data', () => {
         expect(navigation.navigate).not.toHaveBeenCalledWith('QuickLog', expect.anything());
     });
 
+    // Founder bug: "View all" under Then opened the Daily Brief, not the alerts.
+    it('"View all" under Then opens every alert, not the day page', async () => {
+        mockedGetMine.mockResolvedValue({ data: [POND, POND_2] });
+        mockedLiveBriefing.mockResolvedValue({
+            data: [
+                { pondId: 'p1', source: 'water', topTitle: 'Toxic ammonia', topSeverity: 'critical', alertCount: 2, steps: ['x'] },
+                { pondId: 'p2', source: 'feed', topTitle: 'Feed efficiency dropping', topSeverity: 'watch', alertCount: 1, steps: ['y'] },
+            ],
+        });
+
+        const { findByText, getAllByText } = renderScreen();
+        expect(await findByText('Then')).toBeTruthy();
+        // Other sections have their own "View all"; none of them may open the day page either.
+        getAllByText('View all').forEach((el) => fireEvent.press(el));
+        expect(navigation.navigate).toHaveBeenCalledWith('TodayAlerts', undefined);
+        expect(navigation.navigate).not.toHaveBeenCalledWith('DailyBrief', undefined);
+    });
+
     // Ponds and cycles are owner/manager work. Telling a worker to do them is
     // worse than telling them nothing.
     it('shows a worker no setup step they cannot act on', async () => {

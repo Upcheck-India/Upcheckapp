@@ -21,7 +21,36 @@ export interface BriefingActions {
   items: { key: string; source: 'auto' | 'manual'; route: string | null }[];
 }
 
+/** One live engine alert, uncollapsed (GET /alert-center/all). */
+export interface LiveAlert {
+  key: string;
+  pondId: string | null;
+  farmId: string;
+  source: string;
+  severity: AlertSeverity;
+  title: string;
+  body: string;
+  steps: string[];
+  actions?: BriefingActions;
+}
+
+/** One unread persisted alert (GET /alert-center/all). */
+export interface SavedAlert {
+  id: string;
+  pondId: string | null;
+  farmId: string | null;
+  type: string;
+  severity: AlertSeverity;
+  title: string;
+  message: string;
+  steps: string[];
+  createdAt: string;
+}
+
 export const alertCenterApi = {
+  /** Every alert, one row each — live engine drafts plus unread saved alerts. */
+  all: () => apiClient.get<{ live: LiveAlert[]; saved: SavedAlert[] }>('/alert-center/all'),
+
   /** Per-pond morning briefing (top action per pond) from unread alerts. */
   briefing: () => apiClient.get<BriefingItem[]>('/alert-center/briefing'),
 

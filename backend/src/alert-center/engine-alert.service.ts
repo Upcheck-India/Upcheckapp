@@ -17,7 +17,12 @@ import {
   MoltPhase,
   MoltWindow,
 } from '../molt/molt-window';
-import { AlertCenterService, BriefingItem } from './alert-center.service';
+import {
+  AlertCenterService,
+  BriefingItem,
+  SavedAlert,
+  rank,
+} from './alert-center.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { FREE_NH3, classify, thresholdFor } from '../common/wq-thresholds';
 
@@ -42,6 +47,11 @@ export interface AlertDraft {
   steps: string[];
   /** Lunar only: what the client can tick or route (spec A.5). */
   actions?: MoltAlertActions;
+}
+
+export interface LiveAlert extends AlertDraft {
+  key: string;
+  farmId: string;
 }
 
 /**
@@ -247,6 +257,33 @@ export class EngineAlertService {
   async liveBriefing(userId: string): Promise<BriefingItem[]> {
     const contexts = await this.activeContexts(userId);
     return this.briefingFrom(contexts, await this.moltFor(contexts));
+  }
+
+  /**
+   * Every alert, uncollapsed (GET /alert-center/all): each live engine draft for
+   * the same pond set `today` reads, plus every unread persisted alert.
+   * `buildBriefing` keeps one per pond; this screen shows them all.
+   */
+  async all(userId: string): Promise<{ live: LiveAlert[]; saved: SavedAlert[] }> {
+    const [contexts, saved] = await Promise.all([
+      this.activeContexts(userId),
+      this.alertCenter.savedAlerts(userId),
+    ]);
+    const molts = contexts.length ? await this.moltFor(contexts) : new Map();
+    const live: LiveAlert[] = contexts.flatMap((ctx) =>
+      this.evaluate(ctx, molts.get(ctx.pondId)).map((d) => ({
+        ...d,
+        farmId: ctx.farmId,
+        // Stable across refreshes: counts in titles ("2 actions pending") change.
+        key: `${d.source}:${d.pondId}:${d.title.replace(/\d+/g, '#')}`,
+      })),
+    );
+    live.sort(
+      (a, b) =>
+        rank(b.severity) - rank(a.severity) ||
+        String(a.pondId).localeCompare(String(b.pondId)),
+    );
+    return { live, saved };
   }
 
   /**

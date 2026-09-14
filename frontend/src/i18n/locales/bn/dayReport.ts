@@ -83,6 +83,18 @@ const dayReport = {
   docValue: 'DOC {{doc}}',
   lowStock: 'কম মজুত',
   attendance: 'হাজিরা',
+
+  storyTitle: 'এক নজরে দিন',
+  peopleTitle: 'কে কী করলেন',
+  person: 'ব্যক্তি',
+  role: 'ভূমিকা',
+  work: 'কাজ',
+  pondsWorked: 'পুকুর',
+  shift: 'শিফট',
+  pondWorkTitle: 'প্রতিটি পুকুরে কাজ',
+  feed: 'খাবার',
+  sampling: 'নমুনা',
+  people: 'লোকজন',
 };
 
 export default dayReport;

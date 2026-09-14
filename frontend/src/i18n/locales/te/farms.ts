@@ -151,5 +151,9 @@ const farms = {
   errorArchiveFarm: "ఫారమ్‌ను ఆర్కైవ్ చేయలేకపోయాం.",
   errorUnarchiveFarm: "ఫారమ్‌ను తిరిగి తేలేకపోయాం.",
   errorDeleteFarm: "ఫారమ్‌ను తొలగించలేకపోయాం.",
+  shiftEndLabel: "షిఫ్ట్ ముగిసే సమయం (24 గంటలు)",
+  shiftHoursLabel: "షిఫ్ట్ నిడివి (గంటలు)",
+  shiftHint: "చెక్ అవుట్ ఎప్పుడు చేయాలో బృందానికి తెలుస్తుంది. ఖాళీగా వదిలితే చెక్ ఇన్ సమయానికి షిఫ్ట్ నిడివి కలుపుతాం.",
+  shiftEndInvalid: "24 గంటల సమయం రాయండి, ఉదా. 18:00.",
 };
 export default farms;

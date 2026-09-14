@@ -62,7 +62,10 @@ export interface ExportConfig {
     /** Inclusive, IST-local `YYYY-MM-DD`, matching the money-screen ranges. */
     startDate?: string;
     endDate?: string;
+    /** Attendance: optional — absent means every farm the caller can see. */
     farmId?: string;
+    /** Attendance: one person's rows only. */
+    userId?: string;
     pondId?: string;
     cropId?: string;
     sections: ExportSections;

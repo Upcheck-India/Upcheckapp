@@ -54,6 +54,24 @@ export class AttendanceRecord {
   })
   checkOutAt: Date | null;
 
+  // Who closed the shift: the member ('self'), a manager correcting it, or the
+  // member's own check-in elsewhere ('auto_closed'). Spec 2026-09-14 B.1/B.6.
+  @Column({ name: 'checked_out_by', type: 'uuid', nullable: true })
+  checkedOutById: string | null;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'checked_out_by' })
+  checkedOutBy: User | null;
+
+  // self | forgot | left_early | shift_end | auto_closed | other
+  @Column({
+    name: 'check_out_reason',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  checkOutReason: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   createdAt: Date;
 }

@@ -23,6 +23,8 @@ jest.mock('../../../api/farmMembers', () => ({
 // time itself. These tests cover what the SCREEN does with the data — scope,
 // dedupe, rendering — so they drive the batched call directly.
 jest.mock('../../../api/teamOverview', () => ({
+    // The pure helpers (shift cards, roster, role gate) run for real.
+    ...jest.requireActual('../../../api/teamOverview'),
     fetchTeamOverview: jest.fn(),
 }));
 // Check-in from this tab goes through the same offline queue as the log

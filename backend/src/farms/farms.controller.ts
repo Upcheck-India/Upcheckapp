@@ -52,9 +52,16 @@ export class FarmsController {
 
   @Patch(':id')
   @UseGuards(OwnershipGuard)
-  @OwnsResource('Farm', 'id', 'userId', 'OWNER_ONLY')
-  update(@Param('id') id: string, @Body() updateFarmDto: UpdateFarmDto) {
-    return this.farmsService.update(id, updateFarmDto);
+  // Guard lets owner/manager in (MANAGE_WORKERS is not overridable) so a
+  // manager can set the shift; the service re-asserts OWNER_ONLY for any
+  // other field.
+  @OwnsResource('Farm', 'id', 'userId', 'MANAGE_WORKERS')
+  update(
+    @Param('id') id: string,
+    @Body() updateFarmDto: UpdateFarmDto,
+    @CurrentUser() user,
+  ) {
+    return this.farmsService.update(id, updateFarmDto, user.id);
   }
 
   /**

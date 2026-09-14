@@ -154,3 +154,36 @@ Decisions:
    naming the pond and the days; counts toward the Home card's top to-do.
 4. **Pond rows** show "feed not logged for N days" (and water, if stale) when ≥ 2 days, so a
    Good score from water alone can't hide missing feeding.
+
+## Addendum 2 — "What we did", day story, greeting, floating actions, better ribbon (founder, 2026-09-14)
+
+Founder: "there is no insights like what we did today in the daily glance... so farmer knows what
+they and the team did at the farms." Answers: visible to **everyone on the farm** (like Activity;
+shift times only for owners/managers). Include **per person**, **per pond work**, **tasks completed
+with who**, **farm-level highlights**, plus: "a short summary of the things done today, carried over
+from past days, important things that happened and whether they resolved. Add a friendly greeting at
+the top. The export and share buttons can float at the bottom as we scroll. Improve the 'The day,
+hour by hour' component."
+
+Contract (frontend/src/api/dailyBrief.ts): `TimelineEvent.actorId/actorName`, `DailyBrief.story:
+StoryItem[]`, `DailyBrief.done: { people: PersonDay[], ponds: PondWork[], tasksDone[] }`.
+
+Story rules (backend, codes only; frontend phrases):
+- `issue_open` / `issue_resolved`: a watch/critical water reading (per-species zones) on the day;
+  resolved when a later reading of the same parameter that day is back to optimal (resolvedAt = that
+  reading). One item per pond+parameter, worst first.
+- `carried_resolved` / `carried_open`: items open at the start of the day — overdue tasks (resolved if
+  completed on the day), stale ponds from the day before (resolved if logged on the day), the previous
+  day's worst reading (resolved if the same parameter was logged optimal on the day), open alerts
+  (resolved if read/closed on the day).
+- Coverage: `all_ponds_fed` / `ponds_not_fed` (count), `all_ponds_tested` / `ponds_not_tested`,
+  `tasks_all_done` / `tasks_left` — stocked ponds only; for today these read "so far".
+- Events: `mortality_spike` (per score rule), `harvest_done` (kg), `sampling_done` / `first_sampling`
+  (g), `treatment_given`, `stale_pond`, `molt_phase`, `team_in` (count, owners/managers only).
+- Ordered: critical → watch → good resolutions → info; max 8.
+
+Screen: friendly greeting by IST time of day with the user's first name ("Good morning, Ravi");
+new blocks "The day in short" (story) and "What we did" (people → ponds → tasks done); Export PDF /
+Share image as a floating bar pinned to the bottom while scrolling (safe-area aware, doesn't cover the
+last content); redesigned hour-by-hour ribbon. PDF and image card include the story (top 3 on the card)
+and the people summary (PDF).

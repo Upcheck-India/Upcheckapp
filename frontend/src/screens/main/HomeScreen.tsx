@@ -45,6 +45,7 @@ import { toLocalISODate, todayLocalISODate } from '../../utils/localDate';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { useFlag } from '../../features/remoteFlags';
+import { isTodayIST } from '../../features/attendance/shiftState';
 import { YourDayCard } from '../../components/brief/YourDayCard';
 import Svg, { Ellipse, Path } from 'react-native-svg';
 
@@ -359,10 +360,12 @@ export const HomeScreen = ({ navigation }: any) => {
     const onDutyToday = React.useMemo(() => {
         // A roster we could not read is not a roster of nobody.
         if (!teamQuery.data || teamQuery.isError || !perms.canManageOperations) return null;
-        const today = todayLocalISODate();
+        // IST day of the instant, not a prefix of the UTC string — that missed
+        // every check-in before 05:30 IST (spec 2026-09-14 attendance B8).
+        const now = new Date();
         const present = new Set(
             (teamQuery.data.allAttendance ?? [])
-                .filter((a: any) => (a.checkInAt ?? '').startsWith(today))
+                .filter((a: any) => isTodayIST(a.checkInAt, now))
                 .map((a: any) => a.userId),
         ).size;
         // Someone on two farms is one member of the team, so dedupe by user.
@@ -961,19 +964,19 @@ export const HomeScreen = ({ navigation }: any) => {
                       * top item. This replaces the old "Needs Attention" card, which
                       * listed alert titles in identical styling with no farm and no
                       * reason, so every row had to be opened to find out whether it
-                      * mattered. Its "All ›" is the only route left to the full
-                      * Morning Briefing now that the quick-actions grid is gone.
+                      * mattered. Its "All ›" opens every alert with its details
+                      * (TodayAlerts) — not the day page, which is about the day.
                       */}
                     {!alertsLoading && (
                         thenActions.length > 0 ? (
                             <ThenList
                                 items={thenActions}
                                 farmNameForPond={farmNameForPond}
-                                onSeeAll={() => goRoot(briefRoute)}
+                                onSeeAll={() => goRoot('TodayAlerts')}
                                 onOpen={(item) =>
                                     item.pondId
                                         ? goRoot(item.source === 'lunar' ? 'Lunar' : 'PondDashboard', { pondId: item.pondId })
-                                        : goRoot(briefRoute)
+                                        : goRoot('TodayAlerts')
                                 }
                                 onLog={goRoot}
                                 cropIdForPond={cropIdForPond}

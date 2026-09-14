@@ -143,6 +143,76 @@ export interface TimelineEvent {
   pondId: string | null;
   severity?: Severity;
   summary: string;
+  /** Who logged it (same visibility as the Activity feed). Never an email. */
+  actorId?: string | null;
+  actorName?: string | null;
+}
+
+/** The kinds of farm work counted in "What we did". */
+export type WorkKind = 'water' | 'feed' | 'tray' | 'mortality' | 'sampling' | 'harvest' | 'treatment' | 'chemical';
+
+export interface PersonDay {
+  userId: string;
+  name: string;
+  /** Their farm role on the farm(s) in scope; highest if several. */
+  role: 'owner' | 'manager' | 'worker' | 'viewer' | null;
+  /** Only when the caller may see attendance (owner/manager); otherwise null. */
+  shift: { checkIn: string | null; checkOut: string | null; hours: number | null } | null;
+  counts: Partial<Record<WorkKind, number>>;
+  feedKg: number;
+  pondIds: string[];
+  tasksDone: number;
+}
+
+export interface PondWork {
+  pondId: string;
+  counts: Partial<Record<WorkKind, number>>;
+  feedKg: number;
+  feedRounds: number;
+  samplingG: number | null;
+  harvestKg: number | null;
+  people: string[];
+}
+
+export type StoryCode =
+  // coverage / routine
+  | 'all_ponds_fed'
+  | 'all_ponds_tested'
+  | 'ponds_not_fed'
+  | 'ponds_not_tested'
+  | 'tasks_all_done'
+  | 'tasks_left'
+  // events that happened this day
+  | 'issue_resolved'
+  | 'issue_open'
+  | 'mortality_spike'
+  | 'harvest_done'
+  | 'sampling_done'
+  | 'first_sampling'
+  | 'treatment_given'
+  // carried over from before this day
+  | 'carried_resolved'
+  | 'carried_open'
+  | 'stale_pond'
+  // context
+  | 'molt_phase'
+  | 'team_in';
+
+export type StoryTone = 'good' | 'info' | 'watch' | 'critical';
+
+export interface StoryItem {
+  code: StoryCode;
+  tone: StoryTone;
+  pondId?: string | null;
+  reason?: Reason;
+  count?: number;
+  value?: number;
+  at?: string | null;
+  resolvedAt?: string | null;
+  carriedKind?: 'alert' | 'task' | 'stale_pond' | 'reading';
+  title?: string | null;
+  personName?: string | null;
+  phase?: 'pre' | 'peak' | 'post';
 }
 
 export interface BriefTask {
@@ -180,6 +250,16 @@ export interface DailyBrief {
 
   ponds: PondDay[];
   timeline: TimelineEvent[];
+
+  /** The day's story, most important first; at most 8. */
+  story?: StoryItem[];
+
+  /** What the farm and team did this day; `people[].shift` only for owners/managers. */
+  done?: {
+    people: PersonDay[];
+    ponds: PondWork[];
+    tasksDone: { id: string; title: string; pondId: string | null; completedAt: string; completedByName: string | null }[];
+  };
 
   carriedOver: {
     openAlerts: { pondId: string | null; title: string; severity: Severity; source: string }[];

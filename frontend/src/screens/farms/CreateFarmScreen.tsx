@@ -23,7 +23,9 @@ import { Button } from '../../components/ui/Button';
 import { Stepper } from '../../components/ui/Stepper';
 import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
-import { farmsApi, type CreateFarmDto } from '../../api/farms';
+import { farmsApi, type CreateFarmDto, type Farm } from '../../api/farms';
+import { canDecideOnTeam } from '../../api/teamOverview';
+import { DEFAULT_SHIFT_HOURS, parseShiftEnd } from '../../features/attendance/shiftState';
 import { apiErrorMessage } from '../../api/errors';
 import { confirm } from '../../utils/confirm';
 import { useMembershipStore } from '../../store/membershipStore';
@@ -71,7 +73,14 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
     const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
     const [locating, setLocating] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [errors, setErrors] = useState<{ name?: string; numPonds?: string }>({});
+    const [errors, setErrors] = useState<{ name?: string; numPonds?: string; shiftEnd?: string }>({});
+    // Shift settings (spec 2026-09-14 attendance B.1, Q4) — owner/manager, edit only.
+    const editRole = useMembershipStore((st) => st.grantForFarm(editFarmId).role);
+    const canEditShift = isEdit && canDecideOnTeam(editRole);
+    const [shiftEnd, setShiftEnd] = useState('');
+    const [shiftHours, setShiftHours] = useState(DEFAULT_SHIFT_HOURS);
+    /** As loaded, so only a CHANGE is sent — an older backend never sees the fields. */
+    const [loadedShift, setLoadedShift] = useState<{ end: string; hours: number }>({ end: '', hours: DEFAULT_SHIFT_HOURS });
     // Edit mode blocks on the load: a form that paints empty and fills in a
     // moment later invites a farmer to type over their own data.
     const [isHydrating, setIsHydrating] = useState(isEdit);
@@ -90,6 +99,11 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                 if (data.latitude != null && data.longitude != null) {
                     setCoords({ lat: data.latitude, lng: data.longitude });
                 }
+                // A pg `time` arrives as 'HH:MM:SS'; the form speaks 'HH:MM'.
+                const loaded = { end: (data.shiftEndLocal ?? '').slice(0, 5), hours: data.shiftHours ?? DEFAULT_SHIFT_HOURS };
+                setShiftEnd(loaded.end);
+                setShiftHours(loaded.hours);
+                setLoadedShift(loaded);
             })
             .catch(() => {
                 Alert.alert(t('common.error'), t('farms.errorLoadFarm'));
@@ -141,8 +155,11 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
     });
 
     const handleContinue = async () => {
-        const nextErrors: { name?: string; numPonds?: string } = {};
+        const nextErrors: { name?: string; numPonds?: string; shiftEnd?: string } = {};
         if (!name.trim()) nextErrors.name = t('farms.errorFarmRequired');
+        if (canEditShift && shiftEnd.trim() && parseShiftEnd(shiftEnd.trim()) == null) {
+            nextErrors.shiftEnd = t('farms.shiftEndInvalid');
+        }
         // Pond count is mandatory during first-run owner setup; optional otherwise.
         if (pendingFarmSetup && numPonds < 1) {
             nextErrors.numPonds = t('farms.errorPondCountRequired');
@@ -178,7 +195,24 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                 // would send plannedPondCount: undefined and quietly clear a
                 // figure this screen never shows in edit mode.
                 const { plannedPondCount, ...editable } = buildDraft();
-                await farmsApi.update(editFarmId!, editable);
+                // Shift fields only when changed.
+                const shift: Pick<Farm, 'shiftEndLocal' | 'shiftHours'> = {};
+                if (canEditShift) {
+                    const end = shiftEnd.trim();
+                    if (end !== loadedShift.end) {
+                        const mins = parseShiftEnd(end);
+                        shift.shiftEndLocal = mins == null
+                            ? null
+                            : `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+                    }
+                    if (shiftHours !== loadedShift.hours) shift.shiftHours = shiftHours;
+                }
+                // The backend keeps every non-shift field owner-only: a manager
+                // PATCHing the whole form would be refused even for a shift-only
+                // change. Managers send the shift and nothing else.
+                // Keyed on 'manager', not "not owner": a role not loaded yet must
+                // never silently drop an owner's name/address edits.
+                await farmsApi.update(editFarmId!, editRole === 'manager' ? shift : { ...editable, ...shift });
                 showToast({ message: t('farms.farmSavedToast', { name: name.trim() }), type: 'success' });
                 navigation.goBack();
                 return;
@@ -333,6 +367,29 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                         );
                     })}
                 </View>
+
+                {canEditShift && (
+                    <>
+                        {/* Empty = no farm end time: check-in + shift length (founder Q4). */}
+                        <Input
+                            label={t('farms.shiftEndLabel')}
+                            value={shiftEnd}
+                            onChangeText={setShiftEnd}
+                            placeholder="18:00"
+                            keyboardType="numbers-and-punctuation"
+                            hint={t('farms.shiftHint')}
+                            error={errors.shiftEnd}
+                            testID="farm-shift-end"
+                        />
+                        <Stepper
+                            label={t('farms.shiftHoursLabel')}
+                            value={shiftHours}
+                            onChange={setShiftHours}
+                            min={1}
+                            max={16}
+                        />
+                    </>
+                )}
 
                 {/* The farm code is created with the farm — say so here rather
                     than letting the owner discover it on the members screen. */}

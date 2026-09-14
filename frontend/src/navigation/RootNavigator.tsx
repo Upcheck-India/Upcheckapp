@@ -133,6 +133,8 @@ export type RootStackParamList = {
     MorningBriefing: { date?: string; farmId?: string } | undefined;
     // One IST day at a glance. No date = today (IST); no farmId = all farms.
     DailyBrief: { date?: string; farmId?: string } | undefined;
+    // Every alert, uncollapsed (Home "Then" › All).
+    TodayAlerts: undefined;
 
     Profile: undefined;
     Notifications: undefined;
@@ -195,7 +197,17 @@ export type RootStackParamList = {
     // One configurable export flow. Every param is a PRE-FILL of a control the
     // farmer can still change — arriving from a cycle preselects that cycle,
     // arriving from Settings preselects nothing.
-    Export: { dataset?: ExportDataset; farmId?: string; pondId?: string; cropId?: string } | undefined;
+    // Attendance entry points (Team, the log, a member) also pass the person
+    // and an inclusive YYYY-MM-DD range.
+    Export: {
+        dataset?: ExportDataset;
+        farmId?: string;
+        pondId?: string;
+        cropId?: string;
+        userId?: string;
+        startDate?: string;
+        endDate?: string;
+    } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -448,6 +460,8 @@ const RootNavigator = () => {
                     <Stack.Screen name="CropPnl" getComponent={() => require('../screens/engines/CropPnlScreen').CropPnlScreen} options={{ headerShown: true, title: 'Crop P&L', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="MorningBriefing" getComponent={() => require('../screens/brief/MorningBriefingRoute').MorningBriefingRoute} />
                     <Stack.Screen name="DailyBrief" getComponent={() => withFlag('dailyBrief', require('../screens/brief/DailyBriefScreen').DailyBriefScreen)} />
+                    {/* Header for the back button only; the screen titles itself (translated). */}
+                    <Stack.Screen name="TodayAlerts" getComponent={() => require('../screens/alerts/TodayAlertsScreen').TodayAlertsScreen} options={{ headerShown: true, title: '', headerTintColor: theme.roles.light.primary }} />
 
                     {/* Phase 5 (Settings & Notifications) */}
                     <Stack.Screen name="Profile" getComponent={() => require('../screens/settings/ProfileScreen').ProfileScreen} />

@@ -26,7 +26,9 @@ import { MorningBriefingRoute } from '../MorningBriefingRoute';
 import { dailyBriefApi } from '../../../api/dailyBrief';
 import { exportDayReportPdf } from '../../../features/export/dayReport';
 import { useRemoteFlagsStore } from '../../../features/remoteFlags';
-import { makeBrief, pond } from '../../../features/__fixtures__/dailyBrief';
+import { makeBrief, pond, storyBrief } from '../../../features/__fixtures__/dailyBrief';
+import { useAuthStore } from '../../../store/authStore';
+import { StyleSheet } from 'react-native';
 
 const mockedGet = dailyBriefApi.get as jest.Mock;
 const METRICS = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 47, left: 0, right: 0, bottom: 34 } };
@@ -162,6 +164,7 @@ describe('DailyBriefScreen', () => {
         const list = utils.getByTestId('ribbon-hour-list');
         expect(within(list).getByText('01:30')).toBeTruthy();
         expect(within(list).getByText('DO 2.8')).toBeTruthy();
+        expect(within(list).getByText('by Ravi')).toBeTruthy();
     });
 
     it('export PDF passes the brief and language through', async () => {
@@ -170,6 +173,54 @@ describe('DailyBriefScreen', () => {
         const utils = renderAt('2026-09-14T08:00:00+05:30');
         fireEvent.press(await utils.findByText('Export PDF'));
         await waitFor(() => expect(exportDayReportPdf).toHaveBeenCalledWith(b, 'en'));
+    });
+
+    it('greets by IST time of day with the first name; a past day says how it went', async () => {
+        mockedGet.mockResolvedValue({ data: makeBrief() });
+        useAuthStore.setState({ user: { name: 'Ravi Kumar' } as any });
+        try {
+            const utils = renderAt('2026-09-14T14:00:00+05:30');
+            expect(await utils.findByTestId('brief-greeting')).toHaveTextContent('Good afternoon, Ravi');
+            utils.unmount();
+            useAuthStore.setState({ user: null });
+            const anon = renderAt('2026-09-14T20:00:00+05:30');
+            expect(await anon.findByTestId('brief-greeting')).toHaveTextContent('Good evening');
+            anon.unmount();
+            mockedGet.mockResolvedValue({ data: makeBrief({ date: '2026-09-10', isToday: false }) });
+            const past = renderAt('2026-09-14T08:00:00+05:30', { date: '2026-09-10' });
+            expect(await past.findByTestId('brief-greeting')).toHaveTextContent(/^Here's how .+ went$/);
+        } finally {
+            useAuthStore.setState({ user: null });
+        }
+    });
+
+    it('shows the day in short and what we did, right after the score', async () => {
+        mockedGet.mockResolvedValue({ data: storyBrief() });
+        const utils = renderAt('2026-09-14T20:00:00+05:30');
+        const story = await utils.findByTestId('brief-story');
+        expect(within(story).getByText('Pond 2 at 05:10: Oxygen fell to 2.8 mg/L (should stay at 3 or above) — back to safe by 07:30')).toBeTruthy();
+        expect(within(utils.getByTestId('brief-done')).getByText('Ravi Kumar')).toBeTruthy();
+    });
+
+    it('an older backend without story/done hides both blocks', async () => {
+        mockedGet.mockResolvedValue({ data: makeBrief() });
+        const utils = renderAt('2026-09-14T08:00:00+05:30');
+        await utils.findByTestId('brief-verdict');
+        expect(utils.queryByTestId('brief-story')).toBeNull();
+        expect(utils.queryByTestId('brief-done')).toBeNull();
+    });
+
+    it('export and share float in one bar outside the scroll content (no inline row)', async () => {
+        mockedGet.mockResolvedValue({ data: makeBrief() });
+        const utils = renderAt('2026-09-14T08:00:00+05:30');
+        const bar = await utils.findByTestId('brief-action-bar');
+        expect(within(bar).getByText('Export PDF')).toBeTruthy();
+        expect(within(bar).getByText('Share image')).toBeTruthy();
+        expect(utils.getAllByText('Export PDF')).toHaveLength(1);
+        const style = StyleSheet.flatten(bar.props.style);
+        expect(style).toMatchObject({ position: 'absolute', bottom: 0 });
+        // Safe-area aware: the bottom inset (34) is added under the buttons.
+        expect(style.paddingBottom).toBeGreaterThan(34);
     });
 
     it('the old MorningBriefing route renders the brief while the flag is on', async () => {

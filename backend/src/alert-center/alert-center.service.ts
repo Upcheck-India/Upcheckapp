@@ -26,14 +26,27 @@ export interface BriefingItem {
   actions?: MoltAlertActions;
 }
 
+/** One unread persisted alert, uncollapsed (GET /alert-center/all). */
+export interface SavedAlert {
+  id: string;
+  pondId: string | null;
+  farmId: string | null;
+  type: string;
+  severity: AlertSeverity;
+  title: string;
+  message: string;
+  steps: string[];
+  createdAt: Date;
+}
+
 /** Higher severity sorts first. */
-const SEVERITY_RANK: Record<string, number> = {
+export const SEVERITY_RANK: Record<string, number> = {
   critical: 3,
   watch: 2,
   warning: 2,
   info: 1,
 };
-const rank = (s: string) => SEVERITY_RANK[s] ?? 0;
+export const rank = (s: string) => SEVERITY_RANK[s] ?? 0;
 
 /**
  * Unified Alert Center (farmer_features_spec.md "Cross-cutting"). Every engine
@@ -93,6 +106,27 @@ export class AlertCenterService {
       });
     }
     return items.sort((a, b) => rank(b.topSeverity) - rank(a.topSeverity));
+  }
+
+  /** Every unread persisted alert, one row each, severity on the 'watch' vocabulary. */
+  async savedAlerts(userId: string): Promise<SavedAlert[]> {
+    const unread = (await this.alerts.findByUser(userId, true)) as any[];
+    return unread.map((a) => ({
+      id: a.id,
+      pondId: a.pondId ?? null,
+      farmId: a.farmId ?? null,
+      type: a.type,
+      severity:
+        a.severity === 'warning' || a.severity === 'watch'
+          ? 'watch'
+          : a.severity === 'critical'
+            ? 'critical'
+            : 'info',
+      title: a.title,
+      message: a.message,
+      steps: a.data?.steps ?? [],
+      createdAt: a.createdAt,
+    }));
   }
 
   /** Morning briefing from the user's unread alerts. */

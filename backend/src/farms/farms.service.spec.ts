@@ -6,6 +6,9 @@ import { FarmsService } from './farms.service';
 import { Farm } from './farm.entity';
 import { FarmMember } from '../farm-access/farm-member.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { validateSync } from 'class-validator';
+import { plainToInstance } from 'class-transformer';
+import { UpdateFarmDto } from './dto/update-farm.dto';
 import {
   NotFoundException,
   InternalServerErrorException,
@@ -254,10 +257,60 @@ describe('FarmsService', () => {
       repository.findOneBy.mockResolvedValue(mockFarm);
       repository.update.mockResolvedValue(undefined);
 
-      const result = await service.update('farm-1', { name: 'Updated' });
+      const result = await service.update('farm-1', { name: 'Updated' }, 'owner-1');
       expect(repository.update).toHaveBeenCalledWith('farm-1', {
         name: 'Updated',
       });
+    });
+
+    // The route lets managers in (MANAGE_WORKERS) for the shift; anything
+    // else on the farm stays owner-only.
+    it('lets a manager set only the shift fields without OWNER_ONLY', async () => {
+      repository.findOneBy.mockResolvedValue(mockFarm);
+      await service.update('farm-1', { shiftEndLocal: '18:00', shiftHours: 8 }, 'manager-1');
+      expect(farmAccess.assertCanAccessFarm).not.toHaveBeenCalled();
+      expect(repository.update).toHaveBeenCalled();
+    });
+
+    it('asserts OWNER_ONLY when any non-shift field is present', async () => {
+      (farmAccess.assertCanAccessFarm as jest.Mock).mockRejectedValueOnce(new ForbiddenException());
+      await expect(
+        service.update('farm-1', { shiftHours: 8, name: 'Mine now' }, 'manager-1'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(farmAccess.assertCanAccessFarm).toHaveBeenCalledWith('manager-1', 'farm-1', 'OWNER_ONLY');
+      expect(repository.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('UpdateFarmDto shift fields', () => {
+    const errs = (body: object) =>
+      validateSync(plainToInstance(UpdateFarmDto, body)).map((e) => e.property);
+
+    it('accepts HH:MM, null, and 1–16 hours', () => {
+      expect(errs({ shiftEndLocal: '18:00', shiftHours: 9 })).toEqual([]);
+      expect(errs({ shiftEndLocal: '00:00', shiftHours: 1 })).toEqual([]);
+      expect(errs({ shiftEndLocal: '23:59', shiftHours: 16 })).toEqual([]);
+      expect(errs({ shiftEndLocal: null })).toEqual([]);
+    });
+
+    it('rejects bad times and out-of-range hours', () => {
+      expect(errs({ shiftEndLocal: '24:00' })).toEqual(['shiftEndLocal']);
+      expect(errs({ shiftEndLocal: '8:00' })).toEqual(['shiftEndLocal']);
+      expect(errs({ shiftEndLocal: '18:00:00' })).toEqual(['shiftEndLocal']);
+      expect(errs({ shiftHours: 0 })).toEqual(['shiftHours']);
+      expect(errs({ shiftHours: 17 })).toEqual(['shiftHours']);
+      expect(errs({ shiftHours: 8.5 })).toEqual(['shiftHours']);
+    });
+  });
+
+  describe('Farm.shiftEndLocal column', () => {
+    it("returns 'HH:MM' from Postgres 'HH:MM:SS'", () => {
+      const { getMetadataArgsStorage } = require('typeorm');
+      const col = getMetadataArgsStorage().columns.find(
+        (c: any) => c.target === Farm && c.propertyName === 'shiftEndLocal',
+      );
+      expect(col.options.transformer.from('18:00:00')).toBe('18:00');
+      expect(col.options.transformer.from(null)).toBeNull();
     });
   });
 

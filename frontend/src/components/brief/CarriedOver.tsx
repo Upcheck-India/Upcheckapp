@@ -1,9 +1,16 @@
 /** What the day started with — "Woke up with" / "Carried over" / "From the day before". */
 import React from 'react';
+import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { theme } from '../../theme';
 import type { DailyBrief } from '../../api/dailyBrief';
 import { reasonText, staleLapse, staleSentence, type BriefMode } from '../../features/dailyBriefText';
-import { Section, Line, SEVERITY_MARK, c } from './Section';
+import { Section, Line, SEVERITY_MARK, HIT, c } from './Section';
+
+const styles = StyleSheet.create({
+    seeAll: { minHeight: 32, justifyContent: 'center', paddingLeft: theme.spacing[5], alignSelf: 'flex-start' },
+    seeAllText: { ...theme.typeScale.labelLarge, color: c.textLink },
+});
 
 const TITLE: Record<BriefMode, string> = {
     morning: 'dailyBrief.blocks.wokeUpWith',
@@ -18,7 +25,9 @@ export const CarriedOver: React.FC<{
     names: Record<string, string>;
     /** Opens a log screen for a pond; omitted (or a past day) ⇒ no buttons. */
     onRoute?: (route: string, pondId: string) => void;
-}> = ({ brief, mode, names, onRoute }) => {
+    /** Opens Today's alerts (every alert with its steps); omitted ⇒ no link. */
+    onSeeAlerts?: () => void;
+}> = ({ brief, mode, names, onRoute, onSeeAlerts }) => {
     const { t } = useTranslation();
     const co = brief.carriedOver;
     const stale = co.stalePonds ?? [];
@@ -48,6 +57,11 @@ export const CarriedOver: React.FC<{
                     mark={SEVERITY_MARK[a.severity]}
                 />
             ))}
+            {!!onSeeAlerts && mode !== 'report' && co.openAlerts.length > 0 && (
+                <TouchableOpacity onPress={onSeeAlerts} hitSlop={HIT} accessibilityRole="button" style={styles.seeAll}>
+                    <Text style={styles.seeAllText}>{t('alerts.seeAll')}</Text>
+                </TouchableOpacity>
+            )}
             {co.worstPrevious && (
                 <Line
                     text={t('dailyBrief.carried.worstPrevious', {

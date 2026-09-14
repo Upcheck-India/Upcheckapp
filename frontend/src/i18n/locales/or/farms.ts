@@ -151,5 +151,9 @@ const farms = {
   errorArchiveFarm: "ଫାର୍ମ ସଂରକ୍ଷଣ ହୋଇପାରିଲା ନାହିଁ।",
   errorUnarchiveFarm: "ଫାର୍ମ ଫେରାଇ ଅଣାଯାଇପାରିଲା ନାହିଁ।",
   errorDeleteFarm: "ଫାର୍ମ ଡିଲିଟ୍ ହୋଇପାରିଲା ନାହିଁ।",
+  shiftEndLabel: "ସିଫ୍ଟ ଶେଷ ସମୟ (24 ଘଣ୍ଟା)",
+  shiftHoursLabel: "ସିଫ୍ଟ ଅବଧି (ଘଣ୍ଟା)",
+  shiftHint: "ଦଳ ଜାଣିବ କେବେ ଚେକ ଆଉଟ କରିବାକୁ ହେବ। ଖାଲି ଛାଡିଲେ ଚେକ ଇନ ସମୟ ସହ ସିଫ୍ଟ ଅବଧି ଯୋଡାଯିବ।",
+  shiftEndInvalid: "24 ଘଣ୍ଟା ସମୟ ଲେଖନ୍ତୁ, ଯେପରି 18:00।",
 };
 export default farms;

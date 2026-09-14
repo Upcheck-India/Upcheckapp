@@ -165,6 +165,92 @@ export interface TimelineEvent {
     severity?: Severity;
     /** Short, already-human text from the source row (e.g. "DO 3.2 · pH 8.1"). Numbers only, no prose. */
     summary: string;
+    /** Who logged it (same visibility as the Activity feed). Optional: older backends omit it. */
+    actorId?: string | null;
+    actorName?: string | null;
+}
+
+/** The kinds of farm work counted in "What we did". */
+export type WorkKind = 'water' | 'feed' | 'tray' | 'mortality' | 'sampling' | 'harvest' | 'treatment' | 'chemical';
+
+export interface PersonDay {
+    userId: string;
+    name: string;
+    /** Their farm role on the farm(s) in scope; highest if several. */
+    role: 'owner' | 'manager' | 'worker' | 'viewer' | null;
+    /** Only when the caller may see attendance (owner/manager); otherwise null. */
+    shift: { checkIn: string | null; checkOut: string | null; hours: number | null } | null;
+    counts: Partial<Record<WorkKind, number>>;
+    feedKg: number;
+    /** Ponds they logged anything in. */
+    pondIds: string[];
+    tasksDone: number;
+}
+
+export interface PondWork {
+    pondId: string;
+    counts: Partial<Record<WorkKind, number>>;
+    feedKg: number;
+    /** Distinct feed entries (rounds). */
+    feedRounds: number;
+    /** ABW of a sampling logged that day, if any. */
+    samplingG: number | null;
+    harvestKg: number | null;
+    /** Everyone who logged in this pond that day. */
+    people: string[];
+}
+
+/**
+ * One line of the day's story (founder 2026-09-14): what got done, what carried
+ * over and whether it resolved, what important happened. Codes, so all six
+ * languages phrase it; the frontend owns the sentences.
+ */
+export type StoryCode =
+    // coverage / routine
+    | 'all_ponds_fed'
+    | 'all_ponds_tested'
+    | 'ponds_not_fed'
+    | 'ponds_not_tested'
+    | 'tasks_all_done'
+    | 'tasks_left'
+    // events that happened this day
+    | 'issue_resolved'      // a watch/critical reading later back in a safe zone the same day
+    | 'issue_open'          // a watch/critical reading with no later safe reading that day
+    | 'mortality_spike'
+    | 'harvest_done'
+    | 'sampling_done'
+    | 'first_sampling'      // first sampling of the cycle
+    | 'treatment_given'
+    // carried over from before this day
+    | 'carried_resolved'    // something open at the start of the day that was dealt with
+    | 'carried_open'        // still open at the end of the day
+    | 'stale_pond'
+    // context
+    | 'molt_phase'
+    | 'team_in';
+
+export type StoryTone = 'good' | 'info' | 'watch' | 'critical';
+
+export interface StoryItem {
+    code: StoryCode;
+    tone: StoryTone;
+    pondId?: string | null;
+    /** For issue_*: which reading. */
+    reason?: Reason;
+    /** Count for plural sentences (ponds, tasks, animals, people). */
+    count?: number;
+    /** Value for sentences like "12.4 g", "850 kg". */
+    value?: number;
+    /** When it happened / when it was resolved (ISO). */
+    at?: string | null;
+    resolvedAt?: string | null;
+    /** For carried_*: what kind of thing carried over. */
+    carriedKind?: 'alert' | 'task' | 'stale_pond' | 'reading';
+    /** Short title for a carried task or alert (user/engine text). */
+    title?: string | null;
+    personName?: string | null;
+    /** For molt_phase. */
+    phase?: 'pre' | 'peak' | 'post';
 }
 
 export interface BriefTask {
@@ -210,6 +296,24 @@ export interface DailyBrief {
 
     ponds: PondDay[];
     timeline: TimelineEvent[];
+
+    /**
+     * The day's story, most important first: critical/open issues, then
+     * resolutions and carried-over outcomes, then routine coverage and context.
+     * At most ~8 items. Optional: older backends omit it.
+     */
+    story?: StoryItem[];
+
+    /**
+     * What the farm and team did this day. Visible to everyone on the farm, like
+     * the Activity feed; `people[].shift` only for owners/managers.
+     * Optional: older backends omit it.
+     */
+    done?: {
+        people: PersonDay[];
+        ponds: PondWork[];
+        tasksDone: { id: string; title: string; pondId: string | null; completedAt: string; completedByName: string | null }[];
+    };
 
     /** What the day started with — left over from the day before. */
     carriedOver: {

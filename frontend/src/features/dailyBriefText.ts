@@ -7,7 +7,7 @@
  * the backend's day is an IST day, and a phone set to another zone must still
  * put a 01:30 IST feed at hour 1.
  */
-import type { Band, DailyBrief, DayScore, Reason, ScorePart, StalePond } from '../api/dailyBrief';
+import type { Band, DailyBrief, DayScore, PersonDay, Reason, ScorePart, StalePond, StoryCode, StoryItem, WorkKind } from '../api/dailyBrief';
 
 export type T = (key: string, options?: Record<string, unknown>) => string;
 
@@ -168,6 +168,66 @@ export const deltaText = (value: number, previous: number | null, t: T): string 
     const d = value - previous;
     if (d === 0) return t('dailyBrief.score.sameAs');
     return t(d > 0 ? 'dailyBrief.score.upFrom' : 'dailyBrief.score.downFrom', { count: Math.abs(d) });
+};
+
+/**
+ * "Good morning, Ravi" by the IST hour (before 12, before 17, then evening);
+ * without a name the greeting stands alone. A past day: "Here's how Thu, 10 Sep went".
+ */
+export const greetingText = (t: T, name: string | null | undefined, pastDateLabel: string | null, now: Date = new Date()): string => {
+    if (pastDateLabel) return t('dailyBrief.greeting.past', { date: pastDateLabel });
+    const h = istHour(now);
+    const part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+    const first = (name ?? '').trim().split(/\s+/)[0];
+    return first ? t(`dailyBrief.greeting.${part}`, { name: first }) : t(`dailyBrief.greeting.${part}Anon`);
+};
+
+/** Coverage lines read "so far" on today. */
+const SO_FAR: StoryCode[] = ['all_ponds_fed', 'all_ponds_tested', 'ponds_not_fed', 'ponds_not_tested', 'tasks_all_done', 'tasks_left'];
+
+/** One story item as one sentence (the backend sends codes; every language phrases it). */
+export const storySentence = (item: StoryItem, brief: Pick<DailyBrief, 'ponds' | 'isToday'>, t: T): string => {
+    const pond = item.pondId ? pondNameMap(brief)[item.pondId] ?? '' : '';
+    const opts = {
+        pond,
+        count: item.count ?? 1,
+        value: item.value == null ? '' : fmtNum(item.value),
+        time: item.at ? istTime(item.at) : '',
+        resolved: item.resolvedAt ? istTime(item.resolvedAt) : '',
+        reason: item.reason ? reasonText(item.reason, t) : '',
+        title: item.title ?? '',
+    };
+    switch (item.code) {
+        case 'molt_phase':
+            return t(`dailyBrief.happening.moltPhase.${item.phase ?? 'peak'}`);
+        case 'carried_resolved':
+        case 'carried_open':
+            return t(`dailyBrief.story.${item.code}_${item.carriedKind ?? 'alert'}`, opts);
+        default:
+            return t(`dailyBrief.${brief.isToday && SO_FAR.includes(item.code) ? 'storySoFar' : 'story'}.${item.code}`, opts);
+    }
+};
+
+const WORK_ORDER: WorkKind[] = ['water', 'feed', 'tray', 'mortality', 'sampling', 'harvest', 'treatment', 'chemical'];
+
+/** "3 water tests · 12.5 kg feed · 2 tasks" — feed by kg when weighed, else by entries. */
+export const workLine = (counts: Partial<Record<WorkKind, number>>, feedKg: number, t: T, tasksDone = 0): string =>
+    [
+        ...WORK_ORDER.flatMap((k) => {
+            const n = counts[k] ?? 0;
+            if (k === 'feed' && feedKg > 0) return [t('dailyBrief.done.feedKg', { kg: fmtNum(feedKg) })];
+            return n > 0 ? [t(`dailyBrief.done.work.${k}`, { count: n })] : [];
+        }),
+        ...(tasksDone > 0 ? [t('dailyBrief.done.tasksCount', { count: tasksDone })] : []),
+    ].join(' · ');
+
+/** "06:10–18:00 · 11 h 50 min", "In since 06:10", or null without a shift. */
+export const shiftLine = (shift: PersonDay['shift'], t: T): string | null => {
+    if (!shift?.checkIn) return null;
+    const from = istTime(shift.checkIn);
+    if (!shift.checkOut) return t('dailyBrief.done.inSince', { time: from });
+    const mins = Math.round((shift.hours ?? (new Date(shift.checkOut).getTime() - new Date(shift.checkIn).getTime()) / 3_600_000) * 60);
+    return t('dailyBrief.done.shift', { from, to: istTime(shift.checkOut), h: Math.floor(mins / 60), m: mins % 60 });
 };
 
 /** The single most useful thing to do next, for the Home card. */

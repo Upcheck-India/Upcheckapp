@@ -66,6 +66,9 @@ const worse = (a: Zone, b: Zone): Zone => (RANK[a] >= RANK[b] ? a : b);
 const sev = (z: Zone) => (z === 'critical' ? 'critical' : 'watch') as Reason['severity'];
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
+/** ≥ 10 dead and more than 3× the 7-day average. Shared by the score and the day's story. */
+export const isMortalitySpike = (mortality: number, avg7: number | null) => mortality >= 10 && mortality > 3 * (avg7 ?? 0);
+
 export const bandFor = (value: number): Band =>
   value >= 80 ? 'good' : value >= 60 ? 'watch' : 'attention';
 
@@ -211,7 +214,7 @@ export function computeDayScore(input: DayScoreInput): DayScore | null {
         zone = worse(zone, z);
       }
       const avg = h.mortality7DayAvg ?? 0;
-      if (h.mortality >= 10 && h.mortality > 3 * avg) {
+      if (isMortalitySpike(h.mortality, h.mortality7DayAvg)) {
         add('mortality_spike', 'caution', h.mortality, r1(3 * avg));
         zone = worse(zone, 'caution');
       }

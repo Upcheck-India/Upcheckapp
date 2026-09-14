@@ -83,6 +83,18 @@ const dayReport = {
   docValue: 'DOC {{doc}}',
   lowStock: 'Low stock',
   attendance: 'Attendance',
+
+  storyTitle: 'The day in short',
+  peopleTitle: 'What each person did',
+  person: 'Person',
+  role: 'Role',
+  work: 'Work',
+  pondsWorked: 'Ponds',
+  shift: 'Shift',
+  pondWorkTitle: 'Work in each pond',
+  feed: 'Feed',
+  sampling: 'Sampling',
+  people: 'People',
 };
 
 export default dayReport;

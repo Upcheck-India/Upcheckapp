@@ -83,6 +83,18 @@ const dayReport = {
   docValue: 'DOC {{doc}}',
   lowStock: 'குறைந்த இருப்பு',
   attendance: 'வருகை',
+
+  storyTitle: 'சுருக்கமாக நாள்',
+  peopleTitle: 'யார் என்ன செய்தார்கள்',
+  person: 'நபர்',
+  role: 'பொறுப்பு',
+  work: 'வேலை',
+  pondsWorked: 'குளங்கள்',
+  shift: 'ஷிப்ட்',
+  pondWorkTitle: 'ஒவ்வொரு குளத்திலும் வேலை',
+  feed: 'தீவனம்',
+  sampling: 'மாதிரி எடுப்பு',
+  people: 'நபர்கள்',
 };
 
 export default dayReport;

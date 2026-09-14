@@ -11,8 +11,12 @@ import {
     coverageSentence,
     staleSentence,
     verdictSentence,
+    greetingText,
+    storySentence,
+    workLine,
+    shiftLine,
 } from '../dailyBriefText';
-import { founderBrief, incompleteBrief, makeBrief, pond, score } from '../__fixtures__/dailyBrief';
+import { founderBrief, incompleteBrief, makeBrief, pond, score, storyItems } from '../__fixtures__/dailyBrief';
 
 const t = i18n.t.bind(i18n) as any;
 /** Every stocked pond scored unless the test says otherwise. */
@@ -151,5 +155,68 @@ describe('reasonText / topTodo', () => {
         expect(topTodo(molt, t)).toBe('Cut feed 15–30% today (molt peak)');
         const none = makeBrief({ ponds: [pond('p1', 'Pond 1', score(90))], todo: { tasks: [], missingLogs: [], moltItems: [] } });
         expect(topTodo(none, t)).toBeNull();
+    });
+});
+
+describe('greetingText (IST hour, first name)', () => {
+    it('picks morning / afternoon / evening by the IST hour, whatever the device zone', () => {
+        expect(greetingText(t, 'Ravi Kumar', null, new Date('2026-09-14T11:59:00+05:30'))).toBe('Good morning, Ravi');
+        expect(greetingText(t, 'Ravi', null, new Date('2026-09-14T12:00:00+05:30'))).toBe('Good afternoon, Ravi');
+        expect(greetingText(t, 'Ravi', null, new Date('2026-09-14T17:00:00+05:30'))).toBe('Good evening, Ravi');
+        // 23:00 UTC is 04:30 IST the next day — still morning.
+        expect(greetingText(t, 'Ravi', null, new Date('2026-09-14T23:00:00Z'))).toBe('Good morning, Ravi');
+    });
+    it('stands alone without a name, and a past day says how it went', () => {
+        expect(greetingText(t, '', null, new Date('2026-09-14T08:00:00+05:30'))).toBe('Good morning');
+        expect(greetingText(t, undefined, null, new Date('2026-09-14T20:00:00+05:30'))).toBe('Good evening');
+        expect(greetingText(t, 'Ravi', 'Thu, 10 Sep')).toBe("Here's how Thu, 10 Sep went");
+    });
+});
+
+describe('storySentence — every StoryCode', () => {
+    const past = makeBrief({ isToday: false });
+    const say = (code: string, b = past) => storyItems.filter((s) => s.code === code).map((s) => storySentence(s, b, t));
+
+    it('phrases each code in English', () => {
+        expect(say('issue_resolved')).toEqual(['Pond 2 at 05:10: Oxygen fell to 2.8 mg/L (should stay at 3 or above) — back to safe by 07:30']);
+        expect(say('issue_open')).toEqual(['Pond 2 at 08:30: Ammonia was 1.2 mg/L (limit 0.5) — no safe reading after it']);
+        expect(say('mortality_spike')).toEqual(['140 shrimp died in Pond 1 — far more than usual']);
+        expect(say('carried_resolved')).toEqual(['Overdue task done: Clean aerator', 'Pond 1 was logged again after going unwatched']);
+        expect(say('carried_open')).toEqual(['Alert still open: Low DO', 'Pond 2 not yet back to safe after the day before: pH reached 9, past the safe limit of 8.5']);
+        expect(say('stale_pond')).toEqual(['Pond 1 has gone 3 days without a log']);
+        expect(say('harvest_done')).toEqual(['850 kg harvested from Pond 1']);
+        expect(say('sampling_done')).toEqual(['Pond 1 sampled — average 12.4 g']);
+        expect(say('first_sampling')).toEqual(['First sampling of the crop in Pond 2 — average 3.1 g']);
+        expect(say('treatment_given')).toEqual(['Pond 2 was given 2 treatments']);
+        expect(say('molt_phase')).toEqual(['Molt peak — go easy on feed and handling']);
+        expect(say('team_in')).toEqual(['4 people checked in']);
+        expect(say('all_ponds_fed')).toEqual(['All 2 stocked ponds were fed']);
+        expect(say('all_ponds_tested')).toEqual(['Water was tested in all 2 stocked ponds']);
+        expect(say('ponds_not_fed')).toEqual(['1 pond was not fed']);
+        expect(say('ponds_not_tested')).toEqual(['2 ponds had no water test']);
+        expect(say('tasks_all_done')).toEqual(['All 3 tasks were done']);
+        expect(say('tasks_left')).toEqual(['2 tasks were left undone']);
+        // Every code in the contract has a fixture, and none renders a raw key.
+        storyItems.forEach((s) => expect(storySentence(s, past, t)).not.toMatch(/dailyBrief\./));
+    });
+
+    it('coverage reads "so far" on today only', () => {
+        const today = makeBrief({ isToday: true });
+        expect(say('all_ponds_fed', today)).toEqual(['All 2 stocked ponds fed so far']);
+        expect(say('tasks_left', today)).toEqual(['2 tasks still to do']);
+        expect(say('harvest_done', today)).toEqual(['850 kg harvested from Pond 1']);
+    });
+});
+
+describe('workLine / shiftLine', () => {
+    it('counts work compactly, feed by kg when weighed', () => {
+        expect(workLine({ water: 3, feed: 4 }, 12.5, t, 2)).toBe('3 water tests · 12.5 kg feed · 2 tasks');
+        expect(workLine({ feed: 1, tray: 1 }, 0, t)).toBe('1 feed entry · 1 tray check');
+        expect(workLine({}, 0, t)).toBe('');
+    });
+    it('prints the shift in IST, or nothing', () => {
+        expect(shiftLine({ checkIn: '2026-09-14T00:40:00Z', checkOut: '2026-09-14T12:30:00Z', hours: 11 + 50 / 60 }, t)).toBe('06:10–18:00 · 11 h 50 min');
+        expect(shiftLine({ checkIn: '2026-09-14T00:40:00Z', checkOut: null, hours: null }, t)).toBe('In since 06:10');
+        expect(shiftLine(null, t)).toBeNull();
     });
 });

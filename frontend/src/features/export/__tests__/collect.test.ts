@@ -14,7 +14,9 @@ jest.mock('../../../api/crops', () => ({
     computeDoc: jest.fn(() => 42),
 }));
 jest.mock('../../../api/ponds', () => ({ pondsApi: { getById: jest.fn() } }));
-jest.mock('../../../api/farms', () => ({ farmsApi: { getById: jest.fn() } }));
+jest.mock('../../../api/farms', () => ({ farmsApi: { getById: jest.fn(), getAll: jest.fn() } }));
+jest.mock('../../../api/leaveRequests', () => ({ leaveRequestsApi: { getAll: jest.fn(), mine: jest.fn() } }));
+jest.mock('../../../api/farmMembers', () => ({ farmMembersApi: { listMembers: jest.fn() } }));
 jest.mock('../../../api/pondContext', () => ({ pondContextApi: { get: jest.fn() } }));
 jest.mock('../../../api/waterQuality', () => ({ waterQualityApi: { getAll: jest.fn() } }));
 jest.mock('../../../api/feedRecords', () => ({ feedApi: { getAll: jest.fn(), getByCrop: jest.fn() } }));
@@ -33,7 +35,7 @@ jest.mock('../../../api/inventory', () => ({
     inventoryApi: { getAll: jest.fn() },
     isLowStock: jest.fn(() => false),
 }));
-jest.mock('../../../api/attendance', () => ({ attendanceApi: { getAll: jest.fn() } }));
+jest.mock('../../../api/attendance', () => ({ attendanceApi: { getAll: jest.fn(), mine: jest.fn() } }));
 jest.mock('../../../api/tasks', () => ({ tasksApi: { getAll: jest.fn() } }));
 
 import { cropsApi } from '../../../api/crops';
@@ -52,6 +54,9 @@ import { reportsApi } from '../../../api/reports';
 import { inventoryApi } from '../../../api/inventory';
 import { attendanceApi } from '../../../api/attendance';
 import { tasksApi } from '../../../api/tasks';
+import { leaveRequestsApi } from '../../../api/leaveRequests';
+import { farmMembersApi } from '../../../api/farmMembers';
+import { useMembershipStore } from '../../../store/membershipStore';
 import { collectReport } from '../collect';
 
 const config = (over: Partial<ExportConfig> = {}): ExportConfig => ({
@@ -122,6 +127,13 @@ beforeEach(() => {
     (tasksApi.getAll as jest.Mock).mockReturnValue(
         ok([{ id: 'tk1', farmId: 'f1', title: 'Check aerators', type: 'AERATOR_CHECK', status: 'open', priority: 'high', dueDate: '2026-08-24', createdAt: '2026-08-20', updatedAt: '' }]),
     );
+    (leaveRequestsApi.getAll as jest.Mock).mockReturnValue(ok([]));
+    (leaveRequestsApi.mine as jest.Mock).mockReturnValue(ok([]));
+    (farmMembersApi.listMembers as jest.Mock).mockReturnValue(ok([]));
+    useMembershipStore.setState({
+        memberships: [{ farmId: 'f1', role: 'owner', status: 'active', capabilityOverrides: null, rolePolicy: null, farm: null }],
+        loaded: true,
+    } as any);
 });
 
 const keys = (tables: { key: string }[]) => tables.map((t) => t.key);
@@ -177,6 +189,96 @@ describe('collectReport — datasets', () => {
 
         const tasks = await collectReport(config({ dataset: 'tasks', farmId: 'f1' }));
         expect(tasks.tables[0].rows[0][1]).toBe('Check aerators');
+    });
+});
+
+// Spec 2026-09-14 attendance B.7.
+describe('collectReport — attendance', () => {
+    const user = (id: string, firstName: string) => ({ id, firstName, lastName: null, username: null, avatarUrl: null });
+    const rec = (over: any) => ({ farmId: 'f1', userId: 'u1', checkOutAt: null, createdAt: '', ...over });
+
+    it('manager, two farms: totals per person incl. open, auto-closed and approved leave', async () => {
+        useMembershipStore.setState({
+            memberships: [
+                { farmId: 'f1', role: 'owner', status: 'active', capabilityOverrides: null, rolePolicy: null, farm: null },
+                { farmId: 'f2', role: 'manager', status: 'active', capabilityOverrides: null, rolePolicy: null, farm: null },
+            ],
+        } as any);
+        (farmsApi.getAll as jest.Mock).mockReturnValue(
+            ok([{ id: 'f1', name: 'Kovalam East', shiftEndLocal: '18:00', shiftHours: 9 }, { id: 'f2', name: 'Pulicat' }]),
+        );
+        (farmMembersApi.listMembers as jest.Mock).mockImplementation((farmId: string) =>
+            ok([{ userId: 'u1', role: 'worker', farmId, user: user('u1', 'Suresh') }]),
+        );
+        (attendanceApi.getAll as jest.Mock).mockImplementation((farmId: string) =>
+            ok(
+                farmId === 'f1'
+                    ? [
+                        // 09:00–17:00 IST, on time — 8 h.
+                        rec({ id: 'a1', checkInAt: '2026-09-01T03:30:00.000Z', checkOutAt: '2026-09-01T11:30:00.000Z', user: user('u1', 'Suresh') }),
+                        // Auto-closed by a check-in at Pulicat — counted (2 h) but flagged.
+                        rec({ id: 'a2', checkInAt: '2026-09-02T03:30:00.000Z', checkOutAt: '2026-09-02T05:30:00.000Z', checkOutReason: 'auto_closed', user: user('u1', 'Suresh') }),
+                    ]
+                    : [
+                        // Still open from an earlier day → forgot, not counted.
+                        rec({ id: 'b1', farmId: 'f2', checkInAt: '2026-09-02T05:30:00.000Z', user: user('u1', 'Suresh') }),
+                    ],
+            ),
+        );
+        (leaveRequestsApi.getAll as jest.Mock).mockImplementation((farmId: string) =>
+            ok(farmId === 'f1'
+                ? [{ id: 'l1', farmId: 'f1', userId: 'u1', status: 'approved', startDate: '2026-08-30', endDate: '2026-09-03', user: user('u1', 'Suresh') }]
+                : []),
+        );
+
+        const data = await collectReport(
+            config({ dataset: 'attendance', format: 'pdf', startDate: '2026-09-01', endDate: '2026-09-30' }),
+        );
+
+        expect(attendanceApi.mine).not.toHaveBeenCalled();
+        expect(attendanceApi.getAll).toHaveBeenCalledWith('f1', undefined, '2026-09-01', '2026-09-30');
+        expect(attendanceApi.getAll).toHaveBeenCalledWith('f2', undefined, '2026-09-01', '2026-09-30');
+
+        const [totals, shifts] = data.tables;
+        expect(totals.title).toBe('Totals by person');
+        // Member · Role · Farm · Days · Hours · Leave days (1–3 Sep inside range) · Open/auto-closed
+        expect(totals.rows).toEqual([
+            ['Suresh', 'Worker', 'Kovalam East', '2', '10', '3', '1'],
+            ['Suresh', 'Worker', 'Pulicat', '1', '0', '0', '1'],
+        ]);
+        expect(totals.total).toEqual(['Total', '', '', '3', '10', '3', '2']);
+
+        expect(shifts.title).toBe('Shifts');
+        // Status column (last), newest first: Pulicat open → forgot; auto-closed flagged; on time.
+        expect(shifts.rows.map((r) => [r[3], r[8]])).toEqual([
+            ['Pulicat', 'Forgot'],
+            ['Kovalam East', 'Auto-closed'],
+            ['Kovalam East', 'On time'],
+        ]);
+
+        expect(data.stats.map((s) => [s.label, s.value])).toEqual([
+            // 2 Sep at both farms is one day present for the person.
+            ['Members', '1'], ['Days present', '2'], ['Hours', '10'], ['Overdue check-outs', '0'],
+        ]);
+    });
+
+    it('worker: own rows via mine, never getAll; filtered to the person', async () => {
+        useMembershipStore.setState({
+            memberships: [{ farmId: 'f1', role: 'worker', status: 'active', capabilityOverrides: null, rolePolicy: null, farm: null }],
+        } as any);
+        (attendanceApi.mine as jest.Mock).mockReturnValue(
+            ok([rec({ id: 'm1', checkInAt: '2026-09-01T03:30:00.000Z', checkOutAt: '2026-09-01T07:30:00.000Z', user: user('u1', 'Ravi') })]),
+        );
+
+        const data = await collectReport(
+            config({ dataset: 'attendance', farmId: 'f1', userId: 'u1', startDate: '2026-09-01', endDate: '2026-09-30' }),
+        );
+
+        expect(attendanceApi.getAll).not.toHaveBeenCalled();
+        expect(leaveRequestsApi.getAll).not.toHaveBeenCalled();
+        expect(farmMembersApi.listMembers).not.toHaveBeenCalled();
+        expect(attendanceApi.mine).toHaveBeenCalledWith('f1', undefined, '2026-09-01', '2026-09-30');
+        expect(data.tables[0].rows).toEqual([['Ravi', 'Worker', 'Green Acres', '1', '4', '0', '0']]);
     });
 });
 

@@ -149,5 +149,10 @@ const farms = {
   errorArchiveFarm: "Could not archive the farm.",
   errorUnarchiveFarm: "Could not bring the farm back.",
   errorDeleteFarm: "Could not delete the farm.",
+  // Shift settings (spec 2026-09-14 attendance B.1)
+  shiftEndLabel: "Shift ends at (24-hour)",
+  shiftHoursLabel: "Shift length (hours)",
+  shiftHint: "Tells the team when a check-out is due. Leave empty to use check-in time plus the shift length.",
+  shiftEndInvalid: "Use 24-hour time, like 18:00.",
 };
 export default farms;

@@ -10,8 +10,11 @@ import { computeDoc } from '../crops/crop.entity';
 import { PondContextService } from '../pond-context/pond-context.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
 import { isLowStock } from '../inventory/inventory.constants';
-import { DayScoreInput, MinMax, TrayStatus, combineScores, combineValues, computeDayScore } from './day-score';
-import { BriefTask, DailyBrief, ParamDay, PondDay, Severity, StalePond, TimelineEvent } from './daily-brief.types';
+import { DayScoreInput, MinMax, TrayStatus, combineScores, combineValues, computeDayScore, isMortalitySpike } from './day-score';
+import {
+  BriefTask, DailyBrief, ParamDay, PersonDay, PondDay, PondWork, ReasonCode, Severity, StalePond, StoryItem, StoryTone,
+  TimelineEvent, WorkKind,
+} from './daily-brief.types';
 
 export const MIN_DATE = '2020-01-01';
 /** Days of feed history searched for the "previous 3 logged days" baseline. */
@@ -38,8 +41,25 @@ interface Reading {
   at: Date;
   allDay: boolean;
   source: 'water' | 'chemical';
+  actorId: string | null;
   v: Partial<Record<WaterKey, number | null>>;
 }
+const WATER_KEYS: WaterKey[] = ['do', 'ph', 'temperature', 'salinity', 'alkalinity', 'ammonia', 'nitrite'];
+const PARAM_REASON: Record<WaterKey, ReasonCode> = {
+  do: 'do_low', ph: 'ph_out_of_range', temperature: 'temp_out_of_range', salinity: 'salinity_out_of_range',
+  alkalinity: 'alkalinity_out_of_range', ammonia: 'ammonia_high', nitrite: 'nitrite_high',
+};
+const REASON_PARAM: Partial<Record<ReasonCode, WaterKey>> = {
+  ...Object.fromEntries(WATER_KEYS.map((k) => [PARAM_REASON[k], k])),
+  ph_swing: 'ph',
+};
+const TONE_RANK: Record<StoryTone, number> = { critical: 0, watch: 1, good: 2, info: 3 };
+const STORY_MAX = 8;
+/** Unwatched stocked pond: watch ≥ 2 days no water OR ≥ 3 days no log; critical when either ≥ 7. */
+const staleSeverity = (w: number, a: number): Severity | null =>
+  w >= 7 || a >= 7 ? 'critical' : w >= 2 || a >= 3 ? 'watch' : null;
+/** Display name only — never an email (Addendum 2). */
+const USER_NAME_SQL = `coalesce(nullif(btrim(concat_ws(' ', u.first_name, u.last_name)), ''), u.username)`;
 
 export function assertBriefDate(date: string, now = new Date()): void {
   const valid =
@@ -56,7 +76,8 @@ export function assertBriefDate(date: string, now = new Date()): void {
  *
  * Fixed query count regardless of pond count: access resolution (≈2–4 per farm
  * in scope, the same per-farm cost as every scoped list), then ~20 set-based
- * reads in one parallel stage, then the molt checklist (≤7, MoltService).
+ * reads in one parallel stage, then the molt checklist (≤7, MoltService) alongside
+ * one users lookup (names + farm role for everyone who logged, checked in or completed a task).
  * Everything else is pure arithmetic over those rows, day D and D−1 together so
  * previousScore costs no extra round trips.
  */
@@ -145,7 +166,7 @@ export class DailyBriefService {
         : none,
       hasPonds
         ? q_('wq',
-          `SELECT pond_id, recorded_at, dissolved_oxygen::float AS "do", ph::float AS ph,
+          `SELECT pond_id, recorded_at, created_by_id AS actor_id, dissolved_oxygen::float AS "do", ph::float AS ph,
                   temperature::float AS temperature, salinity::float AS salinity,
                   alkalinity::float AS alkalinity, ammonia::float AS ammonia, nitrite::float AS nitrite
              FROM water_quality_records
@@ -155,7 +176,7 @@ export class DailyBriefService {
         : none,
       hasPonds
         ? q_('chem',
-          `SELECT c.pond_id, r.measurement_date::text AS day, r.measurement_time::text AS time,
+          `SELECT c.pond_id, r.measurement_date::text AS day, r.measurement_time::text AS time, r.created_by_id AS actor_id,
                   r.ammonia_nh3_ppm::float AS ammonia, r.nitrite_no2_ppm::float AS nitrite,
                   r.alkalinity_ppm::float AS alkalinity
              FROM chemical_data r JOIN crops c ON c.id = r.crop_id
@@ -173,7 +194,7 @@ export class DailyBriefService {
         : none,
       hasPonds
         ? q_('feed_rows',
-          `SELECT pond_id, recorded_at, quantity_kg::float AS kg, feeding_time
+          `SELECT pond_id, recorded_at, quantity_kg::float AS kg, feeding_time, created_by_id AS actor_id
              FROM feed_records
             WHERE pond_id = ANY($1::uuid[]) AND recorded_at BETWEEN $2 AND $3
             ORDER BY recorded_at`,
@@ -182,17 +203,19 @@ export class DailyBriefService {
       hasPonds
         ? q_('trays',
           `SELECT c.pond_id, r.check_date::text AS day, r.check_time::text AS time,
-                  r.tray_number, r.remaining_feed_status AS status
+                  r.tray_number, r.remaining_feed_status AS status, r.created_by_id AS actor_id
              FROM feeding_tray_checks r JOIN crops c ON c.id = r.crop_id
             WHERE c.pond_id = ANY($1::uuid[]) AND r.check_date BETWEEN $2 AND $3`,
           [pondIds, P, D])
         : none,
       hasPonds
         ? q_('mortality_days',
-          `SELECT c.pond_id, r.record_date::text AS day, SUM(r.quantity)::int AS qty
+          // Per actor too, so "What we did" can credit who logged it; readers sum qty.
+          `SELECT c.pond_id, r.record_date::text AS day, r.created_by_id AS actor_id,
+                  SUM(r.quantity)::int AS qty, count(*)::int AS n
              FROM mortality_records r JOIN crops c ON c.id = r.crop_id
             WHERE c.pond_id = ANY($1::uuid[]) AND r.record_date BETWEEN $2 AND $3
-            GROUP BY 1, 2`,
+            GROUP BY 1, 2, 3`,
           [pondIds, addDays(D, -8), D])
         : none,
       hasPonds
@@ -208,13 +231,15 @@ export class DailyBriefService {
         : none,
       hasPonds
         ? q_('samplings',
-          `SELECT pond_id, sampling_date::text AS day, mbw_g::float AS mbw
+          `SELECT pond_id, sampling_date::text AS day, mbw_g::float AS mbw, created_by_id AS actor_id
              FROM sampling_data WHERE pond_id = ANY($1::uuid[]) AND sampling_date BETWEEN $2 AND $3`,
           [pondIds, P, D])
         : none,
       hasPonds
         ? q_('abw',
-          `SELECT DISTINCT ON (pond_id) pond_id, mbw_g::float AS mbw
+          `SELECT DISTINCT ON (pond_id) pond_id, mbw_g::float AS mbw,
+                  (SELECT max(s2.sampling_date)::text FROM sampling_data s2
+                    WHERE s2.pond_id = sampling_data.pond_id AND s2.sampling_date < $2) AS prev_sampling
              FROM sampling_data
             WHERE pond_id = ANY($1::uuid[]) AND sampling_date <= $2 AND mbw_g IS NOT NULL
             ORDER BY pond_id, sampling_date DESC`,
@@ -222,7 +247,7 @@ export class DailyBriefService {
         : none,
       hasPonds
         ? q_('harvests',
-          `SELECT c.pond_id, h.harvest_date::text AS day, h.weight_kg::float AS kg
+          `SELECT c.pond_id, h.harvest_date::text AS day, h.weight_kg::float AS kg, h.created_by_id AS actor_id
              FROM harvests h JOIN crops c ON c.id = h.crop_id
             WHERE c.pond_id = ANY($1::uuid[]) AND h.harvest_date BETWEEN $2 AND $3`,
           [pondIds, P, D])
@@ -230,7 +255,7 @@ export class DailyBriefService {
       hasPonds
         ? q_('treatments',
           `SELECT c.pond_id, r.treatment_date::text AS day, r.dosage_kg::float AS kg,
-                  r.banned_substance_flag AS flag
+                  r.banned_substance_flag AS flag, r.created_by_id AS actor_id
              FROM treatments r JOIN crops c ON c.id = r.crop_id
             WHERE c.pond_id = ANY($1::uuid[]) AND r.treatment_date BETWEEN $2 AND $3`,
           [pondIds, P, D])
@@ -242,9 +267,10 @@ export class DailyBriefService {
           // the task list on a template's first day misses that instance).
           `SELECT t.id, t.title, t.status, t.priority, t.due_date::text AS due_date,
                   t.time_window_start::text AS time_window_start, t.pond_id, t.completed_at,
-                  coalesce((SELECT array_agg(coalesce(nullif(btrim(concat_ws(' ', u.first_name, u.last_name)), ''), u.username, u.email))
+                  coalesce((SELECT array_agg(${USER_NAME_SQL})
                               FROM task_assignees ta JOIN users u ON u.id = ta.user_id
-                             WHERE ta.task_id = t.id), '{}') AS assignee_names
+                             WHERE ta.task_id = t.id), '{}') AS assignee_names,
+                  coalesce((SELECT array_agg(ta.user_id) FROM task_assignees ta WHERE ta.task_id = t.id), '{}') AS assignee_ids
              FROM tasks t
             WHERE t.farm_id = ANY($1::uuid[]) AND t.is_template = false AND t.status <> 'cancelled'
               AND ((t.scope = 'farm' AND (t.pond_id IS NULL OR t.pond_id = ANY($2::uuid[])))
@@ -279,7 +305,7 @@ export class DailyBriefService {
         : none,
       canSeeAttendance
         ? q_('check_ins',
-          `SELECT a.user_id, a.check_in_at
+          `SELECT a.user_id, a.check_in_at, a.check_out_at
              FROM attendance_records a
              JOIN farm_members fm ON fm.farm_id = a.farm_id AND fm.user_id = a.user_id
                                   AND fm.status = 'active' AND fm.role <> 'owner'
@@ -321,7 +347,10 @@ export class DailyBriefService {
           `SELECT pond_id,
                   to_char(max(day) FILTER (WHERE kind = 'water'), 'YYYY-MM-DD') AS water,
                   to_char(max(day) FILTER (WHERE kind = 'feed'), 'YYYY-MM-DD') AS feed,
-                  to_char(max(day), 'YYYY-MM-DD') AS any_day
+                  to_char(max(day), 'YYYY-MM-DD') AS any_day,
+                  -- as of the day before, for what the day started with
+                  to_char(max(day) FILTER (WHERE kind = 'water' AND day < $5), 'YYYY-MM-DD') AS water_prev,
+                  to_char(max(day) FILTER (WHERE day < $5), 'YYYY-MM-DD') AS any_prev
              FROM (
                   SELECT pond_id, (recorded_at AT TIME ZONE ${TZ})::date AS day, 'water' AS kind
                     FROM water_quality_records WHERE pond_id = ANY($1::uuid[]) AND recorded_at BETWEEN $2 AND $3
@@ -349,14 +378,14 @@ export class DailyBriefService {
       ...wq.map((r: any): Reading => {
         const at = new Date(r.recorded_at);
         return {
-          pondId: r.pond_id, day: toIstDateString(at), at, allDay: false, source: 'water',
+          pondId: r.pond_id, day: toIstDateString(at), at, allDay: false, source: 'water', actorId: r.actor_id ?? null,
           v: { do: num(r.do), ph: num(r.ph), temperature: num(r.temperature), salinity: num(r.salinity), alkalinity: num(r.alkalinity), ammonia: num(r.ammonia), nitrite: num(r.nitrite) },
         };
       }),
       ...chem.map((r: any): Reading => ({
         pondId: r.pond_id, day: r.day,
         at: r.time ? new Date(`${r.day}T${r.time.slice(0, 8)}+05:30`) : noonIst(r.day),
-        allDay: !r.time, source: 'chemical',
+        allDay: !r.time, source: 'chemical', actorId: r.actor_id ?? null,
         v: { ammonia: num(r.ammonia), nitrite: num(r.nitrite), alkalinity: num(r.alkalinity) },
       })),
     ].filter((r) => r.day === D || r.day === P);
@@ -374,12 +403,40 @@ export class DailyBriefService {
     const moltD = currentMoltWindow(moltNow);
     const moltP = currentMoltWindow(noonIst(P));
     const activePonds = ponds.filter((p: any) => cycleOn(p, D));
-    const molts: Map<string, PondMolt> = activePonds.length
-      ? await this.molt.checklistsFor(
-          activePonds.map((p: any) => ({ pondId: p.id, cropId: p.crop_id, abwG: abwByPond.get(p.id) ?? null })),
-          moltNow,
-        )
-      : new Map();
+    // No completer column on tasks: a task is credited to its assignee only when
+    // it has exactly one; otherwise nobody (completedByName null).
+    const completerOf = (t: any): string | null => (t.assignee_ids?.length === 1 ? t.assignee_ids[0] : null);
+    const userIds = [
+      ...new Set<string>(
+        [wq, chem, feedRows, trays, mortDays, samplings, harvests, treatments]
+          .flatMap((rows) => rows.map((r: any) => r.actor_id))
+          .concat(checkIns.map((c: any) => c.user_id), tasks.map(completerOf))
+          .filter(Boolean),
+      ),
+    ];
+    const [molts, users] = await Promise.all([
+      activePonds.length
+        ? this.molt.checklistsFor(
+            activePonds.map((p: any) => ({ pondId: p.id, cropId: p.crop_id, abwG: abwByPond.get(p.id) ?? null })),
+            moltNow,
+          )
+        : Promise.resolve(new Map<string, PondMolt>()),
+      userIds.length
+        ? q_('users',
+          // Name + highest farm role across the farms in scope. Never the email.
+          `SELECT u.id, ${USER_NAME_SQL} AS name,
+                  CASE WHEN EXISTS (SELECT 1 FROM farms f WHERE f.user_id = u.id AND f.id = ANY($2::uuid[])) THEN 'owner'
+                       ELSE (SELECT fm.role FROM farm_members fm
+                              WHERE fm.user_id = u.id AND fm.farm_id = ANY($2::uuid[]) AND fm.status = 'active'
+                              ORDER BY array_position(ARRAY['owner', 'manager', 'worker', 'viewer'], fm.role::text)
+                              LIMIT 1) END AS role
+             FROM users u WHERE u.id = ANY($1::uuid[])`,
+          [userIds, farmIds])
+        : none,
+    ]);
+    const userById = new Map<string, any>(users.map((u: any) => [u.id, u]));
+    const nameOf = (id: string | null | undefined): string | null => (id ? (userById.get(id)?.name ?? null) : null);
+    const actor = (id: string | null | undefined) => ({ actorId: id ?? null, actorName: nameOf(id) });
 
     // ── per pond ──
     const openAt = (end: Date) => (a: any) =>
@@ -393,6 +450,7 @@ export class DailyBriefService {
     let worstPrevious: DailyBrief['carriedOver']['worstPrevious'] = null;
     let worstPrevValue = Infinity;
     const stalePonds: StalePond[] = [];
+    const staleBefore: { pondId: string; days: number; severity: Severity }[] = [];
     const lastLogByPond = new Map<string, any>(lastLogs.map((r: any) => [r.pond_id, r]));
 
     for (const p of ponds) {
@@ -502,10 +560,16 @@ export class DailyBriefService {
         daysSinceAny: since(ll?.any_day ?? null),
       };
       if (active) {
-        const w = lastLog.daysSinceWater ?? 0;
-        const a = lastLog.daysSinceAny ?? 0;
-        const severity: Severity | null = w >= 7 || a >= 7 ? 'critical' : w >= 2 || a >= 3 ? 'watch' : null;
+        const severity = staleSeverity(lastLog.daysSinceWater ?? 0, lastLog.daysSinceAny ?? 0);
         if (severity) stalePonds.push({ pondId: p.id, daysSinceWater: lastLog.daysSinceWater, daysSinceAny: lastLog.daysSinceAny, severity });
+      }
+      // The same rule as of the day before — what this day started with.
+      if (cycleOn(p, P)) {
+        const sinceP = (date: string | null) => Math.max(0, daysBetween(!date || date < p.stocking_date ? p.stocking_date : date, P));
+        const w = sinceP(ll?.water_prev ?? null);
+        const a = sinceP(ll?.any_prev ?? null);
+        const severity = staleSeverity(w, a);
+        if (severity) staleBefore.push({ pondId: p.id, days: Math.max(w, a), severity });
       }
 
       const abwG = abwByPond.get(p.id) ?? null;
@@ -570,7 +634,12 @@ export class DailyBriefService {
 
     // ── timeline ──
     const timeline: TimelineEvent[] = [];
-    const push = (e: TimelineEvent) => timeline.push(e);
+    /** The day's logged work, one row per timeline log event (feeds "What we did"). */
+    const work: { kind: WorkKind; pondId: string; actorId: string | null; n: number; kg: number; g: number | null; at: string }[] = [];
+    const push = (e: TimelineEvent, w?: { n?: number; kg?: number; g?: number | null }) => {
+      timeline.push(e);
+      if (w && e.pondId) work.push({ kind: e.kind as WorkKind, pondId: e.pondId, actorId: e.actorId ?? null, n: w.n ?? 1, kg: w.kg ?? 0, g: w.g ?? null, at: e.at });
+    };
     const dayOnly = (day: string) => ({ at: noonIst(day).toISOString(), allDay: true });
     const fmt = (n: number | null | undefined) => (n == null ? null : String(r2(n)));
     for (const r of readings.filter((x) => x.day === D)) {
@@ -601,39 +670,98 @@ export class DailyBriefService {
         pondId: r.pondId,
         ...(worst !== 'optimal' ? { severity: (worst === 'critical' ? 'critical' : 'watch') as Severity } : {}),
         summary: parts.filter(Boolean).join(' · '),
-      });
+        ...actor(r.actorId),
+      }, {});
     }
-    for (const f of feedRowsD) push({ at: new Date(f.recorded_at).toISOString(), allDay: false, kind: 'feed', pondId: f.pond_id, summary: `${fmt(num(f.kg))} kg` });
+    for (const f of feedRowsD) push({ at: new Date(f.recorded_at).toISOString(), allDay: false, kind: 'feed', pondId: f.pond_id, summary: `${fmt(num(f.kg))} kg`, ...actor(f.actor_id) }, { kg: Number(f.kg) || 0 });
     for (const t of trays.filter((x: any) => x.day === D)) {
       push({
         ...(t.time ? { at: new Date(`${D}T${t.time.slice(0, 8)}+05:30`).toISOString(), allDay: false } : dayOnly(D)),
         kind: 'tray', pondId: t.pond_id,
         ...(t.status === 'a_lot_left' ? { severity: 'watch' as Severity } : {}),
         summary: `#${t.tray_number}`,
-      });
+        ...actor(t.actor_id),
+      }, {});
     }
-    for (const m of mortDays.filter((x: any) => x.day === D)) push({ ...dayOnly(D), kind: 'mortality', pondId: m.pond_id, summary: `×${m.qty}` });
-    for (const s of samplings.filter((x: any) => x.day === D)) push({ ...dayOnly(D), kind: 'sampling', pondId: s.pond_id, summary: s.mbw != null ? `${fmt(num(s.mbw))} g` : '' });
-    for (const h of harvests.filter((x: any) => x.day === D)) push({ ...dayOnly(D), kind: 'harvest', pondId: h.pond_id, summary: `${fmt(num(h.kg))} kg` });
+    for (const m of mortDays.filter((x: any) => x.day === D)) push({ ...dayOnly(D), kind: 'mortality', pondId: m.pond_id, summary: `×${m.qty}`, ...actor(m.actor_id) }, { n: Number(m.n) || 1 });
+    for (const s of samplings.filter((x: any) => x.day === D)) push({ ...dayOnly(D), kind: 'sampling', pondId: s.pond_id, summary: s.mbw != null ? `${fmt(num(s.mbw))} g` : '', ...actor(s.actor_id) }, { g: num(s.mbw) });
+    for (const h of harvests.filter((x: any) => x.day === D)) push({ ...dayOnly(D), kind: 'harvest', pondId: h.pond_id, summary: `${fmt(num(h.kg))} kg`, ...actor(h.actor_id) }, { kg: Number(h.kg) || 0 });
     for (const t of treatments.filter((x: any) => x.day === D)) {
       push({
         ...dayOnly(D), kind: 'treatment', pondId: t.pond_id,
         ...(t.flag === 'banned' ? { severity: 'critical' as Severity } : t.flag === 'restricted' ? { severity: 'watch' as Severity } : {}),
         summary: t.kg != null ? `${fmt(num(t.kg))} kg` : '',
-      });
+        ...actor(t.actor_id),
+      }, {});
     }
     for (const a of alerts) {
       const created = new Date(a.created_at);
       if (created < dR.start || created > dR.end) continue;
-      push({ at: created.toISOString(), allDay: false, kind: 'alert', pondId: a.pond_id ?? null, severity: a.severity === 'critical' ? 'critical' : 'watch', summary: a.type });
+      push({ at: created.toISOString(), allDay: false, kind: 'alert', pondId: a.pond_id ?? null, severity: a.severity === 'critical' ? 'critical' : 'watch', summary: a.type, ...actor(null) });
     }
-    for (const t of visibleTasks) {
-      if (!t.completed_at) continue;
-      const c = new Date(t.completed_at);
-      if (c >= dR.start && c <= dR.end) push({ at: c.toISOString(), allDay: false, kind: 'task_done', pondId: t.pond_id ?? null, summary: t.title });
-    }
-    for (const c of checkIns) push({ at: new Date(c.check_in_at).toISOString(), allDay: false, kind: 'check_in', pondId: null, summary: hhmmIst(new Date(c.check_in_at)) });
+    const inDay = (v: unknown) => v != null && new Date(v as string) >= dR.start && new Date(v as string) <= dR.end;
+    const completedOnD = visibleTasks.filter((t: any) => inDay(t.completed_at));
+    for (const t of completedOnD) push({ at: new Date(t.completed_at).toISOString(), allDay: false, kind: 'task_done', pondId: t.pond_id ?? null, summary: t.title, ...actor(completerOf(t)) });
+    for (const c of checkIns) push({ at: new Date(c.check_in_at).toISOString(), allDay: false, kind: 'check_in', pondId: null, summary: hhmmIst(new Date(c.check_in_at)), ...actor(c.user_id) });
     timeline.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+
+    // ── what we did ──
+    const add = (counts: Partial<Record<WorkKind, number>>, kind: WorkKind, n: number) => { counts[kind] = (counts[kind] ?? 0) + n; };
+    const people = new Map<string, PersonDay>();
+    const person = (id: string): PersonDay => {
+      let p = people.get(id);
+      if (!p) {
+        const u = userById.get(id);
+        p = { userId: id, name: u?.name ?? '', role: u?.role ?? null, shift: null, counts: {}, feedKg: 0, pondIds: [], tasksDone: 0 };
+        people.set(id, p);
+      }
+      return p;
+    };
+    const pondWork = new Map<string, PondWork>();
+    for (const w of work) {
+      let pw = pondWork.get(w.pondId);
+      if (!pw) pondWork.set(w.pondId, (pw = { pondId: w.pondId, counts: {}, feedKg: 0, feedRounds: 0, samplingG: null, harvestKg: null, people: [] }));
+      add(pw.counts, w.kind, w.n);
+      if (w.kind === 'feed') { pw.feedKg += w.kg; pw.feedRounds += 1; }
+      if (w.kind === 'sampling' && w.g != null) pw.samplingG = r2(w.g);
+      if (w.kind === 'harvest') pw.harvestKg = r2((pw.harvestKg ?? 0) + w.kg);
+      const name = nameOf(w.actorId);
+      if (name && !pw.people.includes(name)) pw.people.push(name);
+      if (!w.actorId) continue;
+      const p = person(w.actorId);
+      add(p.counts, w.kind, w.n);
+      if (w.kind === 'feed') p.feedKg += w.kg;
+      if (!p.pondIds.includes(w.pondId)) p.pondIds.push(w.pondId);
+    }
+    for (const t of completedOnD) {
+      const id = completerOf(t);
+      if (id) person(id).tasksDone += 1;
+    }
+    if (canSeeAttendance) {
+      for (const c of checkIns) person(c.user_id);
+      for (const p of people.values()) {
+        const mine = checkIns.filter((c: any) => c.user_id === p.userId);
+        const closed = mine.filter((c: any) => c.check_out_at);
+        const iso = (v: any) => new Date(v).toISOString();
+        p.shift = {
+          checkIn: mine.length ? iso(mine[0].check_in_at) : null,
+          // Still checked in on any session ⇒ no check-out yet.
+          checkOut: mine.length && closed.length === mine.length ? closed.map((c: any) => iso(c.check_out_at)).sort().pop()! : null,
+          hours: closed.length
+            ? Math.round(closed.reduce((s: number, c: any) => s + (Date.parse(c.check_out_at) - Date.parse(c.check_in_at)), 0) / 360_000) / 10
+            : null,
+        };
+      }
+    }
+    const effort = (p: PersonDay) => Object.values(p.counts).reduce((s, n) => s + (n ?? 0), 0) + p.tasksDone;
+    const done: DailyBrief['done'] = {
+      people: [...people.values()].map((p) => ({ ...p, feedKg: r2(p.feedKg) })).sort((a, b) => effort(b) - effort(a)),
+      ponds: [...pondWork.values()].map((p) => ({ ...p, feedKg: r2(p.feedKg) })),
+      tasksDone: completedOnD.map((t: any) => ({
+        id: t.id, title: t.title, pondId: t.pond_id ?? null,
+        completedAt: new Date(t.completed_at).toISOString(), completedByName: nameOf(completerOf(t)),
+      })),
+    };
 
     // ── molt roll-up ──
     const moltList = [...molts.values()];
@@ -659,6 +787,130 @@ export class DailyBriefService {
     const feedP = inListed(dayOf(feedDays, P));
     const mortP = inListed(dayOf(mortDays, P));
     const readingsD = readings.filter((r) => r.day === D);
+    const moltHappening: DailyBrief['happening']['molt'] = activePonds.length
+      ? {
+          phase: moltD.phase,
+          peakDate: moltWindow?.peakDate ?? null,
+          preStart: moltWindow?.preStart ?? null,
+          postEnd: moltWindow?.postEnd ?? null,
+          pondsWithPending: moltList.filter((m) => moltAlertFor(m) !== null).length,
+        }
+      : null;
+    const openAtStart = alerts.filter(openAt(dR.start));
+    const overdue = visibleTasks.filter((t: any) => t.due_date && t.due_date < D && !taskDone(t, dR.start));
+    const present = new Set(checkIns.map((c: any) => c.user_id)).size;
+
+    // ── the day's story (Addendum 2) ──
+    const story: StoryItem[] = [];
+    const speciesOf = new Map<string, string | null>(ponds.map((p: any) => [p.id, p.species ?? null]));
+    const zoneOf = (r: Reading, k: WaterKey) => classify(r.v[k] as number, thresholdFor(speciesOf.get(r.pondId), k));
+    const sevTone = (z: Zone): Severity => (z === 'critical' ? 'critical' : 'watch');
+    // Issues: per pond+parameter, the worst reading; resolved when every later reading is optimal.
+    const issues: (StoryItem & { rank: number })[] = [];
+    for (const pondId of listed) {
+      for (const k of WATER_KEYS) {
+        const rs = readingsD.filter((r) => r.pondId === pondId && r.v[k] != null);
+        let w: Reading | null = null;
+        let worstZone: Zone = 'optimal';
+        let lastBad = -1;
+        for (let i = 0; i < rs.length; i++) {
+          const z = zoneOf(rs[i], k);
+          if (z === 'optimal') continue;
+          lastBad = i;
+          if (ZONE_RANK[z] > ZONE_RANK[worstZone]) { w = rs[i]; worstZone = z; }
+        }
+        if (!w) continue;
+        const resolved = rs[lastBad + 1] ?? null;
+        const reason = { code: PARAM_REASON[k], severity: sevTone(worstZone), pondId, value: r2(w.v[k] as number) };
+        issues.push({
+          code: resolved ? 'issue_resolved' : 'issue_open',
+          tone: resolved ? 'good' : sevTone(worstZone),
+          pondId, reason, at: w.at.toISOString(), resolvedAt: resolved?.at.toISOString() ?? null,
+          personName: nameOf(resolved?.actorId), rank: ZONE_RANK[worstZone],
+        });
+      }
+    }
+    story.push(...issues.sort((a, b) => b.rank - a.rank).map(({ rank: _r, ...i }) => i));
+
+    // Carried over: the previous day's worst reading.
+    const wp = worstPrevious as DailyBrief['carriedOver']['worstPrevious'];
+    const wpKey = wp ? REASON_PARAM[wp.reason.code] : undefined;
+    if (wp && wpKey) {
+      const last = readingsD.filter((r) => r.pondId === wp.pondId && r.v[wpKey] != null).pop();
+      const ok = !!last && zoneOf(last, wpKey) === 'optimal';
+      story.push({
+        code: ok ? 'carried_resolved' : 'carried_open', tone: ok ? 'good' : wp.reason.severity, carriedKind: 'reading',
+        pondId: wp.pondId, reason: wp.reason, resolvedAt: ok ? last!.at.toISOString() : null, personName: ok ? nameOf(last!.actorId) : null,
+      });
+    }
+    // Carried over: overdue tasks and open alerts, one line each for resolved / still open.
+    const carriedGroup = (kind: 'task' | 'alert', rows: any[], resolved: (x: any) => boolean, tone: (xs: any[]) => StoryTone, whenDone: (x: any) => string | null, who: (x: any) => string | null) => {
+      for (const ok of [true, false]) {
+        const xs = rows.filter((x) => resolved(x) === ok);
+        if (!xs.length) continue;
+        const one = xs.length === 1 ? xs[0] : null;
+        story.push({
+          code: ok ? 'carried_resolved' : 'carried_open', tone: ok ? 'good' : tone(xs), carriedKind: kind, count: xs.length,
+          pondId: one?.pond_id ?? null, title: one?.title ?? null,
+          resolvedAt: ok && one ? whenDone(one) : null, personName: ok && one ? who(one) : null,
+        });
+      }
+    };
+    carriedGroup('task', overdue, (t) => taskDone(t, dR.end), () => 'watch',
+      (t) => (t.completed_at ? new Date(t.completed_at).toISOString() : null), (t) => nameOf(completerOf(t)));
+    carriedGroup('alert', openAtStart, (a) => !openAt(dR.end)(a), (xs) => (xs.some((a) => a.severity === 'critical') ? 'critical' : 'watch'),
+      (a) => new Date(a.updated_at).toISOString(), () => null);
+    // Carried over: ponds already unwatched the day before; resolved once logged enough to drop off.
+    const staleNow = new Map(stalePonds.map((s) => [s.pondId, s]));
+    for (const s of staleBefore) {
+      const now_ = staleNow.get(s.pondId);
+      story.push({
+        code: now_ ? 'carried_open' : 'carried_resolved', tone: now_ ? now_.severity : 'good', carriedKind: 'stale_pond',
+        pondId: s.pondId, count: now_ ? worstDays(now_) : s.days,
+        resolvedAt: now_ ? null : (work.filter((w) => w.pondId === s.pondId).map((w) => w.at).sort()[0] ?? null),
+      });
+    }
+    for (const s of stalePonds) {
+      if (!staleBefore.some((b) => b.pondId === s.pondId)) story.push({ code: 'stale_pond', tone: s.severity, pondId: s.pondId, count: worstDays(s) });
+    }
+
+    // Events of the day, per listed pond.
+    for (const p of pondDays) {
+      const id = p.pondId;
+      if (p.health.mortality != null && isMortalitySpike(p.health.mortality, p.health.mortality7DayAvg)) {
+        story.push({ code: 'mortality_spike', tone: 'watch', pondId: id, count: p.health.mortality });
+      }
+      const hv = harvests.filter((h: any) => h.pond_id === id && h.day === D);
+      if (hv.length) story.push({ code: 'harvest_done', tone: 'good', pondId: id, value: r2(sum(hv, 'kg')) });
+      const sm = samplings.filter((s: any) => s.pond_id === id && s.day === D);
+      if (sm.length) {
+        const prev = abwRows.find((r: any) => r.pond_id === id)?.prev_sampling ?? null;
+        const pr = ponds.find((x: any) => x.id === id);
+        const first = p.cycleActive && (!prev || prev < pr.stocking_date);
+        const g = num(sm[sm.length - 1].mbw);
+        story.push({ code: first ? 'first_sampling' : 'sampling_done', tone: first ? 'good' : 'info', pondId: id, ...(g != null ? { value: r2(g) } : {}) });
+      }
+      const tr = treatments.filter((t: any) => t.pond_id === id && t.day === D);
+      if (tr.length) story.push({ code: 'treatment_given', tone: tr.some((t: any) => t.flag === 'banned') ? 'critical' : 'info', pondId: id, count: tr.length });
+    }
+
+    // Coverage of stocked ponds and the day's tasks. Today these read "so far", so they don't warn yet.
+    const behind: StoryTone = isToday ? 'info' : 'watch';
+    if (stockedPonds) {
+      const notFed = missingLogs.filter((m) => m.kinds.includes('feed')).length;
+      const notTested = missingLogs.filter((m) => m.kinds.includes('water')).length;
+      story.push(notFed ? { code: 'ponds_not_fed', tone: behind, count: notFed } : { code: 'all_ponds_fed', tone: 'good', count: stockedPonds });
+      story.push(notTested ? { code: 'ponds_not_tested', tone: behind, count: notTested } : { code: 'all_ponds_tested', tone: 'good', count: stockedPonds });
+    }
+    const dueD = visibleTasks.filter((t: any) => t.due_date === D);
+    if (dueD.length) {
+      const left = dueD.filter((t: any) => !taskDone(t, dR.end)).length;
+      story.push(left ? { code: 'tasks_left', tone: behind, count: left } : { code: 'tasks_all_done', tone: 'good', count: dueD.length });
+    }
+    if (moltHappening && moltHappening.phase !== 'inter') story.push({ code: 'molt_phase', tone: 'info', phase: moltHappening.phase });
+    if (canSeeAttendance && present) story.push({ code: 'team_in', tone: 'info', count: present });
+    // Stable sort: within a tone, the order pushed above.
+    const storyOut = story.map((s, i) => ({ s, i })).sort((a, b) => TONE_RANK[a.s.tone] - TONE_RANK[b.s.tone] || a.i - b.i).slice(0, STORY_MAX).map((x) => x.s);
 
     return {
       date: D,
@@ -683,13 +935,12 @@ export class DailyBriefService {
       },
       ponds: pondDays.map(({ areaM2: _a, prevValue: _p, ...rest }) => rest),
       timeline,
+      story: storyOut,
+      done,
       carriedOver: {
-        openAlerts: alerts
-          .filter(openAt(dR.start))
+        openAlerts: openAtStart
           .map((a: any) => ({ pondId: a.pond_id ?? null, title: a.title, severity: (a.severity === 'critical' ? 'critical' : 'watch') as Severity, source: a.type })),
-        overdueTasks: visibleTasks
-          .filter((t: any) => t.due_date && t.due_date < D && !taskDone(t, dR.start))
-          .map(toTask),
+        overdueTasks: overdue.map(toTask),
         worstPrevious,
         moltPending,
         stalePonds,
@@ -700,15 +951,7 @@ export class DailyBriefService {
         moltItems,
       },
       happening: {
-        molt: activePonds.length
-          ? {
-              phase: moltD.phase,
-              peakDate: moltWindow?.peakDate ?? null,
-              preStart: moltWindow?.preStart ?? null,
-              postEnd: moltWindow?.postEnd ?? null,
-              pondsWithPending: moltList.filter((m) => moltAlertFor(m) !== null).length,
-            }
-          : null,
+        molt: moltHappening,
         harvestsPlanned: plans.map((h: any) => ({
           pondId: h.pond_id,
           plannedDate: toIstDateString(new Date(h.planned_harvest_date)),
@@ -720,7 +963,7 @@ export class DailyBriefService {
           .map((i: any) => ({ itemId: i.id, name: i.name, quantity: Number(i.quantity), unit: i.unit ?? '' })),
         attendance:
           canSeeAttendance && members[0]?.total
-            ? { present: new Set(checkIns.map((c: any) => c.user_id)).size, total: Number(members[0].total) }
+            ? { present, total: Number(members[0].total) }
             : null,
       },
       totals: {

@@ -25,6 +25,7 @@ jest.mock('expo-sharing', () => ({
 
 import type { DailyBrief, DayScore } from '../../../api/dailyBrief';
 import { renderReportHtml } from '../pdf/renderReportHtml';
+import { storyBrief, storyItems } from '../../__fixtures__/dailyBrief';
 import {
     buildDayCardModel,
     buildDayReportData,
@@ -175,6 +176,36 @@ describe('buildDayReportData', () => {
         expect(card.band).toBe('Incomplete');
         expect(card.colors.border).not.toBe('#27A855');
         expect(card.scoreNote.join(' ')).toContain('Based on 1 of 3 stocked ponds');
+    });
+
+    it('prints the whole story, a people table and a pond work table', async () => {
+        const b = storyBrief({ isToday: false, story: storyItems });
+        const d = await buildDayReportData(b, 'en');
+        const story = table(d, 'The day in short');
+        expect(story?.rows).toHaveLength(storyItems.length);
+        expect(story?.rows).toContainEqual(['Good', 'Pond 2 at 05:10: Oxygen fell to 2.8 mg/L (should stay at 3 or above) — back to safe by 07:30']);
+        const people = table(d, 'What each person did');
+        expect(people?.columns).toEqual(['Person', 'Role', 'Work', 'Ponds', 'Shift']);
+        expect(people?.rows[0]).toEqual(['Ravi Kumar', 'Worker', '3 water tests · 12.5 kg feed · 2 tasks', '2', '06:10–18:00 · 11 h 50 min']);
+        expect(people?.rows[1][4]).toBe('—');
+        expect(table(d, 'Work in each pond')?.rows[0]).toEqual(['Pond 1', '2 water tests · 1 sampling', '3 feed rounds · 24 kg', '12.4 g', '—', 'Ravi Kumar, Lakshmi']);
+        expect(renderReportHtml(d, 'en')).toContain('What each person did');
+    });
+
+    it('an older backend without story/done prints neither section', async () => {
+        const d = await buildDayReportData(fixture(), 'en');
+        expect(table(d, 'The day in short')).toBeUndefined();
+        expect(table(d, 'What each person did')).toBeUndefined();
+        expect(buildDayCardModel(fixture(), 'en').story).toEqual([]);
+    });
+
+    it('the card carries the top 3 story lines under the verdict, wrapped to fit', () => {
+        const card = buildDayCardModel(storyBrief({ story: storyItems }), 'en');
+        expect(card.story).toHaveLength(3);
+        expect(card.story.map((s) => s.tone)).toEqual(['critical', 'good', 'critical']);
+        expect(card.story.flatMap((s) => s.lines).length).toBeLessThanOrEqual(5);
+        expect(card.story[2].lines.join(' ')).toBe('140 shrimp died in Pond 1 — far more than usual');
+        expect(card.verdict.length).toBeLessThanOrEqual(2);
     });
 
     it('translates into the document language', async () => {

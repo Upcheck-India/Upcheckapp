@@ -25,8 +25,18 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
 import i18n, { loadLocale } from '../../i18n';
-import type { Band, DailyBrief, ScorePart } from '../../api/dailyBrief';
-import { coverageSentence, localNoon, reasonText as briefReasonText, staleLapse, verdictSentence } from '../dailyBriefText';
+import type { Band, DailyBrief, ScorePart, StoryTone } from '../../api/dailyBrief';
+import {
+    coverageSentence,
+    fmtNum,
+    localNoon,
+    reasonText as briefReasonText,
+    shiftLine,
+    staleLapse,
+    storySentence,
+    verdictSentence,
+    workLine,
+} from '../dailyBriefText';
 import { svgToPngBase64, type SvgRef } from '../../utils/shareQrImage';
 import { makeFmt, type Fmt } from './collect';
 import { deliver, safeFilename } from './deliver';
@@ -95,9 +105,50 @@ export const buildDayReportData = async (brief: DailyBrief, lang: string, now: D
     }
 
     const detail = (key: string) => [t('dayReport.item'), t('dayReport.pond'), key];
+    const done = brief.done;
+    const withShift = !!done?.people.some((p) => p.shift?.checkIn);
 
     const tables: (ReportTable | null)[] = [
         { key: 'summary', title: t('dayReport.summaryTitle'), columns: [t('dayReport.item'), t('dayReport.detail')], rows: summaryRows },
+        {
+            key: 'summary',
+            title: t('dayReport.storyTitle'),
+            columns: [t('dayReport.status'), t('dayReport.detail')],
+            rows: (brief.story ?? []).map((it) => [t(`dailyBrief.story.tone.${it.tone}`), storySentence(it, brief, t)]),
+        },
+        done
+            ? {
+                key: 'summary',
+                title: t('dayReport.peopleTitle'),
+                columns: [t('dayReport.person'), t('dayReport.role'), t('dayReport.work'), t('dayReport.pondsWorked'), ...(withShift ? [t('dayReport.shift')] : [])],
+                numericColumns: [3],
+                rows: done.people.map((p) => [
+                    p.name,
+                    p.role ? t(`members.role_${p.role}`) : DASH,
+                    workLine(p.counts, p.feedKg, t, p.tasksDone) || DASH,
+                    f.num(p.pondIds.length, 0),
+                    ...(withShift ? [shiftLine(p.shift, t) ?? DASH] : []),
+                ]),
+            }
+            : null,
+        done
+            ? {
+                key: 'summary',
+                title: t('dayReport.pondWorkTitle'),
+                columns: [t('dayReport.pond'), t('dayReport.work'), t('dayReport.feed'), t('dayReport.sampling'), t('dayReport.harvestKg'), t('dayReport.people')],
+                rows: done.ponds.map((w) => {
+                    const { feed: _feed, ...rest } = w.counts;
+                    return [
+                        pondName(w.pondId),
+                        workLine(rest, 0, t) || DASH,
+                        w.feedRounds > 0 ? t('dailyBrief.done.feedRounds', { count: w.feedRounds, kg: fmtNum(w.feedKg) }) : DASH,
+                        w.samplingG != null ? `${f.num(w.samplingG)} g` : DASH,
+                        w.harvestKg != null ? f.num(w.harvestKg) : DASH,
+                        w.people.join(', ') || DASH,
+                    ];
+                }),
+            }
+            : null,
         s
             ? {
                 key: 'summary',
@@ -259,7 +310,22 @@ export interface DayCardModel {
     verdict: string[];
     numbers: { label: string; value: string }[];
     weakest: string[];
+    /** Top 3 story items, wrapped (≤ 2 lines each, ≤ 5 lines in all), with the tone for its mark. Empty on older backends. */
+    story: { lines: string[]; tone: StoryTone }[];
 }
+
+export const STORY_FONT = 30;
+const STORY_MAX_LINES = 5;
+
+const storyLines = (brief: DailyBrief, t: Fmt['t']): DayCardModel['story'] => {
+    let left = STORY_MAX_LINES;
+    return (brief.story ?? []).slice(0, 3).flatMap((it) => {
+        if (left <= 0) return [];
+        const lines = wrapText(storySentence(it, brief, t), STORY_FONT, 900, Math.min(2, left));
+        left -= lines.length;
+        return [{ lines, tone: it.tone }];
+    });
+};
 
 const BAND_COLORS: Record<Band | 'none' | 'incomplete', DayCardModel['colors']> = {
     good: { text: '#1A6B3A', bg: '#EAF7EE', border: '#27A855' },
@@ -326,7 +392,9 @@ export const buildDayCardModel = (brief: DailyBrief, lang: string): DayCardModel
         band: s ? t(`dayReport.band_${band}`) : '',
         scoreNote: note ? wrapText(note, 36, 860, 2) : [],
         colors: BAND_COLORS[band],
-        verdict: wrapText(verdictSentence(brief, t), 48, 952, 3),
+        // Two verdict lines leave room for the story under it.
+        verdict: wrapText(verdictSentence(brief, t), 48, 952, 2),
+        story: storyLines(brief, t),
         numbers: [
             { label: t('dayReport.feedKg'), value: f.num(tot.feedKg, 1) },
             { label: t('dayReport.deaths'), value: f.num(tot.mortality, 0) },
@@ -336,7 +404,7 @@ export const buildDayCardModel = (brief: DailyBrief, lang: string): DayCardModel
         weakest: weakest
             ? wrapText(
                 t('dayReport.weakestPond', { pond: weakest.name, score: weakest.score ? weakest.score.value : t('dayReport.noScore') }),
-                40, 952, 2,
+                36, 952, 1,
             )
             : [],
     };

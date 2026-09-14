@@ -52,9 +52,27 @@ import { tasksApi, splitTasks, taskAssignees, type Task } from '../../api/tasks'
 import { dueLabel, isOverdue, repeatLabel, originLabel } from '../tasks/taskLabels';
 import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
 import { farmsApi, type Farm } from '../../api/farms';
-import { fetchTeamOverview } from '../../api/teamOverview';
+import {
+    buildRoster,
+    canDecideOnTeam,
+    fetchTeamOverview,
+    myRecords,
+    myShiftCards,
+    type RosterEntry,
+} from '../../api/teamOverview';
 import { personName } from '../../utils/personName';
-import { formatWeekday } from '../../utils/formatDate';
+import { formatTime, formatWeekday } from '../../utils/formatDate';
+import { ShiftBadge, ShiftCard, useShiftLine } from '../../components/attendance/ShiftCard';
+import { CheckOutSheet } from '../../components/attendance/CheckOutSheet';
+import {
+    BADGE_KEY,
+    formatDuration,
+    headcount,
+    isTodayIST,
+    type ShiftState,
+    type TFn,
+} from '../../features/attendance/shiftState';
+import { invalidateForEntity } from '../../query/client';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { useFlag } from '../../features/remoteFlags';
@@ -94,15 +112,17 @@ const ACTION_CAPABILITY: Record<TeamAction, FarmCapability> = {
     checkin: 'WRITE_OPERATIONAL',
 };
 
-/** "6h 27m" — how long the current check-in has been running. */
-const elapsedSince = (iso: string): string => {
-    const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
-    const h = Math.floor(mins / 60);
-    return h > 0 ? `${h}h ${mins % 60}m` : `${mins}m`;
-};
+/** Headcount groups, most urgent first (B.5). `just_in` sits with `on_shift`. */
+const GROUPS: ShiftState[] = ['forgot', 'overdue', 'due_soon', 'on_shift', 'out', 'on_leave', 'not_in'];
+const groupOf = (s: ShiftState): ShiftState => (s === 'just_in' ? 'on_shift' : s);
 
-const hhmm = (iso: string) =>
-    new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+/** Which record the check-out sheet is open for, and whose. */
+interface SheetTarget {
+    record: AttendanceRecord;
+    farmId: string;
+    /** Set when a manager acts on someone else. */
+    personName?: string;
+}
 
 const memberName = (m?: FarmMember) => personName(m?.user, "");
 
@@ -127,11 +147,15 @@ export const TeamScreen = ({ navigation }: any) => {
     /** `ALL` means every farm — the tab's default, same as Money and Today. */
     const [scope, setScope] = useState<string>(ALL);
     const [showAllTasks, setShowAllTasks] = useState(false);
-    /** Optimistically hidden after Check out, until the refetch lands. */
-    const [checkedOutId, setCheckedOutId] = useState<string | null>(null);
     /** Which farm-needing action the chooser is currently open for. */
     const [chooserFor, setChooserFor] = useState<TeamAction | null>(null);
     const [busy, setBusy] = useState(false);
+    const [sheet, setSheet] = useState<SheetTarget | null>(null);
+    /** Which headcount farm row is expanded. */
+    const [expandedFarm, setExpandedFarm] = useState<string | null>(null);
+    const exportOn = useFlag('export');
+    const lineFor = useShiftLine();
+    const now = new Date();
 
     /**
      * One cached read for the tab, keyed on scope. Memory-only rather than
@@ -150,8 +174,6 @@ export const TeamScreen = ({ navigation }: any) => {
     useRefetchOnFocus(qk.team(scope));
 
     const farms = query.data?.farms ?? EMPTY_FARMS;
-    const rawMyAttendance = query.data?.myAttendance ?? null;
-    const myAttendance = rawMyAttendance && rawMyAttendance.id === checkedOutId ? null : rawMyAttendance;
     const allAttendance = query.data?.allAttendance ?? EMPTY_ATTENDANCE;
     const pendingLeave = query.data?.pendingLeave ?? EMPTY_LEAVE;
     const tasks = query.data?.tasks ?? EMPTY_TASKS;
@@ -204,6 +226,22 @@ export const TeamScreen = ({ navigation }: any) => {
     /** Who may create or stop farm tasks — the capability the server checks. */
     const canCreateTasks = farmsWith('WRITE_MANAGEMENT').length > 0;
 
+    // ── My shift (B.3/B.4) ──
+    const opFarmIds = farmsWith('WRITE_OPERATIONAL').map((f) => f.id);
+    const myCards = myShiftCards(query.data, opFarmIds, userId, now);
+    /** My newest open record anywhere in the overview — what a check-in elsewhere will close (Q6). */
+    const myOpen = myRecords(query.data, userId, now).find((r) => !r.checkOutAt) ?? null;
+    /** Farms I could check in to: eligible, and not where I am already in. */
+    const checkInFarms = useMemo(
+        () => farmsWith('WRITE_OPERATIONAL').filter((f) => !myCards.some((x) => x.farmId === f.id && x.card.record && !x.card.record.checkOutAt)),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [farmsWith, query.data, userId],
+    );
+    const eligibleFor = useCallback(
+        (action: TeamAction) => (action === 'checkin' ? checkInFarms : farmsWith(ACTION_CAPABILITY[action])),
+        [checkInFarms, farmsWith],
+    );
+
     const checkIn = useCallback(
         async (id: string) => {
             setBusy(true);
@@ -254,35 +292,72 @@ export const TeamScreen = ({ navigation }: any) => {
                     navigation.navigate('RecurringTasks', { farmId: farm.id, farmName: farm.name });
                     break;
                 case 'checkin':
-                    void checkIn(farm.id);
+                    // Open elsewhere: say what will happen before it happens (B.4).
+                    if (myOpen && myOpen.farmId !== farm.id) {
+                        Alert.alert(
+                            t('team.switchFarm', { farm: farm.name }),
+                            t('team.switchFarmBody', {
+                                from: farms.find((f) => f.id === myOpen.farmId)?.name ?? '',
+                                since: formatTime(myOpen.checkInAt),
+                            }),
+                            [
+                                { text: t('common.cancel'), style: 'cancel' },
+                                { text: t('team.switchFarm', { farm: farm.name }), onPress: () => void checkIn(farm.id) },
+                            ],
+                        );
+                    } else {
+                        void checkIn(farm.id);
+                    }
                     break;
             }
         },
-        [navigation, checkIn],
+        [navigation, checkIn, myOpen, farms, t],
     );
 
     /** One eligible farm: just do it. More than one: ask. */
     const startAction = useCallback(
         (action: TeamAction) => {
-            const eligible = farmsWith(ACTION_CAPABILITY[action]);
+            const eligible = eligibleFor(action);
             if (eligible.length === 1) runAction(action, eligible[0]);
             else if (eligible.length > 1) setChooserFor(action);
         },
-        [farmsWith, runAction],
+        [eligibleFor, runAction],
     );
 
-    const chooserFarms = chooserFor ? farmsWith(ACTION_CAPABILITY[chooserFor]) : EMPTY_FARMS;
+    const chooserFarms = chooserFor ? eligibleFor(chooserFor) : EMPTY_FARMS;
 
-    const checkOut = useCallback(async () => {
-        if (!myAttendance) return;
-        try {
-            await attendanceApi.checkOut(myAttendance.id);
-            setCheckedOutId(myAttendance.id);
-            void query.refetch();
-        } catch {
-            // Non-fatal; the attendance screen shows the authoritative state.
-        }
-    }, [myAttendance, query]);
+    /** Own check-out: confirm naming the farm; errors shown, not swallowed (B5). */
+    const confirmCheckOut = useCallback(
+        (record: AttendanceRecord) => {
+            const name = farms.find((f) => f.id === record.farmId)?.name ?? '';
+            Alert.alert(
+                t('team.checkOutOfFarm', { farm: name }),
+                t('team.checkOutConfirmBody', {
+                    time: formatTime(record.checkInAt),
+                    elapsed: formatDuration(Date.now() - Date.parse(record.checkInAt), t as unknown as TFn),
+                }),
+                [
+                    { text: t('common.cancel'), style: 'cancel' },
+                    {
+                        text: t('team.checkOut'),
+                        onPress: async () => {
+                            setBusy(true);
+                            try {
+                                await attendanceApi.checkOut(record.id);
+                                invalidateForEntity('attendance');
+                                void query.refetch();
+                            } catch (e) {
+                                Alert.alert(t('common.error'), apiErrorMessage(e, t('attendance.checkOutError')));
+                            } finally {
+                                setBusy(false);
+                            }
+                        },
+                    },
+                ],
+            );
+        },
+        [farms, query, t],
+    );
 
     if (query.isPending && !hasData) {
         return (
@@ -319,7 +394,56 @@ export const TeamScreen = ({ navigation }: any) => {
         );
     }
 
-    const checkedInToday = allAttendance.filter((r) => !r.checkOutAt).length;
+    // Distinct people with any record on today's IST day (B7) — not every open
+    // record in the farm's history.
+    const checkedInToday = new Set(
+        allAttendance.filter((r) => isTodayIST(r.checkInAt, now)).map((r) => r.userId),
+    ).size;
+
+    // ── Headcount (B.5) ──
+    const managedIds = new Set(farmsWith('WRITE_MANAGEMENT').map((f) => f.id));
+    const scopeIds = new Set(scopeFarms.map((f) => f.id));
+    const managedSections = buildRoster(query.data, {
+        selfUserId: userId,
+        unknownLabel: t('team.unknownPerson'),
+        now,
+        managesAttendance: (id) => managedIds.has(id),
+    })
+        .filter((s) => scopeIds.has(s.farmId) && managedIds.has(s.farmId))
+        .map((s) => ({ ...s, data: s.data.filter((e) => !e.pendingJoin && e.shift) }))
+        .filter((s) => s.data.length > 0);
+    const peopleOf = (data: RosterEntry[]) => data.map((e) => ({ userId: e.userId, card: e.shift! }));
+    const allHeadcount = headcount(managedSections.flatMap((s) => peopleOf(s.data)));
+    // Workers (Q5): who is in right now, names only, on the farms they do not manage.
+    const presentNow = query.data?.presentNow;
+    const namesOnlyFarms = presentNow ? scopeFarms.filter((f) => !managedIds.has(f.id)) : EMPTY_FARMS;
+
+    const renderPerson = (e: RosterEntry, farmIdOfRow: string) => {
+        const card = e.shift!;
+        const open = !!card.record && !card.record.checkOutAt;
+        const canAct = open && !e.isSelf && canDecideOnTeam(grantForFarm(farmIdOfRow).role);
+        return (
+            <View key={e.key} style={styles.personRow} testID={`person-${farmIdOfRow}-${e.userId}`}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.personName} numberOfLines={1}>
+                        {e.isSelf ? t('team.youSuffix', { name: e.name }) : e.name}
+                        <Text style={styles.personRole}>{` · ${t(`members.role_${e.role}`)}`}</Text>
+                    </Text>
+                    <Text style={styles.personLine}>{lineFor(card, now)}</Text>
+                </View>
+                {canAct ? (
+                    <Button
+                        title={t('team.checkOut')}
+                        variant="outlined"
+                        onPress={() => setSheet({ record: card.record!, farmId: farmIdOfRow, personName: e.name })}
+                        style={styles.personBtn}
+                    />
+                ) : (
+                    <ShiftBadge state={card.state} />
+                )}
+            </View>
+        );
+    };
     // Deduped by person: someone who works two of your farms is one member of
     // your team, and counting them twice would make "2 of 4" out of two people.
     const activeMembers = members
@@ -493,19 +617,43 @@ export const TeamScreen = ({ navigation }: any) => {
                     The card used to appear only once you were ALREADY checked
                     in, so the check-in itself had no control anywhere on the
                     tab and a worker had no route to one. */}
-                {canRecordData && (myAttendance ? (
-                    <Card style={styles.checkInCard}>
-                        <Icon name="schedule" size={22} color={theme.roles.light.primary} />
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.checkInTitle}>
-                                {t('team.checkedInAt', { time: hhmm(myAttendance.checkInAt) })}
-                            </Text>
-                            <Text style={styles.checkInSub}>
-                                {t('team.stillCheckedIn', { elapsed: elapsedSince(myAttendance.checkInAt) })}
-                            </Text>
-                        </View>
-                        <Button title={t('team.checkOut')} onPress={checkOut} style={styles.checkOutBtn} />
-                    </Card>
+                {canRecordData && (myCards.length > 0 ? (
+                    <>
+                        {/* One card per farm with a record today or still open (B.3). */}
+                        {myCards.map(({ farmId: fid, card }) => {
+                            const open = !!card.record && !card.record.checkOutAt;
+                            const forgot = card.state === 'forgot';
+                            return (
+                                <ShiftCard
+                                    key={fid}
+                                    testID={`shift-card-${fid}`}
+                                    farmName={farmName(fid) ?? ''}
+                                    card={card}
+                                    now={now}
+                                    busy={busy}
+                                    actionLabel={open ? (forgot ? t('team.fixCheckout') : t('team.checkOut')) : undefined}
+                                    onAction={() =>
+                                        forgot
+                                            ? setSheet({ record: card.record!, farmId: fid })
+                                            : confirmCheckOut(card.record!)
+                                    }
+                                />
+                            );
+                        })}
+                        {checkInFarms.length > 0 && (
+                            <Button
+                                title={
+                                    checkInFarms.length === 1 && myOpen
+                                        ? t('team.switchFarm', { farm: checkInFarms[0].name })
+                                        : t('team.checkInAnother')
+                                }
+                                variant="text"
+                                onPress={() => startAction('checkin')}
+                                disabled={busy}
+                                style={styles.showMore}
+                            />
+                        )}
+                    </>
                 ) : (
                     <Card style={styles.checkInCard}>
                         <Icon name="schedule" size={22} color={theme.roles.light.primary} />
@@ -521,6 +669,88 @@ export const TeamScreen = ({ navigation }: any) => {
                         />
                     </Card>
                 ))}
+
+                {/* Headcount at a glance (B.5) — farms whose attendance I manage. */}
+                {managedSections.length > 0 && (
+                    <View testID="headcount">
+                        <SectionHeader label={t('team.headcountTitle')} />
+                        <Text style={styles.headcountSummary}>
+                            {t('team.todayHeadcount', {
+                                in: allHeadcount.in,
+                                out: allHeadcount.out,
+                                notIn: allHeadcount.notIn,
+                                leave: allHeadcount.leave,
+                                total: allHeadcount.total,
+                            })}
+                        </Text>
+                        {managedSections.map((s) => {
+                            const h = headcount(peopleOf(s.data));
+                            const expanded = expandedFarm === s.farmId;
+                            const summary = t('team.farmHeadcount', { in: h.in, out: h.out, notIn: h.notIn, leave: h.leave });
+                            return (
+                                <View key={s.farmId}>
+                                    <TouchableOpacity
+                                        testID={`headcount-${s.farmId}`}
+                                        style={styles.farmHeadRow}
+                                        onPress={() => setExpandedFarm(expanded ? null : s.farmId)}
+                                        accessibilityRole="button"
+                                        accessibilityState={{ expanded }}
+                                        accessibilityLabel={[s.farmName, summary, h.late ? t('team.lateCount', { count: h.late }) : null].filter(Boolean).join('. ')}
+                                    >
+                                        <View style={{ flex: 1, minWidth: 0 }}>
+                                            <Text style={styles.farmRowLabel} numberOfLines={1}>{s.farmName}</Text>
+                                            <Text style={styles.taskMeta}>{summary}</Text>
+                                        </View>
+                                        {h.late > 0 && (
+                                            <View style={styles.lateTag}>
+                                                <Icon name="warning" size={16} color={theme.roles.light.dangerText} />
+                                                <Text style={styles.overdue}>{t('team.lateCount', { count: h.late })}</Text>
+                                            </View>
+                                        )}
+                                        <Icon
+                                            name={expanded ? 'expand_more' : 'chevron_right'}
+                                            size={20}
+                                            color={theme.roles.light.textSecondary}
+                                        />
+                                    </TouchableOpacity>
+                                    {expanded &&
+                                        GROUPS.map((g) => {
+                                            const people = s.data.filter((e) => groupOf(e.shift!.state) === g);
+                                            if (!people.length) return null;
+                                            return (
+                                                <View key={g}>
+                                                    <Text style={styles.taskGroup}>{t(BADGE_KEY[g])}</Text>
+                                                    {people.map((e) => renderPerson(e, s.farmId))}
+                                                </View>
+                                            );
+                                        })}
+                                </View>
+                            );
+                        })}
+                    </View>
+                )}
+
+                {/* Workers see WHO is in right now — names only (founder Q5). */}
+                {namesOnlyFarms.length > 0 && (
+                    <View testID="in-now">
+                        <SectionHeader label={t('team.inNow')} />
+                        {namesOnlyFarms.map((f) => {
+                            const names = (presentNow ?? [])
+                                .filter((p) => p.farmId === f.id)
+                                .map((p) => (p.userId === userId ? t('attendance.you') : p.name));
+                            return (
+                                <View key={f.id} style={styles.farmHeadRow} testID={`in-now-${f.id}`}>
+                                    <View style={{ flex: 1, minWidth: 0 }}>
+                                        <Text style={styles.farmRowLabel} numberOfLines={1}>{f.name}</Text>
+                                        <Text style={styles.taskMeta}>
+                                            {names.length ? names.join(', ') : t('team.nobodyInNow')}
+                                        </Text>
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </View>
+                )}
 
                 {/* The badge's other half. It only appears when there IS a
                     queue, and it lands on the roster where the approve and
@@ -550,16 +780,28 @@ export const TeamScreen = ({ navigation }: any) => {
                                           count: checkedInToday,
                                           total: activeMembers.length,
                                       })
-                                    : myAttendance
-                                      ? t('team.yourAttendanceIn', {
-                                            elapsed: elapsedSince(myAttendance.checkInAt),
-                                        })
+                                    : myCards.length > 0
+                                      ? lineFor(myCards[0].card, now)
                                       : t('team.notCheckedIn')
                             }
                             value={canManage ? String(checkedInToday) : null}
                             unit={canManage ? `/${activeMembers.length}` : null}
                             onPress={() => startAction('attendance')}
                         />
+                        {/* B.7 entry point. The collector falls back to own rows for farms not managed. */}
+                        {exportOn && (
+                            <Button
+                                title={t('attendance.exportAttendance')}
+                                variant="text"
+                                onPress={() =>
+                                    navigation.navigate('Export', {
+                                        dataset: 'attendance',
+                                        farmId: activeScope === ALL ? undefined : farmId,
+                                    })
+                                }
+                                style={styles.showMore}
+                            />
+                        )}
 
                         <SummaryRow
                             icon="event_busy"
@@ -737,6 +979,15 @@ export const TeamScreen = ({ navigation }: any) => {
                     </Pressable>
                 </Pressable>
             </Modal>
+
+            <CheckOutSheet
+                record={sheet?.record ?? null}
+                farmName={sheet ? farmName(sheet.farmId) ?? '' : ''}
+                farm={sheet ? farms.find((f) => f.id === sheet.farmId) : null}
+                personName={sheet?.personName}
+                onClose={() => setSheet(null)}
+                onDone={() => void query.refetch()}
+            />
         </ScreenWrapper>
     );
 };
@@ -773,6 +1024,25 @@ const styles = StyleSheet.create({
     checkInTitle: { ...theme.typeScale.bodyLarge, color: theme.roles.light.textPrimary, fontWeight: '700' },
     checkInSub: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
     checkOutBtn: { paddingHorizontal: theme.spacing[4] },
+
+    headcountSummary: {
+        ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, fontWeight: '600',
+        paddingHorizontal: theme.spacing[5], paddingBottom: theme.spacing[2],
+    },
+    farmHeadRow: {
+        flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2], flexWrap: 'wrap',
+        paddingVertical: theme.spacing[3], paddingHorizontal: theme.spacing[5], minHeight: 56,
+        borderTopWidth: 1, borderTopColor: theme.roles.light.surfaceVariant,
+    },
+    lateTag: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    personRow: {
+        flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3], flexWrap: 'wrap',
+        paddingVertical: theme.spacing[2], paddingHorizontal: theme.spacing[5], minHeight: 56,
+    },
+    personName: { ...theme.typeScale.bodyLarge, color: theme.roles.light.textPrimary, fontWeight: '600' },
+    personRole: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, fontWeight: '400' },
+    personLine: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
+    personBtn: { paddingHorizontal: theme.spacing[4] },
 
     tallyRow: {
         flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4],

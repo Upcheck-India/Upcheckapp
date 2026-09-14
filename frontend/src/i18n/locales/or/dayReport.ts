@@ -83,6 +83,18 @@ const dayReport = {
   docValue: 'DOC {{doc}}',
   lowStock: 'କମ୍ ଷ୍ଟକ୍',
   attendance: 'ହାଜିରା',
+
+  storyTitle: 'ସଂକ୍ଷେପରେ ଦିନ',
+  peopleTitle: 'କିଏ କ\'ଣ କଲେ',
+  person: 'ବ୍ୟକ୍ତି',
+  role: 'ଭୂମିକା',
+  work: 'କାମ',
+  pondsWorked: 'ପୋଖରୀ',
+  shift: 'ସିଫ୍ଟ',
+  pondWorkTitle: 'ପ୍ରତି ପୋଖରୀରେ କାମ',
+  feed: 'ଖାଦ୍ୟ',
+  sampling: 'ନମୁନା',
+  people: 'ଲୋକ',
 };
 
 export default dayReport;

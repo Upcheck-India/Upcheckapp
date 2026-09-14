@@ -3,7 +3,7 @@ import { DailyBriefService, assertBriefDate } from './daily-brief.service';
 import { DailyBriefQueryDto } from './daily-brief.controller';
 import { PondContextService } from '../pond-context/pond-context.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
-import { addDays } from '../molt/molt-window';
+import { addDays, currentMoltWindow } from '../molt/molt-window';
 
 const NOW = new Date('2026-09-14T10:00:00Z'); // 15:30 IST, 14 Sep
 const FARM = '11111111-1111-4111-8111-111111111111';
@@ -221,7 +221,7 @@ describe('DailyBriefService — assembling a day', () => {
     expect(brief.todo.missingLogs).toEqual([{ pondId: 'p1', kinds: ['tray'] }]);
 
     const mort = brief.timeline.find((e) => e.kind === 'mortality')!;
-    expect(mort).toEqual({ at: '2026-09-14T06:30:00.000Z', allDay: true, kind: 'mortality', pondId: 'p1', summary: '×40' });
+    expect(mort).toEqual({ at: '2026-09-14T06:30:00.000Z', allDay: true, kind: 'mortality', pondId: 'p1', summary: '×40', actorId: null, actorName: null });
     const water = brief.timeline.find((e) => e.kind === 'water')!;
     expect(water.summary).toBe('DO 5.5 · pH 7.9 · 30 °C · NH₃ 0.05');
     expect(water.allDay).toBe(false);
@@ -368,6 +368,267 @@ describe('DailyBriefService — coverage and unwatched ponds', () => {
     expect(ll[0].params[0]).toEqual(['p1', 'p2']);
     expect(ll[0].params[3]).toBe(ago(60));
     expect(ll[0].params[4]).toBe(D);
+  });
+});
+
+describe('DailyBriefService — what we did', () => {
+  const D = '2026-09-14';
+  const users = [
+    { id: 'u1', name: 'Anil', role: 'worker', email: 'anil@example.com' },
+    { id: 'u2', name: 'Bina', role: 'manager', email: 'bina@example.com' },
+    { id: 'u3', name: 'Chetan', role: 'worker', email: 'chetan@example.com' },
+  ];
+  const rows: Rows = {
+    ponds: [pondRow('p1'), pondRow('p2')],
+    wq: [
+      { pond_id: 'p1', recorded_at: '2026-09-14T00:30:00Z', do: 5.5, ph: 7.9, actor_id: 'u1' },
+      { pond_id: 'p2', recorded_at: '2026-09-14T00:40:00Z', do: 5.5, ph: 7.9, actor_id: 'u1' },
+    ],
+    feed_rows: [
+      { pond_id: 'p1', recorded_at: '2026-09-14T01:00:00Z', kg: 20, actor_id: 'u1' },
+      { pond_id: 'p2', recorded_at: '2026-09-14T01:10:00Z', kg: 10, actor_id: 'u2' },
+      { pond_id: 'p2', recorded_at: '2026-09-14T07:10:00Z', kg: 5, actor_id: 'u2' },
+    ],
+    trays: [
+      { pond_id: 'p2', day: D, time: '08:00:00', tray_number: 1, status: 'empty', actor_id: 'u2' },
+      { pond_id: 'p2', day: D, time: '08:05:00', tray_number: 2, status: 'empty', actor_id: 'u2' },
+      { pond_id: 'p2', day: D, time: '08:10:00', tray_number: 3, status: 'empty', actor_id: 'u2' },
+    ],
+    samplings: [{ pond_id: 'p1', day: D, mbw: 12.4, actor_id: 'u1' }],
+    harvests: [{ pond_id: 'p2', day: D, kg: 850, actor_id: 'u2' }],
+    check_ins: [
+      { user_id: 'u3', check_in_at: '2026-09-14T02:00:00Z', check_out_at: '2026-09-14T11:00:00Z' },
+      { user_id: 'u1', check_in_at: '2026-09-14T01:30:00Z', check_out_at: null },
+    ],
+    tasks: [
+      { id: 't1', title: 'Lime p1', status: 'done', due_date: D, pond_id: 'p1', completed_at: '2026-09-14T05:00:00Z', assignee_ids: ['u1'], assignee_names: ['Anil'] },
+      { id: 't2', title: 'Fix aerator', status: 'done', due_date: D, pond_id: null, completed_at: '2026-09-14T06:00:00Z', assignee_ids: ['u1', 'u2'], assignee_names: ['Anil', 'Bina'] },
+      { id: 't3', title: 'Old', status: 'done', due_date: '2026-09-13', pond_id: null, completed_at: '2026-09-13T06:00:00Z', assignee_ids: ['u1'] },
+    ],
+    users,
+  };
+
+  it('every timeline event names its actor, one users lookup, and never an email', async () => {
+    const { svc, calls } = build({ rows });
+    const brief = await svc.get('u1', { date: D }, NOW);
+    const water = brief.timeline.find((e) => e.kind === 'water')!;
+    expect(water).toMatchObject({ actorId: 'u1', actorName: 'Anil' });
+    expect(brief.timeline.find((e) => e.kind === 'tray')).toMatchObject({ actorId: 'u2', actorName: 'Bina' });
+    expect(brief.timeline.find((e) => e.kind === 'check_in' && e.actorId === 'u3')?.actorName).toBe('Chetan');
+    expect(brief.timeline.find((e) => e.kind === 'task_done' && e.summary === 'Lime p1')?.actorName).toBe('Anil');
+
+    const u = calls.filter((c) => c.tag === 'users');
+    expect(u).toHaveLength(1);
+    expect([...u[0].params[0]].sort()).toEqual(['u1', 'u2', 'u3']);
+    // The name SQL never falls back to an email, here or for assignees.
+    for (const c of calls.filter((x) => x.tag === 'users' || x.tag === 'tasks')) expect(c.sql).not.toMatch(/email/i);
+    expect(JSON.stringify(brief)).not.toMatch(/@example\.com/);
+  });
+
+  it('people: grouped by actor, sorted by work, check-in-only people included with shifts for a manager view', async () => {
+    const brief = await build({ rows }).svc.get('u1', { date: D }, NOW);
+    const people = brief.done!.people;
+    expect(people.map((p) => p.userId)).toEqual(['u2', 'u1', 'u3']);
+    expect(people[0]).toEqual({
+      userId: 'u2', name: 'Bina', role: 'manager', counts: { feed: 2, tray: 3, harvest: 1 }, feedKg: 15, pondIds: ['p2'], tasksDone: 0,
+      shift: { checkIn: null, checkOut: null, hours: null },
+    });
+    expect(people[1]).toMatchObject({ counts: { water: 2, feed: 1, sampling: 1 }, feedKg: 20, pondIds: ['p1', 'p2'], tasksDone: 1 });
+    expect(people[1].shift).toEqual({ checkIn: '2026-09-14T01:30:00.000Z', checkOut: null, hours: null });
+    expect(people[2]).toMatchObject({ name: 'Chetan', counts: {}, tasksDone: 0, shift: { checkIn: '2026-09-14T02:00:00.000Z', checkOut: '2026-09-14T11:00:00.000Z', hours: 9 } });
+  });
+
+  it('a worker caller gets shift null and no attendance read', async () => {
+    const { svc, calls } = build({ rows, role: 'worker' });
+    const brief = await svc.get('u1', { date: D }, NOW);
+    expect(calls.map((c) => c.tag)).not.toContain('check_ins');
+    expect(brief.done!.people.map((p) => p.userId)).toEqual(['u2', 'u1']);
+    for (const p of brief.done!.people) expect(p.shift).toBeNull();
+    expect(brief.story!.map((s) => s.code)).not.toContain('team_in');
+  });
+
+  it('ponds: counts, kg, rounds, sampling g, harvest kg and who worked there', async () => {
+    const brief = await build({ rows }).svc.get('u1', { date: D }, NOW);
+    expect(brief.done!.ponds).toEqual([
+      { pondId: 'p1', counts: { water: 1, feed: 1, sampling: 1 }, feedKg: 20, feedRounds: 1, samplingG: 12.4, harvestKg: null, people: ['Anil'] },
+      { pondId: 'p2', counts: { water: 1, feed: 2, tray: 3, harvest: 1 }, feedKg: 15, feedRounds: 2, samplingG: null, harvestKg: 850, people: ['Anil', 'Bina'] },
+    ]);
+  });
+
+  it('tasksDone: completed within the day, credited only to a sole assignee', async () => {
+    const brief = await build({ rows }).svc.get('u1', { date: D }, NOW);
+    expect(brief.done!.tasksDone).toEqual([
+      { id: 't1', title: 'Lime p1', pondId: 'p1', completedAt: '2026-09-14T05:00:00.000Z', completedByName: 'Anil' },
+      { id: 't2', title: 'Fix aerator', pondId: null, completedAt: '2026-09-14T06:00:00.000Z', completedByName: null },
+    ]);
+  });
+
+  it('query count stays independent of pond count with actors present', async () => {
+    const many = Array.from({ length: 30 }, (_, i) => pondRow(`p${i}`));
+    const a = build({ rows: { ...rows, ponds: many.slice(0, 2) } });
+    await a.svc.get('u1', { date: D }, NOW);
+    const b = build({ rows: { ...rows, ponds: many } });
+    await b.svc.get('u1', { date: D }, NOW);
+    expect(b.calls.length).toBe(a.calls.length);
+    expect(a.calls.map((c) => c.tag)).toContain('users');
+  });
+});
+
+describe('DailyBriefService — the day story', () => {
+  const D = '2026-09-14';
+  const P = '2026-09-13';
+  const ago = (n: number) => addDays(D, -n);
+  const get = (rows: Rows, date = D, role?: string) => build({ rows, role }).svc.get('u1', { date }, NOW);
+  const codes = (b: any) => b.story.map((s: any) => s.code);
+
+  it('issue_open before issue_resolved; a reading that goes bad again stays open', async () => {
+    const brief = await get({
+      ponds: [pondRow('p1'), pondRow('p2'), pondRow('p3')],
+      wq: [
+        { pond_id: 'p1', recorded_at: '2026-09-14T01:00:00Z', do: 2.5, actor_id: 'u1' },
+        { pond_id: 'p1', recorded_at: '2026-09-14T02:00:00Z', ammonia: 0.2 },
+        { pond_id: 'p1', recorded_at: '2026-09-14T03:00:00Z', do: 5, actor_id: 'u2' },
+        { pond_id: 'p2', recorded_at: '2026-09-14T04:00:00Z', ph: 9.5 },
+        { pond_id: 'p3', recorded_at: '2026-09-14T01:00:00Z', do: 2.5 },
+        { pond_id: 'p3', recorded_at: '2026-09-14T02:00:00Z', do: 5 },
+        { pond_id: 'p3', recorded_at: '2026-09-14T03:00:00Z', do: 3.5 },
+      ],
+      users: [{ id: 'u2', name: 'Bina' }],
+    });
+    const issues = brief.story!.filter((s) => s.code.startsWith('issue_'));
+    expect(issues.map((s) => [s.code, s.tone, s.pondId, s.reason?.code])).toEqual([
+      ['issue_open', 'critical', 'p2', 'ph_out_of_range'],
+      ['issue_open', 'critical', 'p3', 'do_low'],
+      ['issue_open', 'watch', 'p1', 'ammonia_high'],
+      ['issue_resolved', 'good', 'p1', 'do_low'],
+    ]);
+    expect(issues[3]).toMatchObject({
+      at: '2026-09-14T01:00:00.000Z', resolvedAt: '2026-09-14T03:00:00.000Z', personName: 'Bina',
+      reason: { code: 'do_low', severity: 'critical', pondId: 'p1', value: 2.5 },
+    });
+  });
+
+  it('carried tasks and alerts: resolved on the day vs still open', async () => {
+    const brief = await get({
+      ponds: [pondRow('p1')],
+      tasks: [
+        { id: 'ta', title: 'Lime', status: 'done', due_date: ago(2), pond_id: 'p1', completed_at: '2026-09-14T05:00:00Z', assignee_ids: ['u1'] },
+        { id: 'tb', title: 'Net', status: 'open', due_date: ago(1), pond_id: null, completed_at: null, assignee_ids: [] },
+      ],
+      alerts: [
+        { pond_id: 'p1', title: 'Low DO', severity: 'critical', type: 'wq', created_at: '2026-09-12T01:00:00Z', updated_at: '2026-09-14T06:00:00Z', is_read: true },
+        { pond_id: null, title: 'Stock', severity: 'warning', type: 'inv', created_at: '2026-09-12T01:00:00Z', updated_at: '2026-09-12T01:00:00Z', is_read: false },
+      ],
+      users: [{ id: 'u1', name: 'Anil' }],
+    }, D, 'worker');
+    const carried = brief.story!.filter((s) => s.code.startsWith('carried_'));
+    expect(carried).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'carried_resolved', tone: 'good', carriedKind: 'task', title: 'Lime', count: 1, personName: 'Anil', resolvedAt: '2026-09-14T05:00:00.000Z' }),
+      expect.objectContaining({ code: 'carried_open', tone: 'watch', carriedKind: 'task', title: 'Net', count: 1 }),
+      expect.objectContaining({ code: 'carried_resolved', tone: 'good', carriedKind: 'alert', title: 'Low DO' }),
+      expect.objectContaining({ code: 'carried_open', tone: 'watch', carriedKind: 'alert', title: 'Stock' }),
+    ]));
+    // open (watch) lines come before resolutions (good)
+    const idx = (code: string, kind: string) => brief.story!.findIndex((s) => s.code === code && s.carriedKind === kind);
+    expect(idx('carried_open', 'task')).toBeLessThan(idx('carried_resolved', 'task'));
+  });
+
+  it("carried stale ponds and the previous day's worst reading; stale_pond for newly unwatched", async () => {
+    const brief = await get({
+      ponds: [pondRow('p1'), pondRow('s1'), pondRow('s2'), pondRow('s3')],
+      wq: [
+        { pond_id: 'p1', recorded_at: '2026-09-13T01:00:00Z', do: 2.5 },
+        { pond_id: 'p1', recorded_at: '2026-09-14T01:00:00Z', do: 5.5 },
+        { pond_id: 's1', recorded_at: '2026-09-14T02:00:00Z', do: 5.5 },
+      ],
+      last_log: [
+        { pond_id: 'p1', water: D, any_day: D, water_prev: P, any_prev: P },
+        { pond_id: 's1', water: D, any_day: D, water_prev: ago(3), any_prev: ago(3) },
+        { pond_id: 's2', water: ago(5), any_day: ago(5), water_prev: ago(5), any_prev: ago(5) },
+        { pond_id: 's3', water: ago(2), any_day: D, water_prev: ago(2), any_prev: P },
+      ],
+    });
+    expect(brief.carriedOver.worstPrevious).toMatchObject({ pondId: 'p1', reason: { code: 'do_low' } });
+    const s = brief.story!;
+    expect(s).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'carried_resolved', carriedKind: 'reading', pondId: 'p1', resolvedAt: '2026-09-14T01:00:00.000Z' }),
+      expect.objectContaining({ code: 'carried_resolved', carriedKind: 'stale_pond', pondId: 's1', resolvedAt: '2026-09-14T02:00:00.000Z' }),
+      expect.objectContaining({ code: 'carried_open', carriedKind: 'stale_pond', pondId: 's2', tone: 'watch', count: 5 }),
+      expect.objectContaining({ code: 'stale_pond', pondId: 's3', tone: 'watch', count: 2 }),
+    ]));
+    expect(s.filter((x) => x.pondId === 's2').map((x) => x.code)).toEqual(['carried_open']);
+  });
+
+  it('the reading carries open when the parameter is still out of range', async () => {
+    const brief = await get({
+      ponds: [pondRow('p1')],
+      wq: [
+        { pond_id: 'p1', recorded_at: '2026-09-13T01:00:00Z', do: 2.5 },
+        { pond_id: 'p1', recorded_at: '2026-09-14T01:00:00Z', do: 2.8 },
+      ],
+    });
+    expect(brief.story).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'carried_open', carriedKind: 'reading', tone: 'critical' })]));
+  });
+
+  it('events: mortality spike, harvest, first sampling vs sampling, treatment, team in, molt phase', async () => {
+    // A date inside a molt window, so molt_phase shows.
+    let date = D;
+    for (let i = 0; i < 30 && currentMoltWindow(new Date(`${date}T06:30:00Z`)).phase === 'inter'; i++) date = ago(i + 1);
+    // Logged on the date, so no stale lines crowd the cap.
+    const fresh = { ponds: [pondRow('p1'), pondRow('p2')], last_log: ['p1', 'p2'].map((pond_id) => ({ pond_id, water: date, any_day: date, water_prev: date, any_prev: date })) };
+    const a = await get({
+      ...fresh,
+      mortality_days: [{ pond_id: 'p1', day: date, qty: 40 }, { pond_id: 'p1', day: addDays(date, -4), qty: 7 }],
+      harvests: [{ pond_id: 'p1', day: date, kg: 850 }],
+      samplings: [{ pond_id: 'p1', day: date, mbw: 3.2 }, { pond_id: 'p2', day: date, mbw: 12.4 }],
+      abw: [{ pond_id: 'p1', mbw: 3.2, prev_sampling: null }, { pond_id: 'p2', mbw: 12.4, prev_sampling: '2026-08-20' }],
+    }, date);
+    expect(a.story).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'mortality_spike', pondId: 'p1', count: 40 }),
+      expect.objectContaining({ code: 'harvest_done', pondId: 'p1', value: 850 }),
+      expect.objectContaining({ code: 'first_sampling', pondId: 'p1', value: 3.2 }),
+      expect.objectContaining({ code: 'sampling_done', pondId: 'p2', value: 12.4 }),
+    ]));
+    const b = await get({
+      ...fresh,
+      treatments: [{ pond_id: 'p2', day: date, kg: 2, flag: null }],
+      check_ins: [{ user_id: 'u9', check_in_at: `${date}T02:00:00Z` }],
+    }, date);
+    expect(b.story).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'treatment_given', pondId: 'p2', count: 1 }),
+      expect.objectContaining({ code: 'team_in', count: 1 }),
+      expect.objectContaining({ code: 'molt_phase', tone: 'info', phase: b.happening.molt!.phase }),
+    ]));
+  });
+
+  it('coverage: all done vs behind — watch on a past day, info (so far) today', async () => {
+    const task = (status: string, due: string) => ({ id: `t-${status}`, title: 'x', status, due_date: due, pond_id: null, completed_at: null, assignee_ids: [] });
+    const good = await get({
+      ponds: [pondRow('p1')],
+      wq: [{ pond_id: 'p1', recorded_at: '2026-09-14T01:00:00Z', do: 5.5 }],
+      feed_days: [{ pond_id: 'p1', day: D, kg: 10 }],
+      tasks: [task('done', D)],
+    });
+    expect(good.story).toEqual(expect.arrayContaining([
+      { code: 'all_ponds_fed', tone: 'good', count: 1 }, { code: 'all_ponds_tested', tone: 'good', count: 1 }, { code: 'tasks_all_done', tone: 'good', count: 1 },
+    ]));
+    const past = await get({ ponds: [pondRow('p1'), pondRow('p2')], tasks: [task('open', ago(3))] }, ago(3));
+    expect(past.story).toEqual(expect.arrayContaining([
+      { code: 'ponds_not_fed', tone: 'watch', count: 2 }, { code: 'ponds_not_tested', tone: 'watch', count: 2 }, { code: 'tasks_left', tone: 'watch', count: 1 },
+    ]));
+    const today = await get({ ponds: [pondRow('p1')] });
+    expect(today.story).toEqual(expect.arrayContaining([{ code: 'ponds_not_fed', tone: 'info', count: 1 }]));
+    expect(codes(today)).not.toContain('all_ponds_fed');
+  });
+
+  it('caps at 8, most serious first', async () => {
+    const ids = Array.from({ length: 12 }, (_, i) => `p${i}`);
+    const brief = await get({
+      ponds: ids.map((id) => pondRow(id)),
+      wq: ids.map((id) => ({ pond_id: id, recorded_at: '2026-09-14T01:00:00Z', do: 2 })),
+    });
+    expect(brief.story).toHaveLength(8);
+    expect(brief.story!.every((s) => s.code === 'issue_open' && s.tone === 'critical')).toBe(true);
   });
 });
 

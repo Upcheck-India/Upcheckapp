@@ -40,6 +40,7 @@ import activity from './activity';
 import exportNs from './export';
 import dayReport from './dayReport';
 import dailyBrief from './dailyBrief';
+import alerts from './alerts';
 
 export default {
   common,
@@ -76,4 +77,5 @@ export default {
   export: exportNs,
   dayReport,
   dailyBrief,
+  alerts,
 };

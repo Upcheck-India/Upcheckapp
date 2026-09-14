@@ -21,7 +21,7 @@ import i18n, { loadLocale } from '../../i18n';
 import { formatINR } from '../inrFormat';
 import { cropsApi, computeDoc, type Crop } from '../../api/crops';
 import { pondsApi } from '../../api/ponds';
-import { farmsApi } from '../../api/farms';
+import { farmsApi, type Farm } from '../../api/farms';
 import { pondContextApi } from '../../api/pondContext';
 import { waterQualityApi, type WaterQualityRecord } from '../../api/waterQuality';
 import { feedApi, type FeedRecord } from '../../api/feedRecords';
@@ -35,6 +35,11 @@ import { reportsApi } from '../../api/reports';
 import { inventoryApi, isLowStock, type InventoryItem } from '../../api/inventory';
 import { attendanceApi, type AttendanceRecord } from '../../api/attendance';
 import { tasksApi, type Task } from '../../api/tasks';
+import { leaveRequestsApi, type LeaveRequest } from '../../api/leaveRequests';
+import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
+import { useMembershipStore } from '../../store/membershipStore';
+import { roleCan } from '../../permissions/capabilities';
+import { istDay, recordStatus, type RecordStatus } from '../attendance/shiftState';
 import { personName } from '../../utils/personName';
 import { toLocalISODate } from '../../utils/localDate';
 import type {
@@ -646,56 +651,175 @@ const collectInventory = async (config: ExportConfig, f: Fmt): Promise<Collected
     };
 };
 
+/** Days of an inclusive leave range that fall inside the export's range. */
+const leaveDaysIn = (l: LeaveRequest, start?: string, end?: string): number => {
+    const from = [l.startDate.slice(0, 10), start].filter(Boolean).sort().pop() as string;
+    const to = [l.endDate.slice(0, 10), end].filter(Boolean).sort()[0] as string;
+    const days = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000 + 1;
+    return Number.isFinite(days) && days > 0 ? days : 0;
+};
+
+/**
+ * Attendance (spec 2026-09-14 B.7). Per farm: the whole team's rows where the
+ * caller manages attendance (WRITE_MANAGEMENT), otherwise their own via
+ * `mine` — `getAll` 403s for a worker, which is why this export used to fail
+ * for them. The server still decides; this only picks the call that can succeed.
+ */
 const collectAttendance = async (config: ExportConfig, f: Fmt): Promise<Collected> => {
-    if (!config.farmId) throw new Error('attendance export needs a farmId');
     const s = config.sections;
-    const [scope, records] = await Promise.all([
-        resolveScope(config.farmId, undefined, undefined),
-        s.summary
-            ? attendanceApi
-                .getAll(config.farmId, undefined, config.startDate, config.endDate)
-                .then((r) => listOf<AttendanceRecord>(r.data))
-            : [],
-    ]);
+    const now = new Date();
+    const farms: Farm[] = config.farmId
+        ? [await farmsApi.getById(config.farmId).then((r) => r.data).catch(() => ({ id: config.farmId, name: '' } as Farm))]
+        : await farmsApi.getAll().then((r) => listOf<Farm>(r.data));
+
+    const { grantForFarm } = useMembershipStore.getState();
+    const perFarm = s.summary
+        ? await Promise.all(
+            farms.map(async (farm) => {
+                const g = grantForFarm(farm.id);
+                const manages = roleCan(g.role, 'WRITE_MANAGEMENT', g.overrides, g.policy);
+                const [records, leave, members] = await Promise.all([
+                    (manages
+                        ? attendanceApi.getAll(farm.id, undefined, config.startDate, config.endDate)
+                        : attendanceApi.mine(farm.id, undefined, config.startDate, config.endDate)
+                    ).then((r) => listOf<AttendanceRecord>(r.data)),
+                    (manages ? leaveRequestsApi.getAll(farm.id, 'approved') : leaveRequestsApi.mine(farm.id))
+                        .then((r) => listOf<LeaveRequest>(r.data).filter((l) => l.status === 'approved'))
+                        .catch(() => [] as LeaveRequest[]),
+                    manages
+                        ? farmMembersApi.listMembers(farm.id).then((r) => listOf<FarmMember>(r.data)).catch(() => [] as FarmMember[])
+                        : ([] as FarmMember[]),
+                ]);
+                const byUser = (xs: { userId: string }[]) => xs.filter((x) => !config.userId || x.userId === config.userId);
+                return {
+                    farm,
+                    // Only a non-manager's rows are all their own, so only then is their role everyone's.
+                    selfRole: manages ? null : g.role,
+                    records: byUser(records) as AttendanceRecord[],
+                    leave: byUser(leave).filter(
+                        (l) => leaveDaysIn(l as LeaveRequest, config.startDate, config.endDate) > 0,
+                    ) as LeaveRequest[],
+                    members,
+                };
+            }),
+        )
+        : [];
 
     const hours = (r: AttendanceRecord): number | null => {
         if (!r.checkOutAt) return null;
         const ms = new Date(r.checkOutAt).getTime() - new Date(r.checkInAt).getTime();
         return Number.isFinite(ms) && ms > 0 ? ms / 3_600_000 : null;
     };
+    const statusLabel: Record<RecordStatus, string> = {
+        onTime: f.t('attendance.status_onTime'),
+        overdue: f.t('attendance.status_overdue'),
+        forgot: f.t('attendance.status_forgot'),
+        autoClosed: f.t('attendance.reason_auto_closed'),
+        stillIn: f.t('attendance.status_stillIn'),
+    };
 
-    const table: ReportTable = {
+    type Row = { farm: Farm; record: AttendanceRecord; name: string; role: string; status: RecordStatus };
+    type Person = { name: string; role: string; farm: string; days: Set<string>; hours: number; leave: number; openOrAuto: number };
+    const rows: Row[] = [];
+    const people = new Map<string, Person>();
+    const personFor = (farm: Farm, userId: string, name: string, role: string) => {
+        const key = `${farm.id}:${userId}`;
+        let p = people.get(key);
+        if (!p) people.set(key, (p = { name, role, farm: farm.name, days: new Set(), hours: 0, leave: 0, openOrAuto: 0 }));
+        return p;
+    };
+    for (const { farm, selfRole, records, leave, members } of perFarm) {
+        const member = (id: string) => members.find((m) => m.userId === id);
+        const roleOf = (id: string) => {
+            const r = member(id)?.role ?? selfRole;
+            return r ? f.t(`members.role_${r}`) : DASH;
+        };
+        const nameOf = (id: string, u?: AttendanceRecord['user']) => personName(u ?? member(id)?.user, DASH);
+        for (const record of records) {
+            const status = recordStatus(record, farm, now);
+            const row: Row = { farm, record, name: nameOf(record.userId, record.user), role: roleOf(record.userId), status };
+            rows.push(row);
+            const p = personFor(farm, record.userId, row.name, row.role);
+            p.days.add(istDay(record.checkInAt));
+            p.hours += hours(record) ?? 0;
+            if (!record.checkOutAt || status === 'autoClosed') p.openOrAuto += 1;
+        }
+        for (const l of leave) {
+            personFor(farm, l.userId, nameOf(l.userId, l.user), roleOf(l.userId)).leave += leaveDaysIn(l, config.startDate, config.endDate);
+        }
+    }
+
+    const persons = [...people.values()].sort((a, b) => a.farm.localeCompare(b.farm) || a.name.localeCompare(b.name));
+    const totals: ReportTable = {
         key: 'summary',
-        title: f.t('attendance.title', { defaultValue: 'Attendance' }),
+        title: f.t('attendance.totalsTitle'),
+        columns: [
+            f.t('attendance.colMember'),
+            f.t('attendance.colRole'),
+            f.t('attendance.colFarm'),
+            f.t('attendance.daysPresent'),
+            f.t('attendance.totalHours'),
+            f.t('attendance.leaveDays'),
+            f.t('attendance.openOrAuto'),
+        ],
+        numericColumns: [3, 4, 5, 6],
+        rows: persons.map((p) => [
+            p.name, p.role, f.text(p.farm), f.num(p.days.size, 0), f.num(p.hours, 1), f.num(p.leave, 0), f.num(p.openOrAuto, 0),
+        ]),
+        total: [
+            f.t('common.total', { defaultValue: 'Total' }), '', '',
+            f.num(sum(persons.map((p) => p.days.size)), 0),
+            f.num(sum(persons.map((p) => p.hours)), 1),
+            f.num(sum(persons.map((p) => p.leave)), 0),
+            f.num(sum(persons.map((p) => p.openOrAuto)), 0),
+        ],
+    };
+
+    const shifts: ReportTable = {
+        key: 'summary',
+        title: f.t('attendance.shiftsTitle'),
         columns: [
             f.t('common.date'),
-            f.t('members.name', { defaultValue: 'Name' }),
-            f.t('attendance.checkIn', { defaultValue: 'Check-in' }),
-            f.t('attendance.checkOut', { defaultValue: 'Check-out' }),
-            f.t('attendance.hours', { defaultValue: 'Hours' }),
+            f.t('attendance.colMember'),
+            f.t('attendance.colRole'),
+            f.t('attendance.colFarm'),
+            f.t('attendance.colIn'),
+            f.t('attendance.colOut'),
+            f.t('attendance.totalHours'),
+            f.t('attendance.checkedOutBy'),
+            f.t('common.status'),
         ],
-        numericColumns: [4],
-        rows: byDateDesc(records, (r) => r.checkInAt).map((r) => [
-            f.date(r.checkInAt),
-            f.text(personName(r.user, DASH)),
-            f.time(r.checkInAt),
-            r.checkOutAt ? f.time(r.checkOutAt) : DASH,
-            f.num(hours(r), 1),
+        numericColumns: [6],
+        rows: byDateDesc(rows, (r) => r.record.checkInAt).map(({ farm, record, name, role, status }) => [
+            f.date(record.checkInAt),
+            name,
+            role,
+            f.text(farm.name),
+            f.time(record.checkInAt),
+            record.checkOutAt ? f.time(record.checkOutAt) : DASH,
+            f.num(hours(record), 1),
+            record.checkOutReason === 'auto_closed'
+                ? statusLabel.autoClosed
+                : personName(record.checkedOutBy, DASH),
+            statusLabel[status],
         ]),
     };
 
+    const distinct = (xs: string[]) => new Set(xs).size;
     return {
-        scope,
+        scope: { farmName: farms.length === 1 ? farms[0].name : undefined },
         stats: s.summary
             ? [
-                { label: f.t('attendance.title', { defaultValue: 'Attendance' }), value: f.num(records.length, 0) },
+                { label: f.t('attendance.statMembers'), value: f.num(distinct(rows.map((r) => r.record.userId)), 0) },
                 {
-                    label: f.t('attendance.hours', { defaultValue: 'Hours' }),
-                    value: f.num(sum(records.map(hours)), 1),
+                    label: f.t('attendance.daysPresent'),
+                    value: f.num(distinct(rows.map((r) => `${r.record.userId}:${istDay(r.record.checkInAt)}`)), 0),
                 },
+                { label: f.t('attendance.totalHours'), value: f.num(sum(rows.map((r) => hours(r.record))), 1) },
+                { label: f.t('attendance.statOverdue'), value: f.num(rows.filter((r) => r.status === 'overdue').length, 0) },
             ]
             : [],
-        tables: keep([table]),
+        tables: keep([totals, shifts]),
     };
 };
 
