@@ -28,7 +28,7 @@ import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
-import { Icon, type IconName } from '../../components/ui/Icon';
+import { type IconName } from '../../components/ui/Icon';
 import { ChipGroup } from '../../components/ui/ChipGroup';
 import { CapabilityGrid } from '../../components/members/CapabilityGrid';
 import {
@@ -43,7 +43,8 @@ import { farmMembersApi, type FarmMember, type FarmInvite, type FarmRole } from 
 import { farmsApi } from '../../api/farms';
 import { pondsApi } from '../../api/ponds';
 import { usePermissions } from '../../hooks/usePermissions';
-import { personName } from '../../utils/personName';
+import { personName, personInitials } from '../../utils/personName';
+import { Avatar } from '../../components/ui/Avatar';
 import { shareQrImage } from '../../utils/shareQrImage';
 import { capture, EVENTS } from '../../features/analytics';
 
@@ -398,7 +399,13 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                                     .filter(Boolean)
                                     .join(' · ')}
                             >
-                                <Icon name={meta.icon} size={24} color={meta.color} />
+                                <Avatar
+                                    uri={m.user?.avatarThumbUrl}
+                                    initials={personInitials(m.user)}
+                                    seed={m.userId}
+                                    size={40}
+                                    testID={`member-avatar-${m.userId}`}
+                                />
                                 <View style={{ flex: 1, minWidth: 0 }}>
                                     <Text style={styles.memberName} numberOfLines={1}>
                                         {fullName(m)}

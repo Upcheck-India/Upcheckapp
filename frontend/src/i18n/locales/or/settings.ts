@@ -260,6 +260,22 @@ const settings = {
       generic: "କିଛି ଭୁଲ ହେଲା। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
     },
   },
+  // Profile picture (machine-drafted; needs native review)
+  avatar: {
+    changePhoto: "ଫଟୋ ବଦଳାନ୍ତୁ",
+    addPhoto: "ଫଟୋ ଯୋଡ଼ନ୍ତୁ",
+    removePhoto: "ଫଟୋ ହଟାନ୍ତୁ",
+    removeConfirmTitle: "ଆପଣଙ୍କ ଫଟୋ ହଟାଇବେ?",
+    removeConfirmBody: "ଏହା ଆମ ସର୍ଭରରୁ ବିଲୋପ କରାଯିବ।",
+    takePhoto: "ଫଟୋ ନିଅନ୍ତୁ",
+    fromGallery: "ଗ୍ୟାଲେରୀରୁ ବାଛନ୍ତୁ",
+    uploadFailed: "ଆପଣଙ୍କ ଫଟୋ ଅପଡେଟ୍ ହୋଇପାରିଲା ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
+    needsConnection: "ଫଟୋ ବଦଳାଇବାକୁ ଇଣ୍ଟରନେଟ୍ ସଂଯୋଗ ଦରକାର।",
+    showToTeam: "ମୋ ପ୍ରୋଫାଇଲ୍ ଫଟୋ ମୋ ଫାର୍ମ ଟିମ୍‌କୁ ଦେଖାନ୍ତୁ",
+    showToTeamHint: "କେବଳ ଆପଣଙ୍କ ଫାର୍ମର ଲୋକମାନେ ଏହା ଦେଖିପାରିବେ। ବନ୍ଦ ଥିଲେ କେବଳ ଆପଣ ଦେଖିବେ।",
+    visibilityFailed: "ଏହି ସେଟିଂ ସେଭ୍ ହୋଇପାରିଲା ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
+    a11yPhoto: "ଆପଣଙ୍କ ପ୍ରୋଫାଇଲ୍ ଫଟୋ",
+  },
 };
 
 export default settings;

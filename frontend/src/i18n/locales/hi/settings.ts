@@ -260,6 +260,22 @@ const settings = {
       generic: "कुछ गलत हो गया। फिर कोशिश करें।",
     },
   },
+  // Profile picture (machine-drafted; needs native review)
+  avatar: {
+    changePhoto: "फ़ोटो बदलें",
+    addPhoto: "फ़ोटो जोड़ें",
+    removePhoto: "फ़ोटो हटाएं",
+    removeConfirmTitle: "अपनी फ़ोटो हटाएं?",
+    removeConfirmBody: "यह हमारे सर्वर से हटा दी जाएगी।",
+    takePhoto: "फ़ोटो लें",
+    fromGallery: "गैलरी से चुनें",
+    uploadFailed: "आपकी फ़ोटो अपडेट नहीं हो सकी। फिर कोशिश करें।",
+    needsConnection: "फ़ोटो बदलने के लिए इंटरनेट चाहिए।",
+    showToTeam: "मेरी प्रोफ़ाइल फ़ोटो मेरी फ़ार्म टीम को दिखाएं",
+    showToTeamHint: "इसे सिर्फ़ आपके फ़ार्म के लोग देख सकते हैं। बंद होने पर सिर्फ़ आप देखेंगे।",
+    visibilityFailed: "यह सेटिंग सहेजी नहीं जा सकी। फिर कोशिश करें।",
+    a11yPhoto: "आपकी प्रोफ़ाइल फ़ोटो",
+  },
 };
 
 export default settings;

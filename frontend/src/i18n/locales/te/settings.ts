@@ -260,6 +260,22 @@ const settings = {
       generic: "ఏదో తప్పు జరిగింది. మళ్ళీ ప్రయత్నించండి.",
     },
   },
+  // Profile picture (machine-drafted; needs native review)
+  avatar: {
+    changePhoto: "ఫోటో మార్చండి",
+    addPhoto: "ఫోటో జోడించండి",
+    removePhoto: "ఫోటో తీసివేయండి",
+    removeConfirmTitle: "మీ ఫోటోను తీసివేయాలా?",
+    removeConfirmBody: "ఇది మా సర్వర్ల నుండి తొలగించబడుతుంది.",
+    takePhoto: "ఫోటో తీయండి",
+    fromGallery: "గ్యాలరీ నుండి ఎంచుకోండి",
+    uploadFailed: "మీ ఫోటోను నవీకరించలేకపోయాం. మళ్లీ ప్రయత్నించండి.",
+    needsConnection: "ఫోటో మార్చడానికి ఇంటర్నెట్ కనెక్షన్ అవసరం.",
+    showToTeam: "నా ప్రొఫైల్ ఫోటోను నా ఫార్మ్ టీమ్‌కు చూపించు",
+    showToTeamHint: "మీ ఫార్మ్‌లలోని వారు మాత్రమే దీన్ని చూడగలరు. ఆఫ్ చేస్తే, మీరు మాత్రమే చూస్తారు.",
+    visibilityFailed: "ఈ సెట్టింగ్‌ను సేవ్ చేయలేకపోయాం. మళ్లీ ప్రయత్నించండి.",
+    a11yPhoto: "మీ ప్రొఫైల్ ఫోటో",
+  },
 };
 
 export default settings;

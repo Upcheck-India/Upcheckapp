@@ -91,7 +91,7 @@ export class CreateDiseaseRecordDto {
   @MaxLength(50)
   severityAtDetection?: string;
 
-  /** `health-photos` paths of this crop's farm (D6); checked in the service. */
+  /** `health/` photo paths of this crop's farm (D6); checked in the service. */
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(6)

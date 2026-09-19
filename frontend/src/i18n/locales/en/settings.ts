@@ -264,6 +264,22 @@ const settings = {
       generic: "Something went wrong. Please try again.",
     },
   },
+  // Profile picture
+  avatar: {
+    changePhoto: "Change photo",
+    addPhoto: "Add photo",
+    removePhoto: "Remove photo",
+    removeConfirmTitle: "Remove your photo?",
+    removeConfirmBody: "It will be deleted from our servers.",
+    takePhoto: "Take photo",
+    fromGallery: "Choose from gallery",
+    uploadFailed: "Could not update your photo. Please try again.",
+    needsConnection: "Changing your photo needs an internet connection.",
+    showToTeam: "Show my profile photo to my farm team",
+    showToTeamHint: "Only people on your farms can see it. When off, only you see it.",
+    visibilityFailed: "Could not save this setting. Please try again.",
+    a11yPhoto: "Your profile photo",
+  },
 };
 
 export default settings;

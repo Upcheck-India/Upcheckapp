@@ -43,6 +43,7 @@ describe('ProfilesController me routes', () => {
     profilesService as any,
     {} as any,
     accountService as any,
+    { mine: jest.fn().mockResolvedValue({ avatarUrl: null, avatarThumbUrl: null, hasUploadedAvatar: false, showAvatarToTeam: true }) } as any,
   );
   const user = { id: 'u1', email: 'a@example.com' };
 
@@ -83,7 +84,7 @@ describe('ProfilesService.upsert heals an empty name', () => {
       save: jest.fn(async (x) => x),
     };
     const dataSource = { query: jest.fn(async () => (usersRow ? [usersRow] : [])) };
-    const svc = new ProfilesService(repo as any, dataSource as any, {} as any);
+    const svc = new ProfilesService(repo as any, dataSource as any, {} as any, {} as any);
     return { svc, repo, dataSource };
   }
 

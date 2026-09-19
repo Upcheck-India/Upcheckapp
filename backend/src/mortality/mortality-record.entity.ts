@@ -45,7 +45,7 @@ export class MortalityRecord {
   @Column({ name: 'suspected_cause', type: 'text', nullable: true })
   suspectedCause: string | null;
 
-  /** Storage paths in the private `health-photos` bucket (signed on read). */
+  /** Photo paths (R2, under `health/`), signed on read. */
   @Column({ name: 'photo_urls', type: 'text', array: true, default: '{}' })
   photoUrls: string[];
 

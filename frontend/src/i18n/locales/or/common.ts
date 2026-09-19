@@ -14,6 +14,7 @@ const common = {
   share: 'ସେୟାର କରନ୍ତୁ',
   add: 'ଯୋଡ଼ନ୍ତୁ',
   close: 'ବନ୍ଦ',
+  viewPhoto: 'ଫଟୋ ଦେଖନ୍ତୁ',
   confirm: 'ନିଶ୍ଚିତ',
   back: 'ପଛକୁ',
   featureUnavailable: 'ବର୍ତ୍ତମାନ ଉପଲବ୍ଧ ନାହିଁ',

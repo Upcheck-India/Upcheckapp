@@ -8,6 +8,8 @@ export interface ChipOption {
     label: string;
     /** Optional MaterialCommunityIcons glyph (no emojis — design system §4). */
     icon?: keyof typeof MaterialCommunityIcons.glyphMap;
+    /** Optional leading element, e.g. a person's Avatar in a member picker. */
+    leading?: React.ReactNode;
 }
 
 interface ChipGroupProps {
@@ -62,6 +64,7 @@ export const ChipGroup: React.FC<ChipGroupProps> = ({
                             style={[styles.chip, selected && styles.chipSelected]}
                             activeOpacity={0.7}
                         >
+                            {opt.leading ? <View style={styles.chipIcon}>{opt.leading}</View> : null}
                             {opt.icon ? (
                                 <MaterialCommunityIcons
                                     name={opt.icon}

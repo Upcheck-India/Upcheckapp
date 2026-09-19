@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
 import { HealthObservationsService } from './health-observations.service';
 import { HealthPhotoStorageService } from './health-photo-storage.service';
+import { R2StorageService } from '../storage/r2-storage.service';
 import { CreateHealthObservationsDto } from './dto/create-health-observations.dto';
 import { normaliseSeverity, DISEASE_SEVERITIES } from './health.constants';
 import { LEGACY_SEVERITY } from '../migrations/1780701500000-HealthObservations';
@@ -34,7 +35,7 @@ const make = (stored: any[] = []) => {
   const farmAccess = {
     assertCanAccessPond: jest.fn(async () => ({ id: POND, farmId: FARM_A, activeCycleId: CROP })),
   };
-  const photos = new HealthPhotoStorageService({ get: () => undefined } as any);
+  const photos = new HealthPhotoStorageService(new R2StorageService({ get: () => undefined } as any));
   const svc = new HealthObservationsService(repo as any, farmAccess as any, photos);
   return { svc, repo, qb, inserted, farmAccess };
 };
@@ -123,15 +124,30 @@ describe('HealthObservationsService.listForPond', () => {
 
 describe('HealthPhotoStorageService.signForFarm', () => {
   it("never signs another farm's path", async () => {
-    const photos = new HealthPhotoStorageService({ get: () => undefined } as any);
-    const createSignedUrls = jest.fn(async (paths: string[]) => ({
-      data: paths.map((p) => ({ signedUrl: `signed:${p}` })),
-      error: null,
+    const sign = jest.fn(async (_ns: string, paths: string[]) => ({
+      full: paths.map((p) => `signed:${p}`),
+      thumb: paths.map((p) => `thumb:${p}`),
     }));
-    (photos as any).client = { storage: { from: () => ({ createSignedUrls }) } };
+    const photos = new HealthPhotoStorageService({ sign } as any);
     const urls = await photos.signForFarm(FARM_A, [photo(FARM_A), photo(FARM_B), 'https://evil/x.jpg']);
-    expect(createSignedUrls).toHaveBeenCalledWith([photo(FARM_A)], 3600);
-    expect(urls).toEqual([`signed:${photo(FARM_A)}`]);
+    expect(sign).toHaveBeenCalledWith('health', [photo(FARM_A)]);
+    expect(urls).toEqual({ full: [`signed:${photo(FARM_A)}`], thumb: [`thumb:${photo(FARM_A)}`] });
+  });
+
+  it('withSigned puts full and thumbnail urls on each record', async () => {
+    const sign = jest.fn(async (_ns: string, paths: string[]) => ({
+      full: paths.map((p) => `signed:${p}`),
+      thumb: paths.map((p) => `thumb:${p}`),
+    }));
+    const photos = new HealthPhotoStorageService({ sign } as any);
+    const [row] = await photos.withSigned(FARM_A, [{ photoUrls: [photo(FARM_A)] }]);
+    expect(row.photoSignedUrls).toEqual([`signed:${photo(FARM_A)}`]);
+    expect(row.photoThumbUrls).toEqual([`thumb:${photo(FARM_A)}`]);
+  });
+
+  it('with R2 unconfigured, reads degrade to no urls instead of throwing', async () => {
+    const photos = new HealthPhotoStorageService(new R2StorageService({ get: () => undefined } as any));
+    await expect(photos.signForFarm(FARM_A, [photo(FARM_A)])).resolves.toEqual({ full: [], thumb: [] });
   });
 });
 

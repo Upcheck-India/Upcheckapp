@@ -43,6 +43,7 @@ function makeService(opts: {
     farmsRepo as any,
     { find: jest.fn() } as any,
     farmAccess as any,
+    { resolve: jest.fn().mockResolvedValue(new Map()) } as any,
   );
   return { svc, membersRepo, farmsRepo, farmAccess };
 }

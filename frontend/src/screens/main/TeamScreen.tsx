@@ -61,6 +61,7 @@ import {
     type RosterEntry,
 } from '../../api/teamOverview';
 import { personName } from '../../utils/personName';
+import { Avatar } from '../../components/ui/Avatar';
 import { formatTime, formatWeekday } from '../../utils/formatDate';
 import { ShiftBadge, ShiftCard, useShiftLine } from '../../components/attendance/ShiftCard';
 import { CheckOutSheet } from '../../components/attendance/CheckOutSheet';
@@ -424,6 +425,7 @@ export const TeamScreen = ({ navigation }: any) => {
         const canAct = open && !e.isSelf && canDecideOnTeam(grantForFarm(farmIdOfRow).role);
         return (
             <View key={e.key} style={styles.personRow} testID={`person-${farmIdOfRow}-${e.userId}`}>
+                <Avatar uri={e.avatarThumbUrl} initials={e.initials} seed={e.userId} size={36} />
                 <View style={{ flex: 1, minWidth: 0 }}>
                     <Text style={styles.personName} numberOfLines={1}>
                         {e.isSelf ? t('team.youSuffix', { name: e.name }) : e.name}

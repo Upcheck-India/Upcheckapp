@@ -4,7 +4,7 @@
  * the button is disabled with a reason — the record itself still saves.
  */
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
@@ -12,6 +12,7 @@ import { useSyncStore } from '../../store/syncStore';
 import { healthObservationsApi } from '../../api/healthObservations';
 import { pickHealthPhoto } from '../../features/healthPhoto';
 import { apiErrorMessage } from '../../api/errors';
+import { PhotoStrip } from '../ui/PhotoStrip';
 
 const c = theme.roles.light;
 
@@ -22,10 +23,12 @@ interface Props {
     onChange: (paths: string[]) => void;
     /** Signed URLs of `value` when editing a saved record. */
     existingUrls?: string[];
+    /** Their thumbnails, same order. */
+    existingThumbs?: string[];
     max?: number;
 }
 
-export const HealthPhotoPicker: React.FC<Props> = ({ pondId, value, onChange, existingUrls = [], max = 3 }) => {
+export const HealthPhotoPicker: React.FC<Props> = ({ pondId, value, onChange, existingUrls = [], existingThumbs = [], max = 3 }) => {
     const { t } = useTranslation();
     const online = useSyncStore((s) => s.isConnected);
     const [local, setLocal] = useState<string[]>([]);
@@ -53,16 +56,16 @@ export const HealthPhotoPicker: React.FC<Props> = ({ pondId, value, onChange, ex
             { text: t('common.cancel'), style: 'cancel' },
         ]);
 
-    const thumbs = [...existingUrls, ...local];
+    const fullUrls = [...existingUrls, ...local];
+    // Local picks are their own thumbnails.
+    const thumbUrls = [...existingUrls.map((u, i) => existingThumbs[i] || u), ...local];
     const full = value.length >= max;
     const disabled = !online || busy || full;
     return (
         <View>
-            {thumbs.length > 0 && (
+            {fullUrls.length > 0 && (
                 <View style={styles.row}>
-                    {thumbs.map((u) => (
-                        <Image key={u} source={{ uri: u }} style={styles.thumb} accessibilityIgnoresInvertColors />
-                    ))}
+                    <PhotoStrip full={fullUrls} thumbs={thumbUrls} />
                 </View>
             )}
             <TouchableOpacity
@@ -86,8 +89,7 @@ export const HealthPhotoPicker: React.FC<Props> = ({ pondId, value, onChange, ex
 };
 
 const styles = StyleSheet.create({
-    row: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2], marginBottom: theme.spacing[2] },
-    thumb: { width: 72, height: 72, borderRadius: theme.radius.md, backgroundColor: c.surfaceVariant },
+    row: { marginBottom: theme.spacing[2] },
     btn: {
         flexDirection: 'row',
         alignItems: 'center',

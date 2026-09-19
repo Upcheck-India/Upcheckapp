@@ -29,7 +29,8 @@ const PUBLIC_USER_SELECT = {
   firstName: true,
   lastName: true,
   username: true,
-  avatarUrl: true,
+  // No avatarUrl: pictures go only through AvatarService, which applies the
+  // owner's privacy setting and the shared-farm check.
 } as const;
 
 function isMissingTable(err: any): boolean {

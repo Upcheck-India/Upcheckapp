@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +12,7 @@ import { diseaseApi, DiseaseRecord } from '../../../api/diseases';
 import { apiErrorMessage } from '../../../api/errors';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { normaliseSeverity } from '../../../api/healthObservations';
+import { PhotoStrip } from '../../../components/ui/PhotoStrip';
 
 const c = theme.roles.light;
 const severityColors: Record<string, { bg: string; text: string }> = {
@@ -152,9 +153,7 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
                 {!!item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
                 {!!item.photoSignedUrls?.length && (
                     <View style={styles.photoRow}>
-                        {item.photoSignedUrls.map((u) => (
-                            <Image key={u} source={{ uri: u }} style={styles.thumb} accessibilityIgnoresInvertColors />
-                        ))}
+                        <PhotoStrip full={item.photoSignedUrls} thumbs={item.photoThumbUrls} />
                     </View>
                 )}
                 {outcome === 'ongoing' && perms.canManageOperations && (
@@ -232,8 +231,7 @@ const styles = StyleSheet.create({
     flagBannerRestricted: { backgroundColor: c.warningBg },
     flagText: { ...theme.typeScale.labelSmall, fontWeight: '700', flexShrink: 1 },
     notesText: { ...theme.typeScale.bodySmall, color: c.textSecondary, marginTop: theme.spacing[2] },
-    photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2], marginTop: theme.spacing[3] },
-    thumb: { width: 72, height: 72, borderRadius: theme.radius.md, backgroundColor: c.surfaceVariant },
+    photoRow: { marginTop: theme.spacing[3] },
     outcomeBox: { marginTop: theme.spacing[3], gap: theme.spacing[1.5] },
     outcomeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2] },
     outcomeBtn: { paddingHorizontal: theme.spacing[3], paddingVertical: theme.spacing[1.5], borderRadius: theme.radius.md, borderWidth: 1, borderColor: c.primary },

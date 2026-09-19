@@ -162,6 +162,8 @@ export interface PersonDay {
   feedKg: number;
   pondIds: string[];
   tasksDone: number;
+  /** Their picture (thumbnail), when the caller may see it; else null/absent. */
+  avatarThumbUrl?: string | null;
 }
 
 export interface PondWork {

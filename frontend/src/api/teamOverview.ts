@@ -9,7 +9,7 @@ import type { LeaveRequest } from './leaveRequests';
 import type { Task } from './tasks';
 import type { FarmMember, FarmRole } from './farmMembers';
 import { ROLE_RANK } from '../permissions/capabilities';
-import { personName } from '../utils/personName';
+import { personName, personInitials } from '../utils/personName';
 import { farmCard, onLeaveToday, isTodayIST, type FarmCard } from '../features/attendance/shiftState';
 
 /**
@@ -187,6 +187,9 @@ export interface RosterEntry {
     farmId: string;
     userId: string;
     name: string;
+    /** Their picture (thumbnail) when the server allows it; else initials. */
+    avatarThumbUrl: string | null;
+    initials: string;
     role: FarmRole;
     /** Membership is waiting to be approved; they hold nothing yet. */
     pendingJoin: boolean;
@@ -310,6 +313,8 @@ export function buildRoster(
             farmId: m.farmId,
             userId: m.userId,
             name: personName(m.user, unknownLabel),
+            avatarThumbUrl: m.user?.avatarThumbUrl ?? null,
+            initials: personInitials(m.user),
             role: m.role,
             pendingJoin: m.status === 'pending',
             attendance: state,
