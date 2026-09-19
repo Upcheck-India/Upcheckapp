@@ -51,7 +51,15 @@ export class MoneyOverviewService {
         farms.map((farm: { id: string }) =>
           this.reports
             .getFinancialReport(farm.id, userId, q)
-            .then((report) => [farm.id, report] as const)
+            // H4: flag, never silently sum, a cycle whose sale was booked both
+            // by a pre-H4 plan completion (a transaction) and by a harvest.
+            // Only reached once the VIEW_FINANCIALS-gated report succeeded.
+            .then(async (report) => {
+              const possibleDuplicateHarvestIncome = await this.harvests
+                .planIncomeOverlaps(farm.id)
+                .catch(() => []);
+              return [farm.id, { ...report, possibleDuplicateHarvestIncome }] as const;
+            })
             // A worker or viewer without VIEW_FINANCIALS gets a 403 here. That
             // is a legitimate outcome, not an error: their Money tab shows the
             // farms they can see and no figures for the ones they cannot,

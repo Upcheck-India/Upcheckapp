@@ -38,14 +38,63 @@ export interface FinancialReport {
     }>;
     /** Whether the figures above actually include archived ponds. */
     includedArchivedPonds?: boolean;
+    /**
+     * H4: cycles whose sale was booked both by a pre-H4 plan completion (a
+     * transaction) and by a harvest — both are in `revenue`. Flagged, never
+     * rewritten. Only on /money/overview; absent on older backends.
+     */
+    possibleDuplicateHarvestIncome?: Array<{ cropId: string; pondId: string }>;
 }
 
 export interface CycleAnalysis {
     cycleId: string;
-    fcr: number;
+    /** Null when no feed or no harvest was logged — never a fake 0. */
+    fcr: number | null;
     totalFeedKg: number;
     totalHarvestKg: number;
-    survivalRate: number;
+    /** Harvested ÷ stocked (not the sampling estimate); null when unknown. */
+    survivalRate: number | null;
+    growthChart: Array<{ date: string; mbw: number }>;
+}
+
+export type Band = 'good' | 'fair' | 'poor';
+
+/** GET /crops/:id/result (harvest-and-molt H3). `null` always means "not logged". */
+export interface CycleResult {
+    cropId: string;
+    pondId: string;
+    farmId: string;
+    pondName: string;
+    status: string;
+    closeReason: string | null;
+    lost: boolean;
+    stockingDate: string | null;
+    endDate: string;
+    doc: number | null;
+    stockedCount: number | null;
+    harvestedKg: number;
+    yield: { tPerHa: number; areaAssumed: boolean } | null;
+    survival: { pct: number; low: number | null; high: number | null; estimated: boolean } | null;
+    srBand: Band | null;
+    feedKg: number;
+    untaggedFeedLogs: number;
+    fcr: number | null;
+    fcrBand: Band | null;
+    avgCount: number | null;
+    gradeMix: { countPerKg: number; kg: number; pct: number }[];
+    adgGPerDay: number | null;
+    stockingAbwAssumedG: number;
+    /** Null without VIEW_FINANCIALS. */
+    money: { revenue: number; cost: number; profit: number; marginPct: number; breakEvenPricePerKg: number | null } | null;
+    nextCycle: { key: 'feedOver' | 'mortalitySpike' | 'softShellMolt'; params: Record<string, string | number> }[];
+    welfare: {
+        doBelow3Days: { days: number; of: number } | null;
+        nh3CriticalDays: { days: number; of: number } | null;
+        handlingInMoltPeak: number | null;
+        diseases: { recordedDate: string; name: string | null; outcome: string | null }[] | null;
+        biosecurity: { done: number; total: number } | null;
+        seedPcr: { results: Record<string, string>; date: string | null; spf: boolean | null } | null;
+    };
     growthChart: Array<{ date: string; mbw: number }>;
 }
 
@@ -60,4 +109,6 @@ export const reportsApi = {
 
     getCycleAnalysis: (cycleId: string) =>
         apiClient.get<CycleAnalysis>(`/reports/cycle/${cycleId}/analysis`),
+
+    getCycleResult: (cropId: string) => apiClient.get<CycleResult>(`/crops/${cropId}/result`),
 };

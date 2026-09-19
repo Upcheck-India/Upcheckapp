@@ -1,9 +1,6 @@
-// Regression test for the historically broken "Mark Complete" flow (audit row
-// #28): `promptCompleteValues` promised the farmer would be asked for actual
-// harvest weight/price, but the flow didn't actually collect or send them —
-// completing a plan is how the season's most important event (getting paid)
-// gets recorded, so a silent no-op or a booked 0/0 here is the worst possible
-// failure mode.
+// H4 — one revenue path. "Mark complete" used to PATCH /complete, which
+// booked a transaction and wrote no harvest. It now opens HarvestLog
+// prefilled from the plan; the harvest save completes the plan server-side.
 jest.mock('@react-navigation/native', () => {
     const actual = jest.requireActual('@react-navigation/native');
     return {
@@ -17,11 +14,12 @@ jest.mock('@react-navigation/native', () => {
 jest.mock('../../../api/harvestPlans', () => ({
     harvestPlansApi: {
         getAll: jest.fn(),
-        complete: jest.fn(),
         delete: jest.fn(),
         create: jest.fn(),
     },
 }));
+const permissions = { canRecordHarvest: true };
+jest.mock('../../../hooks/usePermissions', () => ({ usePermissions: () => permissions }));
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
@@ -30,7 +28,7 @@ import { HarvestPlansScreen } from '../HarvestPlansScreen';
 import { harvestPlansApi } from '../../../api/harvestPlans';
 
 const mockedGetAll = harvestPlansApi.getAll as jest.Mock;
-const mockedComplete = harvestPlansApi.complete as jest.Mock;
+const mockedCreate = harvestPlansApi.create as jest.Mock;
 
 // See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why
 // this is needed: react-native-safe-area-context's real initialWindowMetrics
@@ -63,51 +61,53 @@ const renderScreen = () =>
         </SafeAreaProvider>,
     );
 
-describe('HarvestPlansScreen — Mark Complete (regression for the broken-flow bug)', () => {
+describe('HarvestPlansScreen — H4', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        permissions.canRecordHarvest = true;
         mockedGetAll.mockResolvedValue({ data: [PLANNED_PLAN] });
     });
 
-    it('collects real actual weight/price and books them — never a silent no-op or 0/0', async () => {
-        mockedComplete.mockResolvedValue({ data: { ...PLANNED_PLAN, status: 'completed' } });
-
-        const { getByText, getByPlaceholderText } = renderScreen();
-        await waitFor(() => expect(mockedGetAll).toHaveBeenCalledTimes(1));
-
-        // Tap "Mark Complete" on the plan card — this used to promise a
-        // weight/price prompt that never actually materialized.
-        fireEvent.press(getByText('Mark Complete'));
-
-        // The modal must actually collect real numbers, not auto-book 0/0.
-        fireEvent.changeText(getByPlaceholderText('e.g. 480'), '470');
-        fireEvent.changeText(getByPlaceholderText('e.g. 290'), '300');
-        fireEvent.press(getByText('Complete'));
-
-        await waitFor(() =>
-            expect(mockedComplete).toHaveBeenCalledWith(
-                'plan-1',
-                expect.objectContaining({
-                    actualWeightKg: 470,
-                    actualPricePerKg: 300,
-                    farmId: 'farm-1',
-                    cropId: 'crop-1',
-                }),
-            ),
-        );
-        // A real completion must refresh the list so the plan's new status/
-        // actuals are visible — not just close the modal on stale data.
-        await waitFor(() => expect(mockedGetAll).toHaveBeenCalledTimes(2));
-    });
-
-    it('refuses to complete with a zero/blank weight or price — never books 0/0', async () => {
+    it('"Mark Complete" opens the harvest form prefilled from the plan — no /complete call', async () => {
         const { getByText } = renderScreen();
         await waitFor(() => expect(mockedGetAll).toHaveBeenCalledTimes(1));
 
         fireEvent.press(getByText('Mark Complete'));
-        // Leave both fields blank/zero and try to submit anyway.
-        fireEvent.press(getByText('Complete'));
 
-        await waitFor(() => expect(mockedComplete).not.toHaveBeenCalled());
+        expect(navigation.navigate).toHaveBeenCalledWith('HarvestLog', {
+            pondId: 'pond-1',
+            pondName: 'Pond 1',
+            cropId: 'crop-1',
+            farmId: 'farm-1',
+            planId: 'plan-1',
+            harvestType: 'full',
+            prefill: { date: '2026-08-01', targetKg: 500, expectedPrice: 280 },
+        });
+    });
+
+    it('hides complete and delete without RECORD_HARVEST', async () => {
+        permissions.canRecordHarvest = false;
+        const { queryByText } = renderScreen();
+        await waitFor(() => expect(mockedGetAll).toHaveBeenCalledTimes(1));
+
+        expect(queryByText('Mark Complete')).toBeNull();
+    });
+
+    it('sends expectedRevenue = target kg × expected price on create', async () => {
+        mockedGetAll.mockResolvedValue({ data: [] });
+        mockedCreate.mockResolvedValue({ data: {} });
+        const { getByText, getByPlaceholderText } = renderScreen();
+        await waitFor(() => expect(mockedGetAll).toHaveBeenCalledTimes(1));
+
+        fireEvent.press(getByText('Add Plan'));
+        fireEvent.changeText(getByPlaceholderText('e.g. 500'), '500');
+        fireEvent.changeText(getByPlaceholderText('e.g. 280'), '280');
+        fireEvent.press(getByText('Add Plan'));
+
+        await waitFor(() =>
+            expect(mockedCreate).toHaveBeenCalledWith(
+                expect.objectContaining({ targetWeightKg: 500, expectedPricePerKg: 280, expectedRevenue: 140000 }),
+            ),
+        );
     });
 });

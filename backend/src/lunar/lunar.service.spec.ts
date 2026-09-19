@@ -61,10 +61,10 @@ describe('LunarService — lock factor, mineral dose, risk (spec §3/§5/§8)', 
 
   it('molt risk rises as DO drops and mineral deficit grows (at molt peak)', () => {
     const p = svc.moonPhase(NEW_MOON);
-    const baseline = svc.computeMoltRisk(p, 25, {}).score;
-    const lowDO = svc.computeMoltRisk(p, 25, { do: 2.5 }).score;
+    const baseline = svc.computeMoltRisk(p, 25, { do: 6 }).score;
+    const lowDO = svc.computeMoltRisk(p, 25, { do: 3.5 }).score;
     const lowDOplusMineral = svc.computeMoltRisk(p, 25, {
-      do: 2.5,
+      do: 3.5,
       mineralDeficitFrac: 1,
     }).score;
     expect(lowDO).toBeGreaterThan(baseline);
@@ -85,6 +85,65 @@ describe('LunarService — lock factor, mineral dose, risk (spec §3/§5/§8)', 
     expect(stressed.score).toBeGreaterThan(60);
     expect(stressed.band).toBe('Critical');
     expect(stressed.phaseRel).toBe('peak');
+  });
+});
+
+describe('LunarService — window-based pressure + renormalised vulnerability', () => {
+  const svc = new LunarService();
+  // True new moon 2026-09-11 03:26 UTC → IST peak 10–12 Sep, post 13–14, inter 15+.
+  const PEAK_EDGE = new Date('2026-09-12T12:00:00Z');
+  const POST = new Date('2026-09-13T06:00:00Z');
+  const INTER = new Date('2026-09-15T06:00:00Z');
+
+  it('peak day, 20 g pond, no readings → pressure 1, vulnerability 0.5 (unknown) → 70 Critical', () => {
+    const r = svc.computeMoltRisk(svc.moonPhase(PEAK_EDGE), 20, {});
+    expect(r.phaseRel).toBe('peak');
+    expect(r.moltPressure).toBe(1);
+    expect(r.vulnerability).toBe(0.5);
+    expect(r.vulnerabilityKnown).toBe(0);
+    expect(r.vulnerabilityTotal).toBe(8);
+    expect(r.score).toBe(70);
+    expect(r.band).toBe('Critical');
+  });
+
+  it('10 g pond on a peak-window day: full window pressure (mean phase undercounted it)', () => {
+    const p = svc.moonPhase(PEAK_EDGE);
+    expect(p.moltLikelihood).toBeLessThan(1); // the old mean-phase curve, already falling
+    const r = svc.computeMoltRisk(p, 10, {});
+    expect(r.moltPressure).toBeCloseTo(svc.lunarLockFactor(10), 4);
+    expect(r.phaseRel).toBe('peak');
+    // Old: 100 × likelihood × lock × (0.4 + 0.6 × 0.106) with the "safe" defaults.
+    const old = 100 * p.moltLikelihood * svc.lunarLockFactor(10) * (0.4 + 0.6 * 0.106);
+    expect(r.score).toBeGreaterThan(old);
+    expect(r.score).toBeCloseTo(100 * svc.lunarLockFactor(10) * 0.7, 1);
+  });
+
+  it('pre/post window days carry 0.6 pressure; inter days carry none', () => {
+    const post = svc.computeMoltRisk(svc.moonPhase(POST), 20, {});
+    expect(post.phaseRel).toBe('post');
+    expect(post.moltPressure).toBe(0.6);
+    const inter = svc.computeMoltRisk(svc.moonPhase(INTER), 20, { do: 2 });
+    expect(inter.phaseRel).toBe('none');
+    expect(inter.moltPressure).toBe(0);
+    expect(inter.score).toBe(0);
+    expect(inter.band).toBe('Low');
+  });
+
+  it('renormalises over known factors: only DO known and critical → vulnerability 1.0', () => {
+    const r = svc.computeMoltRisk(svc.moonPhase(PEAK_EDGE), 20, { do: 2.5 });
+    expect(r.vulnerability).toBe(1);
+    expect(r.vulnerabilityKnown).toBe(1);
+    expect(r.score).toBe(100);
+  });
+
+  it('coverage counts each provided factor', () => {
+    const r = svc.computeMoltRisk(svc.moonPhase(PEAK_EDGE), 20, {
+      do: 6, temp: 29, freeNh3: 0.05, mineralDeficitFrac: 0, densityRatio: 0.5, tray: 'few_left',
+    });
+    expect(r.vulnerabilityKnown).toBe(6);
+    expect(r.vulnerabilityTotal).toBe(8);
+    // (0.1·.22 + 0·.22 + 0.1·.12 + 0.1·.10 + 0.5·.08 + 0.3·.06) / 0.80
+    expect(r.vulnerability).toBeCloseTo(0.1275, 4);
   });
 });
 

@@ -55,6 +55,7 @@ const build = (opts: {
       getAccessiblePondIds: jest.fn().mockResolvedValue(['pond-1']),
     } as any,
     transactionsService,
+    {} as any, // dataSource
   );
 };
 

@@ -100,10 +100,52 @@ export class WaterQualityService {
     });
     const savedRecord = await this.recordsRepository.save(record);
 
-    // Check critical values and generate alerts
-    await this.checkAndGenerateAlerts(savedRecord, pond, userId);
+    // Alerts run AFTER the response, not inside it. They were awaited inline:
+    // a species lookup, a supersede UPDATE, an alert INSERT and — the slow
+    // part — an Expo push round trip per tripped threshold, all before the
+    // farmer's phone heard "saved". Multiplied across a ten-pond morning
+    // round that was most of the spinner. The reading is already committed
+    // above, so nothing here can lose it; and the replay path returns before
+    // reaching this line, so a re-sent record never raises its alerts twice.
+    void this.queueAlerts(savedRecord, pond, userId);
 
     return savedRecord;
+  }
+
+  /** Per-pond tail of the background alert work — see queueAlerts. */
+  private readonly alertChains = new Map<string, Promise<void>>();
+
+  /**
+   * Run checkAndGenerateAlerts off the response path, SERIALISED per pond.
+   *
+   * Order matters within a pond: reading B's supersede must not run before
+   * reading A's create, or A's alert would outlive the newer reading (the
+   * exact bug supersede exists to fix). Chaining per pond keeps the old
+   * awaited ordering without making the client wait for it. Never rejects.
+   *
+   * ponytail: in-process chain only. Two API instances writing the same pond
+   * within milliseconds could still interleave — as they could before, since
+   * two requests were never ordered across instances. A queue if that matters.
+   */
+  queueAlerts(
+    record: WaterQualityRecord,
+    pond: { id: string; farmId: string; name?: string; activeCycleId?: string | null },
+    userId: string,
+  ): Promise<void> {
+    const prev = this.alertChains.get(pond.id) ?? Promise.resolve();
+    const next = prev
+      .then(() => this.checkAndGenerateAlerts(record, pond, userId))
+      .catch((error) =>
+        this.logger.error(
+          `Background water quality alerts failed (pond ${pond.id}, record ${record.id}): ${error}`,
+          (error as Error)?.stack,
+        ),
+      )
+      .finally(() => {
+        if (this.alertChains.get(pond.id) === next) this.alertChains.delete(pond.id);
+      });
+    this.alertChains.set(pond.id, next);
+    return next;
   }
 
   /**

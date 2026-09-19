@@ -18,6 +18,7 @@ import { pnlApi, CropPnl } from '../../api/pnl';
 import { confirm } from '../../utils/confirm';
 import { usePermissions } from '../../hooks/usePermissions';
 import { EditCycleForm } from './EditCycleForm';
+import { BiosecurityPanel } from '../../components/biosecurity/BiosecurityPanel';
 
 export const CycleDetailScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -31,7 +32,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
     const [error, setError] = useState<any>(null);
     // The crop carries its own farmId, so the gate follows the cycle rather
     // than whichever farm happens to be active in the picker.
-    const { canRecordHarvest, canManageOperations, canViewFinancials } = usePermissions(cycle?.farmId);
+    const { canRecordHarvest, canManageOperations, canViewFinancials, canRecordData } = usePermissions(cycle?.farmId);
 
     const fetchCycle = useCallback(async () => {
         setError(null);
@@ -190,6 +191,13 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                     </View>
                 </Card>
 
+                <BiosecurityPanel
+                    cropId={cycle.id}
+                    active={cycle.status === 'active'}
+                    canTick={canRecordData}
+                    canEditSeed={canManageOperations}
+                />
+
                 <Text style={styles.sectionHeading}>{t('cycles.sectionTargets')}</Text>
                 <View style={styles.metricsGrid}>
                     <MetricCard
@@ -259,6 +267,14 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                 )}
 
                 <View style={styles.actionContainer}>
+                    {/* H3: a closed cycle's result — READ, every role. */}
+                    {cycle.status !== 'active' && (
+                        <Button
+                            title={t('reports.openResult')}
+                            onPress={() => navigation.navigate('CycleResult', { cropId: cycle.id })}
+                            style={styles.actionBtn}
+                        />
+                    )}
                     {canViewFinancials && (
                         <Button
                             title={t('cycles.btnExpenses')}

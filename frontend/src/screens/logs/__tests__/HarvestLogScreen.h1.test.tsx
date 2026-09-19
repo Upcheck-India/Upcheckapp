@@ -36,7 +36,7 @@ const METRICS = {
     frame: { x: 0, y: 0, width: 390, height: 844 },
     insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
-const navigation = { goBack: jest.fn() };
+const navigation = { goBack: jest.fn(), replace: jest.fn() };
 const renderScreen = (params: any = {}) =>
     render(
         <SafeAreaProvider initialMetrics={METRICS}>
@@ -120,6 +120,36 @@ describe('HarvestLogScreen — H1 graded form', () => {
         expect(alert.mock.calls[0][0]).toBe('Close this cycle?');
         expect(alert.mock.calls[0][1]).toContain('Pond 1');
         expect(saveRecord).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [false, 'opens the Cycle Result'],
+        [true, 'goes back (nothing on the server yet)'],
+    ])('a saved full harvest (queued=%s) %s', async (queued) => {
+        answer(1);
+        (saveRecord as jest.Mock).mockResolvedValue({ id: 'x', queued });
+        const { getByText, getAllByLabelText } = renderScreen();
+        fireEvent.press(getByText('Full (Close Cycle)'));
+        fireEvent.changeText(getAllByLabelText('kg')[0], '980');
+        fireEvent.press(getByText('Save Harvest'));
+
+        await waitFor(() => expect(saveRecord).toHaveBeenCalled());
+        if (queued) {
+            await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+            expect(navigation.replace).not.toHaveBeenCalled();
+        } else {
+            await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('CycleResult', { cropId: 'crop-1' }));
+            expect(navigation.goBack).not.toHaveBeenCalled();
+        }
+    });
+
+    it('a saved partial harvest just goes back', async () => {
+        (saveRecord as jest.Mock).mockResolvedValue({ id: 'x', queued: false });
+        const { getByText, getAllByLabelText } = renderScreen();
+        fireEvent.changeText(getAllByLabelText('kg')[0], '200');
+        fireEvent.press(getByText('Save Harvest'));
+        await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+        expect(navigation.replace).not.toHaveBeenCalled();
     });
 
     it('a failed online save retried reuses the same harvest id', async () => {

@@ -15,6 +15,7 @@ export class DiseaseIndicatorsDto implements DiseaseIndicators {
   @IsOptional() @IsBoolean() seasonWinter?: boolean;
   @IsOptional() @IsBoolean() regionalWssv?: boolean;
   @IsOptional() @IsBoolean() redBody?: boolean;
+  @IsOptional() @IsBoolean() entryRisk?: boolean;
   @IsOptional() @IsBoolean() docBelow35?: boolean;
   @IsOptional() @IsBoolean() yellowVibrioUp?: boolean;
   @IsOptional() @IsBoolean() emptyGut?: boolean;

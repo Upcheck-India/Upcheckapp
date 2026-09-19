@@ -7,6 +7,9 @@ import { AlertsModule } from '../alerts/alerts.module';
 import { Pond } from '../ponds/pond.entity';
 import { PondContextModule } from '../pond-context/pond-context.module';
 import { MoltModule } from '../molt/molt.module';
+import { PushModule } from '../push/push.module';
+import { DiseaseWarningModule } from '../disease-warning/disease-warning.module';
+import { DiseaseAlertService } from './disease-alert.service';
 
 /**
  * Unified Alert Center on top of the existing AlertsService — every engine
@@ -19,9 +22,11 @@ import { MoltModule } from '../molt/molt.module';
     TypeOrmModule.forFeature([Pond]),
     PondContextModule,
     MoltModule,
+    PushModule,
+    DiseaseWarningModule,
   ],
   controllers: [AlertCenterController],
-  providers: [AlertCenterService, EngineAlertService],
+  providers: [AlertCenterService, EngineAlertService, DiseaseAlertService],
   exports: [AlertCenterService, EngineAlertService],
 })
 export class AlertCenterModule {}

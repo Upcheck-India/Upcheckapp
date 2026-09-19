@@ -34,6 +34,7 @@ import { SessionHint, AgeHint } from '../../components/ui/SessionHint';
 import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { cropsApi, type Crop } from '../../api/crops';
+import { biosecurityApi } from '../../api/biosecurity';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { activityApi, type ActivityItem } from '../../api/activity';
 import { ACTIVITY_ICON, activityKindKey } from '../activity/activityKinds';
@@ -269,6 +270,14 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         queryFn: async () => (await treatmentsApi.compliance(cycle!.id)).data,
     });
     const compliance = cycle ? complianceQuery.data ?? null : null;
+
+    /** Biosecurity checklist progress (D5) — one line until every item is done. */
+    const biosecurityQuery = useAppQuery({
+        queryKey: [...qk.pond(pondId), 'biosecurity', cycle?.id ?? null] as const,
+        enabled: !!cycle?.id,
+        queryFn: async () => (await biosecurityApi.get(cycle!.id)).data,
+    });
+    const biosecurity = cycle ? biosecurityQuery.data ?? null : null;
 
     /**
      * Records this farmer saved against THIS pond that have not reached the
@@ -640,6 +649,18 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                         />
                         <Text style={[styles.complianceText, { color: compliance.status === 'banned_logged' ? theme.roles.light.dangerText : theme.roles.light.warningText }]}>
                             {t(compliance.status === 'banned_logged' ? 'compliance.chip.banned' : 'compliance.chip.restricted')}
+                        </Text>
+                    </TouchableOpacity>
+                )}
+                {biosecurity?.available && biosecurity.done < biosecurity.total && (
+                    <TouchableOpacity
+                        testID="biosecurity-line"
+                        style={[styles.complianceChip, styles.complianceRestricted]}
+                        accessibilityRole="button"
+                        onPress={() => navigation.navigate('CycleDetail', { cycleId: cycle?.id })}
+                    >
+                        <Text style={[styles.complianceText, { color: theme.roles.light.warningText }]}>
+                            {t('biosecurity.progress', { done: biosecurity.done, total: biosecurity.total })}
                         </Text>
                     </TouchableOpacity>
                 )}
