@@ -55,7 +55,7 @@ export class HealthObservation {
   @Column({ name: 'window_key', type: 'varchar', nullable: true })
   windowKey: string | null;
 
-  /** Storage PATHS in the private `health-photos` bucket, never URLs. */
+  /** Photo PATHS (R2, under `health/`), never URLs. */
   @Column({ name: 'photo_urls', type: 'text', array: true, default: '{}' })
   photoUrls: string[];
 

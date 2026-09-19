@@ -67,6 +67,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
 import { FeaturesModule } from './features/features.module';
 import { DailyBriefModule } from './daily-brief/daily-brief.module';
 import { HealthObservationsModule } from './health-observations/health-observations.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -234,6 +235,7 @@ import { HealthObservationsModule } from './health-observations/health-observati
     LunarModule,
     MoltModule,
     DiseaseWarningModule,
+    StorageModule,
     HarvestTimingModule,
     AerationModule,
     PnlModule,

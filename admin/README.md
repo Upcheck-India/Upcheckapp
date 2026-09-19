@@ -92,17 +92,10 @@ by Vercel, so no browser Origin is involved.
    Until it runs, the inbox correctly shows an empty list rather than a 500
    (`AddFeedbackReports1780400000000`).
 
-2. **Create the Storage bucket.** Private, images only, 5 MB cap. In the
-   Supabase SQL editor:
-   ```sql
-   insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-   values ('feedback-attachments', 'feedback-attachments', false, 5242880,
-           array['image/jpeg','image/png','image/webp','image/heic'])
-   on conflict (id) do nothing;
-   ```
-   No RLS policy is needed — the backend reaches it with the service-role key
-   and signs short-lived URLs on read. A public bucket would make every
-   farmer's photo a permanent public link.
+2. **Photo storage.** Attachments live in the private Cloudflare R2 bucket
+   `upcheck-photos` under `feedback/` (see `R2_*` in `backend/.env.example`).
+   The backend signs short-lived URLs on read; a public bucket would make
+   every farmer's photo a permanent public link.
 
 ## Status vocabulary
 

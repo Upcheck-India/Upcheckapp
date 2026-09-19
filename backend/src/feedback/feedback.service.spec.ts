@@ -29,7 +29,7 @@ describe('FeedbackService', () => {
       create: jest.fn((x) => x),
       save: jest.fn((x) => Promise.resolve(x)),
     };
-    storage = { signAttachments: jest.fn().mockResolvedValue([]) };
+    storage = { signAttachments: jest.fn().mockResolvedValue({ full: [], thumb: [] }) };
     push = { sendToUser: jest.fn().mockResolvedValue(true) };
     email = { sendFeedbackAlertEmail: jest.fn().mockResolvedValue(undefined) };
 
@@ -207,11 +207,12 @@ describe('FeedbackService', () => {
         userId: MINE,
         attachmentPaths: [`${MINE}/a.jpg`],
       });
-      storage.signAttachments.mockResolvedValue(['https://signed/a.jpg']);
+      storage.signAttachments.mockResolvedValue({ full: ['https://signed/a.jpg'], thumb: ['https://signed/a.thumb.webp'] });
 
       const result = await service.findOneMine(MINE, 'r1');
 
       expect(result.attachmentUrls).toEqual(['https://signed/a.jpg']);
+      expect(result.attachmentThumbUrls).toEqual(['https://signed/a.thumb.webp']);
     });
   });
 
