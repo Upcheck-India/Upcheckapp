@@ -278,6 +278,23 @@ describe('DailyBriefService — assembling a day', () => {
     ]);
   });
 
+  // M1.4: the peak exemptions are per pond — a < 5 g pond does not molt with the moon.
+  it('molt-peak handling penalty applies only to a molt-eligible pond', async () => {
+    const peakDay = '2026-09-11';
+    const withSampling = (mbw: number) => ({
+      ...rows,
+      abw: [{ pond_id: 'p1', mbw }],
+      wq: [{ pond_id: 'p1', recorded_at: '2026-09-11T00:30:00Z', do: 5.5, ph: 7.9, temperature: 30, ammonia: 0.05 }],
+      feed_days: [{ pond_id: 'p1', day: peakDay, kg: 20 }],
+      mortality_days: [{ pond_id: 'p1', day: peakDay, qty: 5 }],
+      samplings: [{ pond_id: 'p1', day: peakDay, mbw, actor_id: null }],
+    });
+    const reasons = async (mbw: number) =>
+      JSON.stringify((await build({ rows: withSampling(mbw) }).svc.get('u1', { date: peakDay }, NOW)).ponds[0].score);
+    expect(await reasons(12)).toContain('molt_handling');
+    expect(await reasons(3)).not.toContain('molt_handling');
+  });
+
   it('low stock is only shown for today', async () => {
     const inv = { ...rows, inventory: [{ id: 'i1', name: 'Feed', quantity: 2, unit: 'bag', reorder_level: 5 }, { id: 'i2', name: 'Lime', quantity: 9, unit: 'kg', reorder_level: 5 }] };
     const today = await build({ rows: inv }).svc.get('u1', { date: D }, NOW);

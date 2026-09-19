@@ -320,14 +320,18 @@ export class PondContextService {
     );
   }
 
-  /** Latest sampling per crop — DISTINCT ON collapses to one row per group. */
+  /**
+   * Latest WEIGHED sampling per crop — DISTINCT ON collapses to one row per
+   * group. A newer count-only row (no MBW) must not blank the ABW; molt and
+   * the daily brief use the same rule (harvest-and-molt M1.2).
+   */
   private async latestSamplingByCrop(cropIds: string[]): Promise<SamplingData[]> {
     return this.samplingRepo.query(
       `SELECT DISTINCT ON (crop_id)
               crop_id AS "cropId", pond_id AS "pondId",
               sampling_date AS "samplingDate", mbw_g AS "mbwG"
          FROM sampling_data
-        WHERE crop_id = ANY($1::uuid[])
+        WHERE crop_id = ANY($1::uuid[]) AND mbw_g IS NOT NULL
         ORDER BY crop_id, sampling_date DESC`,
       [cropIds],
     );
@@ -340,7 +344,7 @@ export class PondContextService {
               pond_id AS "pondId", crop_id AS "cropId",
               sampling_date AS "samplingDate", mbw_g AS "mbwG"
          FROM sampling_data
-        WHERE pond_id = ANY($1::uuid[])
+        WHERE pond_id = ANY($1::uuid[]) AND mbw_g IS NOT NULL
         ORDER BY pond_id, sampling_date DESC`,
       [pondIds],
     );

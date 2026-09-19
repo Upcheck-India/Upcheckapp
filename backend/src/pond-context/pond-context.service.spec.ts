@@ -357,6 +357,16 @@ describe('PondContextService.getFarmContexts', () => {
     expect(await countQueries(60)).toBe(await countQueries(3));
   });
 
+  // M1.2: one ABW rule with molt + daily brief — a newer count-only sampling
+  // (mbw_g NULL) must not blank the ABW.
+  it('latest-sampling reads skip rows without a body weight', async () => {
+    const svcs = makeService({ accessiblePonds: ['p1', 'p2'] });
+    await svcs.svc.getFarmContexts('farm-1', 'u');
+    const sqls = svcs.samplingRepo.query.mock.calls.map((c: any[]) => String(c[0]));
+    expect(sqls.length).toBeGreaterThan(0);
+    for (const sql of sqls) expect(sql).toContain('mbw_g IS NOT NULL');
+  });
+
   it('loads ponds in bulk rather than one at a time', async () => {
     const { svc, pondsService, pondRepo } = makeService({
       accessiblePonds: ['p1', 'p2', 'p3'],
