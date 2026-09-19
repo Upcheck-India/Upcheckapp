@@ -88,6 +88,7 @@ const logs = {
   harvest_saveBtn: 'Save Harvest',
   harvest_validationWeight: 'Weight is required',
   harvest_errorSave: 'Failed to log harvest. Please try again.',
+  harvest_errorCycleClosed: 'This cycle is already closed. The harvest was not saved.',
 
   // ── Microbiology Log ──────────────────────────────────────────────────────
   microbiology_title: 'Microbiology Entry',

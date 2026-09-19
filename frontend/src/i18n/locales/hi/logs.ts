@@ -88,6 +88,7 @@ const logs = {
   harvest_saveBtn: 'कटाई सहेजें',
   harvest_validationWeight: 'वजन आवश्यक है',
   harvest_errorSave: 'कटाई दर्ज करने में विफल। कृपया पुनः प्रयास करें।',
+  harvest_errorCycleClosed: 'यह चक्र पहले ही बंद हो चुका है। कटाई सहेजी नहीं गई।',
 
   // ── Microbiology Log ──────────────────────────────────────────────────────
   microbiology_title: 'सूक्ष्मजीव विज्ञान प्रविष्टि',
