@@ -38,6 +38,11 @@ export interface PondContext {
   } | null;
   freeAmmoniaMgL: number | null;
   abwG: number | null;
+  /** g/day from the last two weighed samplings ≥5 days apart (H6; absent on older backends). */
+  adgG?: number | null;
+  adgAsOf?: string | null;
+  /** 'negative': the samplings show a loss — weighing noise, not advised from. */
+  adgNote?: 'negative' | null;
   livePopulation: number | null;
   biomassKg: number | null;
   crop: {

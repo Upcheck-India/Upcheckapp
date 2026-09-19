@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
     View,
     Text,
@@ -23,6 +23,7 @@ import { harvestPlansApi, HarvestPlan } from '../../api/harvestPlans';
 import { apiErrorMessage } from '../../api/errors';
 import { todayLocalISODate, toLocalISODate } from '../../utils/localDate';
 import { usePermissions } from '../../hooks/usePermissions';
+import { PriceQuoteSheet } from '../../components/harvest/PriceQuoteSheet';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -192,7 +193,7 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [actioningId, setActioningId] = useState<string | null>(null);
 
-    const { canRecordHarvest } = usePermissions(farmId);
+    const { canRecordHarvest, canViewFinancials } = usePermissions(farmId);
 
     // Add-plan form state
     const [showForm, setShowForm] = useState(false);
@@ -203,6 +204,18 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
     const [formPricePerKg, setFormPricePerKg] = useState('');
     const [formNotes, setFormNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [quoteOpen, setQuoteOpen] = useState(false);
+
+    // H6 "Plan this harvest": open the add form filled from Harvest Timing's
+    // chosen day, projected kg and expected ₹/kg.
+    const prefill = route.params?.prefill;
+    useEffect(() => {
+        if (!prefill?.date) return;
+        setFormPlannedDate(prefill.date);
+        setFormTargetWeight(prefill.targetKg != null ? String(prefill.targetKg) : '');
+        setFormPricePerKg(prefill.pricePerKg != null ? String(prefill.pricePerKg) : '');
+        setShowForm(true);
+    }, [prefill?.date, prefill?.targetKg, prefill?.pricePerKg]);
 
     // ------------------------------------------------------------------
     // Fetch
@@ -390,6 +403,17 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
                 </TouchableOpacity>
             </View>
 
+            {canViewFinancials && farmId ? (
+                <TouchableOpacity
+                    onPress={() => setQuoteOpen(true)}
+                    style={styles.quoteLink}
+                    accessibilityRole="button"
+                >
+                    <MaterialCommunityIcons name="currency-inr" size={16} color={theme.roles.light.primary} />
+                    <Text style={styles.quoteLinkText}>{t('engines.quote.open')} ›</Text>
+                </TouchableOpacity>
+            ) : null}
+
             {/* Full-page loading spinner */}
             {isLoading ? (
                 <View style={styles.centered}>
@@ -485,6 +509,7 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
                 />
             )}
 
+            <PriceQuoteSheet farmId={farmId} visible={quoteOpen} onClose={() => setQuoteOpen(false)} />
         </ScreenWrapper>
     );
 };
@@ -494,6 +519,14 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
+    quoteLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[1],
+        paddingHorizontal: theme.spacing[4],
+        paddingVertical: theme.spacing[3],
+    },
+    quoteLinkText: { ...theme.typeScale.labelLarge, color: theme.roles.light.primary },
     // Header
     header: {
         flexDirection: 'row',
