@@ -37,6 +37,7 @@ const exportNs = {
   section_feed: 'Feed',
   section_sampling: 'Sampling',
   section_mortality: 'Mortality',
+  section_disease: 'Disease records',
   section_treatments: 'Treatments',
   section_costs: 'Costs',
   section_harvest: 'Harvest',

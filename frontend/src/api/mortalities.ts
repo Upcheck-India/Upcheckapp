@@ -9,6 +9,11 @@ export interface MortalityRecord {
     note?: string;
     images?: string[];
     createdAt?: string;
+    /** D6: unknown | low_do | disease | molt | handling | predator | other */
+    suspectedCause?: string | null;
+    /** Private storage paths; `photoSignedUrls` are their short-lived URLs. */
+    photoUrls?: string[];
+    photoSignedUrls?: string[];
 }
 
 export interface CreateMortalityRecordDto {
@@ -18,6 +23,8 @@ export interface CreateMortalityRecordDto {
     estimatedWeightKg?: number;
     note?: string;
     images?: string[];
+    suspectedCause?: string;
+    photoUrls?: string[];
 }
 
 export const mortalityApi = {

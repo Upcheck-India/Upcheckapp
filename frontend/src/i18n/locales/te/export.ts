@@ -37,6 +37,7 @@ const exportNs = {
   section_feed: 'మేత',
   section_sampling: 'నమూనా పరీక్ష',
   section_mortality: 'మరణాలు',
+  section_disease: 'వ్యాధి రికార్డులు',
   section_treatments: 'చికిత్సలు',
   section_costs: 'ఖర్చులు',
   section_harvest: 'పంట కోత',

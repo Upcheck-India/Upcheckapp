@@ -41,6 +41,8 @@ export interface ExportSections {
     sampling: boolean;
     mortality: boolean;
     treatments: boolean;
+    /** Disease records (D6): disease, severity, confirmation, outcome. */
+    disease: boolean;
     costs: boolean;
     harvest: boolean;
 }
@@ -52,6 +54,7 @@ export const ALL_SECTIONS: ExportSections = {
     sampling: true,
     mortality: true,
     treatments: true,
+    disease: true,
     costs: true,
     harvest: true,
 };

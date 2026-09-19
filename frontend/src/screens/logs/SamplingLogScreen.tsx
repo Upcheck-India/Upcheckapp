@@ -13,6 +13,7 @@ import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 import { samplingApi } from '../../api/sampling';
 import { apiErrorMessage } from '../../api/errors';
+import { healthObservationsApi, levelFromCount } from '../../api/healthObservations';
 
 export const SamplingLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -26,6 +27,9 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
     const [biomassEstimation, setBiomassEstimation] = useState(editRecord?.biomassEstimationKg != null ? String(editRecord.biomassEstimationKg) : '');
     const [srEstimation, setSrEstimation] = useState(editRecord?.srEstimationPercent != null ? String(editRecord.srEstimationPercent) : '');
     const [notes, setNotes] = useState(editRecord?.notes ?? '');
+    // M2 entry 1: soft shells in this cast-net sample (new records only).
+    const [softCount, setSoftCount] = useState('');
+    const [softOf, setSoftOf] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
 
@@ -60,6 +64,20 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
                     endpoint: '/sampling',
                     payload: { pondId, ...payload },
                 });
+                // A second, independent queue entry (M2 entry 1): each is
+                // idempotent on its own id, no ordering between them.
+                const soft = softCount.trim() ? parseInt(softCount, 10) : NaN;
+                const of = parseInt(softOf || totalSamples, 10);
+                if (!isNaN(soft) && soft >= 0 && of > 0) {
+                    await healthObservationsApi.save({
+                        pondId,
+                        cropId: route.params.cropId,
+                        observedOn: date,
+                        source: 'sampling',
+                        sampleSize: of,
+                        signs: [{ sign: 'soft_shell', level: levelFromCount(soft, of), count: soft }],
+                    });
+                }
                 showToast({
                     message: res.queued
                         ? t('common.savedOffline', 'Saved — will sync when online')
@@ -104,6 +122,20 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
                         </View>
                     </View>
                 </Card>
+
+                {!isEditing && (
+                    <Card style={styles.card}>
+                        <Text style={styles.sectionTitle}>{t('health.softShellsInSample')}</Text>
+                        <View style={styles.row}>
+                            <View style={styles.halfCol}>
+                                <Input label={t('health.softCount')} value={softCount} onChangeText={setSoftCount} keyboardType="number-pad" placeholder="0" testID="soft-count" />
+                            </View>
+                            <View style={styles.halfCol}>
+                                <Input label={t('health.softOf')} value={softOf} onChangeText={setSoftOf} keyboardType="number-pad" placeholder={totalSamples || '50'} />
+                            </View>
+                        </View>
+                    </Card>
+                )}
 
                 <Card style={styles.card}>
                     <Text style={styles.sectionTitle}>{t('logs.sampling_sectionPopulation')}</Text>

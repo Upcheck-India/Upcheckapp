@@ -113,7 +113,7 @@ describe('the config handed to runExport', () => {
             farmId: 'f1',
             pondId: 'p1',
             cropId: 'c1',
-            sections: sectionsWith('summary', 'waterQuality', 'feed', 'sampling', 'mortality', 'treatments', 'harvest'),
+            sections: sectionsWith('summary', 'waterQuality', 'feed', 'sampling', 'mortality', 'treatments', 'disease', 'harvest'),
             language: 'ta',
         });
     });

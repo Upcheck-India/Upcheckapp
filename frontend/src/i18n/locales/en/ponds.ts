@@ -73,6 +73,7 @@ const ponds = {
   actionSampling: 'Sampling',
   actionTreatment: 'Treatment',
   actionMortality: 'Mortality',
+  actionHealthCheck: 'Health check',
   actionDisease: 'Disease',
   actionChemical: 'Chemical',
   actionPlankton: 'Plankton',

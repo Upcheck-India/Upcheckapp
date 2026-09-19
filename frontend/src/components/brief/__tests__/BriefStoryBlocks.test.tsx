@@ -27,6 +27,29 @@ describe('DayStory', () => {
         expect(render(<DayStory brief={makeBrief()} />).queryByTestId('brief-story')).toBeNull();
         expect(render(<DayStory brief={makeBrief({ story: [] })} />).queryByTestId('brief-story')).toBeNull();
     });
+
+    it('D6: a mortality spike offers a health check for that pond', () => {
+        const onHealthCheck = jest.fn();
+        const b = makeBrief({
+            story: [
+                { code: 'mortality_spike', tone: 'watch', pondId: 'p1', count: 140 },
+                { code: 'treatment_given', tone: 'info', pondId: 'p2', count: 1 },
+            ],
+        });
+        const utils = render(<DayStory brief={b} onHealthCheck={onHealthCheck} />);
+        fireEvent.press(utils.getByTestId('story-health-check-p1'));
+        expect(onHealthCheck).toHaveBeenCalledWith('p1');
+        // Only the spike line gets the button.
+        expect(utils.queryByTestId('story-health-check-p2')).toBeNull();
+        // No handler (read-only / past day) → the line alone.
+        expect(render(<DayStory brief={b} />).queryByTestId('story-health-check-p1')).toBeNull();
+    });
+
+    it('D6: an ongoing disease reads as one watch line', () => {
+        const b = makeBrief({ story: [{ code: 'disease_ongoing', tone: 'watch', pondId: 'p1', title: 'WFD', count: 20 }] });
+        const utils = render(<DayStory brief={b} />);
+        expect(utils.getByText(`Is WFD in ${names.p1} still going on? Logged 20 days ago.`)).toBeTruthy();
+    });
 });
 
 describe('WhatWeDid', () => {

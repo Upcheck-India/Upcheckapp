@@ -41,6 +41,7 @@ import exportNs from './export';
 import dayReport from './dayReport';
 import dailyBrief from './dailyBrief';
 import alerts from './alerts';
+import health from './health';
 
 export default {
   common,
@@ -78,4 +79,5 @@ export default {
   dayReport,
   dailyBrief,
   alerts,
+  health,
 };

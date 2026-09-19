@@ -101,6 +101,7 @@ const SECTION_KEY: Record<keyof ExportSections, string> = {
     sampling: 'export.section_sampling',
     mortality: 'export.section_mortality',
     treatments: 'export.section_treatments',
+    disease: 'export.section_disease',
     costs: 'export.section_costs',
     harvest: 'export.section_harvest',
 };
@@ -110,8 +111,8 @@ const SECTION_KEY: Record<keyof ExportSections, string> = {
  * that carries all eight; the rest would print empty headings.
  */
 const SECTIONS_FOR: Record<ExportDataset, (keyof ExportSections)[]> = {
-    cycle: ['summary', 'waterQuality', 'feed', 'sampling', 'mortality', 'treatments', 'costs', 'harvest'],
-    pondLogs: ['summary', 'waterQuality', 'feed', 'sampling', 'mortality', 'treatments'],
+    cycle: ['summary', 'waterQuality', 'feed', 'sampling', 'mortality', 'treatments', 'disease', 'costs', 'harvest'],
+    pondLogs: ['summary', 'waterQuality', 'feed', 'sampling', 'mortality', 'treatments', 'disease'],
     money: ['summary', 'costs', 'harvest'],
     inventory: ['summary', 'costs'],
     attendance: ['summary'],
