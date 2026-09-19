@@ -47,4 +47,6 @@ export default {
   createFailed: 'ফসল কাটার পরিকল্পনা তৈরি করতে ব্যর্থ',
   moltWindowTitle: 'মোল্ট উইন্ডো',
   moltWindowWarning: 'এই তারিখটি মোল্ট উইন্ডোতে ({{start}} – {{end}}): নরম খোলস ও কম দামের সম্ভাবনা।',
+  moltDayPeak: '{{date}} মোল্ট পিকের দিন ({{start}} – {{end}}): নরম খোলস ও কম দামের সম্ভাবনা।',
+  moltDayPost: '{{date}} মোল্ট পিকের ঠিক পরে ({{start}} – {{end}}): খোলস এখনও নরম থাকতে পারে।',
 };

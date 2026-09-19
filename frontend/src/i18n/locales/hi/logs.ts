@@ -126,6 +126,8 @@ const logs = {
   harvest_fullConfirmMessageShort: 'इससे {{pond}} का चक्र बंद हो जाएगा। इसके बाद इस चक्र के लिए फ़ीड या पानी दर्ज नहीं कर पाएँगे।',
   harvest_fullConfirmBtn: 'चक्र बंद करें और सहेजें',
   harvest_typeLocked: 'प्रकार गलत है? यह हार्वेस्ट हटाकर फिर से दर्ज करें।',
+  harvest_typeRequired: 'सहेजने से पहले आंशिक या पूरा चुनें।',
+  harvest_typeHint: 'आंशिक: कुछ झींगा निकाला, चक्र चालू रहेगा। पूरा: सारा झींगा निकाला, चक्र बंद होगा और उसका नतीजा दिखेगा।',
   harvest_deleteBtn: 'हार्वेस्ट हटाएँ',
   harvest_deleteTitle: 'यह हार्वेस्ट हटाएँ?',
   harvest_deleteMessage: 'इससे हार्वेस्ट और उसकी बिक्री हट जाएगी।',

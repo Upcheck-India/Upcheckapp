@@ -76,6 +76,15 @@ export interface PondContext {
   freeAmmoniaMgL: number | null;
   /** Latest sampled average body weight (g). */
   abwG: number | null;
+  /**
+   * Average daily gain (g/day) from the crop's last two weighed samplings at
+   * least 5 days apart (H6). Null with fewer than two, or when negative
+   * (`adgNote: 'negative'` — sampling noise; don't advise from it).
+   */
+  adgG: number | null;
+  /** Date of the newer sampling the ADG came from. */
+  adgAsOf: string | null;
+  adgNote: 'negative' | null;
   /** Mortality- and partial-harvest-adjusted live population estimate. */
   livePopulation: number | null;
   /**
@@ -179,6 +188,50 @@ export const partialHarvestSql = (by: 'crop' | 'pond') =>
         : 'h.crop_id IN (SELECT c.id FROM crops c WHERE c.pond_id = ANY($1::uuid[]))'
     }`;
 
+/** A crop's newest weighed sampling and the newest one ≥5 days before it. */
+export interface AdgRow {
+  cropId: string;
+  d2: string;
+  m2: number;
+  d1: string | null;
+  m1: number | null;
+}
+
+export const ADG_MIN_GAP_DAYS = 5;
+
+export const adgSql = `SELECT DISTINCT ON (s2.crop_id)
+       s2.crop_id AS "cropId", s2.sampling_date::text AS d2, s2.mbw_g::float AS m2,
+       s1.d1, s1.m1
+  FROM sampling_data s2
+  LEFT JOIN LATERAL (
+       SELECT s.sampling_date::text AS d1, s.mbw_g::float AS m1 FROM sampling_data s
+        WHERE s.crop_id = s2.crop_id AND s.mbw_g IS NOT NULL
+          AND s.sampling_date <= s2.sampling_date - ${ADG_MIN_GAP_DAYS}
+        ORDER BY s.sampling_date DESC LIMIT 1
+  ) s1 ON true
+ WHERE s2.crop_id = ANY($1::uuid[]) AND s2.mbw_g IS NOT NULL
+ ORDER BY s2.crop_id, s2.sampling_date DESC`;
+
+/**
+ * ADG = (mbw₂ − mbw₁) / days (H6.1). Null without an older sampling ≥5 days
+ * back; a negative gain is null + 'negative' — a weighing error, not a
+ * shrinking pond, and Harvest Timing must not project from it.
+ */
+export function adgFrom(
+  row: AdgRow | null | undefined,
+): Pick<PondContext, 'adgG' | 'adgAsOf' | 'adgNote'> {
+  const none = { adgG: null, adgAsOf: null, adgNote: null };
+  if (!row || row.d1 == null || row.m1 == null) return none;
+  const days =
+    (Date.parse(`${row.d2.slice(0, 10)}T00:00:00Z`) -
+      Date.parse(`${row.d1.slice(0, 10)}T00:00:00Z`)) /
+    86_400_000;
+  if (days < ADG_MIN_GAP_DAYS) return none;
+  const adg = (Number(row.m2) - Number(row.m1)) / days;
+  if (adg < 0) return { ...none, adgNote: 'negative' };
+  return { adgG: Math.round(adg * 1000) / 1000, adgAsOf: row.d2.slice(0, 10), adgNote: null };
+}
+
 /** Σ pieces a crop's partial harvests removed, up to and including `asOfDay`. */
 export function harvestedPieces(
   rows: PartialHarvestRow[],
@@ -280,7 +333,7 @@ export class PondContextService {
       .filter((p) => !p.activeCycleId)
       .map((p) => p.id);
 
-    const [crops, wqRows, samplingByCrop, samplingByPond, mortality, feed, trays, harvested] =
+    const [crops, wqRows, samplingByCrop, samplingByPond, mortality, feed, trays, harvested, adgRows] =
       await Promise.all([
         cropIds.length
           ? this.cropRepo.find({
@@ -318,8 +371,10 @@ export class PondContextService {
           ? this.latestTrayByCrop(cropIds)
           : Promise.resolve([]),
         this.partialHarvestRows(cropIds),
+        this.adgRows(cropIds),
       ]);
 
+    const adgByCrop = new Map(adgRows.map((r) => [r.cropId, r]));
     const cropById = new Map(crops.map((c) => [c.id, c]));
     const mortalityByCrop = new Map(mortality.map((r) => [r.cropId, r]));
     const feedByCrop = new Map(feed.map((r) => [r.cropId, r]));
@@ -346,8 +401,21 @@ export class PondContextService {
         feedAgg: cropId ? (feedByCrop.get(cropId) ?? null) : null,
         tray: cropId ? (trayByCrop.get(cropId) ?? null) : null,
         harvested: harvestedPieces(harvested, cropId),
+        adg: cropId ? adgByCrop.get(cropId) : null,
       });
     });
+  }
+
+  /** ADG inputs per crop (newest weighed sampling + one ≥5 days older). */
+  async adgRows(cropIds: string[]): Promise<AdgRow[]> {
+    if (!cropIds.length) return [];
+    try {
+      return await this.samplingRepo.query(adgSql, [cropIds]);
+    } catch (err) {
+      // ADG is advisory; a schema hiccup must not 500 the whole context.
+      if (!isMissingSchema(err)) throw err;
+      return [];
+    }
   }
 
   /** Partial-harvest rows for these crops; [] until the H1 migration is applied. */
@@ -566,7 +634,7 @@ export class PondContextService {
     // Everything below only depends on pondId/cropId (known once the pond is
     // fetched), not on each other — fan out instead of awaiting one-by-one.
     // Mortality and feed use a SQL SUM instead of loading every row into JS.
-    const [crop, wqRecords, sampling, mortalityAgg, feedAgg, tray, harvested] =
+    const [crop, wqRecords, sampling, mortalityAgg, feedAgg, tray, harvested, adg] =
       await Promise.all([
         cropId
           // Member-aware crop read: this is a dashboard path and must NOT go
@@ -608,6 +676,7 @@ export class PondContextService {
             })
           : Promise.resolve(null),
         this.partialHarvestRows(cropId ? [cropId] : []),
+        this.adgRows(cropId ? [cropId] : []),
       ]);
 
     return this.buildContext(pond, {
@@ -618,6 +687,7 @@ export class PondContextService {
       feedAgg,
       tray,
       harvested: harvestedPieces(harvested, cropId),
+      adg: adg[0] ?? null,
     });
   }
 
@@ -645,9 +715,10 @@ export class PondContextService {
       } | null;
       tray: FeedingTrayCheck | null;
       harvested?: { pieces: number; estimated: boolean } | null;
+      adg?: AdgRow | null;
     },
   ): PondContext {
-    const { crop, wqRecords, sampling, mortalityAgg, feedAgg, tray, harvested } = deps;
+    const { crop, wqRecords, sampling, mortalityAgg, feedAgg, tray, harvested, adg } = deps;
     const pondId = pond.id;
     const farmId = pond.farmId;
     const cropId = pond.activeCycleId ?? null;
@@ -805,6 +876,7 @@ export class PondContextService {
       waterQuality: wq,
       freeAmmoniaMgL,
       abwG,
+      ...adgFrom(adg),
       livePopulation,
       populationNote,
       biomassKg,

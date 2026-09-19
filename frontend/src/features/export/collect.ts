@@ -45,6 +45,7 @@ import { roleCan } from '../../permissions/capabilities';
 import { istDay, recordStatus, type RecordStatus } from '../attendance/shiftState';
 import { personName } from '../../utils/personName';
 import { toLocalISODate } from '../../utils/localDate';
+import { collectInputRecord } from './inputRecord';
 import type {
     ExportConfig,
     ExportSections,
@@ -441,6 +442,8 @@ interface Collected {
     scope: Scope;
     stats: ReportStat[];
     tables: ReportTable[];
+    /** Replaces the default footer line (the input record carries its own). */
+    disclaimer?: string;
 }
 
 const cropLabel = (crop: Crop): string =>
@@ -944,7 +947,13 @@ const collectTasks = async (config: ExportConfig, f: Fmt): Promise<Collected> =>
     };
 };
 
+const collectInputRecordDataset = async (config: ExportConfig, f: Fmt): Promise<Collected> => {
+    if (!config.cropId) throw new Error('inputRecord export needs a cropId');
+    return { stats: [], ...(await collectInputRecord(config.cropId, f, config.language)) };
+};
+
 const DOC_TITLE_KEYS: Record<ExportConfig['dataset'], [string, string]> = {
+    inputRecord: ['export.ir.title', 'Cycle input record'],
     cycle: ['cycles.reportTitle', 'Cycle report'],
     pondLogs: ['ponds.reportTitle', 'Pond records'],
     money: ['finance.reportTitle', 'Money report'],
@@ -979,6 +988,7 @@ const HONOURS_PERIOD: Record<ExportConfig['dataset'], boolean> = {
     inventory: false,
     attendance: true,
     tasks: true,
+    inputRecord: false,
 };
 
 const COLLECTORS: Record<ExportConfig['dataset'], (c: ExportConfig, f: Fmt) => Promise<Collected>> = {
@@ -988,6 +998,7 @@ const COLLECTORS: Record<ExportConfig['dataset'], (c: ExportConfig, f: Fmt) => P
     inventory: collectInventory,
     attendance: collectAttendance,
     tasks: collectTasks,
+    inputRecord: collectInputRecordDataset,
 };
 
 /**
@@ -1001,7 +1012,7 @@ export const collectReport = async (config: ExportConfig, now: Date = new Date()
     await loadLocale(config.language);
     const f = makeFmt(config.language);
 
-    const { scope, stats, tables } = await COLLECTORS[config.dataset](config, f);
+    const { scope, stats, tables, disclaimer } = await COLLECTORS[config.dataset](config, f);
 
     const [titleKey, titleDefault] = DOC_TITLE_KEYS[config.dataset];
     const period = HONOURS_PERIOD[config.dataset] && (config.startDate || config.endDate)
@@ -1023,7 +1034,7 @@ export const collectReport = async (config: ExportConfig, now: Date = new Date()
         },
         stats,
         tables,
-        disclaimer: f.t('export.disclaimer', {
+        disclaimer: disclaimer ?? f.t('export.disclaimer', {
             defaultValue:
                 'These figures are a record of what was entered in the app. They are decision support, not a guarantee of any outcome.',
         }),

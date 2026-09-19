@@ -60,6 +60,7 @@ import {
 } from '../../features/moneyPrefs';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { usePermissions } from '../../hooks/usePermissions';
+import { PriceQuoteSheet } from '../../components/harvest/PriceQuoteSheet';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 
@@ -270,6 +271,7 @@ export const MoneyScreen = ({ navigation, route }: any) => {
         visibleFarms.find((f) => f.id === selectedFarm?.id) ??
         visibleFarms[0];
     const perms = usePermissions(writeFarm?.id);
+    const [quoteOpen, setQuoteOpen] = useState(false);
 
     const report = useMemo(
         () => combineReports(scopedFarms.map((f) => reports[f.id])),
@@ -620,6 +622,13 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                         {t('finance.duplicateHarvestIncome', { count: duplicateIncomeCycles })}
                     </Text>
                 )}
+                {/* H5: the farm's buyer quote feeds Harvest Timing and break-even. */}
+                {perms.canViewFinancials && writeFarm && (
+                    <TouchableOpacity onPress={() => setQuoteOpen(true)} accessibilityRole="button">
+                        <Text style={[styles.note, { color: c.primary }]}>{t('engines.quote.open')} ›</Text>
+                    </TouchableOpacity>
+                )}
+                <PriceQuoteSheet farmId={writeFarm?.id} visible={quoteOpen} onClose={() => setQuoteOpen(false)} />
 
                 {/*
                   * What the figures above COUNT. Both default on: archived

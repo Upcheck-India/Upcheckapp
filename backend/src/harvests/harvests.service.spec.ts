@@ -594,6 +594,36 @@ describe('H1 — graded create', () => {
     );
   });
 
+  // H5.1: the sale remembers its prices as the farm's newest buyer quote.
+  const quoteInsert = (manager: any) =>
+    manager.query.mock.calls.find((c: any[]) =>
+      String(c[0]).includes('INSERT INTO farm_price_quotes'),
+    );
+
+  it("auto-writes a source='harvest' quote from priced grades, in the same transaction", async () => {
+    const { svc, manager } = makeGateService(true, { existing: null });
+    await svc.create(gradedDto({ buyerName: 'Ravi' }), 'owner-1');
+    const [sql, params] = quoteInsert(manager);
+    expect(sql).toContain("'harvest'");
+    expect(params).toEqual([
+      'p1',
+      '2026-09-10',
+      'Ravi',
+      JSON.stringify([
+        { count: 40, price: 430 },
+        { count: 55, price: 340 },
+      ]),
+      '22222222-2222-4222-8222-222222222222',
+      'owner-1',
+    ]);
+  });
+
+  it('writes no quote without VIEW_FINANCIALS (prices were stripped)', async () => {
+    const { svc, manager } = makeGateService(true, { existing: null, viewFinancials: false });
+    await svc.create(gradedDto(), 'manager-1');
+    expect(quoteInsert(manager)).toBeUndefined();
+  });
+
   it('strips an old-path total price too', async () => {
     const { svc, repo } = makeGateService(true, { existing: null, viewFinancials: false });
     await svc.create(
@@ -974,5 +1004,64 @@ describe('H4 — planIncomeOverlaps', () => {
       return [{ cropId: 'c1', pondId: 'p1' }];
     });
     expect(await svc.planIncomeOverlaps('f1')).toEqual([{ cropId: 'c1', pondId: 'p1' }]);
+  });
+});
+
+/* ── M2 entry 3: a soft-shell rejection is a soft-shell observation ─────── */
+
+describe('M2 — soft-shell rejection writes a health observation', () => {
+  const HID = '22222222-2222-4222-8222-222222222222';
+  const soft = (over: any = {}) =>
+    gradedDto({ rejectedKg: 12, rejectedReason: 'soft_shell', ...over });
+  const obsInserts = (manager: any) =>
+    manager.query.mock.calls.filter((c: any[]) =>
+      String(c[0]).includes('INSERT INTO health_observations'),
+    );
+  const withTable = (manager: any, present = true) => {
+    const base = manager.query.getMockImplementation();
+    manager.query.mockImplementation(async (sql: string, p?: unknown[]) =>
+      sql.includes('to_regclass') ? [{ ok: present }] : base(sql, p),
+    );
+  };
+
+  it('inserts one observation (harvest id, sign soft_shell, level many, source harvest) in the harvest transaction', async () => {
+    const { svc, manager } = makeGateService(true, { existing: null });
+    withTable(manager);
+
+    await svc.create(soft(), 'owner-1');
+
+    const ins = obsInserts(manager);
+    expect(ins).toHaveLength(1);
+    expect(ins[0][0]).toContain("'soft_shell', 'many', 'harvest'");
+    expect(ins[0][0]).toContain('ON CONFLICT (id) DO NOTHING');
+    expect(ins[0][1]).toEqual([HID, 'p1', 'c1', '2026-09-10', expect.anything(), 'owner-1']);
+  });
+
+  it('a replay of the same harvest writes no second observation', async () => {
+    const { svc, manager } = makeGateService(true);
+    withTable(manager);
+
+    await svc.create(soft(), 'owner-1');
+
+    expect(obsInserts(manager)).toHaveLength(0);
+  });
+
+  it('another rejection reason writes none', async () => {
+    const { svc, manager } = makeGateService(true, { existing: null });
+    withTable(manager);
+
+    await svc.create(soft({ rejectedReason: 'broken' }), 'owner-1');
+
+    expect(obsInserts(manager)).toHaveLength(0);
+  });
+
+  it('before the D6 migration it is skipped, and the harvest still saves', async () => {
+    const { svc, repo, manager } = makeGateService(true, { existing: null });
+    withTable(manager, false);
+
+    await svc.create(soft(), 'owner-1');
+
+    expect(obsInserts(manager)).toHaveLength(0);
+    expect(repo.save).toHaveBeenCalled();
   });
 });

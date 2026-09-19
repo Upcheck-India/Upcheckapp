@@ -49,6 +49,8 @@ describe('FarmsService', () => {
       findOneBy: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      // D4 caa_registration_no is raw SQL, not an entity column.
+      query: jest.fn().mockResolvedValue([]),
     };
     cropsRepo = { count: jest.fn().mockResolvedValue(0) };
     // remove() reaches the crops table through the farm repository's manager,
@@ -231,7 +233,19 @@ describe('FarmsService', () => {
     it('should return farm', async () => {
       repository.findOneBy.mockResolvedValue(mockFarm);
       const result = await service.findOne('farm-1');
-      expect(result).toEqual(mockFarm);
+      expect(result).toEqual({ ...mockFarm, caaRegistrationNo: null });
+    });
+
+    it('carries the CAA registration number (D4)', async () => {
+      repository.findOneBy.mockResolvedValue(mockFarm);
+      repository.query.mockResolvedValue([{ v: 'CAA/AP/123' }]);
+      expect((await service.findOne('farm-1')).caaRegistrationNo).toBe('CAA/AP/123');
+    });
+
+    it('an unapplied CAA column (42703) reads as null, not a 500', async () => {
+      repository.findOneBy.mockResolvedValue(mockFarm);
+      repository.query.mockRejectedValue(Object.assign(new Error('no column'), { code: '42703' }));
+      expect((await service.findOne('farm-1')).caaRegistrationNo).toBeNull();
     });
 
     it('should throw NotFoundException when farm not found', async () => {
@@ -279,6 +293,25 @@ describe('FarmsService', () => {
       ).rejects.toThrow(ForbiddenException);
       expect(farmAccess.assertCanAccessFarm).toHaveBeenCalledWith('manager-1', 'farm-1', 'OWNER_ONLY');
       expect(repository.update).not.toHaveBeenCalled();
+    });
+
+    it('CAA number is owner-only and written by raw SQL, not the entity', async () => {
+      repository.findOneBy.mockResolvedValue(mockFarm);
+      await service.update('farm-1', { caaRegistrationNo: ' CAA/AP/9 ' }, 'owner-1');
+      expect(farmAccess.assertCanAccessFarm).toHaveBeenCalledWith('owner-1', 'farm-1', 'OWNER_ONLY');
+      expect(repository.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE farms SET caa_registration_no'),
+        ['farm-1', 'CAA/AP/9'],
+      );
+      expect(repository.update).not.toHaveBeenCalled();
+    });
+
+    it('a manager cannot set the CAA number', async () => {
+      (farmAccess.assertCanAccessFarm as jest.Mock).mockRejectedValueOnce(new ForbiddenException());
+      await expect(
+        service.update('farm-1', { caaRegistrationNo: 'X' }, 'manager-1'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(repository.query).not.toHaveBeenCalled();
     });
   });
 

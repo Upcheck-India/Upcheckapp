@@ -19,7 +19,12 @@ const financials = {
 
 function makeService(pond: any = { calculatedAreaM2: 4046.86 }) {
   const harvestRepo = { count: jest.fn().mockResolvedValue(1) };
-  const pricing = { latestForRegion: jest.fn(), bandsFromPrices: jest.fn() };
+  const pricing = {
+    usableBands: jest.fn().mockResolvedValue([
+      { count: 30, price: 400 },
+      { count: 40, price: 300 },
+    ]),
+  };
   const cropRepo = {
     findOne: jest
       .fn()
@@ -37,7 +42,7 @@ function makeService(pond: any = { calculatedAreaM2: 4046.86 }) {
     farmAccess as any,
     expenses as any,
   );
-  return { svc, cropRepo, farmAccess, harvestRepo, expenses };
+  return { svc, cropRepo, farmAccess, harvestRepo, expenses, pricing };
 }
 
 describe('PnlService.computeCropPnl (farmer_features_spec §5)', () => {
@@ -82,6 +87,22 @@ describe('PnlService.computeCropPnl (farmer_features_spec §5)', () => {
     const { svc } = makeService({ calculatedAreaM2: 0 });
     const r = await svc.computeCropPnl('crop-1', 'user-1');
     expect(r.productivityTPerHa).toBeNull();
+  });
+
+  // H5: break-even count from the farm's own quote, not a region.
+  it("computes break-even count from the farm's current quote bands", async () => {
+    const { svc, pricing } = makeService({ calculatedAreaM2: 1, farmId: 'farm-1' });
+    const r = await svc.computeCropPnl('crop-1', 'user-1');
+    expect(pricing.usableBands).toHaveBeenCalledWith('farm-1');
+    // CoP 312 between 400 @30 and 300 @40 → 30 + 0.88 × 10.
+    expect(r.breakEvenCount).toBeCloseTo(38.8, 5);
+  });
+
+  it('leaves break-even null when the farm has no usable quote', async () => {
+    const { svc, pricing } = makeService({ calculatedAreaM2: 1, farmId: 'farm-1' });
+    pricing.usableBands.mockResolvedValue(undefined);
+    const r = await svc.computeCropPnl('crop-1', 'user-1');
+    expect(r.breakEvenCount).toBeNull();
   });
 
   it('breaks cost down by category', async () => {

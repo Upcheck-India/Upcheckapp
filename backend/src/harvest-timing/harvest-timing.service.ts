@@ -1,6 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
 import { CountPriceBand } from '../india/economics.service';
+import { interpolatePrice } from '../india/pricing.service';
+import {
+  MoltPhase,
+  addDays,
+  phaseOn,
+  upcomingWindows,
+} from '../molt/molt-window';
+import { toIstDateString } from '../common/ist-date';
 
 export interface HarvestTimingInput {
   abwNow: number; // g
@@ -24,15 +32,23 @@ export interface HarvestTimingInput {
   /** Cultured species (free text); selects the FR table for feed-cost. */
   species?: string;
   horizon?: number; // days, default 30
+  /** Day 0's instant (tests); molt phases are tagged from its IST date. */
+  now?: Date;
 }
 
 export interface DayProjection {
   day: number;
+  /** IST calendar date of this projection day. */
+  date: string;
+  /** Molt phase of that date (H6.5). */
+  moltPhase: MoltPhase;
   abw: number;
   count: number;
   population: number;
   biomassKg: number;
   pricePerKg: number;
+  /** The count is outside the quoted bands; the end band's price is used. */
+  priceExtrapolated: boolean;
   gross: number;
   feedCostCum: number;
   riskLoss: number;
@@ -48,6 +64,75 @@ export interface HarvestTimingResult {
   netOptimal: number;
   expectedGain: number;
   partial: PartialPlan | null;
+  /**
+   * Set when optimalDay falls in a molt peak/post: the nearest harvestable
+   * non-molt day on each side (H6.5). No soft-shell discount is modelled —
+   * we have no data for it; the advice is to avoid those days instead.
+   */
+  safeDay: SafeDays | null;
+}
+
+export interface SafeDayOption {
+  day: number;
+  date: string;
+  netProfit: number;
+  /** netProfit − netOptimal (≤ 0). */
+  diff: number;
+}
+
+export interface SafeDays {
+  phase: MoltPhase;
+  before: SafeDayOption | null;
+  after: SafeDayOption | null;
+}
+
+/** Peak and post are soft-shell days: buyer deductions and rejections. */
+const isMoltDay = (p: MoltPhase) => p === 'peak' || p === 'post';
+
+/** IST date + molt phase for day 0..horizon from `now`. */
+export function moltCalendar(
+  now: Date,
+  horizon: number,
+): { date: string; phase: MoltPhase }[] {
+  const today = toIstDateString(now);
+  const windows = upcomingWindows(now, Math.ceil(horizon / 14) + 2);
+  const out: { date: string; phase: MoltPhase }[] = [];
+  for (let d = 0; d <= horizon; d++) {
+    const date = addDays(today, d);
+    const phase =
+      windows.map((w) => phaseOn(w, date)).find((ph) => ph !== 'inter') ??
+      'inter';
+    out.push({ date, phase });
+  }
+  return out;
+}
+
+/**
+ * If the optimal day is a molt peak/post day, the nearest harvestable day
+ * (day 0 or feasible) that is not, on each side. Null when optimal is safe.
+ */
+export function safeDays(
+  projections: DayProjection[],
+  optimalDay: number,
+): SafeDays | null {
+  const opt = projections[optimalDay];
+  if (!opt || !isMoltDay(opt.moltPhase)) return null;
+  const ok = (p: DayProjection) =>
+    (p.day === 0 || p.feasible) && !isMoltDay(p.moltPhase);
+  const pick = (p: DayProjection | undefined): SafeDayOption | null =>
+    p
+      ? {
+          day: p.day,
+          date: p.date,
+          netProfit: p.netProfit,
+          diff: round2(p.netProfit - opt.netProfit),
+        }
+      : null;
+  const before = [...projections]
+    .reverse()
+    .find((p) => p.day < optimalDay && ok(p));
+  const after = projections.find((p) => p.day > optimalDay && ok(p));
+  return { phase: opt.moltPhase, before: pick(before), after: pick(after) };
 }
 
 export interface PartialPlan {
@@ -89,13 +174,6 @@ function densityGrowthFactor(densityRatio: number): number {
 export class HarvestTimingService {
   constructor(private readonly calc: ShrimpCalculationsService) {}
 
-  /** ₹/kg for the count band nearest to `count`. */
-  private nearestPrice(count: number, bands: CountPriceBand[]): number {
-    if (!bands.length) return 0;
-    return bands.reduce((best, b) =>
-      Math.abs(b.count - count) < Math.abs(best.count - count) ? b : best,
-    ).price;
-  }
 
   /**
    * Full optimization: day-by-day projection + optimal-day search + the
@@ -103,10 +181,12 @@ export class HarvestTimingService {
    * (not this method) so there is no recursion.
    */
   optimize(input: HarvestTimingInput): HarvestTimingResult {
-    const core = this.optimizeCore(input);
+    const calendar = moltCalendar(input.now ?? new Date(), input.horizon ?? 30);
+    const core = this.optimizeCore(input, calendar);
     return {
       ...core,
-      partial: this.partialOptimizer(input, core.netNow, core.netOptimal),
+      partial: this.partialOptimizer(input, core.netNow, core.netOptimal, calendar),
+      safeDay: safeDays(core.projections, core.optimalDay),
     };
   }
 
@@ -118,7 +198,8 @@ export class HarvestTimingService {
    */
   optimizeCore(
     input: HarvestTimingInput,
-  ): Omit<HarvestTimingResult, 'partial'> {
+    calendar = moltCalendar(input.now ?? new Date(), input.horizon ?? 30),
+  ): Omit<HarvestTimingResult, 'partial' | 'safeDay'> {
     const horizon = input.horizon ?? 30;
     const decay = input.adgDecay ?? 0.97;
     const risk = Math.max(0, Math.min(1, input.diseaseRisk ?? 0));
@@ -146,7 +227,8 @@ export class HarvestTimingService {
       const population = input.nNow * Math.pow(input.dailySurvival, d);
       const biomassKg = (population * abw) / 1000;
       const count = abw > 0 ? 1000 / abw : 0;
-      const pricePerKg = this.nearestPrice(count, input.priceBands);
+      const quoted = interpolatePrice(input.priceBands, count);
+      const pricePerKg = quoted?.price ?? 0;
       const gross = biomassKg * pricePerKg;
 
       if (d > 0) {
@@ -166,11 +248,14 @@ export class HarvestTimingService {
 
       projections.push({
         day: d,
+        date: calendar[d].date,
+        moltPhase: calendar[d].phase,
         abw: round2(abw),
         count: round2(count),
         population: Math.round(population),
         biomassKg: round2(biomassKg),
         pricePerKg: round2(pricePerKg),
+        priceExtrapolated: quoted?.extrapolated ?? false,
         gross: round2(gross),
         feedCostCum: round2(feedCostCum),
         riskLoss: round2(riskLoss),
@@ -213,6 +298,7 @@ export class HarvestTimingService {
     input: HarvestTimingInput,
     netNow: number,
     netOptimal: number,
+    calendar: { date: string; phase: MoltPhase }[],
   ): PartialPlan | null {
     const day0Biomass = (input.nNow * input.abwNow) / 1000;
     const overStocked =
@@ -220,9 +306,8 @@ export class HarvestTimingService {
       day0Biomass / input.areaM2 > input.carryingCapacityKgM2;
     if (!overStocked) return null;
 
-    const risk = Math.max(0, Math.min(1, input.diseaseRisk ?? 0));
     const countNow = input.abwNow > 0 ? 1000 / input.abwNow : 0;
-    const priceNow = this.nearestPrice(countNow, input.priceBands);
+    const priceNow = interpolatePrice(input.priceBands, countNow)?.price ?? 0;
 
     // Sweep the full thinning range (10%–90%) at fine resolution so the search
     // can't stop while net profit is still rising — the old {0.2,0.3,0.4} grid
@@ -234,14 +319,17 @@ export class HarvestTimingService {
 
     let best: PartialPlan | null = null;
     for (const pct of fractions) {
+      // T4: the portion sold TODAY carries no disease haircut — the same basis
+      // as "harvest all today" (riskLoss is 0 on day 0). Haircutting it biased
+      // every comparison against thinning.
       const realizedNow =
-        ((pct * input.nNow * input.abwNow) / 1000) * priceNow * (1 - risk);
+        ((pct * input.nNow * input.abwNow) / 1000) * priceNow;
       // Remaining cohort grows under the same conditions (lower density now).
       // Use optimizeCore to avoid re-entering the partial optimizer.
-      const remainder = this.optimizeCore({
-        ...input,
-        nNow: (1 - pct) * input.nNow,
-      });
+      const remainder = this.optimizeCore(
+        { ...input, nNow: (1 - pct) * input.nNow },
+        calendar,
+      );
       const total = realizedNow + remainder.netOptimal;
       if (!best || total > best.total) {
         best = {

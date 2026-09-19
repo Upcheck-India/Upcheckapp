@@ -61,7 +61,7 @@ const RESULT = {
     growthChart: [],
 };
 
-const navigation = { goBack: jest.fn(), navigate: jest.fn() };
+const navigation = { goBack: jest.fn(), navigate: jest.fn(), replace: jest.fn() };
 const renderScreen = () =>
     render(
         <SafeAreaProvider initialMetrics={METRICS}>
@@ -157,10 +157,11 @@ describe('CycleResultScreen', () => {
         expect(queryByText(/980 kg/)).toBeNull();
     });
 
-    it('Start next cycle opens CreateCycle with the pond', async () => {
+    it('Start next cycle REPLACES this report with CreateCycle, so saving returns to the pond', async () => {
         (reportsApi.getCycleResult as jest.Mock).mockResolvedValue({ data: RESULT });
         const { findByText } = renderScreen();
         fireEvent.press(await findByText('Start next cycle'));
-        expect(navigation.navigate).toHaveBeenCalledWith('CreateCycle', { pondId: 'pond-1' });
+        expect(navigation.replace).toHaveBeenCalledWith('CreateCycle', { pondId: 'pond-1' });
+        expect(navigation.navigate).not.toHaveBeenCalledWith('CreateCycle', expect.anything());
     });
 });

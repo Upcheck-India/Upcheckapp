@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -28,19 +28,50 @@ export const BiosecurityPanel = ({
 }) => {
     const { t } = useTranslation();
     const [data, setData] = useState<CropBiosecurity | null>(null);
+    // The first load used to render nothing, then pop the cards in — farmers
+    // had no clue anything was coming. Refocus refetches keep the old data.
+    const [status, setStatus] = useState<'loading' | 'error' | 'ready'>('loading');
     const [editing, setEditing] = useState(false);
     const [seedDraft, setSeedDraft] = useState<SeedHealth>(EMPTY_SEED);
     const [saving, setSaving] = useState(false);
 
-    useFocusEffect(
-        useCallback(() => {
-            biosecurityApi
-                .get(cropId)
-                .then(({ data: d }) => setData(d))
-                .catch(() => setData(null));
-        }, [cropId]),
-    );
+    const load = useCallback(() => {
+        biosecurityApi
+            .get(cropId)
+            .then(({ data: d }) => {
+                setData(d);
+                setStatus('ready');
+            })
+            .catch(() => setStatus((s) => (s === 'ready' ? s : 'error')));
+    }, [cropId]);
+    useFocusEffect(load);
 
+    if (status === 'loading') {
+        return (
+            <Card style={styles.card}>
+                <View testID="bio-loading" style={styles.stateRow}>
+                    <ActivityIndicator color={theme.roles.light.primary} />
+                    <Text style={styles.line}>{t('biosecurity.loading')}</Text>
+                </View>
+            </Card>
+        );
+    }
+    if (status === 'error') {
+        return (
+            <Card style={styles.card}>
+                <Text testID="bio-error" style={styles.line}>{t('biosecurity.loadFailed')}</Text>
+                <Button
+                    title={t('common.retry')}
+                    variant="outlined"
+                    onPress={() => {
+                        setStatus('loading');
+                        load();
+                    }}
+                    style={styles.btn}
+                />
+            </Card>
+        );
+    }
     if (!data?.available) return null;
 
     const toggle = async (key: string, done: boolean) => {
@@ -90,6 +121,7 @@ export const BiosecurityPanel = ({
                         </TouchableOpacity>
                     )}
                 </View>
+                <Text style={styles.why}>{t('biosecurity.seedWhy')}</Text>
                 {editing ? (
                     <>
                         <SeedHealthFields value={seedDraft} onChange={setSeedDraft} />
@@ -124,6 +156,8 @@ export const BiosecurityPanel = ({
                 <Text style={styles.title}>
                     {t('biosecurity.progress', { done: data.done, total: data.total })}
                 </Text>
+                <Text style={styles.why}>{t('biosecurity.checklistWhy')}</Text>
+                <Text style={styles.why}>{t('biosecurity.selfReported')}</Text>
                 {(['prep', 'culture'] as const).map((stage) => (
                     <View key={stage}>
                         <Text style={styles.stage}>{t(`biosecurity.stage.${stage}`)}</Text>
@@ -146,7 +180,10 @@ export const BiosecurityPanel = ({
                                             size={22}
                                             color={i.done ? theme.roles.light.primary : theme.roles.light.textSecondary}
                                         />
-                                        <Text style={styles.itemText}>{t(`biosecurity.item.${i.key}`)}</Text>
+                                        <View style={styles.itemBody}>
+                                            <Text style={styles.itemText}>{t(`biosecurity.item.${i.key}`)}</Text>
+                                            <Text style={styles.why}>{t(`biosecurity.itemWhy.${i.key}`)}</Text>
+                                        </View>
                                     </TouchableOpacity>
                                 );
                             })}
@@ -169,7 +206,10 @@ const styles = StyleSheet.create({
         marginBottom: theme.spacing[1],
     },
     item: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3], paddingVertical: theme.spacing[2], minHeight: 44 },
-    itemText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, flex: 1 },
+    itemBody: { flex: 1 },
+    itemText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary },
+    why: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[1] },
+    stateRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3] },
     warn: {
         ...theme.typeScale.bodySmall,
         color: theme.roles.light.warningText,

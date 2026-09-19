@@ -59,10 +59,36 @@ it('a viewer (no WRITE_OPERATIONAL) cannot tick', async () => {
     expect(setCheck).not.toHaveBeenCalled();
 });
 
-it('renders nothing before the migration', async () => {
+it('renders nothing before the migration (once loaded)', async () => {
     get.mockResolvedValue({ data: data(false) });
     const s = renderPanel();
-    await waitFor(() => expect(get).toHaveBeenCalled());
+    await waitFor(() => expect(s.queryByTestId('bio-loading')).toBeNull());
     expect(s.queryByText(/Biosecurity/)).toBeNull();
     expect(s.queryByText('Seed health')).toBeNull();
+});
+
+it('shows a visible loading state for seed health + checklist until the fetch resolves', async () => {
+    let resolve!: (v: unknown) => void;
+    get.mockReturnValue(new Promise((r) => (resolve = r)));
+    const s = renderPanel();
+    expect(s.getByTestId('bio-loading')).toBeTruthy();
+    expect(s.getByText('Loading seed health and biosecurity checklist…')).toBeTruthy();
+    resolve({ data: data() });
+    expect(await s.findByText('Seed health')).toBeTruthy();
+    expect(s.queryByTestId('bio-loading')).toBeNull();
+});
+
+it('a failed fetch shows an error with retry instead of nothing', async () => {
+    get.mockRejectedValueOnce(new Error('offline'));
+    const s = renderPanel();
+    expect(await s.findByTestId('bio-error')).toBeTruthy();
+    fireEvent.press(s.getByText('Retry'));
+    expect(await s.findByText('Biosecurity 5 of 9')).toBeTruthy();
+});
+
+it('each item says what it is and why, and the score is marked self-reported', async () => {
+    const s = renderPanel();
+    await s.findByText('Biosecurity 5 of 9');
+    expect(s.getByText(/Sunlight kills germs left from the last crop/)).toBeTruthy();
+    expect(s.getByText('You tick these yourself — Upcheck does not check them.')).toBeTruthy();
 });

@@ -32,7 +32,9 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
     const [error, setError] = useState<any>(null);
     // The crop carries its own farmId, so the gate follows the cycle rather
     // than whichever farm happens to be active in the picker.
-    const { canRecordHarvest, canManageOperations, canViewFinancials, canRecordData } = usePermissions(cycle?.farmId);
+    const { canRecordHarvest, canManageOperations, canViewFinancials, canRecordData, isOwner, isManager } =
+        usePermissions(cycle?.farmId);
+    const exportOn = useFlag('export');
 
     const fetchCycle = useCallback(async () => {
         setError(null);
@@ -137,6 +139,16 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
         );
     }
 
+    const bioFirst = route.params.focus === 'biosecurity';
+    const biosecurityPanel = (
+        <BiosecurityPanel
+            cropId={cycle.id}
+            active={cycle.status === 'active'}
+            canTick={canRecordData}
+            canEditSeed={canManageOperations}
+        />
+    );
+
     return (
         <ScreenWrapper>
             <View style={styles.header}>
@@ -159,6 +171,9 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
+                {/* Opened from the pond's biosecurity badge: the checklist the
+                    farmer tapped comes first, not below the stocking info. */}
+                {bioFirst && biosecurityPanel}
                 <View style={styles.statusRow}>
                     <Text style={styles.label}>{t('common.status')}:</Text>
                     <StatusBadge
@@ -191,12 +206,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                     </View>
                 </Card>
 
-                <BiosecurityPanel
-                    cropId={cycle.id}
-                    active={cycle.status === 'active'}
-                    canTick={canRecordData}
-                    canEditSeed={canManageOperations}
-                />
+                {!bioFirst && biosecurityPanel}
 
                 <Text style={styles.sectionHeading}>{t('cycles.sectionTargets')}</Text>
                 <View style={styles.metricsGrid}>
@@ -294,6 +304,19 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                             title={t('cycles.btnAnalysis', 'Cycle analysis')}
                             variant="outlined"
                             onPress={() => navigation.navigate('CycleAnalysis', { cycleId: cycle.id, cycleName: (cycle as any).name })}
+                            style={styles.actionBtn}
+                        />
+                    )}
+                    {/* D4: shared outside the farm, so owner/manager only. */}
+                    {exportOn && (isOwner || isManager) && (
+                        <Button
+                            title={t('export.dataset_inputRecord')}
+                            variant="outlined"
+                            onPress={() =>
+                                navigation.navigate('Export', {
+                                    dataset: 'inputRecord', cropId: cycle.id, pondId: cycle.pondId, farmId: cycle.farmId,
+                                })
+                            }
                             style={styles.actionBtn}
                         />
                     )}

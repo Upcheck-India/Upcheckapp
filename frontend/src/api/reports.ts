@@ -1,5 +1,7 @@
 import apiClient from './client';
 import { moneyQueryParams, type MoneyFilterParams } from './transactions';
+import type { CycleCompliance } from './treatments';
+import type { SeedHealth } from './biosecurity';
 
 export interface DashboardSummary {
     activePondsCount: number;
@@ -111,4 +113,43 @@ export const reportsApi = {
         apiClient.get<CycleAnalysis>(`/reports/cycle/${cycleId}/analysis`),
 
     getCycleResult: (cropId: string) => apiClient.get<CycleResult>(`/crops/${cropId}/result`),
+
+    /** D4 — owner/manager only (403 otherwise). No money in it. */
+    getInputRecord: (cropId: string) => apiClient.get<InputRecord>(`/crops/${cropId}/input-record`),
 };
+
+/** Cycle input record (disease spec D4). `null` = not logged, never zero. */
+export interface InputRecord {
+    cropId: string;
+    farm: { name: string | null; caaRegistrationNo: string | null };
+    pond: { name: string | null; areaM2: number | null };
+    cycle: {
+        name: string | null;
+        cropCode: string | null;
+        hatchery: string | null;
+        stockingDate: string | null;
+        stockingCount: number | null;
+        endDate: string | null;
+    };
+    seed: SeedHealth | null;
+    treatments: {
+        date: string;
+        category: string | null;
+        ingredientKeys: string[];
+        productName: string | null;
+        description: string | null;
+        doseValue: number | null;
+        doseUnit: string | null;
+        reason: string | null;
+        flag: string;
+        matches: string[];
+    }[];
+    feedBrands: string[];
+    health: {
+        diseases: { date: string; name: string | null; confirmedBy: string | null; labName: string | null; outcome: string | null }[];
+        mortality: { records: number; count: number } | null;
+        doBelow3Days: { days: number; of: number } | null;
+    };
+    antimicrobial: Pick<CycleCompliance, 'status' | 'items' | 'listVersion'>;
+    harvests: { date: string; type: string | null; weightKg: number; grades: { countPerKg: number | null; weightKg: number }[] }[];
+}

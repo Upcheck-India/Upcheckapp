@@ -5,7 +5,9 @@ import {
   BadRequestException,
   ConflictException,
   InternalServerErrorException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
+import { isMissingSchema } from '../health-observations/health.constants';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, IsNull } from 'typeorm';
 import { randomBytes } from 'crypto';
@@ -183,7 +185,21 @@ export class FarmsService {
     const farm = await this.farmsRepository.findOneBy({ id });
     if (!farm || farm.deletedAt)
       throw new NotFoundException(`Farm with ID ${id} not found`);
-    return farm;
+    return { ...farm, caaRegistrationNo: await this.getCaaRegistrationNo(id) };
+  }
+
+  /**
+   * D4: raw SQL, not an entity column, so an unapplied 1780701700000 reads as
+   * null instead of breaking every farm read.
+   */
+  async getCaaRegistrationNo(farmId: string): Promise<string | null> {
+    const rows = await this.farmsRepository
+      .query(`SELECT caa_registration_no AS v FROM farms WHERE id = $1`, [farmId])
+      .catch((err) => {
+        if (isMissingSchema(err)) return [];
+        throw err;
+      });
+    return rows?.[0]?.v ?? null;
   }
 
   // callerId is required: the route admits managers (for the shift), so this
@@ -196,7 +212,25 @@ export class FarmsService {
     if (touchesNonShift) {
       await this.farmAccess.assertCanAccessFarm(callerId, id, 'OWNER_ONLY');
     }
-    await this.farmsRepository.update(id, updateFarmDto);
+    // D4: not an entity column (raw SQL + 42703 fail-safe). Written FIRST so
+    // an unapplied migration refuses the whole edit instead of half-saving it.
+    const { caaRegistrationNo, ...entityFields } = updateFarmDto;
+    if (caaRegistrationNo !== undefined) {
+      await this.farmsRepository
+        .query(`UPDATE farms SET caa_registration_no = $2 WHERE id = $1`, [
+          id,
+          caaRegistrationNo?.trim() || null,
+        ])
+        .catch((err) => {
+          if (!isMissingSchema(err)) throw err;
+          throw new ServiceUnavailableException(
+            'CAA registration number is not available yet (migration 1780701700000 not applied)',
+          );
+        });
+    }
+    if (Object.keys(entityFields).length) {
+      await this.farmsRepository.update(id, entityFields);
+    }
     return this.findOne(id);
   }
 

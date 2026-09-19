@@ -69,6 +69,7 @@ describe('HarvestLogScreen — H1 graded form', () => {
         fireEvent.changeText(getAllByLabelText('kg')[1], '160');
         fireEvent.changeText(getAllByLabelText('count/kg')[1], '55');
         fireEvent.changeText(getAllByLabelText('₹/kg')[1], '340');
+        fireEvent.press(getByText('Partial')); // no type is pre-selected any more
         fireEvent.press(getByText('Save Harvest'));
 
         await waitFor(() => expect(saveRecord).toHaveBeenCalledTimes(1));
@@ -88,6 +89,7 @@ describe('HarvestLogScreen — H1 graded form', () => {
         expect(queryAllByLabelText('₹/kg')).toHaveLength(0);
 
         fireEvent.changeText(getAllByLabelText('kg')[0], '900');
+        fireEvent.press(getByText('Partial')); // no type is pre-selected any more
         fireEvent.press(getByText('Save Harvest'));
 
         await waitFor(() => expect(saveRecord).toHaveBeenCalled());
@@ -101,6 +103,7 @@ describe('HarvestLogScreen — H1 graded form', () => {
         const { getByText, getAllByLabelText } = renderScreen();
         fireEvent.changeText(getAllByLabelText('kg')[0], '100');
         fireEvent.changeText(getAllByLabelText('₹/kg')[0], '4300');
+        fireEvent.press(getByText('Partial')); // no type is pre-selected any more
         fireEvent.press(getByText('Save Harvest'));
 
         await waitFor(() => expect(saveRecord).toHaveBeenCalled());
@@ -147,9 +150,24 @@ describe('HarvestLogScreen — H1 graded form', () => {
         (saveRecord as jest.Mock).mockResolvedValue({ id: 'x', queued: false });
         const { getByText, getAllByLabelText } = renderScreen();
         fireEvent.changeText(getAllByLabelText('kg')[0], '200');
+        fireEvent.press(getByText('Partial')); // no type is pre-selected any more
         fireEvent.press(getByText('Save Harvest'));
         await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
         expect(navigation.replace).not.toHaveBeenCalled();
+    });
+
+    it('a new harvest has no type pre-selected: save is blocked until Partial or Full is chosen', async () => {
+        const { getByText, getAllByLabelText, queryByTestId, findByTestId } = renderScreen();
+        fireEvent.changeText(getAllByLabelText('kg')[0], '1000');
+        fireEvent.press(getByText('Save Harvest'));
+        expect(await findByTestId('harvest-type-required')).toHaveTextContent('Choose Partial or Full before saving.');
+        expect(saveRecord).not.toHaveBeenCalled();
+
+        fireEvent.press(getByText('Partial'));
+        expect(queryByTestId('harvest-type-required')).toBeNull();
+        fireEvent.press(getByText('Save Harvest'));
+        await waitFor(() => expect(saveRecord).toHaveBeenCalledTimes(1));
+        expect((saveRecord as jest.Mock).mock.calls[0][0].payload.harvestType).toBe('partial');
     });
 
     it('a failed online save retried reuses the same harvest id', async () => {
@@ -157,6 +175,7 @@ describe('HarvestLogScreen — H1 graded form', () => {
         (saveRecord as jest.Mock).mockRejectedValueOnce({ response: { status: 500 } });
         const { getByText, getAllByLabelText } = renderScreen();
         fireEvent.changeText(getAllByLabelText('kg')[0], '900');
+        fireEvent.press(getByText('Partial')); // no type is pre-selected any more
         fireEvent.press(getByText('Save Harvest'));
         await waitFor(() => expect(saveRecord).toHaveBeenCalledTimes(1));
         fireEvent.press(getByText('Save Harvest'));

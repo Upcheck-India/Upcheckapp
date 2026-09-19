@@ -8,7 +8,7 @@ import type { SignupIntent } from '../store/authStore';
 import type { FarmRole } from '../api/farmMembers';
 import type { CreateFarmDto } from '../api/farms';
 import type { ExportDataset } from '../features/export/types';
-import { hasChosenLanguage } from '../i18n';
+import i18n, { hasChosenLanguage } from '../i18n';
 import {
     loadTelemetryPrefs,
     shouldAskAnalyticsConsent,
@@ -74,7 +74,7 @@ export type RootStackParamList = {
     CycleAnalysis: { cycleId: string; cycleName?: string };
     CycleResult: { cropId: string };
     CreateCycle: { pondId: string };
-    CycleDetail: { cycleId: string };
+    CycleDetail: { cycleId: string; focus?: 'biosecurity' };
     // Cycle history: per pond (from the dashboard) or per farm (from farm detail).
     CycleList: { pondId?: string; pondName?: string; farmId?: string; farmName?: string } | undefined;
 
@@ -179,7 +179,14 @@ export type RootStackParamList = {
     Transactions: { farmId: string; farmName?: string };
 
     // Harvest planning
-    HarvestPlans: { pondId: string; pondName?: string; cropId?: string; farmId?: string };
+    HarvestPlans: {
+        pondId: string;
+        pondName?: string;
+        cropId?: string;
+        farmId?: string;
+        /** From Harvest Timing's "Plan this harvest" (H6): opens the add form filled. */
+        prefill?: { date: string; targetKg?: number; pricePerKg?: number };
+    };
 
     // First-run onboarding (docs/design/onboarding/*)
     Language: undefined;
@@ -457,7 +464,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="WeeklyChemistryHistory" getComponent={() => require('../screens/logs/History/WeeklyChemistryHistoryScreen').WeeklyChemistryHistoryScreen} options={{ headerShown: false }} />
                     <Stack.Screen name="EnginesHub" getComponent={() => require('../screens/engines/EnginesHubScreen').EnginesHubScreen} options={{ headerShown: true, title: 'Decision Engines', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="FeedAdvisor" getComponent={() => withFlag('feedAdvisor', require('../screens/engines/FeedAdvisorScreen').FeedAdvisorScreen)} options={{ headerShown: true, title: 'Feed Advisor', headerTintColor: theme.roles.light.primary }} />
-                    <Stack.Screen name="HarvestTiming" getComponent={() => require('../screens/engines/HarvestTimingScreen').HarvestTimingScreen} options={{ headerShown: true, title: 'Harvest Timing', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="HarvestTiming" getComponent={() => require('../screens/engines/HarvestTimingScreen').HarvestTimingScreen} options={() => ({ headerShown: true, title: i18n.t('engines.harvest.title'), headerTintColor: theme.roles.light.primary })} />
                     <Stack.Screen name="DiseaseRisk" getComponent={() => require('../screens/engines/DiseaseRiskScreen').DiseaseRiskScreen} options={{ headerShown: true, title: 'Disease Early-Warning', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="Aeration" getComponent={() => require('../screens/engines/AerationScreen').AerationScreen} options={{ headerShown: true, title: 'Aeration & Power', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="Lunar" getComponent={() => withFlag('lunar', require('../screens/engines/LunarScreen').LunarScreen)} options={{ headerShown: true, title: 'Lunar Molt', headerTintColor: theme.roles.light.primary }} />

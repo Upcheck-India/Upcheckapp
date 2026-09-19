@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { PondContextService, harvestedPieces } from './pond-context.service';
+import { PondContextService, harvestedPieces, adgFrom } from './pond-context.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
 
 function makeService(
@@ -560,5 +560,36 @@ describe('H2 — population after a partial harvest', () => {
     samplingRepo.query.mockRejectedValue(Object.assign(new Error('col'), { code: '42703' }));
     const ctx = await svc.getContext('p1', 'u1');
     expect(ctx.livePopulation).toBe(100000);
+  });
+});
+
+describe('H6.1 — ADG from the last two weighed samplings ≥5 days apart', () => {
+  const row = (d1: string | null, m1: number | null, d2 = '2026-09-18', m2 = 20) => ({
+    cropId: 'c1', d1, m1, d2, m2,
+  });
+
+  it('is (mbw₂ − mbw₁) / days', () => {
+    expect(adgFrom(row('2026-09-08', 17))).toEqual({
+      adgG: 0.3,
+      adgAsOf: '2026-09-18',
+      adgNote: null,
+    });
+  });
+
+  it('is null with fewer than two samplings (no older row)', () => {
+    expect(adgFrom(row(null, null)).adgG).toBeNull();
+    expect(adgFrom(null).adgG).toBeNull();
+  });
+
+  it('refuses a gap under 5 days', () => {
+    expect(adgFrom(row('2026-09-15', 19)).adgG).toBeNull();
+  });
+
+  it("is null with adgNote 'negative' when the shrimp 'shrank'", () => {
+    expect(adgFrom(row('2026-09-08', 22))).toEqual({
+      adgG: null,
+      adgAsOf: null,
+      adgNote: 'negative',
+    });
   });
 });
