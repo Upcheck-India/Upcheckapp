@@ -3,6 +3,7 @@ import i18n from '../i18n';
 import { queryClient } from '../query/client';
 import type { PondContext } from './pondContext';
 import type { MoltWindowSummary } from './molt';
+import { EVENTS, capture } from '../features/analytics';
 
 export type AlertSeverity = 'info' | 'watch' | 'critical';
 
@@ -85,6 +86,27 @@ export const localizeLiveAlert = (a: LiveAlert): LiveAlert =>
 export const localizeSavedAlert = (a: SavedAlert): SavedAlert =>
   a.titleKey ? { ...a, title: tr(a.titleKey, a.title), message: tr(a.bodyKey, a.message) } : a;
 
+/**
+ * `disease_alert_raised` once per pond + disease + level per app session (D7).
+ * Only the disease code and level leave the device; the pond id stays in this Set.
+ */
+const reportedDisease = new Set<string>();
+export function reportDiseaseAlerts(
+  items: { pondId: string | null; source: string; severity: AlertSeverity; titleKey?: TextKey }[],
+): void {
+  for (const a of items) {
+    const disease = a.source === 'disease' ? /^engines\.disease\.name_(\w+)$/.exec(a.titleKey?.key ?? '')?.[1] : undefined;
+    if (!disease || (a.severity !== 'watch' && a.severity !== 'critical')) continue;
+    const k = `${a.pondId}:${disease}:${a.severity}`;
+    if (reportedDisease.has(k)) continue;
+    reportedDisease.add(k);
+    capture(EVENTS.DISEASE_ALERT_RAISED, { kind: disease, severity: a.severity });
+  }
+}
+
+const reportBriefing = (items: BriefingItem[] | undefined) =>
+  reportDiseaseAlerts((items ?? []).map((b) => ({ ...b, severity: b.topSeverity })));
+
 // Cached alerts were rendered in the old language: refetch them on a switch.
 i18n.on?.('languageChanged', () => {
   void queryClient.invalidateQueries({ queryKey: ['briefing'] });
@@ -96,6 +118,7 @@ export const alertCenterApi = {
   all: () =>
     apiClient
       .get<{ live: LiveAlert[]; saved: SavedAlert[] }>('/alert-center/all')
+      .then((r) => (reportDiseaseAlerts(r.data?.live ?? []), r))
       .then((r) => ({
         ...r,
         data: {
@@ -127,12 +150,14 @@ export const alertCenterApi = {
       /** Absent on a backend older than the molt-window deploy. */
       moltWindow?: MoltWindowSummary | null;
     }>('/alert-center/today')
+      .then((r) => (reportBriefing(r.data?.briefing), r))
       .then((r) => ({ ...r, data: { ...r.data, briefing: (r.data?.briefing ?? []).map(localizeBriefing) } })),
 
   /** Live briefing — engine alerts recomputed from each pond's latest data. */
   liveBriefing: () =>
     apiClient
       .get<BriefingItem[]>('/alert-center/live-briefing')
+      .then((r) => (reportBriefing(r.data), r))
       .then((r) => ({ ...r, data: (r.data ?? []).map(localizeBriefing) })),
 
   /** Emit an alert into the unified stream. */

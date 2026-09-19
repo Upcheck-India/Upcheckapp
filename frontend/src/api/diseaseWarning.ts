@@ -1,4 +1,5 @@
 import apiClient from './client';
+import type { TextKey } from './alertCenter';
 
 export type DiseaseName =
   | 'WSSV'
@@ -15,6 +16,7 @@ export interface DiseaseIndicators {
   seasonWinter?: boolean;
   regionalWssv?: boolean;
   redBody?: boolean;
+  entryRisk?: boolean;
   docBelow35?: boolean;
   yellowVibrioUp?: boolean;
   emptyGut?: boolean;
@@ -40,6 +42,20 @@ export interface DiseaseRisk {
   band: 'Low' | 'Watch' | 'Critical';
   triggers: string[];
   steps: string[];
+  /** D7; absent on an older backend. */
+  coverage?: { known: number; total: number };
+  triggerKeys?: TextKey[];
+  stepKeys?: TextKey[];
+}
+
+/** GET /disease-risk/pond/:id/current — derived from the pond's logs (D7). */
+export interface CurrentDiseaseRisk {
+  pondId: string;
+  cropId: string | null;
+  date: string;
+  risks: DiseaseRisk[];
+  /** Over every indicator: "based on 9 of 23 signs". */
+  coverage: { known: number; total: number };
 }
 
 export interface DiseaseRiskSnapshot {
@@ -63,6 +79,10 @@ export const diseaseWarningApi = {
     date: string;
     indicators: DiseaseIndicators;
   }) => apiClient.post<DiseaseRiskSnapshot>('/disease-risk', body),
+
+  /** Derived now from the pond's logs; the server also saves the day's snapshot. */
+  current: (pondId: string) =>
+    apiClient.get<CurrentDiseaseRisk>(`/disease-risk/pond/${pondId}/current`),
 
   recent: (pondId: string) =>
     apiClient.get<DiseaseRiskSnapshot[]>(`/disease-risk/pond/${pondId}`),

@@ -1,51 +1,60 @@
 import { PnlService } from './pnl.service';
 import { EconomicsService } from '../india/economics.service';
 
-const expenses = [
-  { category: 'Feed', amount: 200000 },
-  { category: 'Seed (Fry)', amount: 50000 },
-  { category: 'Energy (Fuel/Electricity)', amount: 62000 },
-];
-const harvests = [
-  { weightKg: 600, salePriceTotal: 300000, harvestType: 'partial' },
-  { weightKg: 400, salePriceTotal: 200000, harvestType: 'full' },
-];
+// What `getCycleFinancials` returns for the cycle: expenses AND pond-tagged
+// transactions in one basis (C5).
+const financials = {
+  totalRevenue: 500000,
+  totalExpenses: 312000,
+  netProfit: 188000,
+  marginPercent: 37.6,
+  totalHarvestKg: 1000,
+  breakEvenPricePerKg: 312,
+  expensesByCategory: {
+    Feed: 200000,
+    'Seed (Fry)': 50000,
+    'Energy (Fuel/Electricity)': 62000,
+  },
+};
 
-function makeService() {
-  const expenseRepo = { find: jest.fn().mockResolvedValue(expenses) };
-  const harvestRepo = { find: jest.fn().mockResolvedValue(harvests) };
+function makeService(pond: any = { calculatedAreaM2: 4046.86 }) {
+  const harvestRepo = { count: jest.fn().mockResolvedValue(1) };
   const pricing = { latestForRegion: jest.fn(), bandsFromPrices: jest.fn() };
   const cropRepo = {
-    findOne: jest.fn().mockResolvedValue({ id: 'crop-1', pondId: 'pond-1' }),
+    findOne: jest
+      .fn()
+      .mockResolvedValue({ id: 'crop-1', pondId: 'pond-1', pond }),
   };
   const farmAccess = { assertCanAccessPond: jest.fn().mockResolvedValue({}) };
+  const expenses = {
+    getCycleFinancials: jest.fn().mockResolvedValue(financials),
+  };
   const svc = new PnlService(
-    expenseRepo as any,
     harvestRepo as any,
     cropRepo as any,
     new EconomicsService(),
     pricing as any,
     farmAccess as any,
+    expenses as any,
   );
-  return { svc, cropRepo, farmAccess, harvestRepo };
+  return { svc, cropRepo, farmAccess, harvestRepo, expenses };
 }
 
 describe('PnlService.computeCropPnl (farmer_features_spec §5)', () => {
-  // B9: a pending or discarded harvest is not revenue or harvested biomass.
-  it('reads only SOLD harvests', async () => {
+  // B9: only a SOLD full harvest completes the cycle.
+  it('counts only SOLD full harvests as complete', async () => {
     const { svc, harvestRepo } = makeService();
     await svc.computeCropPnl('crop-1', 'user-1');
-    expect(harvestRepo.find).toHaveBeenCalledWith({
-      where: { cropId: 'crop-1', status: 'sold' },
+    expect(harvestRepo.count).toHaveBeenCalledWith({
+      where: { cropId: 'crop-1', status: 'sold', harvestType: 'full' },
     });
   });
 
-  it('aggregates the expense ledger and harvest revenue into CoP/profit', async () => {
-    const { svc, farmAccess } = makeService();
+  it('reads money from getCycleFinancials — one basis with Cycle financials (C5)', async () => {
+    const { svc, farmAccess, expenses } = makeService();
     const r = await svc.computeCropPnl('crop-1', 'user-1', { areaM2: 4046.86 });
 
-    // VIEW_FINANCIALS on the crop's pond (owner or manager), matching the
-    // expenses.getCycleFinancials authorization path.
+    expect(expenses.getCycleFinancials).toHaveBeenCalledWith('crop-1', 'user-1');
     expect(farmAccess.assertCanAccessPond).toHaveBeenCalledWith(
       'user-1',
       'pond-1',
@@ -54,21 +63,30 @@ describe('PnlService.computeCropPnl (farmer_features_spec §5)', () => {
     expect(r.totalCost).toBe(312000);
     expect(r.revenue).toBe(500000);
     expect(r.harvestBiomassKg).toBe(1000);
-    expect(r.coPerKg).toBe(312); // 312000 / 1000
-    expect(r.profit).toBe(188000);
+    expect(r.coPerKg).toBe(312);
+    expect(r.profit).toBe(financials.netProfit);
     expect(r.marginPct).toBe(37.6);
     expect(r.roiPct).toBe(60.26);
-    expect(r.productivityTPerHa).toBe(2.47); // 1000kg / 4046.86 m² × 10
-    expect(r.harvestComplete).toBe(true); // a 'full' harvest exists
+    expect(r.productivityTPerHa).toBe(2.47);
+    expect(r.harvestComplete).toBe(true);
+  });
+
+  // C3: no caller passed areaM2, so t/ha was always null.
+  it("defaults t/ha to the pond's own area", async () => {
+    const { svc } = makeService({ calculatedAreaM2: '4046.86', overrideAreaM2: null });
+    const r = await svc.computeCropPnl('crop-1', 'user-1');
+    expect(r.productivityTPerHa).toBe(2.47);
+  });
+
+  it('leaves t/ha null when the pond has no area', async () => {
+    const { svc } = makeService({ calculatedAreaM2: 0 });
+    const r = await svc.computeCropPnl('crop-1', 'user-1');
+    expect(r.productivityTPerHa).toBeNull();
   });
 
   it('breaks cost down by category', async () => {
     const { svc } = makeService();
     const r = await svc.computeCropPnl('crop-1', 'user-1');
-    expect(r.costBreakdown).toEqual({
-      Feed: 200000,
-      'Seed (Fry)': 50000,
-      'Energy (Fuel/Electricity)': 62000,
-    });
+    expect(r.costBreakdown).toEqual(financials.expensesByCategory);
   });
 });
