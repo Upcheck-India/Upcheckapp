@@ -89,6 +89,9 @@ const logs = {
   harvest_validationWeight: 'Weight is required',
   harvest_errorSave: 'Failed to log harvest. Please try again.',
   harvest_errorCycleClosed: 'This cycle is already closed. The harvest was not saved.',
+  harvest_fromPlan: "Saving this harvest completes the harvest plan for {{date}}.",
+  harvest_errorPlanPond: "This harvest plan belongs to another pond. The harvest was not saved.",
+  harvest_errorPlanDone: "This harvest plan is already completed. The harvest was not saved.",
   // Graded harvest record + harvest drives the pond (harvest-and-molt H1/H2).
   harvest_labelDate: 'Harvest date',
   harvest_gradeTitle: 'Grade {{n}}',

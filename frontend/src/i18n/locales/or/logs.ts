@@ -89,6 +89,9 @@ const logs = {
   harvest_validationWeight: 'ଓଜନ ଆବଶ୍ୟକ',
   harvest_errorSave: 'ଅମଳ ଲଗ ବିଫଳ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
   harvest_errorCycleClosed: 'ଏହି ଚକ୍ର ପୂର୍ବରୁ ବନ୍ଦ ହୋଇସାରିଛି। ଅମଳ ସେଭ୍ ହୋଇନାହିଁ।',
+  harvest_fromPlan: "ଏହି ଅମଳ ସେଭ୍ କଲେ {{date}} ର ଅମଳ ଯୋଜନା ସମ୍ପୂର୍ଣ୍ଣ ହେବ।",
+  harvest_errorPlanPond: "ଏହି ଅମଳ ଯୋଜନା ଅନ୍ୟ ପୋଖରୀର। ଅମଳ ସେଭ୍ ହୋଇନାହିଁ।",
+  harvest_errorPlanDone: "ଏହି ଅମଳ ଯୋଜନା ପୂର୍ବରୁ ସମ୍ପୂର୍ଣ୍ଣ ହୋଇସାରିଛି। ଅମଳ ସେଭ୍ ହୋଇନାହିଁ।",
   // Graded harvest record + harvest drives the pond (harvest-and-molt H1/H2).
   harvest_labelDate: 'ଅମଳ ତାରିଖ',
   harvest_gradeTitle: 'ଗ୍ରେଡ୍ {{n}}',

@@ -36,12 +36,19 @@ const fromIso = (iso: string) => {
 const ERROR_KEYS: Record<string, string> = {
     HARVEST_DATE_FUTURE: 'logs.harvest_errorDateFuture',
     HARVEST_DATE_BEFORE_STOCKING: 'logs.harvest_errorDateBeforeStocking',
+    PLAN_WRONG_POND: 'logs.harvest_errorPlanPond',
+    PLAN_ALREADY_COMPLETED: 'logs.harvest_errorPlanDone',
 };
 
 export const HarvestLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName, cropId, editRecord } = route.params;
+    // H4: opened from a plan's "Mark complete". Saving this harvest completes
+    // the plan server-side, in the harvest's own transaction.
+    const planId: string | undefined = editRecord ? undefined : route.params.planId;
+    const prefill: { date?: string; targetKg?: number; expectedPrice?: number } | undefined =
+        editRecord ? undefined : route.params.prefill;
     const isEditing = !!editRecord;
 
     // The sale section is money: only a member with VIEW_FINANCIALS on THIS
@@ -65,14 +72,25 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
     const { canViewFinancials } = usePermissions(farmId);
 
     const [harvestDate, setHarvestDate] = useState<string>(
-        editRecord?.harvestDate ? String(editRecord.harvestDate).slice(0, 10) : todayLocalISODate(),
+        editRecord?.harvestDate
+            ? String(editRecord.harvestDate).slice(0, 10)
+            : // A plan's date may be in the future; a harvest date cannot be.
+              prefill?.date && prefill.date.slice(0, 10) <= todayLocalISODate()
+              ? prefill.date.slice(0, 10)
+              : todayLocalISODate(),
     );
     // `harvestType` param: CycleDetail's "Close → Harvested" opens this as Full.
     const [harvestType, setHarvestType] = useState<'partial' | 'full'>(
         editRecord?.harvestType ?? route.params.harvestType ?? 'partial',
     );
     const [grades, setGrades] = useState<GradeDraft[]>(() =>
-        editRecord ? draftsFor(editRecord) : [{ kg: '', count: '', price: '' }],
+        editRecord
+            ? draftsFor(editRecord)
+            : [{
+                  kg: prefill?.targetKg != null ? String(prefill.targetKg) : '',
+                  count: '',
+                  price: prefill?.expectedPrice != null ? String(prefill.expectedPrice) : '',
+              }],
     );
     const [showDeductions, setShowDeductions] = useState(editRecord?.rejectedKg != null);
     const [rejectedKg, setRejectedKg] = useState(editRecord?.rejectedKg != null ? String(editRecord.rejectedKg) : '');
@@ -231,7 +249,7 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                 const res = await saveRecord({
                     entity: 'harvest',
                     endpoint: '/harvests',
-                    payload: { id: harvestId.current, cropId, harvestType, ...payload },
+                    payload: { id: harvestId.current, cropId, harvestType, ...(planId ? { planId } : {}), ...payload },
                 });
                 showToast({
                     message: res.queued
@@ -308,6 +326,9 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                         ))}
                     </View>
                     {isEditing && <Text style={styles.hint}>{t('logs.harvest_typeLocked')}</Text>}
+                    {planId && prefill?.date && (
+                        <Text style={styles.hint}>{t('logs.harvest_fromPlan', { date: formatDate(fromIso(prefill.date)) })}</Text>
+                    )}
 
                     <CalendarPicker
                         label={t('logs.harvest_labelDate')}

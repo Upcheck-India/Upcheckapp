@@ -38,6 +38,12 @@ export interface FinancialReport {
     }>;
     /** Whether the figures above actually include archived ponds. */
     includedArchivedPonds?: boolean;
+    /**
+     * H4: cycles whose sale was booked both by a pre-H4 plan completion (a
+     * transaction) and by a harvest — both are in `revenue`. Flagged, never
+     * rewritten. Only on /money/overview; absent on older backends.
+     */
+    possibleDuplicateHarvestIncome?: Array<{ cropId: string; pondId: string }>;
 }
 
 export interface CycleAnalysis {

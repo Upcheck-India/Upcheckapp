@@ -89,6 +89,9 @@ const logs = {
   harvest_validationWeight: 'எடை தேவை',
   harvest_errorSave: 'அறுவடை பதிவு செய்ய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
   harvest_errorCycleClosed: 'இந்த சுழற்சி ஏற்கனவே மூடப்பட்டுவிட்டது. அறுவடை சேமிக்கப்படவில்லை.',
+  harvest_fromPlan: "இந்த அறுவடையைச் சேமித்தால் {{date}} அறுவடைத் திட்டம் முடிந்ததாகும்.",
+  harvest_errorPlanPond: "இந்த அறுவடைத் திட்டம் வேறு குளத்தைச் சேர்ந்தது. அறுவடை சேமிக்கப்படவில்லை.",
+  harvest_errorPlanDone: "இந்த அறுவடைத் திட்டம் ஏற்கனவே முடிந்துவிட்டது. அறுவடை சேமிக்கப்படவில்லை.",
   // Graded harvest record + harvest drives the pond (harvest-and-molt H1/H2).
   harvest_labelDate: 'அறுவடை தேதி',
   harvest_gradeTitle: 'கிரேடு {{n}}',

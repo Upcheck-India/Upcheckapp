@@ -43,6 +43,7 @@ export default {
   loadFailed: 'Failed to load harvest plans',
   completeFailed: 'Failed to complete harvest plan',
   deleteFailed: 'Failed to delete harvest plan',
+  noCycle: "This pond has no running cycle to harvest.",
   createFailed: 'Failed to create harvest plan',
   moltWindowTitle: 'Molt window',
   moltWindowWarning: 'This date is in a molt window ({{start}} – {{end}}): expect soft shells and a lower price.',

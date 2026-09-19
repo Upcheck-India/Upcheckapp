@@ -89,6 +89,9 @@ const logs = {
   harvest_validationWeight: 'బరువు తప్పనిసరి',
   harvest_errorSave: 'పంట నమోదు విఫలమైంది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
   harvest_errorCycleClosed: 'ఈ సైకిల్ ఇప్పటికే మూసివేయబడింది. పంట సేవ్ కాలేదు.',
+  harvest_fromPlan: "ఈ పంటను సేవ్ చేస్తే {{date}} పంట కోత ప్రణాళిక పూర్తవుతుంది.",
+  harvest_errorPlanPond: "ఈ పంట కోత ప్రణాళిక వేరే చెరువుది. పంట సేవ్ కాలేదు.",
+  harvest_errorPlanDone: "ఈ పంట కోత ప్రణాళిక ఇప్పటికే పూర్తయింది. పంట సేవ్ కాలేదు.",
   // Graded harvest record + harvest drives the pond (harvest-and-molt H1/H2).
   harvest_labelDate: 'పంట కోత తేదీ',
   harvest_gradeTitle: 'గ్రేడ్ {{n}}',

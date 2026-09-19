@@ -8,7 +8,6 @@ import {
     Alert,
     ActivityIndicator,
     RefreshControl,
-    Modal,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -23,6 +22,7 @@ import { theme } from '../../theme';
 import { harvestPlansApi, HarvestPlan } from '../../api/harvestPlans';
 import { apiErrorMessage } from '../../api/errors';
 import { todayLocalISODate, toLocalISODate } from '../../utils/localDate';
+import { usePermissions } from '../../hooks/usePermissions';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -46,6 +46,12 @@ const STATUS_CONFIG: Record<string, { labelKey: string; color: string; bg: strin
     },
 };
 
+/** targetKg × expectedPrice, or undefined when either is missing. */
+export const expectedRevenueOf = (targetKg?: number, price?: number): number | undefined =>
+    targetKg != null && price != null && targetKg > 0 && price > 0
+        ? Math.round(targetKg * price * 100) / 100
+        : undefined;
+
 function getStatusConfig(status: string) {
     return STATUS_CONFIG[status] ?? STATUS_CONFIG.planned;
 }
@@ -68,9 +74,11 @@ interface PlanCardProps {
     onComplete: (plan: HarvestPlan) => void;
     onDelete: (plan: HarvestPlan) => void;
     isActioning: boolean;
+    /** RECORD_HARVEST: completing a plan logs a harvest; delete rides the same gate. */
+    canAct: boolean;
 }
 
-const PlanCard: React.FC<PlanCardProps> = ({ plan, onComplete, onDelete, isActioning }) => {
+const PlanCard: React.FC<PlanCardProps> = ({ plan, onComplete, onDelete, isActioning, canAct }) => {
     const { t } = useTranslation();
     const sc = getStatusConfig(plan.status);
     const isPlanned = plan.status === 'planned';
@@ -142,8 +150,8 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onComplete, onDelete, isActio
                 <Text style={styles.planNotes} numberOfLines={2}>{plan.notes}</Text>
             ) : null}
 
-            {/* Action buttons — only for 'planned' status */}
-            {isPlanned && (
+            {/* Action buttons — only for 'planned' status, only with RECORD_HARVEST */}
+            {isPlanned && canAct && (
                 <View style={styles.actionRow}>
                     <Button
                         title={t('harvestPlans.markComplete', 'Mark Complete')}
@@ -184,10 +192,7 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [actioningId, setActioningId] = useState<string | null>(null);
 
-    // Mark-complete modal state
-    const [completingPlan, setCompletingPlan] = useState<HarvestPlan | null>(null);
-    const [completeWeight, setCompleteWeight] = useState('');
-    const [completePrice, setCompletePrice] = useState('');
+    const { canRecordHarvest } = usePermissions(farmId);
 
     // Add-plan form state
     const [showForm, setShowForm] = useState(false);
@@ -234,44 +239,29 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
     // Complete
     // ------------------------------------------------------------------
 
-    // Open the mark-complete modal (which collects the two required numbers).
+    // One revenue path (H4): "Mark complete" is logging the harvest. The
+    // harvest save completes the plan server-side, in the same transaction —
+    // the plan never books income of its own any more.
     const handleComplete = useCallback((plan: HarvestPlan) => {
-        setCompletingPlan(plan);
-        setCompleteWeight('');
-        setCompletePrice('');
-    }, []);
-
-    const submitComplete = useCallback(() => {
-        if (!completingPlan) return;
-        const weight = Number(completeWeight);
-        const price = Number(completePrice);
-        if (!(weight > 0) || !(price > 0)) {
-            Alert.alert(
-                t('harvestPlans.validationTitle', 'Validation Error'),
-                t('harvestPlans.completeValuesRequired', 'Enter a valid harvest weight and price per kg.'),
-            );
+        const planCropId = plan.cropId ?? cropId;
+        if (!planCropId) {
+            Alert.alert(t('common.error', 'Error'), t('harvestPlans.noCycle'));
             return;
         }
-        const plan = completingPlan;
-        setActioningId(plan.id);
-        setCompletingPlan(null);
-        harvestPlansApi
-            .complete(plan.id, {
-                actualHarvestDate: new Date(),
-                actualWeightKg: weight,
-                actualPricePerKg: price,
-                farmId: farmId ?? '',
-                cropId: plan.cropId ?? cropId,
-            })
-            .then(() => fetchPlans())
-            .catch((err: any) =>
-                Alert.alert(
-                    t('common.error', 'Error'),
-                    apiErrorMessage(err, t('harvestPlans.completeFailed', 'Failed to complete harvest plan')),
-                ),
-            )
-            .finally(() => setActioningId(null));
-    }, [completingPlan, completeWeight, completePrice, farmId, cropId, fetchPlans, t]);
+        navigation.navigate('HarvestLog', {
+            pondId: plan.pondId,
+            pondName,
+            cropId: planCropId,
+            farmId,
+            planId: plan.id,
+            harvestType: 'full',
+            prefill: {
+                date: plan.plannedHarvestDate,
+                targetKg: plan.targetWeightKg,
+                expectedPrice: plan.expectedPricePerKg,
+            },
+        });
+    }, [navigation, pondName, cropId, farmId, t]);
 
     // ------------------------------------------------------------------
     // Delete
@@ -320,14 +310,18 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
             return;
         }
 
+        const targetKg = formTargetWeight ? Number(formTargetWeight) : undefined;
+        const price = formPricePerKg ? Number(formPricePerKg) : undefined;
         setIsSubmitting(true);
         try {
             await harvestPlansApi.create({
                 pondId,
                 cropId: cropId ?? undefined,
                 plannedHarvestDate: formPlannedDate.trim(),
-                targetWeightKg: formTargetWeight ? Number(formTargetWeight) : undefined,
-                expectedPricePerKg: formPricePerKg ? Number(formPricePerKg) : undefined,
+                targetWeightKg: targetKg,
+                expectedPricePerKg: price,
+                // Never sent before H4, so every plan showed "—" for it.
+                expectedRevenue: expectedRevenueOf(targetKg, price),
                 notes: formNotes.trim() || undefined,
             });
             // Reset form
@@ -360,9 +354,10 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
                 onComplete={handleComplete}
                 onDelete={handleDelete}
                 isActioning={actioningId === item.id}
+                canAct={canRecordHarvest}
             />
         ),
-        [farmId, handleComplete, handleDelete, actioningId],
+        [farmId, handleComplete, handleDelete, actioningId, canRecordHarvest],
     );
 
     return (
@@ -490,49 +485,6 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
                 />
             )}
 
-            {/* Mark-complete modal — collects the two required numbers so the
-                completed plan books real weight/price (never the old 0/0). */}
-            <Modal
-                visible={completingPlan !== null}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setCompletingPlan(null)}
-            >
-                <View style={styles.modalOverlay}>
-                    <Card style={styles.modalCard}>
-                        <Text style={styles.formTitle}>{t('harvestPlans.markComplete', 'Mark Complete')}</Text>
-                        <Input
-                            label={t('harvestPlans.actualWeightKg', 'Actual Weight (kg)')}
-                            value={completeWeight}
-                            onChangeText={setCompleteWeight}
-                            placeholder="e.g. 480"
-                            keyboardType="decimal-pad"
-                            leftIcon="weight-kilogram"
-                        />
-                        <Input
-                            label={t('harvestPlans.actualPricePerKg', 'Actual Price per kg (₹)')}
-                            value={completePrice}
-                            onChangeText={setCompletePrice}
-                            placeholder="e.g. 290"
-                            keyboardType="decimal-pad"
-                            leftIcon="currency-inr"
-                        />
-                        <View style={styles.formActions}>
-                            <Button
-                                title={t('common.cancel', 'Cancel')}
-                                variant="outlined"
-                                onPress={() => setCompletingPlan(null)}
-                                style={styles.cancelBtn}
-                            />
-                            <Button
-                                title={t('harvestPlans.confirmComplete', 'Complete')}
-                                onPress={submitComplete}
-                                style={styles.submitBtn}
-                            />
-                        </View>
-                    </Card>
-                </View>
-            </Modal>
         </ScreenWrapper>
     );
 };
@@ -589,17 +541,6 @@ const styles = StyleSheet.create({
         padding: theme.spacing[4],
         paddingBottom: 100,
         flexGrow: 1,
-    },
-
-    // Complete modal
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        padding: theme.spacing[4],
-    },
-    modalCard: {
-        width: '100%',
     },
 
     // Add-plan form card
