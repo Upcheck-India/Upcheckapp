@@ -1,6 +1,7 @@
 import {
   IsUUID,
   IsDateString,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -26,7 +27,8 @@ export class CreateHarvestDto {
   @Min(0.01)
   weightKg: number;
 
-  @IsNumber()
+  // `count` is an int column — a fractional value was a raw Postgres 500.
+  @IsInt()
   @IsOptional()
   @Min(0)
   count?: number;

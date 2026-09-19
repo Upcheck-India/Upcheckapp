@@ -5,9 +5,10 @@ import {
   Body,
   Query,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/auth.decorators';
+import { AdminKeyGuard } from '../feedback/admin-key.guard';
 import { EconomicsService } from './economics.service';
 import { PricingService } from './pricing.service';
 import { CreatePriceFeedDto } from './dto/create-price-feed.dto';
@@ -54,7 +55,7 @@ export class IndiaController {
     return { region, count: Number(count), pricePerKg: price };
   }
 
-  /** Latest crowdsourced price feeds for a region. Public so it can seed UIs. */
+  /** Latest price feeds for a region. Public so it can seed UIs. */
   @Public()
   @Get('price-feeds')
   listFeeds(@Query('region') region: string) {
@@ -62,9 +63,17 @@ export class IndiaController {
     return this.pricing.findByRegion(region);
   }
 
-  /** Submit a crowdsourced price feed. */
+  /**
+   * Write a regional price feed — staff only. Any signed-in farmer could
+   * write prices for any region, and those prices feed Harvest Timing and
+   * P&L. `@Public()` drops the farmer JWT; AdminKeyGuard is the auth, as on
+   * the other admin endpoints. The farmer's own quotes are a separate,
+   * farm-scoped feature (spec H5), not this table.
+   */
+  @Public()
+  @UseGuards(AdminKeyGuard)
   @Post('price-feeds')
-  createFeed(@Body() dto: CreatePriceFeedDto, @CurrentUser() user) {
-    return this.pricing.create(dto, user.id);
+  createFeed(@Body() dto: CreatePriceFeedDto) {
+    return this.pricing.create(dto);
   }
 }

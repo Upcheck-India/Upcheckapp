@@ -50,15 +50,24 @@ export class PricingService {
     return band ? band.price : null;
   }
 
-  // ── CRUD for crowdsourced entries ───────────────────────────────────────
-  create(data: Partial<PriceFeed>, userId: string): Promise<PriceFeed> {
-    const entity = this.repo.create({ ...data, enteredBy: userId });
+  // ── CRUD (admin-written; see IndiaController.createFeed) ───────────────
+  create(data: Partial<PriceFeed>): Promise<PriceFeed> {
+    const entity = this.repo.create({ ...data, enteredBy: null });
     return this.repo.save(entity);
   }
 
+  /** Public read — never returns `enteredBy` (a user id). */
   findByRegion(region: string): Promise<PriceFeed[]> {
     return this.repo.find({
       where: { region },
+      select: {
+        id: true,
+        region: true,
+        date: true,
+        prices: true,
+        source: true,
+        createdAt: true,
+      },
       order: { date: 'DESC' },
       take: 60,
     });

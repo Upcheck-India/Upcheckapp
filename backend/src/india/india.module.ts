@@ -5,6 +5,7 @@ import { UnitsService } from './units.service';
 import { EconomicsService } from './economics.service';
 import { PricingService } from './pricing.service';
 import { IndiaController } from './india.controller';
+import { AdminKeyGuard } from '../feedback/admin-key.guard';
 
 /**
  * India layer (jala_teardown_india.md): units/money conversions, count-based
@@ -14,7 +15,7 @@ import { IndiaController } from './india.controller';
 @Module({
   imports: [TypeOrmModule.forFeature([PriceFeed])],
   controllers: [IndiaController],
-  providers: [UnitsService, EconomicsService, PricingService],
+  providers: [UnitsService, EconomicsService, PricingService, AdminKeyGuard],
   exports: [UnitsService, EconomicsService, PricingService],
 })
 export class IndiaModule {}

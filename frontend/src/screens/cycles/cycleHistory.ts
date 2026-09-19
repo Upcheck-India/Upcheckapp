@@ -42,11 +42,13 @@ export const summariseCycles = (
                 crop,
                 pondName,
                 doc: computeDoc(crop),
+                // Number(): decimal columns can arrive as strings, and `+` on
+                // strings concatenates ("050000.0025000.00").
                 harvestKg: own.length
-                    ? own.reduce((s, h) => s + (h.weightKg || 0), 0)
+                    ? own.reduce((s, h) => s + (Number(h.weightKg) || 0), 0)
                     : crop.harvestWeightKg ?? null,
                 revenue: priced.length
-                    ? priced.reduce((s, h) => s + (h.salePriceTotal || 0), 0)
+                    ? priced.reduce((s, h) => s + (Number(h.salePriceTotal) || 0), 0)
                     : null,
             };
         })

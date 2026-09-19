@@ -40,7 +40,6 @@ export interface PriceFeed {
   date: string;
   prices: Record<string, number>;
   source: string;
-  enteredBy: string | null;
   createdAt: string;
 }
 
@@ -81,15 +80,7 @@ export const indiaApi = {
       { params: { region, count } },
     ),
 
-  /** Recent crowdsourced price feeds for a region. */
+  /** Recent price feeds for a region. Writing one is staff-only (admin key). */
   listFeeds: (region: string) =>
     apiClient.get<PriceFeed[]>('/india/price-feeds', { params: { region } }),
-
-  /** Submit a crowdsourced price feed. */
-  createFeed: (input: {
-    region: string;
-    date: string;
-    prices: Record<string, number>;
-    source?: string;
-  }) => apiClient.post<PriceFeed>('/india/price-feeds', input),
 };

@@ -36,29 +36,33 @@ export class HarvestPlansController {
   @Get(':id')
   @UseGuards(OwnershipGuard)
   @OwnsResource('HarvestPlan', 'id', 'pond.farm.userId', 'READ')
-  findOne(@Param('id') id: string) {
-    return this.harvestPlansService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user) {
+    return this.harvestPlansService.findOne(id, user.id);
   }
 
   @Patch(':id')
   @UseGuards(OwnershipGuard)
   @OwnsResource('HarvestPlan', 'id', 'pond.farm.userId', 'WRITE_MANAGEMENT')
-  update(@Param('id') id: string, @Body() updateDto: UpdateHarvestPlanDto) {
-    return this.harvestPlansService.update(id, updateDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateHarvestPlanDto,
+    @CurrentUser() user,
+  ) {
+    return this.harvestPlansService.update(id, updateDto, user.id);
   }
 
+  // RECORD_HARVEST, not WRITE_MANAGEMENT: completing a plan closes the cycle
+  // and books the sale. On WRITE_MANAGEMENT a manager whose RECORD_HARVEST the
+  // owner had revoked could still harvest through here.
   @Patch(':id/complete')
   @UseGuards(OwnershipGuard)
-  @OwnsResource('HarvestPlan', 'id', 'pond.farm.userId', 'WRITE_MANAGEMENT')
-  complete(@Param('id') id: string, @Body() payload: CompletePlanDto) {
-    return this.harvestPlansService.completePlan(id, payload);
-  }
-
-  @Get('pond/:pondId/summary')
-  @UseGuards(OwnershipGuard)
-  @OwnsResource('Farm', 'farmId', 'userId', 'VIEW_FINANCIALS')
-  getSummary(@Param('pondId') pondId: string, @Query('farmId') farmId: string) {
-    return this.harvestPlansService.getCycleSummary(pondId, farmId);
+  @OwnsResource('HarvestPlan', 'id', 'pond.farm.userId', 'RECORD_HARVEST')
+  complete(
+    @Param('id') id: string,
+    @Body() payload: CompletePlanDto,
+    @CurrentUser() user,
+  ) {
+    return this.harvestPlansService.completePlan(id, payload, user.id);
   }
 
   @Delete(':id')

@@ -102,4 +102,18 @@ describe('summariseCycles', () => {
         );
         expect(rows[0].revenue).toBe(75_000);
     });
+
+    // B3: an older backend (or any decimal column) sends money as strings.
+    // `s + '50000.00'` concatenated to "050000.0025000.00".
+    it('sums string sale prices numerically', () => {
+        const rows = summariseCycles(
+            [{ crop: crop({}) }],
+            [
+                harvest({ salePriceTotal: '50000.00' as any, weightKg: '100.5' as any }),
+                harvest({ id: 'h2', salePriceTotal: '25000.00' as any, weightKg: '99.5' as any }),
+            ],
+        );
+        expect(rows[0].revenue).toBe(75_000);
+        expect(rows[0].harvestKg).toBe(200);
+    });
 });
