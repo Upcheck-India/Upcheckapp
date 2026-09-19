@@ -37,6 +37,7 @@ const exportNs = {
   section_feed: 'খাবার',
   section_sampling: 'নমুনা পরীক্ষা',
   section_mortality: 'মৃত্যুহার',
+  section_disease: 'রোগের রেকর্ড',
   section_treatments: 'চিকিৎসা',
   section_costs: 'খরচ',
   section_harvest: 'ফসল তোলা',

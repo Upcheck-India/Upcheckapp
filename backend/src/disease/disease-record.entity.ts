@@ -36,8 +36,38 @@ export class DiseaseRecord {
   @Column({ type: 'date', name: 'recorded_date' })
   recordedDate: Date;
 
+  /** Legacy free text (old clients). `severity` is the normalised value. */
   @Column({ name: 'severity_at_detection', type: 'text', nullable: true })
-  severityAtDetection: string; // high, medium, low
+  severityAtDetection: string;
+
+  // ── D6 (migration 1780701500000) ──
+  /** Health sign keys (health-observations/health.constants.ts). */
+  @Column({ name: 'symptom_signs', type: 'text', array: true, default: '{}' })
+  symptomSigns: string[];
+
+  /** mild | moderate | severe */
+  @Column({ type: 'text', nullable: true })
+  severity: string | null;
+
+  @Column({ name: 'affected_pct', type: 'numeric', nullable: true })
+  affectedPct: number | null;
+
+  /** suspected | microscopy | pcr | lab_other */
+  @Column({ name: 'confirmed_by', type: 'text', nullable: true })
+  confirmedBy: string | null;
+
+  @Column({ name: 'confirmed_on', type: 'date', nullable: true })
+  confirmedOn: string | null;
+
+  @Column({ name: 'lab_name', type: 'text', nullable: true })
+  labName: string | null;
+
+  /** ongoing | recovered | emergency_harvest | crop_lost */
+  @Column({ type: 'text', default: 'ongoing' })
+  outcome: string;
+
+  @Column({ name: 'resolved_on', type: 'date', nullable: true })
+  resolvedOn: string | null;
 
   @Column({
     name: 'photo_urls',

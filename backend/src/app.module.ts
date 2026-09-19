@@ -66,6 +66,7 @@ import { FeedbackModule } from './feedback/feedback.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { FeaturesModule } from './features/features.module';
 import { DailyBriefModule } from './daily-brief/daily-brief.module';
+import { HealthObservationsModule } from './health-observations/health-observations.module';
 
 @Module({
   imports: [
@@ -244,6 +245,7 @@ import { DailyBriefModule } from './daily-brief/daily-brief.module';
     AnnouncementsModule,
     FeaturesModule,
     DailyBriefModule,
+    HealthObservationsModule,
   ],
   controllers: [AppController],
   providers: [

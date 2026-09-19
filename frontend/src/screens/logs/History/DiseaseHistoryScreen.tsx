@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert, Image } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -9,16 +9,28 @@ import { ErrorState } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
 import { theme } from '../../../theme';
 import { diseaseApi, DiseaseRecord } from '../../../api/diseases';
+import { apiErrorMessage } from '../../../api/errors';
+import { usePermissions } from '../../../hooks/usePermissions';
+import { normaliseSeverity } from '../../../api/healthObservations';
 
+const c = theme.roles.light;
 const severityColors: Record<string, { bg: string; text: string }> = {
-    mild: { bg: theme.roles.light.successBg, text: theme.roles.light.successText },
-    moderate: { bg: theme.roles.light.warningBg, text: theme.roles.light.warningText },
-    severe: { bg: theme.roles.light.dangerBg, text: theme.roles.light.dangerText },
+    mild: { bg: c.successBg, text: c.successText },
+    moderate: { bg: c.warningBg, text: c.warningText },
+    severe: { bg: c.dangerBg, text: c.dangerText },
+};
+const outcomeColors: Record<string, { bg: string; text: string }> = {
+    ongoing: { bg: c.warningBg, text: c.warningText },
+    recovered: { bg: c.successBg, text: c.successText },
+    emergency_harvest: { bg: c.surfaceVariant, text: c.textSecondary },
+    crop_lost: { bg: c.dangerBg, text: c.dangerText },
 };
 
 export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
-    const { pondId, cropId } = route.params;
+    const { pondId, pondName, cropId, farmId } = route.params;
+    // Edit, delete and outcome changes are WRITE_MANAGEMENT on the server (403 otherwise).
+    const perms = usePermissions(farmId);
     const [records, setRecords] = useState<DiseaseRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -27,12 +39,10 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
     const fetchRecords = useCallback(async (forceRefresh = false) => {
         if (!forceRefresh) setIsLoading(true);
         setError(null);
-
         try {
             if (cropId) {
                 const { data } = await diseaseApi.getByCrop(cropId);
-                const sorted = [...data].sort((a, b) => new Date(b.recordedDate).getTime() - new Date(a.recordedDate).getTime());
-                setRecords(sorted);
+                setRecords([...data].sort((a, b) => new Date(b.recordedDate).getTime() - new Date(a.recordedDate).getTime()));
             } else {
                 setRecords([]);
             }
@@ -44,19 +54,8 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
         }
     }, [cropId]);
 
-    // Refetch on focus, not just mount — this screen stays mounted in the
-    // stack, so logging a new reading and navigating back never showed it.
+    // Refetch on focus — this screen stays mounted in the stack.
     useFocusEffect(useCallback(() => { fetchRecords(); }, [fetchRecords]));
-
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
-
-    const handleRetry = useCallback(() => {
-        setIsLoading(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
 
     const handleDelete = useCallback((item: DiseaseRecord) => {
         Alert.alert(
@@ -80,52 +79,94 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
         );
     }, [t]);
 
+    const setOutcome = useCallback(async (item: DiseaseRecord, outcome: NonNullable<DiseaseRecord['outcome']>) => {
+        try {
+            await diseaseApi.update(item.id, { outcome });
+            setRecords((prev) => prev.map((r) => (r.id === item.id ? { ...r, outcome } : r)));
+            const params = { pondId, pondName, cropId, farmId };
+            if (outcome === 'emergency_harvest') {
+                // Opens as a Full harvest (H1/H2 reads `harvestType`).
+                // TODO(M2 wave): carry `reason: 'disease'` into the close-why once it takes a prefill.
+                navigation.navigate('HarvestLog', { ...params, harvestType: 'full', reason: 'disease' });
+            }
+            // TODO(H2): 'crop_lost' should open the close-with-reason flow once it lands.
+        } catch (e) {
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('health.saveFailed')));
+        }
+    }, [navigation, pondId, pondName, cropId, farmId, t]);
+
     const renderItem = ({ item }: { item: DiseaseRecord }) => {
-        const severity = item.severityAtDetection?.toLowerCase() || '';
-        const chipColors = severityColors[severity] || { bg: theme.roles.light.surfaceVariant, text: theme.roles.light.textSecondary };
+        const severity = item.severity ?? normaliseSeverity(item.severityAtDetection);
+        const sev = severity ? severityColors[severity] : null;
+        const outcome = item.outcome ?? 'ongoing';
+        const oc = outcomeColors[outcome] ?? outcomeColors.ongoing;
+        const name = item.disease?.name ?? t('health.unknownDisease');
         return (
             <Card style={styles.card}>
                 <View style={styles.headerRow}>
-                    <Text style={styles.dateText}>
-                        {new Date(item.recordedDate).toLocaleDateString()}
-                    </Text>
+                    <Text style={styles.dateText}>{new Date(item.recordedDate).toLocaleDateString()}</Text>
                     <View style={styles.headerActions}>
-                        {item.severityAtDetection && (
-                            <View style={[styles.severityChip, { backgroundColor: chipColors.bg }]}>
-                                <Text style={[styles.severityText, { color: chipColors.text }]}>
-                                    {item.severityAtDetection}
-                                </Text>
+                        {sev && (
+                            <View style={[styles.chip, { backgroundColor: sev.bg }]}>
+                                <Text style={[styles.chipText, { color: sev.text }]}>{t(`health.severity.${severity}`)}</Text>
                             </View>
                         )}
-                        <View style={styles.cardActions}>
-                            <TouchableOpacity
-                                onPress={() => navigation.navigate('DiseaseLog', { pondId, cropId, editRecord: item })}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                accessibilityRole="button"
-                                accessibilityLabel={t('common.edit', 'Edit')}
-                            >
-                                <MaterialCommunityIcons name="pencil-outline" size={20} color={theme.roles.light.textDisabled} />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
-                                <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.textDisabled} />
-                            </TouchableOpacity>
-                        </View>
+                        {perms.canManageOperations && (
+                            <View style={styles.cardActions}>
+                                <TouchableOpacity
+                                    onPress={() => navigation.navigate('DiseaseLog', { pondId, pondName, cropId, editRecord: item })}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('common.edit', 'Edit')}
+                                >
+                                    <MaterialCommunityIcons name="pencil-outline" size={20} color={c.textDisabled} />
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('common.delete')}>
+                                    <MaterialCommunityIcons name="trash-can-outline" size={20} color={c.textDisabled} />
+                                </TouchableOpacity>
+                            </View>
+                        )}
                     </View>
                 </View>
                 {item.bannedSubstanceFlag && item.bannedSubstanceFlag !== 'none' && (
                     <View style={[styles.flagBanner, item.bannedSubstanceFlag === 'banned' ? styles.flagBannerBanned : styles.flagBannerRestricted]}>
-                        <MaterialCommunityIcons name="alert-decagram-outline" size={14} color={item.bannedSubstanceFlag === 'banned' ? theme.roles.light.dangerText : theme.roles.light.warningText} />
-                        <Text style={[styles.flagText, { color: item.bannedSubstanceFlag === 'banned' ? theme.roles.light.dangerText : theme.roles.light.warningText }]}>
+                        <MaterialCommunityIcons name="alert-decagram-outline" size={14} color={item.bannedSubstanceFlag === 'banned' ? c.dangerText : c.warningText} />
+                        <Text style={[styles.flagText, { color: item.bannedSubstanceFlag === 'banned' ? c.dangerText : c.warningText }]}>
                             {t('history.bannedFlagLabel', { names: (item.bannedSubstanceMatches ?? []).join(', ') })}
                         </Text>
                     </View>
                 )}
-                <Text style={styles.diseaseId}>{t('history.diseaseIdLabel', { id: item.diseaseId })}</Text>
-                {item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
-                {item.photoUrls && item.photoUrls.length > 0 && (
+                <Text style={styles.diseaseName}>{name}</Text>
+                <View style={[styles.chip, styles.outcomeChip, { backgroundColor: oc.bg }]}>
+                    <Text style={[styles.chipText, { color: oc.text }]}>{t(`health.outcome.${outcome}`)}</Text>
+                </View>
+                {!!item.symptomSigns?.length && (
+                    <Text style={styles.metaText}>{item.symptomSigns.map((s) => t(`health.sign.${s}`)).join(' · ')}</Text>
+                )}
+                {item.affectedPct != null && <Text style={styles.metaText}>{t('health.affectedPctValue', { value: Number(item.affectedPct) })}</Text>}
+                {!!item.confirmedBy && (
+                    <Text style={styles.metaText}>
+                        {t(`health.confirmed.${item.confirmedBy}`)}{item.labName ? ` · ${item.labName}` : ''}
+                    </Text>
+                )}
+                {!!item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
+                {!!item.photoSignedUrls?.length && (
                     <View style={styles.photoRow}>
-                        <MaterialCommunityIcons name="camera" size={14} color={theme.roles.light.textSecondary} />
-                        <Text style={styles.photoCount}>{t('history.diseasePhotoCount', { count: item.photoUrls.length })}</Text>
+                        {item.photoSignedUrls.map((u) => (
+                            <Image key={u} source={{ uri: u }} style={styles.thumb} accessibilityIgnoresInvertColors />
+                        ))}
+                    </View>
+                )}
+                {outcome === 'ongoing' && perms.canManageOperations && (
+                    <View style={styles.outcomeBox} testID={`outcome-actions-${item.id}`}>
+                        <Text style={styles.metaText}>{t('health.stillOngoing')}</Text>
+                        <View style={styles.outcomeRow}>
+                            {(['recovered', 'emergency_harvest', 'crop_lost'] as const).map((o) => (
+                                <TouchableOpacity key={o} style={styles.outcomeBtn} onPress={() => setOutcome(item, o)} accessibilityRole="button">
+                                    <Text style={styles.outcomeBtnText}>{t(`health.mark.${o}`)}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
                     </View>
                 )}
             </Card>
@@ -136,16 +177,16 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
+                    <MaterialCommunityIcons name="arrow-left" size={24} color={c.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>{t('history.diseaseTitle')}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
             {isLoading ? (
-                <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
+                <View style={styles.center}><ActivityIndicator size="large" color={c.primary} /></View>
             ) : error && records.length === 0 ? (
-                <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={handleRetry} />
+                <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={() => fetchRecords(true)} />
             ) : (
                 <FlatList
                     data={records}
@@ -153,11 +194,11 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContent}
                     refreshControl={
-                        <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[theme.roles.light.primary]} tintColor={theme.roles.light.primary} />
+                        <RefreshControl refreshing={isRefreshing} onRefresh={() => { setIsRefreshing(true); fetchRecords(true); }} colors={[c.primary]} tintColor={c.primary} />
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
-                            <MaterialCommunityIcons name="bug-outline" size={64} color={theme.roles.light.borderDefault} />
+                            <MaterialCommunityIcons name="bug-outline" size={64} color={c.borderDefault} />
                             <Text style={styles.emptyTitle}>{t('history.diseaseEmptyTitle')}</Text>
                             <Text style={styles.emptyText}>{t('history.diseaseEmptyText')}</Text>
                         </View>
@@ -165,33 +206,39 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
                 />
             )}
 
-            <FAB icon="plus" onPress={() => navigation.navigate('DiseaseLog', { pondId, cropId })} />
+            <FAB icon="plus" onPress={() => navigation.navigate('DiseaseLog', { pondId, pondName, cropId })} />
         </ScreenWrapper>
     );
 };
 
 const styles = StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: theme.spacing[4], backgroundColor: theme.roles.light.surface, borderBottomWidth: 1, borderBottomColor: theme.roles.light.borderDefault },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: theme.spacing[4], backgroundColor: c.surface, borderBottomWidth: 1, borderBottomColor: c.borderDefault },
     backBtn: { padding: theme.spacing[4] },
-    title: { ...theme.typeScale.h3, color: theme.roles.light.textPrimary },
+    title: { ...theme.typeScale.h3, color: c.textPrimary },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     listContent: { padding: theme.spacing[4], paddingBottom: 100 },
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[2] },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3] },
     cardActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
-    dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textSecondary },
-    severityChip: { paddingHorizontal: theme.spacing[3], paddingVertical: 4, borderRadius: theme.radius.full },
-    severityText: { ...theme.typeScale.labelSmall, fontWeight: '700', textTransform: 'capitalize' as const },
-    diseaseId: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, marginBottom: theme.spacing[2] },
+    dateText: { ...theme.typeScale.labelLarge, color: c.textSecondary },
+    chip: { paddingHorizontal: theme.spacing[3], paddingVertical: 4, borderRadius: theme.radius.full },
+    chipText: { ...theme.typeScale.labelSmall, fontWeight: '700' },
+    outcomeChip: { alignSelf: 'flex-start', marginBottom: theme.spacing[2] },
+    diseaseName: { ...theme.typeScale.h4, color: c.textPrimary, marginBottom: theme.spacing[2] },
+    metaText: { ...theme.typeScale.bodySmall, color: c.textSecondary, marginBottom: theme.spacing[1] },
     flagBanner: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1], alignSelf: 'flex-start', paddingHorizontal: theme.spacing[2], paddingVertical: 4, borderRadius: theme.radius.sm, marginBottom: theme.spacing[2] },
-    flagBannerBanned: { backgroundColor: theme.roles.light.dangerBg },
-    flagBannerRestricted: { backgroundColor: theme.roles.light.warningBg },
+    flagBannerBanned: { backgroundColor: c.dangerBg },
+    flagBannerRestricted: { backgroundColor: c.warningBg },
     flagText: { ...theme.typeScale.labelSmall, fontWeight: '700', flexShrink: 1 },
-    notesText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: theme.spacing[2] },
-    photoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: theme.spacing[3] },
-    photoCount: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
+    notesText: { ...theme.typeScale.bodySmall, color: c.textSecondary, marginTop: theme.spacing[2] },
+    photoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2], marginTop: theme.spacing[3] },
+    thumb: { width: 72, height: 72, borderRadius: theme.radius.md, backgroundColor: c.surfaceVariant },
+    outcomeBox: { marginTop: theme.spacing[3], gap: theme.spacing[1.5] },
+    outcomeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2] },
+    outcomeBtn: { paddingHorizontal: theme.spacing[3], paddingVertical: theme.spacing[1.5], borderRadius: theme.radius.md, borderWidth: 1, borderColor: c.primary },
+    outcomeBtnText: { ...theme.typeScale.labelMedium, color: c.primary },
     emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-    emptyTitle: { ...theme.typeScale.h4, color: theme.roles.light.textPrimary, marginTop: theme.spacing[4], marginBottom: theme.spacing[2] },
-    emptyText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
+    emptyTitle: { ...theme.typeScale.h4, color: c.textPrimary, marginTop: theme.spacing[4], marginBottom: theme.spacing[2] },
+    emptyText: { ...theme.typeScale.bodyMedium, color: c.textSecondary },
 });

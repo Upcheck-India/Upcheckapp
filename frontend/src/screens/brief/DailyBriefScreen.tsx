@@ -188,7 +188,10 @@ export const DailyBriefScreen = ({ navigation, route }: any) => {
                 {brief.hasAnyData ? (
                     <>
                         <VerdictScore brief={brief} onExplain={() => setExplain(true)} />
-                        <DayStory brief={brief} />
+                        <DayStory
+                            brief={brief}
+                            onHealthCheck={isToday ? (pondId) => navigation.navigate('HealthCheck', { pondId, pondName: names[pondId], reason: 'spike' }) : undefined}
+                        />
                         <DayRibbon events={brief.timeline} isToday={isToday} pondNames={names} />
                     </>
                 ) : (

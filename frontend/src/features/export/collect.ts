@@ -28,6 +28,8 @@ import { feedApi, type FeedRecord } from '../../api/feedRecords';
 import { samplingApi, type SamplingRecord } from '../../api/sampling';
 import { mortalityApi, type MortalityRecord } from '../../api/mortalities';
 import { treatmentsApi, type Treatment } from '../../api/treatments';
+import { diseaseApi, type DiseaseRecord } from '../../api/diseases';
+import { normaliseSeverity } from '../../api/healthObservations';
 import { harvestsApi, type Harvest } from '../../api/harvests';
 import { expensesApi, type Expense } from '../../api/expenses';
 import { transactionsApi, type Transaction } from '../../api/transactions';
@@ -301,6 +303,34 @@ const treatmentTable = (f: Fmt, rows: Treatment[]): ReportTable => ({
     ]),
 });
 
+/** Disease records (D6): what, how bad, who confirmed it, how it ended. */
+const diseaseTable = (f: Fmt, rows: DiseaseRecord[]): ReportTable => ({
+    key: 'disease',
+    title: f.t('history.diseaseTitle'),
+    columns: [
+        f.t('common.date'),
+        f.t('health.disease'),
+        f.t('logs.disease_labelSeverity'),
+        f.t('health.affectedPct'),
+        f.t('health.confirmedBy'),
+        f.t('health.outcomeLabel'),
+        f.t('common.notes'),
+    ],
+    numericColumns: [3],
+    rows: byDateDesc(rows, (r) => r.recordedDate).map((r) => {
+        const sev = r.severity ?? normaliseSeverity(r.severityAtDetection);
+        return [
+            f.date(r.recordedDate),
+            f.text(r.disease?.name),
+            sev ? f.t(`health.severity.${sev}`) : '',
+            f.num(r.affectedPct == null ? null : Number(r.affectedPct), 0),
+            r.confirmedBy ? `${f.t(`health.confirmed.${r.confirmedBy}`)}${r.labName ? ` (${r.labName})` : ''}` : '',
+            f.t(`health.outcome.${r.outcome ?? 'ongoing'}`),
+            f.text(r.notes),
+        ];
+    }),
+});
+
 const harvestTable = (f: Fmt, rows: Harvest[], withMoney: boolean): ReportTable => ({
     key: 'harvest',
     title: f.t('history.harvestTitle'),
@@ -418,7 +448,7 @@ const collectCycle = async (config: ExportConfig, f: Fmt): Promise<Collected> =>
     const crop = (await cropsApi.getById(cropId)).data;
     const pondId = crop.pondId;
 
-    const [scope, analysis, water, feed, sampling, mortality, treatments, harvests, expenses, financials] =
+    const [scope, analysis, water, feed, sampling, mortality, treatments, harvests, expenses, financials, diseases] =
         await Promise.all([
             resolveScope(config.farmId ?? crop.farmId, pondId, crop),
             s.summary ? reportsApi.getCycleAnalysis(cropId).then((r) => r.data).catch(() => null) : null,
@@ -432,6 +462,7 @@ const collectCycle = async (config: ExportConfig, f: Fmt): Promise<Collected> =>
             s.harvest ? harvestsApi.getByCrop(cropId).then((r) => listOf<Harvest>(r.data)) : [],
             s.costs ? expensesApi.findByCycle(cropId).then((r) => listOf<Expense>(r.data)) : [],
             s.costs ? expensesApi.getCycleFinancials(cropId).then((r) => r.data).catch(() => null) : null,
+            s.disease ? diseaseApi.getByCrop(cropId).then((r) => listOf<DiseaseRecord>(r.data)) : [],
         ]);
 
     const stats: ReportStat[] = [];
@@ -478,6 +509,7 @@ const collectCycle = async (config: ExportConfig, f: Fmt): Promise<Collected> =>
             sampling.length ? samplingTable(f, sampling) : null,
             mortality.length ? mortalityTable(f, mortality) : null,
             treatments.length ? treatmentTable(f, treatments) : null,
+            diseases.length ? diseaseTable(f, diseases) : null,
             expenses.length ? expenseTable(f, expenses) : null,
             harvests.length ? harvestTable(f, harvests, s.costs) : null,
         ]),
@@ -496,7 +528,7 @@ const collectPondLogs = async (config: ExportConfig, f: Fmt): Promise<Collected>
         : await pondContextApi.get(pondId).then((r) => r.data).catch(() => null);
     const cropId = config.cropId ?? ctx?.cropId ?? undefined;
 
-    const [scope, water, feed, sampling, mortality, treatments, harvests] = await Promise.all([
+    const [scope, water, feed, sampling, mortality, treatments, harvests, diseases] = await Promise.all([
         resolveScope(config.farmId ?? ctx?.farmId, pondId, undefined),
         s.waterQuality
             ? waterQualityApi.getAll(pondId, { take: 500 }).then((r) => listOf<WaterQualityRecord>(r.data))
@@ -506,6 +538,7 @@ const collectPondLogs = async (config: ExportConfig, f: Fmt): Promise<Collected>
         s.mortality && cropId ? mortalityApi.getByCrop(cropId).then((r) => listOf<MortalityRecord>(r.data)) : [],
         s.treatments && cropId ? treatmentsApi.getByCrop(cropId).then((r) => listOf<Treatment>(r.data)) : [],
         s.harvest ? harvestsApi.getByPond(pondId).then((r) => listOf<Harvest>(r.data)) : [],
+        s.disease && cropId ? diseaseApi.getByCrop(cropId).then((r) => listOf<DiseaseRecord>(r.data)) : [],
     ]);
 
     const range = <R>(rows: R[], pick: (r: R) => string | null | undefined) =>
@@ -517,6 +550,7 @@ const collectPondLogs = async (config: ExportConfig, f: Fmt): Promise<Collected>
     const mo = range(mortality, (r) => r.recordDate);
     const tr = range(treatments, (r) => r.treatmentDate);
     const ha = range(harvests, (r) => r.harvestDate);
+    const di = range(diseases, (r) => r.recordedDate);
 
     return {
         scope,
@@ -533,6 +567,7 @@ const collectPondLogs = async (config: ExportConfig, f: Fmt): Promise<Collected>
             sa.length ? samplingTable(f, sa) : null,
             mo.length ? mortalityTable(f, mo) : null,
             tr.length ? treatmentTable(f, tr) : null,
+            di.length ? diseaseTable(f, di) : null,
             ha.length ? harvestTable(f, ha, s.costs) : null,
         ]),
     };

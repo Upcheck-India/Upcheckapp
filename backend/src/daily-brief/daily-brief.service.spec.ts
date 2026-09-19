@@ -691,3 +691,32 @@ describe('DailyBriefQueryDto (controller validation)', () => {
     await expect(through({ date: '2026-09-14', farmId: 'farm-1' })).rejects.toBeInstanceOf(BadRequestException);
   });
 });
+
+describe('DailyBriefService — ongoing disease watch line (D6)', () => {
+  it('an ongoing record logged 14+ days ago on a running cycle → one watch line, today only', async () => {
+    const { svc, calls } = build({
+      rows: { ponds: [pondRow('p1')], disease_ongoing: [{ pond_id: 'p1', name: 'WFD', since: '2026-08-25' }] },
+    });
+    const brief = await svc.get('u1', { date: '2026-09-14' }, NOW);
+    const line = brief.story!.find((s) => s.code === 'disease_ongoing');
+    expect(line).toMatchObject({ tone: 'watch', pondId: 'p1', title: 'WFD', count: 20 });
+    const sql = calls.find((c) => c.tag === 'disease_ongoing')!;
+    expect(sql.params[1]).toBe('2026-08-31'); // D − 14
+    expect(sql.sql).toContain("c.status = 'active'");
+
+    const past = build({ rows: { ponds: [pondRow('p1')], disease_ongoing: [{ pond_id: 'p1', name: 'WFD', since: '2026-08-25' }] } });
+    await past.svc.get('u1', { date: '2026-09-13' }, NOW);
+    expect(past.calls.some((c) => c.tag === 'disease_ongoing')).toBe(false);
+  });
+
+  it('outcome column not migrated yet (42703) → the brief still loads, no line', async () => {
+    const b = build({ rows: { ponds: [pondRow('p1')] } });
+    const base = b.dataSource.query.getMockImplementation()!;
+    b.dataSource.query.mockImplementation(async (sql: string, params: any[]) => {
+      if (sql.includes('daily-brief:disease_ongoing')) throw Object.assign(new Error('x'), { code: '42703' });
+      return base(sql, params);
+    });
+    const brief = await b.svc.get('u1', { date: '2026-09-14' }, NOW);
+    expect(brief.story!.some((s) => s.code === 'disease_ongoing')).toBe(false);
+  });
+});

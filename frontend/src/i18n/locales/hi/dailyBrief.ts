@@ -347,6 +347,7 @@ const dailyBrief = {
     first_sampling: '{{pond}} में फसल की पहली सैंपलिंग — औसत {{value}} g',
     treatment_given_one: '{{pond}} में एक उपचार दिया गया',
     treatment_given_other: '{{pond}} में {{count}} उपचार दिए गए',
+    disease_ongoing: 'क्या {{pond}} में {{title}} अभी भी जारी है? {{count}} दिन पहले दर्ज किया गया।',
     carried_resolved_task: 'समय निकला काम पूरा हुआ: {{title}}',
     carried_resolved_alert: 'अलर्ट निपटाया गया: {{title}}',
     carried_resolved_stale_pond: 'बिना देखरेख रहे {{pond}} में फिर से एंट्री हुई',

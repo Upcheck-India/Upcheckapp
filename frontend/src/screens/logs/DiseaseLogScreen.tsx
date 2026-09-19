@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -7,112 +7,116 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { AlertBanner } from '../../components/ui/AlertBanner';
+import { ChoiceChips } from '../../components/health/ChoiceChips';
+import { HealthPhotoPicker } from '../../components/health/HealthPhotoPicker';
 import { theme } from '../../theme';
-import { diseaseApi, DiseaseLibrary } from '../../api/diseases';
+import { diseaseApi } from '../../api/diseases';
 import { apiErrorMessage } from '../../api/errors';
 import { findBannedSubstances } from '../../features/bannedSubstances';
 import { useBannedSubstancesStore } from '../../features/bannedSubstancesStore';
+import { useDiseaseLibrary } from '../../features/diseaseLibrary';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 import { saveRecord } from '../../sync/recordSync';
+import {
+    CONFIRMED_BY,
+    DISEASE_SEVERITIES,
+    HEALTH_SIGNS,
+    healthObservationsApi,
+    normaliseSeverity,
+} from '../../api/healthObservations';
 
-// Best-effort split of the combined "Symptoms: X. Action: Y" note string that
-// performSave() builds, so editing a past record can repopulate the two
-// separate form fields it came from. Falls back to putting everything in
-// symptoms if the saved notes don't match that shape (e.g. older records).
-const parseNotes = (notes?: string): { symptoms: string; actionTaken: string } => {
-    if (!notes) return { symptoms: '', actionTaken: '' };
-    const symptomsMatch = notes.match(/^Symptoms:\s*([\s\S]*?)(?:\.\s*Action:|$)/);
-    const actionMatch = notes.match(/Action:\s*([\s\S]*)$/);
-    if (symptomsMatch || actionMatch) {
-        return {
-            symptoms: symptomsMatch ? symptomsMatch[1].trim() : '',
-            actionTaken: actionMatch ? actionMatch[1].trim() : '',
-        };
-    }
-    return { symptoms: notes, actionTaken: '' };
-};
+type Severity = (typeof DISEASE_SEVERITIES)[number];
+type ConfirmedBy = (typeof CONFIRMED_BY)[number];
+
 
 export const DiseaseLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondId, pondName, cropId, editRecord } = route.params;
+    const { pondId, pondName, cropId, editRecord, diseaseId: prefillDisease, signs: prefillSigns } = route.params;
     const isEditing = !!editRecord;
 
     const [date, setDate] = useState(editRecord?.recordedDate ? String(editRecord.recordedDate).slice(0, 10) : todayLocalISODate());
-    // Disease is chosen from the seeded library — never a hand-typed UUID, so
-    // the saved record always references a real disease_library row (FK-safe).
-    const [diseases, setDiseases] = useState<DiseaseLibrary[]>([]);
-    const [diseaseId, setDiseaseId] = useState(editRecord?.diseaseId ?? '');
-    const [loadingDiseases, setLoadingDiseases] = useState(true);
-    const [severity, setSeverity] = useState(editRecord?.severityAtDetection ?? 'Mild');
-    const initialNotes = parseNotes(editRecord?.notes);
-    const [symptoms, setSymptoms] = useState(initialNotes.symptoms);
-    const [actionTaken, setActionTaken] = useState(initialNotes.actionTaken);
-
+    // Cached + persisted (D6/H2): the picker works with no signal.
+    const library = useDiseaseLibrary();
+    const diseases = library.data ?? [];
+    const [diseaseId, setDiseaseId] = useState<string>(editRecord?.diseaseId ?? prefillDisease ?? '');
+    const [signs, setSigns] = useState<string[]>(editRecord?.symptomSigns ?? prefillSigns ?? []);
+    const [severity, setSeverity] = useState<Severity | null>(
+        editRecord ? (editRecord.severity ?? normaliseSeverity(editRecord.severityAtDetection)) : null,
+    );
+    const [affectedPct, setAffectedPct] = useState(editRecord?.affectedPct != null ? String(editRecord.affectedPct) : '');
+    const [confirmedBy, setConfirmedBy] = useState<ConfirmedBy | null>(editRecord?.confirmedBy ?? null);
+    const [labName, setLabName] = useState(editRecord?.labName ?? '');
+    const [photos, setPhotos] = useState<string[]>(editRecord?.photoUrls ?? []);
+    // Old "Symptoms: X. Action: Y" notes are shown and kept as written — never parsed.
+    const [notes, setNotes] = useState(editRecord?.notes ?? '');
     const [isLoading, setIsLoading] = useState(false);
 
+    // Symptom chips start from what was seen in this pond in the last 3 days.
     useEffect(() => {
-        let active = true;
-        (async () => {
-            try {
-                const { data } = await diseaseApi.getAllDiseases();
-                if (active) setDiseases(Array.isArray(data) ? data : []);
-            } catch {
-                if (active) setDiseases([]);
-            } finally {
-                if (active) setLoadingDiseases(false);
-            }
-        })();
+        if (isEditing || prefillSigns?.length || !pondId) return;
+        let alive = true;
+        healthObservationsApi
+            .listForPond(pondId, 3)
+            .then(({ data }) => {
+                const seen = [...new Set((data ?? []).filter((o) => o.level !== 'none').map((o) => o.sign as string))];
+                if (alive && seen.length) setSigns((cur) => (cur.length ? cur : seen));
+            })
+            .catch(() => undefined);
         return () => {
-            active = false;
+            alive = false;
         };
-    }, []);
+    }, [isEditing, pondId, prefillSigns]);
 
-    // Export-protection guardrail: scan the free-text fields for banned/restricted
-    // substances (CAA/MPEDA). Warn-only and non-directive — no alternative suggested.
     const bannedList = useBannedSubstancesStore((s) => s.substances);
-    const flagged = findBannedSubstances(`${symptoms} ${actionTaken}`, bannedList);
+    const flagged = findBannedSubstances(notes, bannedList);
     const hasBanned = flagged.some((s) => s.category === 'banned');
 
-    const performSave = async () => {
+    const toggleSign = (s: string) => setSigns((cur) => (cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]));
+
+    const performSave = async (thenTreatment = false) => {
+        const pct = affectedPct.trim() ? parseFloat(affectedPct) : undefined;
+        if (pct !== undefined && (isNaN(pct) || pct < 0 || pct > 100)) {
+            Alert.alert(t('common.error'), t('health.affectedPctInvalid'));
+            return;
+        }
         setIsLoading(true);
-
         try {
-            // Build notes from all descriptive fields
-            const notesParts: string[] = [];
-            if (symptoms.trim()) notesParts.push(`Symptoms: ${symptoms.trim()}`);
-            if (actionTaken.trim()) notesParts.push(`Action: ${actionTaken.trim()}`);
-
+            const confirmed = confirmedBy && confirmedBy !== 'suspected';
             const payload = {
                 cropId,
-                diseaseId: diseaseId.trim(),
+                diseaseId,
                 recordedDate: date,
-                severityAtDetection: severity.trim() || undefined,
-                notes: notesParts.length > 0 ? notesParts.join('. ') : undefined,
+                symptomSigns: signs,
+                ...(severity ? { severity, severityAtDetection: severity } : {}),
+                ...(pct !== undefined ? { affectedPct: pct } : {}),
+                ...(confirmedBy ? { confirmedBy } : {}),
+                ...(confirmed ? { confirmedOn: date, labName: labName.trim() || undefined } : {}),
+                photoUrls: photos,
+                notes: notes.trim() || undefined,
             };
-
+            let recordId: string = editRecord?.id;
             if (isEditing) {
-                // Editing a specific past record is not a field-logging action,
-                // so it goes straight to the API rather than through the
-                // offline queue — there's no "this reading must be captured
-                // right now, no signal" urgency the way a fresh log has.
                 await diseaseApi.update(editRecord.id, payload);
                 showToast({ message: t('common.savedSuccess'), type: 'success' });
             } else {
-                const res = await saveRecord({
-                    entity: 'disease',
-                    endpoint: '/disease/record',
-                    payload,
-                });
+                const res = await saveRecord({ entity: 'disease', endpoint: '/disease/record', payload });
+                recordId = res.id;
                 showToast({
-                    message: res.queued
-                        ? t('common.savedOffline', 'Saved — will sync when online')
-                        : t('common.savedSuccess'),
+                    message: res.queued ? t('common.savedOffline', 'Saved — will sync when online') : t('common.savedSuccess'),
                     type: 'success',
                 });
             }
-            navigation.goBack();
+            if (thenTreatment) {
+                // "What did you do?" → a treatment linked to this record.
+                // TODO(D2 integration): TreatmentLog does not read `reason` /
+                // `diseaseRecordId` yet — D2 adds treatments.disease_record_id and
+                // the prefill; until then this opens a blank treatment form.
+                navigation.replace('TreatmentLog', { pondId, pondName, cropId, reason: 'disease', diseaseRecordId: recordId });
+            } else {
+                navigation.goBack();
+            }
         } catch (error: any) {
             Alert.alert(t('common.error'), apiErrorMessage(error, t('logs.disease_errorSave')));
         } finally {
@@ -120,28 +124,24 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
         }
     };
 
-    const handleSave = () => {
+    const handleSave = (thenTreatment = false) => {
         if (!diseaseId) {
             Alert.alert(t('common.error'), t('logs.disease_validationSelectDisease'));
             return;
         }
-
         if (flagged.length > 0) {
             const names = flagged.map((s) => s.name).join(', ');
             Alert.alert(
                 hasBanned ? t('logs.disease_bannedTitle') : t('logs.disease_restrictedTitle'),
-                hasBanned
-                    ? t('logs.disease_bannedBody', { names })
-                    : t('logs.disease_restrictedBody', { names }),
+                hasBanned ? t('logs.disease_bannedBody', { names }) : t('logs.disease_restrictedBody', { names }),
                 [
                     { text: t('common.cancel'), style: 'cancel' },
-                    { text: t('logs.disease_saveAnyway'), style: 'destructive', onPress: () => void performSave() },
+                    { text: t('logs.disease_saveAnyway'), style: 'destructive', onPress: () => void performSave(thenTreatment) },
                 ],
             );
             return;
         }
-
-        void performSave();
+        void performSave(thenTreatment);
     };
 
     return (
@@ -155,7 +155,7 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
             </View>
 
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
+                {!!pondName && <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>}
 
                 {flagged.length > 0 ? (
                     <AlertBanner
@@ -173,58 +173,114 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
                     <Input label={t('common.date')} value={date} onChangeText={setDate} placeholder={t('logs.datePlaceholder')} required />
 
                     <Text style={styles.pickerLabel}>{t('logs.disease_labelSuspectedDisease')}</Text>
-                    {loadingDiseases ? (
+                    {library.isPending && !diseases.length ? (
                         <ActivityIndicator color={theme.roles.light.primary} style={{ marginVertical: theme.spacing[3] }} />
                     ) : diseases.length === 0 ? (
                         <Text style={styles.pickerEmpty}>{t('logs.disease_noDiseasesInLibrary')}</Text>
                     ) : (
-                        <View style={styles.diseaseList}>
+                        <View style={styles.chipList}>
                             {diseases.map((d) => {
                                 const selected = d.id === diseaseId;
                                 return (
                                     <TouchableOpacity
                                         key={d.id}
-                                        style={[styles.diseaseChip, selected && styles.diseaseChipSelected]}
+                                        style={[styles.chip, selected && styles.chipSelected]}
                                         onPress={() => setDiseaseId(d.id)}
+                                        testID={`disease-${d.id}`}
                                     >
-                                        <Text style={[styles.diseaseChipText, selected && styles.diseaseChipTextSelected]}>
-                                            {d.name}
-                                        </Text>
+                                        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{d.name}</Text>
                                     </TouchableOpacity>
                                 );
                             })}
                         </View>
                     )}
-
-                    <Input label={t('logs.disease_labelSeverity')} value={severity} onChangeText={setSeverity} placeholder={t('logs.disease_placeholderSeverity')} />
                 </Card>
 
                 <Card style={styles.card}>
+                    <Text style={styles.pickerLabel}>{t('health.signsSeen')}</Text>
+                    <View style={styles.chipList}>
+                        {HEALTH_SIGNS.map((s) => {
+                            const on = signs.includes(s);
+                            return (
+                                <TouchableOpacity
+                                    key={s}
+                                    style={[styles.chip, on && styles.chipSelected]}
+                                    onPress={() => toggleSign(s)}
+                                    accessibilityState={{ selected: on }}
+                                >
+                                    <Text style={[styles.chipText, on && styles.chipTextSelected]}>{t(`health.sign.${s}`)}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+
+                    <Text style={styles.pickerLabel}>{t('logs.disease_labelSeverity')}</Text>
+                    <ChoiceChips
+                        options={DISEASE_SEVERITIES.map((k) => ({ key: k, label: t(`health.severity.${k}`) }))}
+                        value={severity}
+                        onChange={setSeverity}
+                    />
+                    <View style={{ height: theme.spacing[3] }} />
                     <Input
-                        label={t('logs.disease_labelSymptoms')}
-                        value={symptoms}
-                        onChangeText={setSymptoms}
-                        placeholder={t('logs.disease_placeholderSymptoms')}
-                        multiline
-                        numberOfLines={4}
-                        style={styles.textArea}
-                        required
+                        label={t('health.affectedPct')}
+                        value={affectedPct}
+                        onChangeText={setAffectedPct}
+                        keyboardType="decimal-pad"
+                        placeholder="0–100"
                     />
                 </Card>
 
                 <Card style={styles.card}>
+                    <Text style={styles.pickerLabel}>{t('health.confirmedBy')}</Text>
+                    <ChoiceChips
+                        options={CONFIRMED_BY.map((k) => ({ key: k, label: t(`health.confirmed.${k}`) }))}
+                        value={confirmedBy}
+                        onChange={setConfirmedBy}
+                    />
+                    {confirmedBy && confirmedBy !== 'suspected' && (
+                        <View style={{ marginTop: theme.spacing[3] }}>
+                            <Input label={t('health.labName')} value={labName} onChangeText={setLabName} />
+                        </View>
+                    )}
+                </Card>
+
+                {!!pondId && (
+                    <Card style={styles.card}>
+                        <HealthPhotoPicker
+                            pondId={pondId}
+                            value={photos}
+                            onChange={setPhotos}
+                            existingUrls={editRecord?.photoSignedUrls}
+                        />
+                    </Card>
+                )}
+
+                <Card style={styles.card}>
                     <Input
-                        label={t('logs.disease_labelActionTaken')}
-                        value={actionTaken}
-                        onChangeText={setActionTaken}
-                        placeholder={t('logs.disease_placeholderActionTaken')}
+                        label={t('common.notes', 'Notes')}
+                        value={notes}
+                        onChangeText={setNotes}
                         multiline
                         numberOfLines={3}
                         style={styles.textArea}
                     />
                 </Card>
 
-                <Button title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.saveRecord')} onPress={handleSave} loading={isLoading} style={[styles.saveBtn, styles.dangerBtn]} />
+                <Button
+                    title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.saveRecord')}
+                    onPress={() => handleSave(false)}
+                    loading={isLoading}
+                    style={[styles.saveBtn, styles.dangerBtn]}
+                />
+                {!isEditing && (
+                    <Button
+                        title={t('health.saveAndLogTreatment')}
+                        variant="outlined"
+                        onPress={() => handleSave(true)}
+                        disabled={isLoading}
+                        style={styles.saveBtn}
+                    />
+                )}
             </ScrollView>
         </ScreenWrapper>
     );
@@ -238,48 +294,23 @@ const styles = StyleSheet.create({
         paddingVertical: theme.spacing[4],
         borderBottomWidth: 1,
         borderBottomColor: theme.roles.light.borderDefault,
-        backgroundColor: theme.roles.light.dangerText + '20', // Light red tint for disease alert
+        backgroundColor: theme.roles.light.dangerText + '20',
     },
-    backBtn: {
-        padding: theme.spacing[4],
-    },
-    title: {
-        ...theme.typeScale.h3,
-        color: theme.roles.light.dangerText,
-    },
-    content: {
-        padding: theme.spacing[4],
-        paddingBottom: theme.spacing[12],
-    },
-    subtitle: {
-        ...theme.typeScale.bodyMedium,
-        color: theme.roles.light.textSecondary,
-        marginBottom: theme.spacing[4],
-    },
-    card: {
-        marginBottom: theme.spacing[6],
-    },
-    textArea: {
-        minHeight: 100,
-        textAlignVertical: 'top',
-    },
+    backBtn: { padding: theme.spacing[4] },
+    title: { ...theme.typeScale.h3, color: theme.roles.light.dangerText },
+    content: { padding: theme.spacing[4], paddingBottom: theme.spacing[12] },
+    subtitle: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[4] },
+    card: { marginBottom: theme.spacing[4] },
+    textArea: { minHeight: 80, textAlignVertical: 'top' },
     pickerLabel: {
         ...theme.typeScale.labelMedium,
         color: theme.roles.light.textSecondary,
         marginBottom: theme.spacing[2],
+        marginTop: theme.spacing[2],
     },
-    pickerEmpty: {
-        ...theme.typeScale.bodySmall,
-        color: theme.roles.light.textDisabled,
-        marginBottom: theme.spacing[3],
-    },
-    diseaseList: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: theme.spacing[2],
-        marginBottom: theme.spacing[4],
-    },
-    diseaseChip: {
+    pickerEmpty: { ...theme.typeScale.bodySmall, color: theme.roles.light.textDisabled, marginBottom: theme.spacing[3] },
+    chipList: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2], marginBottom: theme.spacing[2] },
+    chip: {
         paddingVertical: theme.spacing[2],
         paddingHorizontal: theme.spacing[3],
         borderRadius: 999,
@@ -287,23 +318,9 @@ const styles = StyleSheet.create({
         borderColor: theme.roles.light.borderDefault,
         backgroundColor: theme.roles.light.surface,
     },
-    diseaseChipSelected: {
-        borderColor: theme.roles.light.dangerText,
-        backgroundColor: theme.roles.light.dangerText + '15',
-    },
-    diseaseChipText: {
-        ...theme.typeScale.bodySmall,
-        color: theme.roles.light.textPrimary,
-    },
-    diseaseChipTextSelected: {
-        color: theme.roles.light.dangerText,
-        fontWeight: '700',
-    },
-    saveBtn: {
-        marginTop: theme.spacing[3],
-        marginBottom: theme.spacing[8],
-    },
-    dangerBtn: {
-        backgroundColor: theme.roles.light.dangerText,
-    }
+    chipSelected: { borderColor: theme.roles.light.dangerText, backgroundColor: theme.roles.light.dangerText + '15' },
+    chipText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textPrimary },
+    chipTextSelected: { color: theme.roles.light.dangerText, fontWeight: '700' },
+    saveBtn: { marginTop: theme.spacing[2] },
+    dangerBtn: { backgroundColor: theme.roles.light.dangerText },
 });

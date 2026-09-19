@@ -17,6 +17,10 @@ import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { diseaseApi, DiseaseLibrary } from '../../api/diseases';
 import { apiErrorMessage } from '../../api/errors';
+import { pondsApi, type Pond } from '../../api/ponds';
+import { qk } from '../../query/client';
+import { useAppQuery } from '../../query/hooks';
+import { pondLabel } from '../../utils/pondHealth';
 
 type Severity = 'low' | 'medium' | 'high';
 
@@ -58,14 +62,23 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
         fetchDisease();
     };
 
-    const handleLogDisease = () => {
+    // H4: a disease is logged against a pond's running cycle, so pick the pond
+    // first (ponds with an active cycle), then open the form with the disease set.
+    const [picking, setPicking] = useState(false);
+    const pondsQuery = useAppQuery({
+        queryKey: qk.ponds(),
+        queryFn: async () => (await pondsApi.getMine()).data,
+        enabled: picking,
+    });
+    const activePonds: Pond[] = (pondsQuery.data ?? []).filter((p: Pond) => !!p.activeCycleId);
+    const handleLogDisease = () => setPicking((v) => !v);
+    const logInPond = (p: Pond) => {
+        setPicking(false);
         navigation.navigate('DiseaseLog', {
-            pondId: '',
-            pondName: '',
-            cropId: '',
-            prefillDiseaseId: disease?.id,
-            prefillDiseaseName: disease?.name,
-            prefillSeverity: disease?.severityLevel,
+            pondId: p.id,
+            pondName: pondLabel(p),
+            cropId: p.activeCycleId,
+            diseaseId: disease?.id,
         });
     };
 
@@ -288,12 +301,34 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
                     }
                     style={styles.logBtn}
                 />
+                {picking && (
+                    <Card style={styles.pickCard} testID="disease-pond-picker">
+                        <Text style={styles.pickTitle}>{t('health.pickPond')}</Text>
+                        {pondsQuery.isPending && !pondsQuery.data ? (
+                            <ActivityIndicator color={theme.roles.light.primary} />
+                        ) : activePonds.length === 0 ? (
+                            <Text style={styles.pickEmpty}>{t('health.noActivePonds')}</Text>
+                        ) : (
+                            activePonds.map((p) => (
+                                <TouchableOpacity key={p.id} style={styles.pickRow} onPress={() => logInPond(p)} accessibilityRole="button">
+                                    <Text style={styles.pickName}>{pondLabel(p)}</Text>
+                                    <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textTertiary} />
+                                </TouchableOpacity>
+                            ))
+                        )}
+                    </Card>
+                )}
             </ScrollView>
         </ScreenWrapper>
     );
 };
 
 const styles = StyleSheet.create({
+    pickCard: { marginTop: theme.spacing[3], padding: theme.spacing[4] },
+    pickTitle: { ...theme.typeScale.labelMedium, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[2] },
+    pickEmpty: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary },
+    pickRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: theme.spacing[3] },
+    pickName: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary },
     header: {
         flexDirection: 'row',
         alignItems: 'center',

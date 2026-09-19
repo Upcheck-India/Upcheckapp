@@ -73,6 +73,7 @@ const ponds = {
   actionSampling: 'নমুনা',
   actionTreatment: 'চিকিৎসা',
   actionMortality: 'মৃত্যুহার',
+  actionHealthCheck: 'স্বাস্থ্য পরীক্ষা',
   actionDisease: 'রোগ',
   actionChemical: 'রাসায়নিক',
   actionPlankton: 'প্ল্যাংকটন',

@@ -8,6 +8,10 @@ import { Repository } from 'typeorm';
 import { MortalityRecord } from './mortality-record.entity';
 import { CreateMortalityRecordDto } from './dto/create-mortality-record.dto';
 import { UpdateMortalityRecordDto } from './dto/update-mortality-record.dto';
+import {
+  HealthPhotoStorageService,
+  farmIdOfCrop,
+} from '../health-observations/health-photo-storage.service';
 
 /**
  * Default mortality multiplier.
@@ -22,7 +26,15 @@ export class MortalityService {
   constructor(
     @InjectRepository(MortalityRecord)
     private mortalityRepository: Repository<MortalityRecord>,
+    private readonly photos: HealthPhotoStorageService,
   ) {}
+
+  /** A photo path must be one of this crop's farm's uploads (D6). */
+  private async assertPhotos(cropId: string, paths?: string[]) {
+    if (!paths?.length) return;
+    const farmId = await farmIdOfCrop(this.mortalityRepository.manager, cropId);
+    this.photos.assertFarmPaths(farmId ?? '', paths);
+  }
 
   async create(
     dto: CreateMortalityRecordDto,
@@ -46,6 +58,8 @@ export class MortalityService {
       }
     }
 
+    await this.assertPhotos(dto.cropId, dto.photoUrls);
+
     // If estimatedTotal is not provided, compute it using the mortality multiplier
     const estimatedTotal =
       dto.estimatedTotal ?? dto.quantity * DEFAULT_MORTALITY_MULTIPLIER;
@@ -59,11 +73,14 @@ export class MortalityService {
     return this.mortalityRepository.save(record);
   }
 
-  async findByCrop(cropId: string): Promise<MortalityRecord[]> {
-    return this.mortalityRepository.find({
+  async findByCrop(cropId: string) {
+    const rows = await this.mortalityRepository.find({
       where: { cropId },
       order: { recordDate: 'DESC', createdAt: 'DESC' },
     });
+    if (!rows.some((r) => r.photoUrls?.length)) return rows;
+    const farmId = await farmIdOfCrop(this.mortalityRepository.manager, cropId);
+    return farmId ? this.photos.withSigned(farmId, rows) : rows;
   }
 
   async findOne(id: string): Promise<MortalityRecord> {
@@ -78,7 +95,8 @@ export class MortalityService {
     dto: UpdateMortalityRecordDto,
     userId?: string,
   ): Promise<MortalityRecord> {
-    await this.findOne(id);
+    const current = await this.findOne(id);
+    await this.assertPhotos(current.cropId, dto.photoUrls);
     // estimatedTotal feeds live population (pond-context SUMs it), so a count
     // edit must move it too — otherwise it stays at the old count × 3 (H6).
     const estimatedTotal =
