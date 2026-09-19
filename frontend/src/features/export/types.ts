@@ -25,7 +25,8 @@ export type ExportDataset =
     | 'money'      // expenses and income
     | 'inventory'
     | 'attendance'
-    | 'tasks';
+    | 'tasks'
+    | 'inputRecord'; // D4: one cycle's inputs + health, for a processor. No money.
 
 /**
  * Which blocks the farmer chose to include. A farmer sending a report to a

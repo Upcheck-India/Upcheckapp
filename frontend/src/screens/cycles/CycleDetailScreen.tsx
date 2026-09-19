@@ -32,7 +32,9 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
     const [error, setError] = useState<any>(null);
     // The crop carries its own farmId, so the gate follows the cycle rather
     // than whichever farm happens to be active in the picker.
-    const { canRecordHarvest, canManageOperations, canViewFinancials, canRecordData } = usePermissions(cycle?.farmId);
+    const { canRecordHarvest, canManageOperations, canViewFinancials, canRecordData, isOwner, isManager } =
+        usePermissions(cycle?.farmId);
+    const exportOn = useFlag('export');
 
     const fetchCycle = useCallback(async () => {
         setError(null);
@@ -294,6 +296,19 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                             title={t('cycles.btnAnalysis', 'Cycle analysis')}
                             variant="outlined"
                             onPress={() => navigation.navigate('CycleAnalysis', { cycleId: cycle.id, cycleName: (cycle as any).name })}
+                            style={styles.actionBtn}
+                        />
+                    )}
+                    {/* D4: shared outside the farm, so owner/manager only. */}
+                    {exportOn && (isOwner || isManager) && (
+                        <Button
+                            title={t('export.dataset_inputRecord')}
+                            variant="outlined"
+                            onPress={() =>
+                                navigation.navigate('Export', {
+                                    dataset: 'inputRecord', cropId: cycle.id, pondId: cycle.pondId, farmId: cycle.farmId,
+                                })
+                            }
                             style={styles.actionBtn}
                         />
                     )}

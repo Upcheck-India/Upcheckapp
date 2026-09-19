@@ -155,5 +155,8 @@ const farms = {
   shiftHoursLabel: "শিফটের দৈর্ঘ্য (ঘণ্টা)",
   shiftHint: "দল জানবে কখন চেক আউট করতে হবে। খালি রাখলে চেক ইনের সময়ের সঙ্গে শিফটের দৈর্ঘ্য যোগ হবে।",
   shiftEndInvalid: "24 ঘণ্টার সময় লিখুন, যেমন 18:00।",
+  // D4 cycle input record (drafted, needs native review).
+  fieldCaaNo: "CAA নিবন্ধন নম্বর",
+  caaHint: "প্রসেসরের সঙ্গে শেয়ার করা চক্রের ইনপুট রেকর্ডে ছাপা হয়।",
 };
 export default farms;

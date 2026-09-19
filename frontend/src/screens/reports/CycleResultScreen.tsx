@@ -38,7 +38,7 @@ export const CycleResultScreen = ({ route, navigation }: any) => {
     const [compliance, setCompliance] = useState<CycleCompliance | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<unknown>(null);
-    const { canStartCycle } = usePermissions(data?.farmId);
+    const { canStartCycle, isOwner, isManager } = usePermissions(data?.farmId);
 
     const load = useCallback(() => {
         setError(null);
@@ -259,6 +259,19 @@ export const CycleResultScreen = ({ route, navigation }: any) => {
                         title={t('reports.share')}
                         variant="outlined"
                         onPress={() => navigation.navigate('Export', { dataset: 'cycle', cropId })}
+                        style={styles.action}
+                    />
+                )}
+                {/* D4: shared outside the farm, so owner/manager only. */}
+                {exportOn && (isOwner || isManager) && (
+                    <Button
+                        title={t('export.dataset_inputRecord')}
+                        variant="outlined"
+                        onPress={() =>
+                            navigation.navigate('Export', {
+                                dataset: 'inputRecord', cropId, pondId: data.pondId, farmId: data.farmId,
+                            })
+                        }
                         style={styles.action}
                     />
                 )}

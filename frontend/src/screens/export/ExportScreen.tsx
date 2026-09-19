@@ -65,7 +65,7 @@ const EMPTY_FARMS: Farm[] = [];
 const EMPTY_PONDS: Pond[] = [];
 const EMPTY_CYCLES: Crop[] = [];
 
-const DATASETS: ExportDataset[] = ['cycle', 'pondLogs', 'money', 'inventory', 'attendance', 'tasks'];
+const DATASETS: ExportDataset[] = ['cycle', 'inputRecord', 'pondLogs', 'money', 'inventory', 'attendance', 'tasks'];
 const FORMATS: ExportFormat[] = ['pdf', 'xlsx', 'csv'];
 
 /** No 'all' — an export with no bounds is a request nobody can wait out. */
@@ -74,6 +74,7 @@ const PERIODS: Exclude<MoneyPeriod, 'all'>[] = ['today', 'week', 'month', 'custo
 /** Written out rather than built from the value, so the keys stay greppable. */
 const DATASET_KEY: Record<ExportDataset, string> = {
     cycle: 'export.dataset_cycle',
+    inputRecord: 'export.dataset_inputRecord',
     pondLogs: 'export.dataset_pondLogs',
     money: 'export.dataset_money',
     inventory: 'export.dataset_inventory',
@@ -117,6 +118,8 @@ const SECTIONS_FOR: Record<ExportDataset, (keyof ExportSections)[]> = {
     inventory: ['summary', 'costs'],
     attendance: ['summary'],
     tasks: ['summary'],
+    // Fixed sections (spec D4) — nothing to toggle.
+    inputRecord: ['summary'],
 };
 
 const parseISO = (iso: string | null): Date => {
@@ -168,6 +171,8 @@ export const ExportScreen = ({ route, navigation }: any) => {
     const [customEnd, setCustomEnd] = useState<string | null>(params.endDate ?? toLocalISODate(new Date()));
     const [toggles, setToggles] = useState<ExportSections>(ALL_SECTIONS);
     const [language, setLanguage] = useState<string>(i18n.language || 'en');
+    // Input record: the viewer's language, or an English copy for a processor.
+    const [englishCopy, setEnglishCopy] = useState(false);
     const [busy, setBusy] = useState(false);
     const [outcome, setOutcome] = useState<Outcome>({ kind: 'idle' });
 
@@ -182,14 +187,22 @@ export const ExportScreen = ({ route, navigation }: any) => {
     const datasets = useMemo(
         () =>
             DATASETS.filter(
-                (d) => (d !== 'money' || perms.canViewFinancials) && (d !== 'tasks' || tasksOn),
+                (d) =>
+                    (d !== 'money' || perms.canViewFinancials) &&
+                    (d !== 'tasks' || tasksOn) &&
+                    // Shared outside the farm: owner or manager only (the server refuses others).
+                    (d !== 'inputRecord' || perms.isOwner || perms.isManager),
             ),
-        [perms.canViewFinancials, tasksOn],
+        [perms.canViewFinancials, perms.isOwner, perms.isManager, tasksOn],
     );
 
     // Losing the permission (or arriving with a deep-linked dataset that is not
     // on offer) must not leave the screen pinned to an invisible choice.
     const dataset = datasets.includes(wantedDataset) ? wantedDataset : 'cycle';
+    const isInputRecord = dataset === 'inputRecord';
+    const formats = isInputRecord ? FORMATS.filter((f) => f !== 'csv') : FORMATS;
+    const docFormat = formats.includes(format) ? format : 'pdf';
+    const docLanguage = isInputRecord ? (englishCopy ? 'en' : i18n.language || 'en') : language;
 
     const relevantSections = useMemo(
         () => SECTIONS_FOR[dataset].filter((k) => k !== 'costs' || perms.canViewFinancials),
@@ -247,7 +260,7 @@ export const ExportScreen = ({ route, navigation }: any) => {
 
         return {
             dataset,
-            format,
+            format: docFormat,
             startDate: range.startDate ?? undefined,
             endDate: range.endDate ?? undefined,
             farmId: farmId ?? undefined,
@@ -256,13 +269,17 @@ export const ExportScreen = ({ route, navigation }: any) => {
             // One person's attendance, only while that is the dataset.
             userId: dataset === 'attendance' ? params.userId : undefined,
             sections,
-            language,
+            language: docLanguage,
         };
-    }, [dataset, format, period, customStart, customEnd, farmId, pondId, cropId, relevantSections, toggles, language, params.userId]);
+    }, [dataset, docFormat, period, customStart, customEnd, farmId, pondId, cropId, relevantSections, toggles, docLanguage, params.userId]);
 
     /** A cycle report without a cycle is not a report. Everything else is optional. */
     const missing =
-        !farmId ? t('export.chooseFarm') : dataset === 'cycle' && !cropId ? t('export.chooseCycle') : null;
+        !farmId
+            ? t('export.chooseFarm')
+            : (dataset === 'cycle' || isInputRecord) && !cropId
+                ? t('export.chooseCycle')
+                : null;
 
     /**
      * A farmer tapping Export three times must not produce three files.
@@ -367,7 +384,7 @@ export const ExportScreen = ({ route, navigation }: any) => {
                     value={cropId}
                     placeholder={t('export.cyclePlaceholder')}
                     disabled={!pondId}
-                    required={dataset === 'cycle'}
+                    required={dataset === 'cycle' || isInputRecord}
                     options={[
                         { label: t('export.cycleAll'), value: '' },
                         ...cycles.map((cr) => ({ label: cr.name, value: cr.id })),
@@ -378,6 +395,10 @@ export const ExportScreen = ({ route, navigation }: any) => {
                     }}
                 />
 
+                {isInputRecord && <Text style={styles.hint}>{t('export.inputRecordHint')}</Text>}
+
+                {/* A cycle record is the whole cycle; a period means nothing to it. */}
+                {!isInputRecord && (<>
                 <SectionHeader label={t('export.periodLabel')} />
                 <View style={styles.chipWrap}>
                     {PERIODS.map((p) => (
@@ -420,6 +441,7 @@ export const ExportScreen = ({ route, navigation }: any) => {
                         </View>
                     </View>
                 )}
+                </>)}
 
                 {/* One relevant section is not a choice, so the block is hidden
                     rather than shown with a single toggle nothing depends on. */}
@@ -446,12 +468,12 @@ export const ExportScreen = ({ route, navigation }: any) => {
 
                 <SectionHeader label={t('export.formatLabel')} />
                 <View style={styles.chipWrap}>
-                    {FORMATS.map((f) => (
+                    {formats.map((f) => (
                         <Chip
                             key={f}
                             testID={`export-format-${f}`}
                             label={t(FORMAT_KEY[f])}
-                            active={format === f}
+                            active={docFormat === f}
                             onPress={() => setFormat(f)}
                         />
                     ))}
@@ -463,6 +485,21 @@ export const ExportScreen = ({ route, navigation }: any) => {
                   * buyer. The hint says so, because "Language" on a screen that
                   * already has an app language reads as a duplicate control.
                   */}
+                {isInputRecord ? (
+                    <View style={styles.toggleRow}>
+                        <View style={styles.toggleText}>
+                            <Text style={styles.toggleLabel}>{t('export.englishCopy')}</Text>
+                            <Text style={styles.hint}>{t('export.englishCopyHint')}</Text>
+                        </View>
+                        <Switch
+                            testID="export-english-copy"
+                            value={englishCopy}
+                            onValueChange={setEnglishCopy}
+                            accessibilityLabel={t('export.englishCopy')}
+                            trackColor={{ false: c.borderDefault, true: c.primaryHover }}
+                        />
+                    </View>
+                ) : (<>
                 <SectionHeader label={t('export.languageLabel')} />
                 <Text style={styles.hint}>{t('export.languageHint')}</Text>
                 <View style={styles.chipWrap}>
@@ -476,6 +513,7 @@ export const ExportScreen = ({ route, navigation }: any) => {
                         />
                     ))}
                 </View>
+                </>)}
             </ScrollView>
 
             <View style={styles.footer}>
@@ -595,6 +633,10 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingVertical: theme.spacing[2],
         gap: theme.spacing[3],
+    },
+    toggleText: {
+        flex: 1,
+        minWidth: 0,
     },
     toggleLabel: {
         ...theme.typeScale.bodyMedium,

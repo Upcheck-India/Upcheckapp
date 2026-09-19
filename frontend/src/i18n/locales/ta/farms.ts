@@ -155,5 +155,8 @@ const farms = {
   shiftHoursLabel: "ஷிப்ட் நீளம் (மணிநேரம்)",
   shiftHint: "எப்போது வெளியேற வேண்டும் என்பதைக் குழுவுக்குச் சொல்லும். காலியாக விட்டால் வரவு நேரத்துடன் ஷிப்ட் நீளம் சேர்க்கப்படும்.",
   shiftEndInvalid: "24 மணி நேர வடிவில் எழுதவும், எ.கா. 18:00.",
+  // D4 cycle input record (drafted, needs native review).
+  fieldCaaNo: "CAA பதிவு எண்",
+  caaHint: "பதப்படுத்துபவருடன் பகிரும் சுழற்சி உள்ளீட்டுப் பதிவில் அச்சிடப்படும்.",
 };
 export default farms;

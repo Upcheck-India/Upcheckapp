@@ -155,5 +155,8 @@ const farms = {
   shiftHoursLabel: "शिफ़्ट की अवधि (घंटे)",
   shiftHint: "इससे टीम को पता चलता है कि चेक आउट कब करना है। ख़ाली छोड़ें तो चेक इन के समय में शिफ़्ट की अवधि जोड़ी जाएगी।",
   shiftEndInvalid: "24 घंटे का समय लिखें, जैसे 18:00।",
+  // D4 cycle input record (drafted, needs native review).
+  fieldCaaNo: "CAA पंजीकरण संख्या",
+  caaHint: "प्रोसेसर के साथ साझा किए जाने वाले चक्र इनपुट रिकॉर्ड पर छपती है।",
 };
 export default farms;
