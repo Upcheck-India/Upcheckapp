@@ -47,4 +47,6 @@ export default {
   createFailed: 'फसल कटाई योजना बनाने में विफल',
   moltWindowTitle: 'मोल्ट विंडो',
   moltWindowWarning: 'यह तारीख मोल्ट विंडो ({{start}} – {{end}}) में है: नरम खोल और कम दाम की संभावना।',
+  moltDayPeak: '{{date}} मोल्ट पीक का दिन है ({{start}} – {{end}}): नरम खोल और कम दाम की संभावना।',
+  moltDayPost: '{{date}} मोल्ट पीक के ठीक बाद है ({{start}} – {{end}}): खोल अभी नरम हो सकते हैं।',
 };

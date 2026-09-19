@@ -17,7 +17,10 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { MoltPeakBanner } from '../../components/molt/MoltPeakBanner';
+import { CalendarPicker } from '../../components/ui/CalendarPicker';
+import { MoltPeakBanner, useMoltWindows } from '../../components/molt/MoltPeakBanner';
+import { PreHarvestCheck } from '../../components/harvest/PreHarvestCheck';
+import { addDays, windowContaining } from '../../features/moltWindow';
 import { theme } from '../../theme';
 import { harvestPlansApi, HarvestPlan } from '../../api/harvestPlans';
 import { apiErrorMessage } from '../../api/errors';
@@ -51,6 +54,15 @@ export const expectedRevenueOf = (targetKg?: number, price?: number): number | u
     targetKg != null && price != null && targetKg > 0 && price > 0
         ? Math.round(targetKg * price * 100) / 100
         : undefined;
+
+/** The pre-harvest check shows on a planned card from 2 days before its date (M2). */
+export const showsPreHarvestCheck = (plan: HarvestPlan, today: string): boolean =>
+    plan.status === 'planned' && !!plan.plannedHarvestDate && today >= addDays(plan.plannedHarvestDate.slice(0, 10), -2);
+
+const fromIso = (iso: string) => {
+    const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+    return new Date(y, m - 1, d);
+};
 
 function getStatusConfig(status: string) {
     return STATUS_CONFIG[status] ?? STATUS_CONFIG.planned;
@@ -150,6 +162,10 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onComplete, onDelete, isActio
                 <Text style={styles.planNotes} numberOfLines={2}>{plan.notes}</Text>
             ) : null}
 
+            {plan.plannedHarvestDate && showsPreHarvestCheck(plan, todayLocalISODate()) && (
+                <PreHarvestCheck pondId={plan.pondId} cropId={plan.cropId} date={plan.plannedHarvestDate.slice(0, 10)} />
+            )}
+
             {/* Action buttons — only for 'planned' status, only with RECORD_HARVEST */}
             {isPlanned && canAct && (
                 <View style={styles.actionRow}>
@@ -193,6 +209,13 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
     const [actioningId, setActioningId] = useState<string | null>(null);
 
     const { canRecordHarvest } = usePermissions(farmId);
+
+    // Date picker: molt peak days strong, post days light (M2 §4).
+    const { data: moltWindows } = useMoltWindows();
+    const moltShade = useCallback((d: Date) => {
+        const phase = windowContaining(moltWindows, toLocalISODate(d))?.phase;
+        return phase === 'peak' ? 'strong' : phase === 'post' ? 'light' : null;
+    }, [moltWindows]);
 
     // Add-plan form state
     const [showForm, setShowForm] = useState(false);
@@ -416,17 +439,15 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
                             <Card style={styles.formCard}>
                                 <Text style={styles.formTitle}>{t('harvestPlans.addTitle', 'Add Harvest Plan')}</Text>
 
-                                <Input
+                                <CalendarPicker
                                     label={t('harvestPlans.plannedDate', 'Planned Harvest Date')}
-                                    value={formPlannedDate}
-                                    onChangeText={setFormPlannedDate}
-                                    placeholder={t('logs.datePlaceholder')}
+                                    value={fromIso(formPlannedDate)}
+                                    onChange={(d) => setFormPlannedDate(toLocalISODate(d))}
+                                    minDate={new Date()}
                                     required
-                                    leftIcon="calendar-outline"
+                                    shade={moltShade}
                                 />
-                                {/^\d{4}-\d{2}-\d{2}$/.test(formPlannedDate) && (
-                                    <MoltPeakBanner messageKey="harvestPlans.moltWindowWarning" date={formPlannedDate} />
-                                )}
+                                <MoltPeakBanner messageKey="harvestPlans.moltWindowWarning" date={formPlannedDate} />
                                 <Input
                                     label={t('harvestPlans.targetWeightKg', 'Target Weight (kg)')}
                                     value={formTargetWeight}

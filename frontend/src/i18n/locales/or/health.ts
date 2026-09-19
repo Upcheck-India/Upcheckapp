@@ -90,6 +90,21 @@ const health = {
   },
   pickPond: 'କେଉଁ ପୋଖରୀ?',
   noActivePonds: 'କୌଣସି ପୋଖରୀରେ ଚାଲୁ ଚକ୍ର ନାହିଁ।',
+  // Pre-harvest check (harvest spec M2).
+  check: {
+    title: 'ଅମଳ ପୂର୍ବରୁ',
+    moltPeak: '{{date}} ମୋଲ୍ଟ ପିକ୍: ନରମ ଖୋଳର ସମ୍ଭାବନା',
+    moltPost: '{{date}} ମୋଲ୍ଟ ପିକ୍ ପରେ: ଖୋଳ ଏବେ ବି ନରମ ଥାଇପାରେ',
+    softMany: '{{date}} ନରମ ଖୋଳ ଦେଖାଗଲା ({{of}} ମଧ୍ୟରୁ {{count}}): କ୍ରେତା ଦାମ କାଟିପାରନ୍ତି',
+    softManyNoCount: '{{date}} ନରମ ଖୋଳ ଦେଖାଗଲା: କ୍ରେତା ଦାମ କାଟିପାରନ୍ତି',
+    softFirm: 'ଖୋଳ ଯାଞ୍ଚ ହେଲା: ଟାଣ',
+    softPrompt: 'ପ୍ରଥମେ ଜାଲ ପକାଇ ଯାଞ୍ଚ କରନ୍ତୁ: 50 ମଧ୍ୟରୁ କେତେ ନରମ?',
+    of: 'ମଧ୍ୟରୁ',
+    banned: '{{date}} ଏକ ନିଷିଦ୍ଧ ପଦାର୍ଥ ({{substances}}) ଲେଖାଗଲା: ରପ୍ତାନି କ୍ରେତା ଅବଶେଷ ପରୀକ୍ଷା କରନ୍ତି',
+    restricted: '{{date}} {{substances}} ଲେଖାଗଲା। ଅମଳ ପୂର୍ବରୁ ଆପଣଙ୍କ ପ୍ରୋସେସରଙ୍କ ସହ ୱିଥଡ୍ରଲ ଅବଧି ନିଶ୍ଚିତ କରନ୍ତୁ',
+    withdrawal: '{{date}} {{substance}}; ୱିଥଡ୍ରଲ ଅବଧି {{until}} ପର୍ଯ୍ୟନ୍ତ ({{source}})',
+    ready: 'ଅମଳ ପାଇଁ ପ୍ରସ୍ତୁତ',
+  },
 };
 
 export default health;
