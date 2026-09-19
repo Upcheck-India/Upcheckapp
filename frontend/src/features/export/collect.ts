@@ -338,20 +338,35 @@ const harvestTable = (f: Fmt, rows: Harvest[], withMoney: boolean): ReportTable 
         f.t('common.date'),
         f.t('logs.harvestType', { defaultValue: 'Type' }),
         f.t('history.harvestMetricBiomass'),
-        f.t('history.harvestMetricAvgSize'),
+        f.t('logs.countPerKg', { defaultValue: 'Count/kg' }),
         f.t('logs.buyer', { defaultValue: 'Buyer' }),
-        ...(withMoney ? [f.t('logs.sale', { defaultValue: 'Sale' })] : []),
+        ...(withMoney
+            ? [f.t('logs.pricePerKg', { defaultValue: '₹/kg' }), f.t('logs.sale', { defaultValue: 'Sale' })]
+            : []),
     ],
-    numericColumns: withMoney ? [2, 3, 5] : [2, 3],
-    rows: byDateDesc(rows, (r) => r.harvestDate).map((r) => [
-        f.date(r.harvestDate), f.text(r.harvestType), f.num(r.weightKg),
-        f.num(r.averageSize), f.text(r.buyerName),
-        ...(withMoney ? [f.money(r.salePriceTotal)] : []),
-    ]),
+    numericColumns: withMoney ? [2, 3, 5, 6] : [2, 3],
+    // One line per grade (H1) — the buyer's slip, as the farmer knows it. An
+    // old ungraded harvest is one line; its count is implied by g/piece.
+    rows: byDateDesc(rows, (r) => r.harvestDate).flatMap((r) => {
+        const lead = [f.date(r.harvestDate), f.text(r.harvestType)];
+        if (r.grades?.length) {
+            return r.grades.map((g) => [
+                ...lead, f.num(g.weightKg), f.num(g.countPerKg), f.text(r.buyerName),
+                ...(withMoney
+                    ? [f.money(g.pricePerKg), f.money(g.pricePerKg == null ? null : g.weightKg * g.pricePerKg)]
+                    : []),
+            ]);
+        }
+        const avg = toNumber(r.averageSize);
+        return [[
+            ...lead, f.num(r.weightKg), f.num(avg ? Math.round(1000 / avg) : null), f.text(r.buyerName),
+            ...(withMoney ? ['', f.money(r.salePriceTotal)] : []),
+        ]];
+    }),
     total: [
         f.t('common.total', { defaultValue: 'Total' }), '',
         f.num(sum(rows.map((r) => r.weightKg))), '', '',
-        ...(withMoney ? [f.money(sum(rows.map((r) => r.salePriceTotal)))] : []),
+        ...(withMoney ? ['', f.money(sum(rows.map((r) => r.salePriceTotal)))] : []),
     ],
 });
 

@@ -7,7 +7,9 @@ import { FREE_NH3, Zone, classify, thresholdFor } from '../common/wq-thresholds'
 import { MOLT_MIN_ABW_G, MoltItemStatus, MoltService, PondMolt, moltAlertFor } from '../molt/molt.service';
 import { addDays, currentMoltWindow } from '../molt/molt-window';
 import { computeDoc } from '../crops/crop.entity';
-import { PondContextService } from '../pond-context/pond-context.service';
+import {
+  PondContextService, harvestedPieces, isMissingSchema, partialHarvestSql,
+} from '../pond-context/pond-context.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
 import { isLowStock } from '../inventory/inventory.constants';
 import { isMissingSchema } from '../health-observations/health.constants';
@@ -143,7 +145,7 @@ export class DailyBriefService {
     const [
       farms, ponds, wq, chem, feedDays, feedRows, trays, mortDays, mortCum,
       samplings, abwRows, harvests, treatments, tasks, alerts, plans,
-      checkIns, members, items, money, lastLogs,
+      checkIns, members, items, money, lastLogs, harvestPieces,
     ] = await Promise.all([
       farmIds.length ? q_('farms', `SELECT id, name FROM farms WHERE id = ANY($1::uuid[]) ORDER BY name`, [farmIds]) : none,
       hasPonds
@@ -374,6 +376,14 @@ export class DailyBriefService {
             GROUP BY pond_id`,
           [pondIds, istDayRangeUtc(addDays(D, -LAST_LOG_LOOKBACK_DAYS)).start, dR.end, addDays(D, -LAST_LOG_LOOKBACK_DAYS), D])
         : none,
+      // Same partial-harvest rule as PondContextService (H2). [] until the
+      // H1 migration is applied — the brief then counts no harvests, as before.
+      hasPonds
+        ? q_('harvest_pieces', partialHarvestSql('pond'), [pondIds]).catch((err) => {
+          if (!isMissingSchema(err)) throw err;
+          return [] as any[];
+        })
+        : none,
     ]);
 
     // ── bucket rows by pond + day ──
@@ -475,7 +485,11 @@ export class DailyBriefService {
         const mortality7DayAvg = week.length ? r2(week.reduce((s: number, r: any) => s + Number(r.qty), 0) / 7) : null;
         const cum = p.crop_id ? cumByCrop.get(p.crop_id) : null;
         const livePopulation = cycleOn(p, d)
-          ? this.pondContext.estimateLivePopulation(num(p.stocking_count), Number(d === D ? cum?.d : cum?.p) || 0)
+          ? this.pondContext.estimateLivePopulation(
+            num(p.stocking_count),
+            Number(d === D ? cum?.d : cum?.p) || 0,
+            harvestedPieces(harvestPieces, p.crop_id, d)?.pieces ?? 0,
+          )
           : null;
         const treat = at(treatments, p.id, d);
         const handling = at(samplings, p.id, d).length + at(harvests, p.id, d).length > 0;

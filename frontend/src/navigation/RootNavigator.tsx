@@ -59,7 +59,7 @@ export type RootStackParamList = {
     // Asked once, after the account exists and before farm setup (W8).
     AnalyticsConsent: undefined;
     QuickLog: undefined;
-    HarvestLog: { pondId: string; pondName: string; cropId?: string };
+    HarvestLog: { pondId: string; pondName: string; cropId?: string; farmId?: string; harvestType?: 'partial' | 'full'; editRecord?: any };
 
     // Phase 2
     CreateFarm: { editFarmId?: string } | undefined;

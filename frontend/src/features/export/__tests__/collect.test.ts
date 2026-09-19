@@ -319,6 +319,24 @@ describe('collectReport — excluded sections', () => {
         expect(JSON.stringify(data)).not.toContain('500,000');
     });
 
+    it('expands a graded harvest into one line per grade (H1)', async () => {
+        (harvestsApi.getByCrop as jest.Mock).mockReturnValue(
+            ok([{
+                id: 'h1', cropId: 'c1', harvestDate: '2026-09-01', weightKg: 980, salePriceTotal: 407000,
+                harvestType: 'full', status: 'sold', createdAt: '', updatedAt: '',
+                grades: [
+                    { id: 'g1', weightKg: 820, countPerKg: 40, pricePerKg: 430 },
+                    { id: 'g2', weightKg: 160, countPerKg: 55, pricePerKg: 340 },
+                ],
+            }]),
+        );
+        const data = await collectReport(config({ cropId: 'c1' }));
+        const harvest = data.tables.find((t) => t.key === 'harvest')!;
+        expect(harvest.rows).toHaveLength(2);
+        expect(harvest.rows[0][3]).toBe('40');
+        expect(harvest.rows[1][2]).toBe('160');
+    });
+
     it('does not request income when the money report excludes it', async () => {
         await collectReport(config({ dataset: 'money', farmId: 'f1', sections: sections({ harvest: false }) }));
         expect(transactionsApi.getAll).not.toHaveBeenCalledWith('f1', 'income', expect.anything());

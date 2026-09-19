@@ -34,3 +34,18 @@ export const MAX_STOCKING_COUNT = 100_000_000;
  */
 export const parseNumericInputOrDefault = (raw: string, defaultValue: number): number | null =>
     raw.trim() === '' ? defaultValue : parseNumericInput(raw);
+
+/**
+ * The same strict parse, but accepting digit-GROUPING commas the way a money
+ * or weight figure is written in India: `1,500` → 1500, `3,52,600` → 352600.
+ * `parseFloat('1,500')` is 1. A comma that is not a well-formed group
+ * separator (`1,5`, `1,,500`) is ambiguous and returns null rather than
+ * guessing a decimal comma.
+ */
+export const parseGroupedNumber = (raw: string): number | null => {
+    const trimmed = raw.trim();
+    if (!trimmed.includes(',')) return parseNumericInput(trimmed);
+    // Western (1,234,567) or Indian (12,34,567) grouping, optional decimals.
+    if (!/^-?(\d{1,3}(,\d{3})+|\d{1,2}(,\d{2})*,\d{3})(\.\d+)?$/.test(trimmed)) return null;
+    return parseNumericInput(trimmed.replace(/,/g, ''));
+};

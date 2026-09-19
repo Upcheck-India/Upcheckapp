@@ -15,8 +15,34 @@ export interface Harvest {
     harvestType: HarvestType;
     status: HarvestStatus;
     notes?: string | null;
+    /**
+     * Buyer's weighing-slip lines (H1). Empty for an old, ungraded harvest —
+     * read it as one implicit line of `weightKg` at `salePriceTotal`. Prices
+     * come back null without VIEW_FINANCIALS.
+     */
+    grades?: HarvestGrade[];
+    rejectedKg?: number | null;
+    rejectedReason?: RejectedReason | null;
+    pieces?: number | null;
+    piecesEstimated?: boolean;
     createdAt: string;
     updatedAt: string;
+}
+
+export type RejectedReason = 'soft_shell' | 'broken' | 'dead' | 'other';
+
+export interface HarvestGrade {
+    id: string;
+    countPerKg: number | null;
+    weightKg: number;
+    pricePerKg: number | null;
+}
+
+export interface GradeInput {
+    id?: string;
+    countPerKg?: number | null;
+    weightKg: number;
+    pricePerKg?: number | null;
 }
 
 /** @deprecated Use Harvest instead */
@@ -25,14 +51,20 @@ export type HarvestRecord = Harvest;
 export interface CreateHarvestDto {
     cropId: string;
     harvestDate: string;
-    weightKg: number;
+    /** Ignored by the server when `grades` is sent (it derives the total). */
+    weightKg?: number;
+    grades?: GradeInput[];
+    rejectedKg?: number | null;
+    rejectedReason?: RejectedReason | null;
+    /** The farmer saw the out-of-band ₹/kg warning and kept the value. */
+    confirmOutOfRange?: boolean;
     count?: number;
     averageSize?: number;
-    salePriceTotal?: number;
-    buyerName?: string;
+    salePriceTotal?: number | null;
+    buyerName?: string | null;
     harvestType: HarvestType;
     status?: HarvestStatus;
-    notes?: string;
+    notes?: string | null;
 }
 
 export const harvestsApi = {

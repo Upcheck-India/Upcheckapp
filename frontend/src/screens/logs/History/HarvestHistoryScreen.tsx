@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -9,12 +9,24 @@ import { ErrorState } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
 import { theme } from '../../../theme';
 import { harvestsApi, HarvestRecord } from '../../../api/harvests';
+import { usePermissions } from '../../../hooks/usePermissions';
+import { groupIndian } from '../../../features/inrFormat';
+
+/** Weighted buyer count (pieces/kg): from the grades, else implied by g/piece. */
+const avgCountOf = (h: HarvestRecord): number | null => {
+    const graded = (h.grades ?? []).filter((g) => g.countPerKg != null);
+    const kg = graded.reduce((s, g) => s + Number(g.weightKg), 0);
+    if (kg > 0) return Math.round(graded.reduce((s, g) => s + Number(g.weightKg) * Number(g.countPerKg), 0) / kg);
+    return h.averageSize ? Math.round(1000 / Number(h.averageSize)) : null;
+};
 
 export const HarvestHistoryScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     // The pond's label travels with the navigation params (PondDashboard sends
     // it). Passing '' onward left the harvest form headed by a blank line.
-    const { pondId, cycleId, cropId, pondName } = route.params;
+    // `cropId` is only sent while the pond has an ACTIVE cycle.
+    const { pondId, cropId, pondName, farmId } = route.params;
+    const { canRecordHarvest } = usePermissions(farmId);
     const [records, setRecords] = useState<HarvestRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -68,57 +80,81 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
         fetchRecords(true);
     }, [fetchRecords]);
 
-    const totalBiomass = records.reduce((sum, r) => sum + (r.weightKg || 0), 0);
+    const totalBiomass = records.reduce((sum, r) => sum + (Number(r.weightKg) || 0), 0);
 
-    const renderItem = ({ item }: { item: HarvestRecord }) => (
-        <Card style={styles.card}>
-            <View style={styles.headerRow}>
-                <Text style={styles.dateText}>
-                    {new Date(item.harvestDate).toLocaleDateString()}
-                </Text>
-                <View style={styles.cardActions}>
-                    <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{item.harvestType.toUpperCase()}</Text>
-                    </View>
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate('HarvestLog', { pondId, pondName: pondName ?? '', cropId, editRecord: item })}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('common.edit', 'Edit')}
-                    >
-                        <MaterialCommunityIcons name="pencil-outline" size={20} color={theme.roles.light.textSecondary} />
-                    </TouchableOpacity>
-                </View>
-            </View>
+    // Per-cycle subtotal: kg always; ₹ only when every harvest in the cycle
+    // carries a (visible) price — a masked or missing one is not ₹0.
+    const cycleTotals = useMemo(() => {
+        const m = new Map<string, { kg: number; money: number | null }>();
+        for (const r of records) {
+            const c = m.get(r.cropId) ?? { kg: 0, money: 0 };
+            c.kg += Number(r.weightKg) || 0;
+            c.money = c.money == null || r.salePriceTotal == null ? null : c.money + Number(r.salePriceTotal);
+            m.set(r.cropId, c);
+        }
+        return m;
+    }, [records]);
 
-            <View style={styles.metricsRow}>
-                <View style={styles.metricBlock}>
-                    <Text style={styles.metricLabel}>{t('history.harvestMetricBiomass')}</Text>
-                    <Text style={styles.metricValue}>{item.weightKg.toLocaleString()} <Text style={styles.metricUnit}>kg</Text></Text>
-                </View>
-                {item.averageSize != null && (
-                    <View style={styles.metricBlock}>
-                        <Text style={styles.metricLabel}>{t('history.harvestMetricAvgSize')}</Text>
-                        <Text style={styles.metricValue}>{item.averageSize} <Text style={styles.metricUnit}>g</Text></Text>
-                    </View>
+    const renderItem = ({ item, index }: { item: HarvestRecord; index: number }) => {
+        const firstOfCycle = index === 0 || records[index - 1].cropId !== item.cropId;
+        const cycle = cycleTotals.get(item.cropId);
+        const gradeCount = item.grades?.length ?? 0;
+        const avg = avgCountOf(item);
+        const line = [
+            `${groupIndian(Number(item.weightKg))} kg`,
+            gradeCount > 1 ? t('logs.harvest_historyGrades', { count: gradeCount }) : null,
+            avg != null ? t('logs.harvest_historyAvg', { count: avg }) : null,
+        ].filter(Boolean).join(' · ');
+        return (
+            <>
+                {firstOfCycle && cycle && (
+                    <Text style={styles.cycleHeader}>
+                        {cycle.money != null
+                            ? t('logs.harvest_historyCycleMoney', { kg: groupIndian(cycle.kg), amount: groupIndian(cycle.money) })
+                            : t('logs.harvest_historyCycle', { kg: groupIndian(cycle.kg) })}
+                    </Text>
                 )}
-            </View>
+                <Card style={styles.card}>
+                    <View style={styles.headerRow}>
+                        <Text style={styles.dateText}>
+                            {new Date(item.harvestDate).toLocaleDateString()}
+                        </Text>
+                        <View style={styles.cardActions}>
+                            <View style={styles.badge}>
+                                <Text style={styles.badgeText}>{item.harvestType.toUpperCase()}</Text>
+                            </View>
+                            {canRecordHarvest && (
+                                <TouchableOpacity
+                                    onPress={() => navigation.navigate('HarvestLog', { pondId, pondName: pondName ?? '', cropId: item.cropId, farmId, editRecord: item })}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={t('common.edit', 'Edit')}
+                                >
+                                    <MaterialCommunityIcons name="pencil-outline" size={20} color={theme.roles.light.textSecondary} />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
 
-            {item.buyerName && (
-                <View style={styles.detailRow}>
-                    <MaterialCommunityIcons name="account-outline" size={16} color={theme.roles.light.textSecondary} />
-                    <Text style={styles.detailText}>{t('history.harvestBuyerLabel', { name: item.buyerName })}</Text>
-                </View>
-            )}
-            {item.salePriceTotal != null && (
-                <View style={styles.detailRow}>
-                    <MaterialCommunityIcons name="cash-multiple" size={16} color={theme.roles.light.textSecondary} />
-                    <Text style={styles.detailText}>{t('history.harvestSaleLabel', { amount: item.salePriceTotal })}</Text>
-                </View>
-            )}
-            {item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
-        </Card>
-    );
+                    <Text style={styles.metricValue}>{line}</Text>
+
+                    {item.buyerName && (
+                        <View style={styles.detailRow}>
+                            <MaterialCommunityIcons name="account-outline" size={16} color={theme.roles.light.textSecondary} />
+                            <Text style={styles.detailText}>{t('history.harvestBuyerLabel', { name: item.buyerName })}</Text>
+                        </View>
+                    )}
+                    {item.salePriceTotal != null && (
+                        <View style={styles.detailRow}>
+                            <MaterialCommunityIcons name="cash-multiple" size={16} color={theme.roles.light.textSecondary} />
+                            <Text style={styles.detailText}>{t('history.harvestSaleLabel', { amount: `₹${groupIndian(Number(item.salePriceTotal))}` })}</Text>
+                        </View>
+                    )}
+                    {item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
+                </Card>
+            </>
+        );
+    };
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -162,7 +198,20 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
                 </>
             )}
 
-            <FAB icon="plus" onPress={() => navigation.navigate('HarvestLog', { pondId, pondName: pondName ?? '', cropId })} />
+            {canRecordHarvest && (
+                // No active cycle → the FAB stays, dimmed, and says why
+                // (a harvest needs a cycle to close/draw down).
+                <FAB
+                    icon="plus"
+                    style={cropId ? undefined : styles.fabDisabled}
+                    accessibilityLabel={cropId ? undefined : t('logs.harvest_noActiveCycle')}
+                    onPress={() =>
+                        cropId
+                            ? navigation.navigate('HarvestLog', { pondId, pondName: pondName ?? '', cropId, farmId })
+                            : Alert.alert(t('history.harvestTitle'), t('logs.harvest_noActiveCycle'))
+                    }
+                />
+            )}
         </ScreenWrapper>
     );
 };
@@ -177,6 +226,8 @@ const styles = StyleSheet.create({
     summaryValue: { fontWeight: '700', color: theme.roles.light.successText },
     listContent: { padding: theme.spacing[4], paddingBottom: 100 },
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[4] },
+    cycleHeader: { ...theme.typeScale.labelMedium, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[2] },
+    fabDisabled: { opacity: 0.4 },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[4] },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },
     cardActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
