@@ -331,6 +331,7 @@ export class ReportsService {
     return {
       cropId,
       pondId: crop.pondId,
+      farmId: crop.farmId,
       pondName: pond.displayName ?? pond.name,
       status: crop.status,
       closeReason,
