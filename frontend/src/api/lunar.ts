@@ -42,6 +42,9 @@ export interface MoltRisk {
   score: number;
   band: 'Low' | 'Watch' | 'Critical';
   phaseRel: 'pre' | 'peak' | 'post' | 'none';
+  /** Vulnerability factors that had a reading / total factors; absent on an older backend. */
+  vulnerabilityKnown?: number;
+  vulnerabilityTotal?: number;
 }
 
 export type StepCategory =

@@ -91,7 +91,36 @@ export interface MoltRisk {
   score: number; // 0..100
   band: 'Low' | 'Watch' | 'Critical';
   phaseRel: 'pre' | 'peak' | 'post' | 'none';
+  /** How many vulnerability factors had a reading (0 → vulnerability is the unknown 0.5). */
+  vulnerabilityKnown: number;
+  /** How many factors the model has. */
+  vulnerabilityTotal: number;
 }
+
+/**
+ * Molt pressure by true-phase window (molt-window.ts) — the same windows the
+ * checklist, alerts and playbook use.
+ * ponytail: field rule of thumb, uncalibrated (E4) — tune from logged soft-shell
+ * observations once there are enough of them.
+ */
+const WINDOW_LIKELIHOOD: Record<'pre' | 'peak' | 'post' | 'inter', number> = {
+  peak: 1.0,
+  pre: 0.6,
+  post: 0.6,
+  inter: 0,
+};
+
+/** Vulnerability factor weights (sum 1). Unlogged factors are dropped and the rest renormalised. */
+const WEIGHTS = {
+  do: 0.22,
+  mineral: 0.22,
+  disease: 0.15,
+  temp: 0.12,
+  nh3: 0.1,
+  density: 0.08,
+  appetite: 0.06,
+  ph: 0.05,
+};
 
 import { nextPhase, daysToNearestSpringTide } from './moon-phase-meeus';
 import { toIstDateString } from '../common/ist-date';
@@ -216,59 +245,52 @@ export class LunarService {
     abwG: number,
     v: MoltVulnerabilityInput,
   ): MoltRisk {
-    const moltPressure = phase.moltLikelihood * this.lunarLockFactor(abwG);
+    // One phase model: the true-phase molt window (molt-window.ts) drives both
+    // the pressure and phaseRel, so the score can't disagree with the badge.
+    const windowPhase = this.moltWindowAt(phase).phase;
+    const moltPressure = WINDOW_LIKELIHOOD[windowPhase] * this.lunarLockFactor(abwG);
 
-    const vDO =
-      v.do === undefined
-        ? 0.1
-        : v.do < 3
-          ? 1
-          : v.do < 4
-            ? 0.7
-            : v.do < 5
-              ? 0.4
-              : 0.1;
-    const vTemp =
-      v.temp === undefined
-        ? 0.1
-        : v.temp > 33
-          ? 0.8
-          : v.temp > 31
-            ? 0.5
-            : v.temp < 26
-              ? 0.4
-              : 0.1;
-    const vNh3 =
-      v.freeNh3 === undefined
-        ? 0.1
-        : v.freeNh3 > 0.3
-          ? 1
-          : v.freeNh3 > 0.1
-            ? 0.5
-            : 0.1;
-    const vPh = (v.phSwing ?? 0) > 0.5 ? 0.6 : 0.2;
-    const vDisease = v.diseaseHigh ? 0.8 : 0.2;
-    const vDensity = Math.max(0, Math.min(1, v.densityRatio ?? 0.2));
-    const vMineral = Math.max(0, Math.min(1, v.mineralDeficitFrac ?? 0));
-    const vAppetite =
-      v.tray === 'a_lot_left' ? 0.6 : v.tray === 'few_left' ? 0.3 : 0.1;
+    // Each factor is null when there is no reading — a pond with nothing
+    // logged is unknown, not safe.
+    const factors: Record<keyof typeof WEIGHTS, number | null> = {
+      do:
+        v.do == null ? null : v.do < 3 ? 1 : v.do < 4 ? 0.7 : v.do < 5 ? 0.4 : 0.1,
+      temp:
+        v.temp == null
+          ? null
+          : v.temp > 33
+            ? 0.8
+            : v.temp > 31
+              ? 0.5
+              : v.temp < 26
+                ? 0.4
+                : 0.1,
+      nh3:
+        v.freeNh3 == null ? null : v.freeNh3 > 0.3 ? 1 : v.freeNh3 > 0.1 ? 0.5 : 0.1,
+      ph: v.phSwing == null ? null : v.phSwing > 0.5 ? 0.6 : 0.2,
+      disease: v.diseaseHigh == null ? null : v.diseaseHigh ? 0.8 : 0.2,
+      density: v.densityRatio == null ? null : clamp01(v.densityRatio),
+      mineral: v.mineralDeficitFrac == null ? null : clamp01(v.mineralDeficitFrac),
+      appetite:
+        v.tray == null ? null : v.tray === 'a_lot_left' ? 0.6 : v.tray === 'few_left' ? 0.3 : 0.1,
+    };
 
-    const vulnerability =
-      vDO * 0.22 +
-      vMineral * 0.22 +
-      vDisease * 0.15 +
-      vTemp * 0.12 +
-      vNh3 * 0.1 +
-      vDensity * 0.08 +
-      vAppetite * 0.06 +
-      vPh * 0.05;
+    let weightSum = 0;
+    let weighted = 0;
+    let known = 0;
+    for (const k of Object.keys(WEIGHTS) as (keyof typeof WEIGHTS)[]) {
+      const f = factors[k];
+      if (f == null) continue;
+      known++;
+      weightSum += WEIGHTS[k];
+      weighted += f * WEIGHTS[k];
+    }
+    const vulnerability = known === 0 ? 0.5 : weighted / weightSum;
 
     const score = 100 * moltPressure * (0.4 + 0.6 * vulnerability);
     const band: MoltRisk['band'] =
       score >= 60 ? 'Critical' : score >= 30 ? 'Watch' : 'Low';
 
-    // One phase model: the true-phase molt window (molt-window.ts).
-    const windowPhase = this.moltWindowAt(phase).phase;
     const phaseRel: MoltRisk['phaseRel'] = windowPhase === 'inter' ? 'none' : windowPhase;
 
     return {
@@ -277,6 +299,8 @@ export class LunarService {
       score: round2(score),
       band,
       phaseRel,
+      vulnerabilityKnown: known,
+      vulnerabilityTotal: Object.keys(WEIGHTS).length,
     };
   }
 
@@ -409,5 +433,6 @@ export class LunarService {
   }
 }
 
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const round4 = (n: number) => Math.round(n * 10000) / 10000;

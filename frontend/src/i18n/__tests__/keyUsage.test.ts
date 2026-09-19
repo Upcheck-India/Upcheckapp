@@ -27,7 +27,7 @@ const SRC = join(__dirname, '..', '..');
  * the number growing. Swap for an explicit list if the backlog is ever
  * worked down deliberately rather than opportunistically.
  */
-const KNOWN_DEFAULTED_BACKLOG = 63;
+const KNOWN_DEFAULTED_BACKLOG = 54;
 
 /** Every .ts/.tsx file under src/, excluding tests and the locale bundles. */
 const sourceFiles = (dir: string): string[] =>

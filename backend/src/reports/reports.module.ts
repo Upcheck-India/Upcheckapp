@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ReportsController } from './reports.controller';
+import {
+  CycleResultController,
+  ReportsController,
+} from './reports.controller';
 import { ReportsService } from './reports.service';
 import { PondsModule } from '../ponds/ponds.module';
 import { CropsModule } from '../crops/crops.module';
@@ -21,7 +24,7 @@ import { TransactionsModule } from '../transactions/transactions.module';
     SamplingModule,
     TransactionsModule,
   ],
-  controllers: [ReportsController],
+  controllers: [ReportsController, CycleResultController],
   providers: [ReportsService],
   // Exported so MoneyOverviewModule can batch the Money tab's per-farm reports
   // through the SAME service — and therefore the same VIEW_FINANCIALS check.
