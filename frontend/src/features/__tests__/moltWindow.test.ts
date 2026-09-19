@@ -1,4 +1,4 @@
-import { addDays, istDateString, phaseOn, windowContaining, type MoltWindow } from '../moltWindow';
+import { addDays, isMoltPeakFor, istDateString, phaseOn, windowContaining, type MoltWindow } from '../moltWindow';
 
 const SEP: MoltWindow = {
   key: '2026-09-11-new',
@@ -44,5 +44,14 @@ describe('moltWindow helpers', () => {
   it('addDays crosses month edges', () => {
     expect(addDays('2026-10-01', -1)).toBe('2026-09-30');
     expect(addDays('2026-09-30', 1)).toBe('2026-10-01');
+  });
+});
+
+describe('isMoltPeakFor (M1.4 per-pond feed-cut default)', () => {
+  it('only an eligible pond in its peak', () => {
+    expect(isMoltPeakFor({ eligible: true, phase: 'peak' })).toBe(true);
+    expect(isMoltPeakFor({ eligible: false, phase: 'peak' })).toBe(false);
+    expect(isMoltPeakFor({ eligible: true, phase: 'pre' })).toBe(false);
+    expect(isMoltPeakFor(undefined)).toBe(false);
   });
 });

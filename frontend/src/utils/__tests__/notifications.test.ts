@@ -32,6 +32,9 @@ import {
     syncReminders,
     getReminderStatus,
     syncBriefReminders,
+    syncMoltReminders,
+    moltReminderWindows,
+    MOLT_REMINDER_TAG,
     BRIEF_REMINDER_TAG,
     DEFAULT_REMINDER_TIMES,
 } from '../notifications';
@@ -290,6 +293,32 @@ describe('syncBriefReminders', () => {
         mockRequestPermissions.mockClear();
         await syncBriefReminders(true);
         expect(mockRequestPermissions).not.toHaveBeenCalled();
+        expect(mockSchedule).not.toHaveBeenCalled();
+    });
+});
+
+describe('molt reminder (M1.4: only with an eligible pond)', () => {
+    type Win = { key: string; kind: 'new' | 'full'; preStart: string };
+    const W: Win = { key: '2026-09-26-full', kind: 'full', preStart: '2026-09-23' };
+    const NEXT: Win = { key: '2026-10-11-new', kind: 'new', preStart: '2026-10-08' };
+    const NOW = new Date('2026-09-19T06:00:00Z');
+
+    it('windows only when ≥ 1 pond is eligible', () => {
+        expect(moltReminderWindows({ window: null, next: W, eligiblePonds: 1 })).toEqual([W]);
+        expect(moltReminderWindows({ window: W, next: NEXT, eligiblePonds: 2 })).toEqual([W, NEXT]);
+        expect(moltReminderWindows({ window: W, next: NEXT, eligiblePonds: 0 })).toEqual([]);
+        expect(moltReminderWindows({ window: W, next: NEXT })).toEqual([]);
+    });
+
+    it('schedules one per window, and with none eligible cancels what was armed', async () => {
+        await syncMoltReminders(moltReminderWindows({ window: null, next: W, eligiblePonds: 1 }), NOW);
+        expect(mockSchedule).toHaveBeenCalledTimes(1);
+        expect(mockSchedule.mock.calls[0][0].content.data).toEqual({ tag: MOLT_REMINDER_TAG, windowKey: W.key });
+
+        mockSchedule.mockClear();
+        mockGetAll.mockResolvedValue([{ identifier: 'm1', content: { data: { tag: MOLT_REMINDER_TAG } } }]);
+        await syncMoltReminders(moltReminderWindows({ window: null, next: W, eligiblePonds: 0 }), NOW);
+        expect(mockCancel).toHaveBeenCalledWith('m1');
         expect(mockSchedule).not.toHaveBeenCalled();
     });
 });

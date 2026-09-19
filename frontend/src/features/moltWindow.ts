@@ -45,3 +45,11 @@ export const windowContaining = (
 /** Calendar arithmetic on a `YYYY-MM-DD` string. */
 export const addDays = (day: string, n: number): string =>
   new Date(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * Feed Advisor's molt-cut default (M1.4): THIS pond's checklist says peak AND
+ * the pond is eligible (≥ 5 g). The farm-wide window alone cut feed for
+ * post-larvae that do not molt with the moon.
+ */
+export const isMoltPeakFor = (pm: { eligible: boolean; phase: MoltPhase } | undefined): boolean =>
+  !!pm?.eligible && pm.phase === 'peak';
