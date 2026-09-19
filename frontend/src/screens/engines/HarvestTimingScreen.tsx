@@ -19,6 +19,7 @@ import { PrefilledBanner } from '../../components/ui/PrefilledBanner';
 import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
 import { LineChart } from '../../components/charts/LineChart';
 import { PriceQuoteSheet } from '../../components/harvest/PriceQuoteSheet';
+import { PreHarvestCheck } from '../../components/harvest/PreHarvestCheck';
 import { theme } from '../../theme';
 import { harvestTimingApi, type HarvestTimingResult, type DayProjection } from '../../api/harvestTiming';
 import { priceQuotesApi, type CurrentQuote } from '../../api/priceQuotes';
@@ -324,6 +325,11 @@ export const HarvestTimingScreen = ({ route, navigation }: any) => {
                 <Button title={t('engines.harvest.planThis')} onPress={planThis} style={styles.cta} />
               ) : null}
             </Card>
+
+            {/* M2's warn-only soft-shell / withdrawal check for the chosen day. */}
+            {pondId && best ? (
+              <PreHarvestCheck pondId={pondId} cropId={cropId} date={dateOf(best)} />
+            ) : null}
 
             {/* Projection, with molt peak/post days shaded underneath */}
             {chart && (

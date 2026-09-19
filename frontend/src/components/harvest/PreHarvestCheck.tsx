@@ -29,10 +29,8 @@ const dayMs = (d: string) => Date.parse(`${d}T00:00:00Z`);
  * say over any save button. Every source is optional — offline, a failed
  * read just drops its line.
  *
- * Shown on HarvestLog (above the grades) and on HarvestPlan cards from 2 days
- * before. TODO(M2/H6): also on the Harvest Timing result for the chosen day —
- * left to H6, which is rewriting HarvestTimingScreen; it is one line there:
- * `<PreHarvestCheck pondId={pondId} cropId={cropId} date={chosenDay} />`.
+ * Shown on HarvestLog (above the grades), on HarvestPlan cards from 2 days
+ * before, and on the Harvest Timing result for the chosen day (H6).
  */
 export const PreHarvestCheck: React.FC<{ pondId: string; cropId?: string | null; date: string }> = ({ pondId, cropId, date }) => {
     const { t } = useTranslation();
