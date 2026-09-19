@@ -44,4 +44,6 @@ export default {
   completeFailed: 'फसल कटाई योजना पूर्ण करने में विफल',
   deleteFailed: 'फसल कटाई योजना हटाने में विफल',
   createFailed: 'फसल कटाई योजना बनाने में विफल',
+  moltWindowTitle: 'मोल्ट विंडो',
+  moltWindowWarning: 'यह तारीख मोल्ट विंडो ({{start}} – {{end}}) में है: नरम खोल और कम दाम की संभावना।',
 };

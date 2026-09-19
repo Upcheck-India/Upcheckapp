@@ -41,7 +41,7 @@ const home = {
   moreSectionHelp: 'সাহায্য ও তথ্য',
   moreUserFallback: 'ব্যবহারকারী',
   moreEmailFallback: 'ইমেইল নেই',
-  moreVersion: 'Upcheck v1.0.0',
+  moreVersion: 'Neerani v1.0.0',
   moreSignOutTitle: 'সাইন আউট',
   moreSignOutMessage: 'আপনি কি সত্যিই সাইন আউট করতে চান?',
   // Account items
@@ -77,7 +77,7 @@ const home = {
   // Help items
   moreHelp: 'সাহায্য ও সহায়তা',
   moreHelpDesc: 'প্রশ্নোত্তর ও টিউটোরিয়াল',
-  moreAbout: 'Upcheck সম্পর্কে',
+  moreAbout: 'Neerani সম্পর্কে',
   moreAboutDesc: 'অ্যাপ সংস্করণ ও কৃতিত্ব',
 
   // ReportsScreen
@@ -106,6 +106,10 @@ const home = {
   pondIdle: 'নিষ্ক্রিয়',
   quickLogTitle: 'দ্রুত লগ',
   quickLogSubtitle: 'আজকের রিডিং লিপিবদ্ধ করুন',
+  quickLogRoundsSection: "সকালের রাউন্ড",
+  quickLogRoundsTitle: "প্রতিটি পুকুরের জলের মান",
+  quickLogRoundsSub: "এক দফায় {{count}}টি পুকুর",
+  quickLogSingleSection: "একটি পুকুরের জন্য লিখুন",
   quickLogPickPond: 'পুকুর নির্বাচন করুন',
   quickLogForPond: '{{pond}}-এর জন্য লগ',
   quickLogNoPonds: 'এখনও কোনো পুকুর নেই',
@@ -119,7 +123,7 @@ const home = {
   quickLogNeedsCycle: 'সাইকেল দরকার',
   farmerFallback: 'কৃষক',
   onboarding_languagePrompt: 'আপনার ভাষা নির্বাচন করুন',
-  onboarding_title: 'Upcheck-এ স্বাগতম',
+  onboarding_title: 'Neerani-তে স্বাগতম',
   onboarding_subtitle: 'আপনার চিংড়ি খামারের দৈনিক সহকারী',
   onboarding_feature1: 'জল, খাবার ও বৃদ্ধি কয়েক সেকেন্ডে রেকর্ড করুন',
   onboarding_feature2: 'বেঁচে থাকা ও মুনাফা বাড়াতে স্মার্ট পরামর্শ',
@@ -178,6 +182,8 @@ const home = {
 
   // Empty first-run dashboard (artboard 09)
   noFarmsYet: "এখনো কোনো খামার নেই",
+  waitingApprovalTitle: "{{farm}} আপনাকে ঢুকতে দেওয়ার অপেক্ষায়",
+  waitingApprovalBody: "আপনার অনুরোধ পাঠানো হয়েছে। খামারের মালিক আপনাকে ঢুকতে দেবেন — কোড আবার দেওয়ার দরকার নেই।",
   createFarmCardSub: "আপনার পুকুর সেট করে লেখা শুরু করুন",
   joinCodeCardTitle: "কোড দিয়ে যোগ দিন",
   joinCodeCardSub: "অন্য কারও চালানো খামারে কাজ করুন",
@@ -200,6 +206,9 @@ const home = {
   lunarMoltingTitle: "খোলস বদলের সময়",
   lunarMoltingBody: "অমাবস্যা ও পূর্ণিমার আশেপাশে চিংড়ির খোলস নরম থাকে। খাবার কম দিন, ধরবেন না বা তুলবেন না।",
   lunarQuiet: "আজ খোলস বদলের সম্ভাবনা নেই।",
+  moltWindowTitle: "মোল্ট উইন্ডো {{start}} – {{end}} · চূড়ান্ত {{peak}}",
+  moltPondsNeedAction: "{{total}}টি পুকুরের মধ্যে {{pending}}টিতে কাজ বাকি",
+  moltNextWindow: "পরের মোল্ট উইন্ডো {{date}} থেকে",
   startHere: "এখান থেকে শুরু করুন",
   stepPondsTitle: "আপনার পুকুর যোগ করুন",
   stepPondsWhy: "আপচেক প্রতিটি পুকুরের জল, খাবার ও বৃদ্ধি আলাদা করে দেখে। এখনও দেখার কিছু নেই।",
@@ -210,6 +219,9 @@ const home = {
   stepLogTitle: "আজকের রিডিং নথিভুক্ত করুন",
   stepLogWhy: "আজ কিছু নথিভুক্ত হয়নি। এখানকার প্রতিটি সতর্কবার্তা অক্সিজেন ও পিএইচ থেকেই তৈরি।",
   stepLogCta: "এখনই নথিভুক্ত করুন",
+  stepInviteTitle: "যাঁরা আপনার সঙ্গে কাজ করেন তাঁদের যোগ করুন",
+  stepInviteWhy: "আপনি না থাকলেও তাঁরা খাবার ও জলের হিসাব লিখতে পারবেন, আর সব সংখ্যা এক জায়গায় থাকবে।",
+  stepInviteCta: "আপনার দলকে আমন্ত্রণ করুন",
   hideChecklist: "লুকান",
   hideChecklistTitle: "সেটআপ তালিকা লুকাবেন?",
   hideChecklistBody: "এটি আর ফিরে আসবে না। পুকুর তৈরি, রিডিং নথিভুক্ত করা ও দলকে ডাকা খামার ও দল ট্যাব থেকে এখনও করা যাবে।",

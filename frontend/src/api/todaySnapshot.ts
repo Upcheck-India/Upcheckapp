@@ -1,6 +1,7 @@
 import { alertCenterApi, type BriefingItem } from './alertCenter';
 import { pondContextApi, type PondContext } from './pondContext';
 import { mergeBriefings } from '../utils/pondHealth';
+import type { MoltWindowSummary } from './molt';
 
 /**
  * Everything Today needs about ponds and alerts, in as few requests as the
@@ -25,6 +26,8 @@ export interface TodaySnapshot {
     contexts: PondContext[];
     /** Live and persisted already merged — see mergeBriefings. */
     briefing: BriefingItem[];
+    /** Molt window summary; null on an older backend (no `/today` field). */
+    moltWindow: MoltWindowSummary | null;
 }
 
 /** A 404/501 means "this backend is older than this app", not "no data". */
@@ -51,6 +54,7 @@ export const fetchTodaySnapshot = async (
         return {
             contexts: fast.contexts ?? [],
             briefing: mergeBriefings(fast.briefing ?? [], persistedItems),
+            moltWindow: fast.moltWindow ?? null,
         };
     } catch (err) {
         if (!isMissingEndpoint(err)) throw err;
@@ -77,6 +81,7 @@ export const fetchTodaySnapshot = async (
         return {
             contexts: (perFarm as NonNullable<(typeof perFarm)[number]>[]).flat(),
             briefing: mergeBriefings(live, persistedItems),
+            moltWindow: null,
         };
     }
 };

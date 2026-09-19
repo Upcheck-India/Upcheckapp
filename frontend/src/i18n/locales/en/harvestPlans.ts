@@ -44,4 +44,6 @@ export default {
   completeFailed: 'Failed to complete harvest plan',
   deleteFailed: 'Failed to delete harvest plan',
   createFailed: 'Failed to create harvest plan',
+  moltWindowTitle: 'Molt window',
+  moltWindowWarning: 'This date is in a molt window ({{start}} – {{end}}): expect soft shells and a lower price.',
 };

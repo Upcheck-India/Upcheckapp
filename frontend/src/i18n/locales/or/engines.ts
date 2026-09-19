@@ -10,6 +10,41 @@ const engines = {
     prefilled: 'ଆପଣଙ୍କ ସର୍ବଶେଷ ଲଗରୁ ଭରଣ ହୋଇଛି। ଆବଶ୍ୟକ ହେଲେ ବଦଳାନ୍ତୁ।',
     prefilledDoc: 'ଆପଣଙ୍କ ସର୍ବଶେଷ ଲଗରୁ · DOC {{doc}}। ଆବଶ୍ୟକ ହେଲେ ବଦଳାନ୍ତୁ।',
     couldNotCompute: 'ଗଣନା କରାଯାଇପାରିଲା ନାହିଁ',
+
+    needsInputs: "ପ୍ରଥମେ ଏଗୁଡ଼ିକ ଦିଅନ୍ତୁ, ଯେପରି ଉତ୍ତରଟି ଆପଣଙ୍କ ପୋଖରୀର ହେବ:",
+
+
+    needsSampling: "ସାମ୍ପ୍ରତିକ ସାମ୍ପଲିଂ (ହାରାହାରି ଓଜନ)",
+
+
+    needsPopulation: "ପୋଖରୀରେ କେତେ ଚିଙ୍ଗୁଡ଼ି ଅଛି",
+
+
+    needsBiomass: "ପୋଖରୀର ମୋଟ ଜୈବ ପିଣ୍ଡ",
+
+
+    needsAerators: "ଲାଗିଥିବା ଏରେଟରର ହର୍ସପାୱାର",
+
+
+    needsDo: "ବର୍ତ୍ତମାନର ଦ୍ରବୀଭୂତ ଅମ୍ଳଜାନ ରିଡିଂ",
+
+
+    needsArea: "ପୋଖରୀର କ୍ଷେତ୍ରଫଳ",
+
+
+    needsFeedPrice: "ଖାଦ୍ୟ ପାଇଁ ଆପଣ ଦେଉଥିବା ଦାମ, ପ୍ରତି କେଜି",
+
+
+    noData: "ପୋଖରୀ ତଥ୍ୟ ନାହିଁ",
+
+
+    contextUnavailable: "ଏହି ପୋଖରୀର ସାମ୍ପ୍ରତିକ ସଂଖ୍ୟା ପଢ଼ି ହେଲା ନାହିଁ",
+
+
+    contextUnavailableBody: "ଆପଣଙ୍କ ପାଇଁ କିଛି ପୂର୍ବରୁ ଭରାଯାଇ ନାହିଁ। ମୂଲ୍ୟ ଜଣା ଥିଲେ ନିଜେ ଲେଖନ୍ତୁ, ତେବେ ଉତ୍ତରଟି ଆପଣଙ୍କ ପୋଖରୀର ହେବ।",
+
+
+    heuristicNote: "ଏହା ଶିଳ୍ପର ଅନୁଭବ ନିୟମ, ମାପ ନୁହେଁ — ମାର୍ଗଦର୍ଶନ ପାଇଁ ଉପଯୋଗୀ, ପୋଖରୀରେ ଯାହା ଦେଖୁଛନ୍ତି ସେଥିସହ ମିଳାଇ ଦେଖନ୍ତୁ।",
     couldNotSave: 'ସଞ୍ଚୟ କରାଯାଇପାରିଲା ନାହିଁ',
     tryAgain: 'ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
   },
@@ -68,6 +103,8 @@ const engines = {
     fasting: 'ଉପବାସ ଦିନ',
     calculate: 'ଆଜିର ଖାଦ୍ୟ ଗଣନା କରନ୍ତୁ',
     recommended: 'ଆଜି ପ୍ରସ୍ତାବିତ',
+
+    rangeWhy: "ଏହା ଏକ ପରିସର, କାରଣ ଆପଣଙ୍କ ସାମ୍ପ୍ରତିକ ରିଡିଂ କମ୍।",
     biomassFr: '{{biomass}} kg ବାୟୋମାସ୍ · FR {{fr}}%',
   },
   harvest: {
@@ -144,6 +181,11 @@ const engines = {
     illuminated: '{{pct}}% ଆଲୋକିତ',
     moltWindow: 'ମୋଲ୍ଟ ୱିଣ୍ଡୋ · ସ୍ପ୍ରିଂ ଜୁଆରକୁ {{days}} ଦିନ',
     toNextWindow: 'ପରବର୍ତ୍ତୀ ମୋଲ୍ଟ ୱିଣ୍ଡୋକୁ {{days}} ଦିନ',
+
+    nextNewMoon: "ଅମାବାସ୍ୟା: {{date}}",
+
+
+    nextFullMoon: "ପୂର୍ଣ୍ଣିମା: {{date}}",
     assessment: 'ମୋଲ୍ଟ-ବିପଦ ମୂଲ୍ୟାଙ୍କନ',
     abw: 'ହାରାହାରି ଶରୀର ଓଜନ',
     assess: 'ମୂଲ୍ୟାଙ୍କନ',
@@ -162,6 +204,43 @@ const engines = {
     priority_critical: 'ଅତ୍ୟାବଶ୍ୟକ',
     priority_important: 'ଗୁରୁତ୍ୱପୂର୍ଣ୍ଣ',
     priority_routine: 'ନିୟମିତ',
+    timeline: 'ମୋଲ୍ଟ ୱିଣ୍ଡୋ',
+    phase_pre: 'ମୋଲ୍ଟ ପୂର୍ବରୁ',
+    phase_peak: 'ଶୀର୍ଷ ସମୟ',
+    phase_post: 'ମୋଲ୍ଟ ପରେ',
+    dateRange: '{{start}} – {{end}}',
+    windowNew: 'ଅମାବାସ୍ୟା {{date}}',
+    windowFull: 'ପୂର୍ଣ୍ଣିମା {{date}}',
+    nextWindows: 'ଆଗାମୀ ମୋଲ୍ଟ ୱିଣ୍ଡୋ',
+    checklist: 'ମୋଲ୍ଟ ଚେକଲିଷ୍ଟ',
+    noWindowNow: 'ବର୍ତ୍ତମାନ କୌଣସି ମୋଲ୍ଟ ୱିଣ୍ଡୋ ନାହିଁ।',
+    sizeUnknown: 'ଏହି ପୋଖରୀର ମୋଲ୍ଟ ଚେକଲିଷ୍ଟ ଦେଖିବାକୁ ନମୁନା ନିଅନ୍ତୁ।',
+    tooSmall: '5 ଗ୍ରାମରୁ ଛୋଟ ଚିଙ୍ଗୁଡ଼ି ଜହ୍ନ ସହ ଖୋଳ ବଦଳାନ୍ତି ନାହିଁ — ଏବେ ଚେକଲିଷ୍ଟ ଦରକାର ନାହିଁ।',
+    sample: 'ନମୁନା ଲଗ',
+    item_minerals: 'ଖଣିଜ (Ca/Mg/K) ଦିଅନ୍ତୁ ଓ ଲଗ କରନ୍ତୁ',
+    item_alkalinity_check: 'କ୍ଷାରୀୟତା ଯାଞ୍ଚ କରନ୍ତୁ (ଲକ୍ଷ୍ୟ 120 ppm ବା ଅଧିକ)',
+    item_aerator_service: 'ଶୀର୍ଷ ସମୟ ପୂର୍ବରୁ ଏରେଟର ସର୍ଭିସ କରନ୍ତୁ',
+    item_feed_cut: 'ଆଜି ଖାଦ୍ୟ 15–30% କମାନ୍ତୁ (ଖୋଳ ବଦଳର ଶୀର୍ଷ ସମୟ)',
+    item_no_handling: 'ଶୀର୍ଷ ସମୟରେ ନମୁନା, ଜାଲ ବା ଅମଳ ନୁହେଁ',
+    item_night_do_check: 'ରାତି / ଭୋର ପୂର୍ବରୁ DO ଯାଞ୍ଚ କରନ୍ତୁ',
+    item_restore_feed: 'ଟ୍ରେ ଖାଲି ହେଲେ ଖାଦ୍ୟ ପୁଣି ବଢ଼ାନ୍ତୁ (2–3 ଦିନରେ +5–10%)',
+    item_post_sampling: 'ଖୋଳ ଟାଣ ହେଲେ ନମୁନା ନିଅନ୍ତୁ',
+    item_soft_shell_check: 'ନରମ ଖୋଳ ଓ ପରସ୍ପରକୁ ଖାଇବା ଯାଞ୍ଚ କରନ୍ତୁ',
+    status_done: 'ହୋଇଗଲା',
+    status_pending: 'ବାକି',
+    status_violated: 'ପାଳନ ହୋଇନାହିଁ',
+    status_missed: 'ଛାଡ଼ିଗଲା',
+    earlierInWindow: 'ଏହି ୱିଣ୍ଡୋରେ ପୂର୍ବରୁ',
+    done: 'ହୋଇଗଲା',
+    markDone: 'ସମ୍ପୂର୍ଣ୍ଣ ଚିହ୍ନିତ କରନ୍ତୁ',
+    undo: 'ଫେରାନ୍ତୁ',
+    logIt: 'ଲଗ କରନ୍ତୁ',
+    eligiblePonds: 'ଏହି ମୋଲ୍ଟ ୱିଣ୍ଡୋର ପୋଖରୀ',
+    noEligiblePonds: 'ବର୍ତ୍ତମାନ କୌଣସି ପୋଖରୀକୁ ମୋଲ୍ଟ ଚେକଲିଷ୍ଟ ଦରକାର ନାହିଁ।',
+    pondProgress: '{{total}} ମଧ୍ୟରୁ {{done}} ସମ୍ପୂର୍ଣ୍ଣ',
+    needsSampling: 'ନମୁନା ଦରକାର',
+    reminderTitle: 'ମୋଲ୍ଟ ୱିଣ୍ଡୋ କାଲି ଆରମ୍ଭ',
+    reminderBody: 'ଶୀର୍ଷ ସମୟ ପୂର୍ବରୁ ଖଣିଜ ଦିଅନ୍ତୁ, କ୍ଷାରୀୟତା ଯାଞ୍ଚ କରନ୍ତୁ ଓ ଏରେଟର ସର୍ଭିସ କରନ୍ତୁ।',
   },
   pnl: {
     title: 'ଫସଲ ଲାଭ-କ୍ଷତି',

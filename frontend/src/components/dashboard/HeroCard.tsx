@@ -41,6 +41,8 @@ export interface HeroCardProps {
     /** Omitted for a setup step: there is nothing to defer it in favour of. */
     secondaryLabel?: string | null;
     onSecondary?: () => void;
+    /** An inline action above the buttons (a lunar alert's one tick). */
+    extra?: React.ReactNode;
 }
 
 export const HeroCard: React.FC<HeroCardProps> = ({
@@ -53,6 +55,7 @@ export const HeroCard: React.FC<HeroCardProps> = ({
     onPrimary,
     secondaryLabel,
     onSecondary,
+    extra,
 }) => (
     <View style={styles.card}>
         <View style={styles.headRow}>
@@ -66,6 +69,8 @@ export const HeroCard: React.FC<HeroCardProps> = ({
             <Text style={styles.headline}>{headline}</Text>
             {!!why && <Text style={styles.why}>{why}</Text>}
         </View>
+
+        {extra}
 
         <View style={styles.actions}>
             <TouchableOpacity

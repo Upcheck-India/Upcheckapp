@@ -14,6 +14,14 @@ import { createClient, SupabaseClient, User } from '@supabase/supabase-js';
 import * as crypto from 'crypto';
 import { User as UserEntity } from './user.entity';
 
+/**
+ * The ONE stored form of a Truecaller-verified phone: digits incl. country
+ * code, no '+'. Every read or write of `users.phone` for Truecaller identity
+ * (sign-in lookup, link uniqueness check, link write) must go through this.
+ */
+export const canonicalPhone = (raw: unknown): string =>
+  String(raw ?? '').replace(/\D/g, '');
+
 @Injectable()
 export class SupabaseAuthService {
   private supabase: SupabaseClient;
@@ -96,13 +104,25 @@ export class SupabaseAuthService {
       firstName?: string;
       lastName?: string;
       username?: string;
+      /** Drives the auth email templates's language branch. */
+      language?: string;
     },
   ) {
+    // The app and every other provider path read snake_case names
+    // (full_name / first_name / last_name); signup used to write only the
+    // camelCase pair, so a fresh email account was shown its email prefix as
+    // its name. Write both spellings — the DB trigger reads the camelCase one.
+    const first = (metadata?.firstName ?? '').trim();
+    const last = (metadata?.lastName ?? '').trim();
+    const full = [first, last].filter(Boolean).join(' ');
+    const nameMeta = full
+      ? { full_name: full, first_name: first, last_name: last }
+      : {};
     const { data, error } = await this.supabase.auth.signUp({
       email,
       password,
       options: {
-        data: metadata || {},
+        data: { ...(metadata || {}), ...nameMeta },
         // Without this, the confirmation email's link falls back to the
         // dashboard's default Site URL — an unrelated web page, not the app —
         // so clicking it looks like nothing happened and the user stays
@@ -291,7 +311,26 @@ export class SupabaseAuthService {
     });
 
     if (error) {
-      throw new UnauthorizedException('Invalid refresh token');
+      /**
+       * ONLY Supabase saying the token is bad ends the session.
+       *
+       * This used to map every failure to 401. The client treats a 401 here as
+       * proof the session is revoked and calls `clearSession()` — so a
+       * transient failure between THIS server and Supabase (timeout, 5xx, rate
+       * limit) logged the farmer out of their phone. That is the "app logs me
+       * out on network errors" report, and the farmer is then asked to sign in
+       * again against the very service that is currently unreachable.
+       *
+       * A 503 is what the client already handles correctly: it keeps the
+       * farmer authenticated against cached data and retries on reconnect.
+       */
+      const status = (error as { status?: number }).status;
+      if (status === 400 || status === 401 || status === 403) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      throw new ServiceUnavailableException(
+        'Could not reach the authentication service',
+      );
     }
 
     return {
@@ -463,7 +502,7 @@ export class SupabaseAuthService {
     // One-tap's OIDC userinfo returns e.g. "917010133018" while the missed-call
     // endpoint returns "+917010133018"; without this the same person creates
     // two accounts and the second login collides on the internal email.
-    const phone = String(profile.phoneNumber ?? '').replace(/\D/g, '');
+    const phone = canonicalPhone(profile.phoneNumber);
 
     // The internal, phone-derived login email. Note this has ALWAYS been
     // digit-only (the pre-canonicalization code stripped non-digits when
@@ -672,10 +711,14 @@ export class SupabaseAuthService {
       avatarUrl?: string;
     },
   ) {
+    // Same canonical form signInWithTruecaller stores and looks up. Comparing
+    // the raw "+91…" here missed a digits-only row owned by another account,
+    // so the uniqueness guard passed and one phone ended up on two accounts.
+    const phone = canonicalPhone(profile.phoneNumber);
     const { data: phoneOwner } = await this.supabaseData
       .from('users')
       .select('id')
-      .eq('phone', profile.phoneNumber)
+      .eq('phone', phone)
       .maybeSingle();
 
     if (phoneOwner && phoneOwner.id !== userId) {
@@ -685,11 +728,11 @@ export class SupabaseAuthService {
     }
     if (phoneOwner && phoneOwner.id === userId) {
       // Already linked to this user — idempotent success.
-      return { linked: true as const, phoneNumber: profile.phoneNumber };
+      return { linked: true as const, phoneNumber: phone };
     }
 
     const update: Record<string, unknown> = {
-      phone: profile.phoneNumber,
+      phone,
       phone_verified: true,
     };
     if (profile.avatarUrl) update.avatar_url = profile.avatarUrl;
@@ -700,7 +743,7 @@ export class SupabaseAuthService {
       .eq('id', userId);
     if (error) throw new ServiceUnavailableException(error.message);
 
-    return { linked: true as const, phoneNumber: profile.phoneNumber };
+    return { linked: true as const, phoneNumber: phone };
   }
 
   /**

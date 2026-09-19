@@ -151,5 +151,9 @@ const farms = {
   errorArchiveFarm: "খামারটি সংরক্ষণ করা গেল না।",
   errorUnarchiveFarm: "খামারটি ফিরিয়ে আনা গেল না।",
   errorDeleteFarm: "খামারটি মোছা গেল না।",
+  shiftEndLabel: "শিফট শেষের সময় (24 ঘণ্টা)",
+  shiftHoursLabel: "শিফটের দৈর্ঘ্য (ঘণ্টা)",
+  shiftHint: "দল জানবে কখন চেক আউট করতে হবে। খালি রাখলে চেক ইনের সময়ের সঙ্গে শিফটের দৈর্ঘ্য যোগ হবে।",
+  shiftEndInvalid: "24 ঘণ্টার সময় লিখুন, যেমন 18:00।",
 };
 export default farms;

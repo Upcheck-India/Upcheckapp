@@ -8,6 +8,7 @@
 //     retries ends up with two farms.
 jest.mock('../../../api/farms', () => ({ farmsApi: { create: jest.fn() } }));
 jest.mock('../../../api/ponds', () => ({ pondsApi: { create: jest.fn() } }));
+jest.mock('../../../api/crops', () => ({ cropsApi: { create: jest.fn() } }));
 jest.mock('../../../store/membershipStore', () => ({
     useMembershipStore: Object.assign(
         jest.fn((sel: any) => sel({ load: jest.fn().mockResolvedValue(undefined) })),
@@ -21,11 +22,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PondNamesScreen, pondNames, isValidPrefix } from '../PondNamesScreen';
 import { farmsApi } from '../../../api/farms';
 import { pondsApi } from '../../../api/ponds';
+import { cropsApi } from '../../../api/crops';
 import { useAuthStore } from '../../../store/authStore';
 import { useUIStore } from '../../../store/uiStore';
 
 const mockedCreateFarm = farmsApi.create as jest.Mock;
 const mockedCreatePond = pondsApi.create as jest.Mock;
+const mockedCreateCrop = cropsApi.create as jest.Mock;
 
 const TEST_SAFE_AREA_METRICS = {
     frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -72,21 +75,225 @@ describe('PondNamesScreen — artboard 06', () => {
         jest.clearAllMocks();
         useAuthStore.setState({ pendingFarmSetup: true } as any);
         mockedCreateFarm.mockResolvedValue({ data: { id: 'farm-1' } });
-        mockedCreatePond.mockResolvedValue({ data: {} });
+        // POST /ponds answers with the pond WRAPPED in its derived geometry.
+        mockedCreatePond.mockResolvedValue({ data: { pond: { id: 'pond-1' } } });
+        mockedCreateCrop.mockResolvedValue({ data: { id: 'crop-1' } });
     });
 
-    it('previews the names the server will generate, in both places the design shows them', () => {
-        const { getAllByText, queryByText } = renderScreen();
-        // Once as a "Names" chip, once as a row under "Ponds to create".
-        ['P1', 'P2', 'P3'].forEach((n) => expect(getAllByText(n)).toHaveLength(2));
+    it('offers one editable name per pond, pre-filled', () => {
+        const { getByTestId, queryByTestId } = renderScreen();
+        expect(getByTestId('pond-name-0').props.value).toBe('P1');
+        expect(getByTestId('pond-name-1').props.value).toBe('P2');
+        expect(getByTestId('pond-name-2').props.value).toBe('P3');
         // Three ponds were declared, so there is no fourth.
-        expect(queryByText('P4')).toBeNull();
+        expect(queryByTestId('pond-name-3')).toBeNull();
     });
 
-    it('empties the preview when the prefix is one the server would reject', () => {
-        const { getByLabelText, queryByText } = renderScreen();
-        fireEvent.changeText(getByLabelText('Name pattern'), '');
-        expect(queryByText('P1')).toBeNull();
+    /**
+     * The reported problem. Ponds were created with a PREFIX and no
+     * `displayName` at all, so every farm in the app was P1, P2, P3 — a farmer
+     * with two farms had two P1s with nothing between them — and the only route
+     * to a real name was an edit form they never found.
+     */
+    it('sends what the farmer typed as the pond name', async () => {
+        const utils = renderScreen();
+        fireEvent.changeText(utils.getByTestId('pond-name-0'), 'North pond');
+        fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+        fireEvent.press(utils.getByText('Create farm'));
+
+        await waitFor(() => expect(mockedCreatePond).toHaveBeenCalledTimes(3));
+        expect(mockedCreatePond).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({ displayName: 'North pond' }),
+        );
+        // The pond code the server needs is DERIVED, never asked for.
+        expect(mockedCreatePond.mock.calls[0][0].namePrefix).toBe('NORT');
+        // A pond the farmer left alone still gets its pre-filled name.
+        expect(mockedCreatePond).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({ displayName: 'P2', namePrefix: 'P2' }),
+        );
+    });
+
+    it('will not create a pond with a blank name', async () => {
+        const utils = renderScreen();
+        fireEvent.changeText(utils.getByTestId('pond-name-1'), '   ');
+        fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+        fireEvent.press(utils.getByText('Create farm'));
+
+        await waitFor(() => expect(utils.getByText('Give every pond a name')).toBeTruthy());
+        expect(mockedCreateFarm).not.toHaveBeenCalled();
+    });
+
+    /**
+     * Onboarding fills in shape, construction and area without asking. That is
+     * the right trade — measurements in front of someone who has not seen the
+     * app yet is how you lose them — but the result used to be
+     * indistinguishable from an answer the farmer gave, and volume, aeration
+     * adequacy and every dosing figure downstream read those numbers.
+     *
+     * So what the app chose is RECORDED as assumed, and the pond page says so.
+     */
+    describe('assumed measurements', () => {
+        it('marks the defaults it filled in without asking', async () => {
+            const utils = renderScreen();
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() => expect(mockedCreatePond).toHaveBeenCalledTimes(3));
+            expect(mockedCreatePond.mock.calls[0][0].assumedFields).toEqual([
+                'geometryType',
+                'constructionType',
+                'areaM2',
+                // Three ponds, one depth question — see below.
+                'depthM',
+            ]);
+        });
+
+        /**
+         * Depth is asked ONCE and applied to the whole set. Extrapolating one
+         * measurement across N ponds is the APP's move, not the farmer's:
+         * which pond they actually waded into is unknowable, so no pond in a
+         * set may present that depth as its own measurement. Volume, aeration
+         * adequacy and every dosing figure read it.
+         */
+        it('marks a depth borrowed across a set of ponds', async () => {
+            const utils = renderScreen();
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() => expect(mockedCreatePond).toHaveBeenCalledTimes(3));
+            for (const call of mockedCreatePond.mock.calls) {
+                expect(call[0].assumedFields).toContain('depthM');
+            }
+        });
+
+        it('does NOT mark the depth when there is only one pond to apply it to', async () => {
+            const utils = render(
+                <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+                    <PondNamesScreen
+                        navigation={navigation}
+                        route={{ params: { farm: { name: 'Solo' }, pondCount: 1 } }}
+                    />
+                </SafeAreaProvider>,
+            );
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() => expect(mockedCreatePond).toHaveBeenCalledTimes(1));
+            // They measured this pond. It is their answer, not a guess.
+            expect(mockedCreatePond.mock.calls[0][0].assumedFields).not.toContain('depthM');
+        });
+
+        it('stops marking shape and construction once the farmer answers them', async () => {
+            const utils = renderScreen();
+            fireEvent.press(utils.getByTestId('more-details-toggle'));
+            fireEvent.press(utils.getByTestId('construction-lined'));
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() => expect(mockedCreatePond).toHaveBeenCalledTimes(3));
+            const sent = mockedCreatePond.mock.calls[0][0];
+            expect(sent.constructionType).toBe('lined');
+            // Area is still a guess — nothing here measured it — and so is the
+            // one depth spread across three ponds.
+            expect(sent.assumedFields).toEqual(['areaM2', 'depthM']);
+        });
+
+        it('stops marking area once a real one is typed', async () => {
+            const utils = renderScreen();
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.changeText(utils.getByLabelText('P1 — area m²'), '4200');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() => expect(mockedCreatePond).toHaveBeenCalledTimes(3));
+            expect(mockedCreatePond.mock.calls[0][0].assumedFields).not.toContain('areaM2');
+            // The pond beside it was NOT measured, and still says so.
+            expect(mockedCreatePond.mock.calls[1][0].assumedFields).toContain('areaM2');
+        });
+    });
+
+    /**
+     * W7 — the one question that makes first run show a real number.
+     *
+     * FCR, ABW, growth, feed advice, disease risk and P&L every one need a
+     * stocked cycle, so a farmer could finish setup perfectly and still see
+     * nothing the product exists to compute. Faking it was not an option — the
+     * fabricated "EXAMPLE" dashboard was deleted for that reason — so it is
+     * asked at the one moment they are already thinking about the pond, and
+     * skipping is free.
+     */
+    describe('seeding the first cycle', () => {
+        it('creates no cycle when the farmer says nothing', async () => {
+            const utils = renderScreen();
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() => expect(mockedCreatePond).toHaveBeenCalledTimes(3));
+            expect(mockedCreateCrop).not.toHaveBeenCalled();
+        });
+
+        it('stocks only the pond the farmer answered for', async () => {
+            const utils = renderScreen();
+            fireEvent.press(utils.getByTestId('stocking-toggle'));
+            fireEvent.changeText(utils.getByTestId('stocked-date-1'), '2026-08-01');
+            fireEvent.changeText(utils.getByTestId('stocked-count-1'), '40000');
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() => expect(mockedCreateCrop).toHaveBeenCalledTimes(1));
+            expect(mockedCreateCrop).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    pondId: 'pond-1',
+                    stockingDate: '2026-08-01',
+                    stockingCount: 40000,
+                }),
+            );
+        });
+
+        /**
+         * The screen's own rule, and the reason a blank count is not a zero:
+         * anything the app infers rather than the farmer states must not reach
+         * the engines looking like an answer.
+         */
+        it('sends no seed count when the farmer left it blank', async () => {
+            const utils = renderScreen();
+            fireEvent.press(utils.getByTestId('stocking-toggle'));
+            fireEvent.changeText(utils.getByTestId('stocked-date-0'), '2026-08-01');
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() => expect(mockedCreateCrop).toHaveBeenCalledTimes(1));
+            expect(mockedCreateCrop.mock.calls[0][0].stockingCount).toBeUndefined();
+        });
+
+        /**
+         * The pond is the thing that matters and it already exists by the time
+         * the cycle is attempted. Failing the pond because its optional cycle
+         * failed would lose the part that worked.
+         */
+        it('keeps the pond when the cycle cannot be started, and says so', async () => {
+            const toasts: any[] = [];
+            useUIStore.setState({ showToast: (tst: any) => { toasts.push(tst); } } as any);
+            mockedCreateCrop.mockRejectedValue(new Error('boom'));
+
+            const utils = renderScreen();
+            fireEvent.press(utils.getByTestId('stocking-toggle'));
+            fireEvent.changeText(utils.getByTestId('stocked-date-0'), '2026-08-01');
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() =>
+                expect(navigation.reset).toHaveBeenCalledWith({
+                    index: 0,
+                    routes: [{ name: 'MainApp' }],
+                }),
+            );
+            // All three ponds were made. Only the cycle is missing, and the
+            // message points at the pond page rather than at the farm.
+            expect(mockedCreatePond).toHaveBeenCalledTimes(3);
+            expect(toasts.at(-1)?.message).toMatch(/cycle\(s\) could not be started/);
+        });
     });
 
     it('creates the farm first, then one pond per declared pond', async () => {
@@ -97,7 +304,7 @@ describe('PondNamesScreen — artboard 06', () => {
         await waitFor(() => expect(mockedCreatePond).toHaveBeenCalledTimes(3));
         expect(mockedCreateFarm).toHaveBeenCalledWith({ name: 'Kakinada East' });
         expect(mockedCreatePond).toHaveBeenCalledWith(
-            expect.objectContaining({ farmId: 'farm-1', namePrefix: 'P', depthM: 1.2 }),
+            expect.objectContaining({ farmId: 'farm-1', depthM: 1.2 }),
         );
         await waitFor(() =>
             expect(navigation.reset).toHaveBeenCalledWith({ index: 0, routes: [{ name: 'MainApp' }] }),

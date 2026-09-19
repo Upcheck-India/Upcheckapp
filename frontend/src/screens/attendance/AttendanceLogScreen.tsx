@@ -23,8 +23,6 @@ import {
     ScrollView,
     TouchableOpacity,
     RefreshControl,
-    Share,
-    Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -39,7 +37,7 @@ import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
 import { personName } from '../../utils/personName';
 import { formatDate, formatTime } from '../../utils/formatDate';
 import { toLocalISODate } from '../../utils/localDate';
-import { toCsv, type CsvCell } from '../../utils/csv';
+import { useFlag } from '../../features/remoteFlags';
 
 const c = theme.roles.light;
 
@@ -90,24 +88,6 @@ export const monthGrid = (anchor: Date): Array<Array<number | null>> => {
     for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
     return weeks;
 };
-
-/**
- * Exactly the rows on screen, as CSV cells.
- *
- * Exporting the unfiltered month would be a different, silent answer to "give
- * me this" — what a manager wants out is what they just narrowed down to.
- * Dates and times stay ISO so a spreadsheet parses them; the localised
- * rendering is for reading, not for accounting. The quoting itself lives in
- * utils/csv, shared with the activity export.
- */
-export const csvRows = (rows: LogRow[]): CsvCell[][] =>
-    rows.map((row) => [
-        row.day,
-        row.name,
-        row.record.checkInAt,
-        row.record.checkOutAt ?? '',
-        row.hours == null ? '' : oneDecimal(row.hours),
-    ]);
 
 export const AttendanceLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -226,27 +206,21 @@ export const AttendanceLogScreen = ({ route, navigation }: any) => {
         setSelectedDay(null);
     };
 
-    const exportCsv = async () => {
-        if (rows.length === 0) {
-            Alert.alert(t('attendance.exportEmptyTitle'), t('attendance.exportEmptySub'));
-            return;
-        }
-        const csv = toCsv(csvRows(rows), [
-            t('attendance.csvDate'),
-            t('attendance.csvName'),
-            t('attendance.csvIn'),
-            t('attendance.csvOut'),
-            t('attendance.csvHours'),
-        ]);
-        try {
-            await Share.share({
-                title: t('attendance.exportTitle', { farm: farmName ?? '' }),
-                message: csv,
-            });
-        } catch {
-            // The user dismissing the share sheet is not an error worth an alert.
-        }
-    };
+    /**
+     * The shared export pipeline (PDF/Excel/CSV, totals per person) instead of
+     * pasting CSV text into the share sheet (spec 2026-09-14 B.7). It carries
+     * this month and the person filter; the export screen reports "nothing in
+     * range" itself.
+     */
+    const exportOn = useFlag('export');
+    const openExport = () =>
+        navigation.navigate('Export', {
+            dataset: 'attendance',
+            farmId,
+            userId: personId ?? undefined,
+            startDate: from,
+            endDate: to,
+        });
 
     const monthLabel = formatDate(anchor, { month: 'long', year: 'numeric' });
 
@@ -257,8 +231,8 @@ export const AttendanceLogScreen = ({ route, navigation }: any) => {
                 title={t('attendance.logTitle')}
                 onBack={() => navigation.goBack()}
                 accessibilityBackLabel={t('common.back')}
-                actionLabel={t('attendance.export')}
-                onAction={exportCsv}
+                actionLabel={exportOn ? t('attendance.export') : undefined}
+                onAction={exportOn ? openExport : undefined}
             />
 
             <ScrollView

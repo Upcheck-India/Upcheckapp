@@ -19,7 +19,6 @@ jest.mock('@react-navigation/native', () => {
 });
 
 import React from 'react';
-import { Share } from 'react-native';
 import { render, fireEvent, waitFor, within } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -27,10 +26,7 @@ import {
     monthBounds,
     monthGrid,
     shiftHours,
-    csvRows,
-    type LogRow,
 } from '../AttendanceLogScreen';
-import { toCsv } from '../../../utils/csv';
 import { attendanceApi } from '../../../api/attendance';
 import { farmMembersApi } from '../../../api/farmMembers';
 
@@ -50,13 +46,15 @@ const RECORDS = [
     { id: 'r3', farmId: 'farm-1', userId: 'u1', checkInAt: '2026-06-05T01:30:00.000Z', checkOutAt: '2026-06-05T03:30:00.000Z', createdAt: '' },
 ];
 
+const navigation = { goBack: jest.fn(), navigate: jest.fn() };
+
 const renderScreen = () =>
     render(
         <SafeAreaProvider
             initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}
         >
             <AttendanceLogScreen
-                navigation={{ goBack: jest.fn(), navigate: jest.fn() }}
+                navigation={navigation}
                 route={{ params: { farmId: 'farm-1', farmName: 'North Farm' } }}
             />
         </SafeAreaProvider>,
@@ -91,19 +89,6 @@ describe('pure helpers', () => {
     it('shiftHours is null while a shift is open, not zero', () => {
         expect(shiftHours(RECORDS[0] as any)).toBe(6);
         expect(shiftHours(RECORDS[1] as any)).toBeNull();
-    });
-
-    it('toCsv quotes a name containing a comma', () => {
-        const row: LogRow = {
-            record: { ...RECORDS[0], id: 'x' } as any,
-            name: 'Rao, Anita',
-            day: '2026-06-03',
-            hours: 6,
-        };
-        const csv = toCsv(csvRows([row]), ['Date', 'Name', 'In', 'Out', 'Hours']);
-        expect(csv.split('\n')[1]).toContain('"Rao, Anita"');
-        expect(csv.split('\n')[1]).toContain('2026-06-03');
-        expect(csv.split('\n')[1].endsWith(',6')).toBe(true);
     });
 });
 
@@ -175,8 +160,7 @@ describe('AttendanceLogScreen', () => {
         expect(attendanceApi.getAll).toHaveBeenLastCalledWith('farm-1', undefined, '2026-05-01', '2026-05-31');
     });
 
-    it('exports exactly the rows on screen, not the unfiltered month', async () => {
-        const share = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as any);
+    it('opens the export pipeline with this month and the person filter', async () => {
         const { getByText, getAllByText } = renderScreen();
         await waitFor(() => expect(getByText('3 shifts')).toBeTruthy());
 
@@ -184,12 +168,13 @@ describe('AttendanceLogScreen', () => {
         await waitFor(() => expect(getByText('1 shifts')).toBeTruthy());
         fireEvent.press(getByText('Export'));
 
-        await waitFor(() => expect(share).toHaveBeenCalled());
-        const csv = share.mock.calls[0][0].message as string;
-        expect(csv.split('\n')).toHaveLength(2); // heading + Bala's one shift
-        expect(csv).toContain('Bala K');
-        expect(csv).not.toContain('Anita Rao');
-        share.mockRestore();
+        expect(navigation.navigate).toHaveBeenCalledWith('Export', {
+            dataset: 'attendance',
+            farmId: 'farm-1',
+            userId: 'u2',
+            startDate: '2026-06-01',
+            endDate: '2026-06-30',
+        });
     });
 
     // A failed read is not an empty month. Rendering one as the other is the

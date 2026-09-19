@@ -10,6 +10,7 @@ import type { Task } from './tasks';
 import type { FarmMember, FarmRole } from './farmMembers';
 import { ROLE_RANK } from '../permissions/capabilities';
 import { personName } from '../utils/personName';
+import { farmCard, onLeaveToday, isTodayIST, type FarmCard } from '../features/attendance/shiftState';
 
 /**
  * The Team tab in ONE request.
@@ -44,6 +45,25 @@ export interface TeamOverview {
     pendingJoins?: number;
     /** The CALLER's own still-pending leave requests. A count, not rows. */
     myPendingLeave?: number;
+
+    // ── Attendance states (spec 2026-09-14 attendance B.3–B.5). Optional: older backends omit them. ──
+    /** Every OPEN record of the caller across farms in scope, newest first. `myAttendance` = myOpen[0]. */
+    myOpen?: AttendanceRecord[];
+    /** The caller's records with check-in on today's IST day (open or closed), newest first. */
+    myToday?: AttendanceRecord[];
+    /**
+     * `allAttendance` is now limited to check-ins on today's IST day OR still open
+     * (open ones at most 14 days old). Only sent for farms where the caller has
+     * WRITE_MANAGEMENT — unchanged permission.
+     */
+    /** Approved leave covering today (IST), farms in scope the caller may see. */
+    approvedLeaveToday?: LeaveRequest[];
+    /**
+     * WHO is checked in right now (open check-in on today's IST day), per farm in
+     * scope, for every member including workers (founder Q5: names only). No
+     * timestamps by design.
+     */
+    presentNow?: { farmId: string; userId: string; name: string }[];
 }
 
 /**
@@ -105,11 +125,13 @@ async function legacyFanOut(scope: string): Promise<TeamOverview> {
 
     return {
         farms: list,
+        // Newest open, like the server now sends (B.3) — the earliest let a
+        // forgotten check-out from last week beat today's.
         myAttendance:
             per
                 .flatMap((p) => p.mine)
                 .filter((r) => !r.checkOutAt)
-                .sort((a, b) => a.checkInAt.localeCompare(b.checkInAt))[0] ?? null,
+                .sort((a, b) => b.checkInAt.localeCompare(a.checkInAt))[0] ?? null,
         allAttendance: per.flatMap((p) => p.all),
         pendingLeave: per.flatMap((p) => p.leave),
         tasks: per.flatMap((p) => p.tasks),
@@ -153,8 +175,11 @@ export const teamBadgeCount = (
 // The cross-farm team list, derived from the SAME overview read the tab
 // already has. Pure so the grouping is testable without a renderer.
 
-/** Where someone is on their shift today. */
-export type AttendanceState = 'in' | 'out' | 'absent';
+/**
+ * Where someone is on their shift today. `unknown` = the caller may not see it
+ * (a worker on an older backend with no `presentNow`) — never shown as "Not in".
+ */
+export type AttendanceState = 'in' | 'out' | 'absent' | 'unknown';
 
 export interface RosterEntry {
     /** Membership id — unique across farms, so it keys the list directly. */
@@ -166,6 +191,8 @@ export interface RosterEntry {
     /** Membership is waiting to be approved; they hold nothing yet. */
     pendingJoin: boolean;
     attendance: AttendanceState;
+    /** Full shift state (B.2) — only where the caller manages the farm's attendance. */
+    shift: FarmCard | null;
     /** Their open leave request on this farm, when the caller may see it. */
     leave: LeaveRequest | null;
     isSelf: boolean;
@@ -177,19 +204,22 @@ export interface RosterSection {
     data: RosterEntry[];
 }
 
-const sameLocalDay = (iso: string, ref: Date): boolean => {
-    const d = new Date(iso);
-    return (
-        d.getFullYear() === ref.getFullYear() &&
-        d.getMonth() === ref.getMonth() &&
-        d.getDate() === ref.getDate()
+const farmShift = (overview: TeamOverview, farmId: string) =>
+    overview.farms?.find((f: any) => f.id === farmId) ?? null;
+
+/** One person's shift card on one farm, from the overview's records. */
+const cardFor = (overview: TeamOverview, records: AttendanceRecord[], userId: string, farmId: string, now: Date) =>
+    farmCard(
+        records.filter((r) => r.userId === userId && r.farmId === farmId),
+        farmShift(overview, farmId),
+        now,
+        onLeaveToday(overview.approvedLeaveToday, userId, farmId, now),
     );
-};
 
 /**
- * `allAttendance` is the farm's whole history (the endpoint takes no date when
- * called from the overview), so today has to be picked out here. An open record
- * beats a closed one: someone who checked out for lunch and back in is IN.
+ * Today on the IST day (an older backend sends the farm's whole history, so
+ * today is picked out here). An open record beats a closed one: someone who
+ * checked out for lunch and back in is IN.
  */
 export const attendanceStateFor = (
     records: AttendanceRecord[],
@@ -197,11 +227,36 @@ export const attendanceStateFor = (
     farmId: string,
     now: Date = new Date(),
 ): AttendanceState => {
-    const today = records.filter(
-        (r) => r.userId === userId && r.farmId === farmId && sameLocalDay(r.checkInAt, now),
-    );
-    if (today.length === 0) return 'absent';
-    return today.some((r) => !r.checkOutAt) ? 'in' : 'out';
+    const { bucket } = farmCard(records.filter((r) => r.userId === userId && r.farmId === farmId), null, now);
+    return bucket === 'in' ? 'in' : bucket === 'out' ? 'out' : 'absent';
+};
+
+/** The caller's own records: open anywhere + today's. Falls back for older backends. */
+export const myRecords = (overview: TeamOverview | undefined, selfUserId?: string, now: Date = new Date()): AttendanceRecord[] => {
+    if (!overview) return [];
+    const open = overview.myOpen ?? (overview.myAttendance ? [overview.myAttendance] : []);
+    const today =
+        overview.myToday ??
+        (overview.allAttendance ?? []).filter((r) => r.userId === selfUserId && isTodayIST(r.checkInAt, now));
+    const seen = new Set<string>();
+    return [...open, ...today].filter((r) => !seen.has(r.id) && !!seen.add(r.id));
+};
+
+/**
+ * "My shift" (B.3): one card per farm with a record today or still open, in
+ * the order of `farmIds`. Empty → the screen shows a single "Not checked in".
+ */
+export const myShiftCards = (
+    overview: TeamOverview | undefined,
+    farmIds: string[],
+    selfUserId: string | undefined,
+    now: Date = new Date(),
+): { farmId: string; card: FarmCard }[] => {
+    if (!overview || !selfUserId) return [];
+    const mine = myRecords(overview, selfUserId, now);
+    return farmIds
+        .filter((id) => mine.some((r) => r.farmId === id))
+        .map((farmId) => ({ farmId, card: cardFor(overview, mine, selfUserId, farmId, now) }));
 };
 
 /** Pending joins first — they are the only rows with an action on them. */
@@ -212,22 +267,43 @@ const compareEntries = (a: RosterEntry, b: RosterEntry): number =>
 
 export function buildRoster(
     overview: TeamOverview | undefined,
-    opts: { selfUserId?: string; unknownLabel?: string; now?: Date } = {},
+    opts: {
+        selfUserId?: string;
+        unknownLabel?: string;
+        now?: Date;
+        /**
+         * Does the caller manage this farm's attendance (WRITE_MANAGEMENT)? Only
+         * then is `allAttendance` sent for it. Everyone else gets names from
+         * `presentNow` (founder Q5) — or, from an older backend, no state at all
+         * rather than every colleague shown "Not in" (B9).
+         */
+        managesAttendance?: (farmId: string) => boolean;
+    } = {},
 ): RosterSection[] {
     if (!overview) return [];
-    const { selfUserId, unknownLabel = 'Unknown', now = new Date() } = opts;
+    const { selfUserId, unknownLabel = 'Unknown', now = new Date(), managesAttendance = () => true } = opts;
     const attendance = overview.allAttendance ?? [];
     const leave = overview.pendingLeave ?? [];
+    const mine = myRecords(overview, selfUserId, now);
 
     const byFarm = new Map<string, RosterEntry[]>();
     for (const m of overview.members ?? []) {
         const isSelf = !!selfUserId && m.userId === selfUserId;
-        let state = attendanceStateFor(attendance, m.userId, m.farmId, now);
-        // A worker cannot read the farm-wide attendance list (WRITE_MANAGEMENT),
-        // so their own row would say "not in" while they are standing on the
-        // farm. `myAttendance` is the one record they CAN always see.
-        if (isSelf && state === 'absent' && overview.myAttendance?.farmId === m.farmId) {
-            state = 'in';
+        const full = managesAttendance(m.farmId);
+        let state: AttendanceState;
+        let shift: FarmCard | null = null;
+        if (full) {
+            shift = cardFor(overview, attendance, m.userId, m.farmId, now);
+            state = shift.bucket === 'in' ? 'in' : shift.bucket === 'out' ? 'out' : 'absent';
+        } else if (overview.presentNow) {
+            state = overview.presentNow.some((p) => p.userId === m.userId && p.farmId === m.farmId) ? 'in' : 'absent';
+        } else {
+            state = 'unknown';
+        }
+        // The caller's own records are always readable, whatever the farm list says.
+        if (isSelf && state !== 'in') {
+            const own = attendanceStateFor(mine, m.userId, m.farmId, now);
+            if (own !== 'absent' || state === 'unknown') state = own;
         }
         const entry: RosterEntry = {
             key: m.id,
@@ -237,6 +313,7 @@ export function buildRoster(
             role: m.role,
             pendingJoin: m.status === 'pending',
             attendance: state,
+            shift,
             leave: leave.find((l) => l.userId === m.userId && l.farmId === m.farmId) ?? null,
             isSelf,
         };

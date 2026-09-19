@@ -10,6 +10,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { theme } from '../../theme';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useFlag } from '../../features/remoteFlags';
 
 const ENGINES: {
   route: string;
@@ -31,7 +32,14 @@ export const EnginesHubScreen = ({ route, navigation }: any) => {
   const params = route.params ?? {};
   // Workers don't see economic engines (Crop P&L). Backend also enforces this.
   const perms = usePermissions(params.farmId);
-  const engines = ENGINES.filter((e) => e.route !== 'CropPnl' || perms.canViewFinancials);
+  const feedAdvisorOn = useFlag('feedAdvisor');
+  const lunarOn = useFlag('lunar');
+  const engines = ENGINES.filter(
+    (e) =>
+      (e.route !== 'CropPnl' || perms.canViewFinancials) &&
+      (e.route !== 'FeedAdvisor' || feedAdvisorOn) &&
+      (e.route !== 'Lunar' || lunarOn),
+  );
   return (
     <ScreenWrapper>
       <ScrollView showsVerticalScrollIndicator={false}>

@@ -1,5 +1,6 @@
 import apiClient from './client';
 import type { PondContext } from './pondContext';
+import type { MoltWindowSummary } from './molt';
 
 export type AlertSeverity = 'info' | 'watch' | 'critical';
 
@@ -10,9 +11,46 @@ export interface BriefingItem {
   source: string;
   steps: string[];
   alertCount: number;
+  /** Lunar only, and absent on an older backend: one entry per step, so a client can tick or route. */
+  actions?: BriefingActions;
+}
+
+export interface BriefingActions {
+  pondId: string;
+  windowKey: string;
+  items: { key: string; source: 'auto' | 'manual'; route: string | null }[];
+}
+
+/** One live engine alert, uncollapsed (GET /alert-center/all). */
+export interface LiveAlert {
+  key: string;
+  pondId: string | null;
+  farmId: string;
+  source: string;
+  severity: AlertSeverity;
+  title: string;
+  body: string;
+  steps: string[];
+  actions?: BriefingActions;
+}
+
+/** One unread persisted alert (GET /alert-center/all). */
+export interface SavedAlert {
+  id: string;
+  pondId: string | null;
+  farmId: string | null;
+  type: string;
+  severity: AlertSeverity;
+  title: string;
+  message: string;
+  steps: string[];
+  createdAt: string;
 }
 
 export const alertCenterApi = {
+  /** Every alert, one row each — live engine drafts plus unread saved alerts. */
+  all: () => apiClient.get<{ live: LiveAlert[]; saved: SavedAlert[] }>('/alert-center/all'),
+
   /** Per-pond morning briefing (top action per pond) from unread alerts. */
   briefing: () => apiClient.get<BriefingItem[]>('/alert-center/briefing'),
 
@@ -26,9 +64,12 @@ export const alertCenterApi = {
    * visit. This returns both from one pass.
    */
   today: () =>
-    apiClient.get<{ contexts: PondContext[]; briefing: BriefingItem[] }>(
-      '/alert-center/today',
-    ),
+    apiClient.get<{
+      contexts: PondContext[];
+      briefing: BriefingItem[];
+      /** Absent on a backend older than the molt-window deploy. */
+      moltWindow?: MoltWindowSummary | null;
+    }>('/alert-center/today'),
 
   /** Live briefing — engine alerts recomputed from each pond's latest data. */
   liveBriefing: () => apiClient.get<BriefingItem[]>('/alert-center/live-briefing'),

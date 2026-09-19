@@ -34,6 +34,11 @@ const finance = {
 
   // List
   allExpenses: 'All Expenses',
+  // Marks a cycle-expense row that actually lives in the `transactions`
+  // table — typed on the farm Money screen and tagged to this pond. It is
+  // read-only here: the edit/delete endpoints on this tab do not own it.
+  fromFarmMoney: 'From farm Money',
+  fromPondExpenses: 'From pond expenses',
 
   // Empty / loading states
   loadingExpenses: 'Loading expenses…',
@@ -46,6 +51,12 @@ const finance = {
 
   // Summary card
   financialSummary: 'Financial Summary',
+  // This card counts the `transactions` table only, for all time, for ONE
+  // farm — the Money tab's net counts pond costs and harvest sales too, over
+  // the period the farmer picked. Two different true numbers under the same
+  // three words is how "the app disagrees with itself" starts, so the card
+  // says which one it is.
+  ledgerOnlyNote: 'Entries typed here only, all time. The Money tab also counts pond costs and harvest sales.',
   totalIncome: 'Total Income',
   totalExpense: 'Total Expense',
 
@@ -91,6 +102,11 @@ const finance = {
   byFarm: "By farm",
   farmInOut: "In {{income}} · Out {{expense}}",
   creditOutstanding: "Dealer credit outstanding",
+  // The credit ledger hangs off the USER, not a farm, and carries no dates —
+  // so this row does not change when the farm chip or the period chip does.
+  // Said out loud, because a figure that ignores the filters above it reads
+  // as a bug otherwise.
+  creditAllFarmsNote: "All farms, all dates — dealer credit is not filtered by the chips above.",
   creditDue: "{{dealer}} · due {{date}}",
   creditDealers: "Across {{count}} dealers",
   creditDealers_one: "One dealer",
@@ -101,9 +117,10 @@ const finance = {
   // transaction anyone can edit here.
   harvestSale: "Harvest sale",
   harvestSoldTo: "Sold to {{buyer}}",
-  // The list is the SIX most recent entries, and cycle costs are summarised
-  // rather than listed — so it will not add up to the net above. Say so.
-  entriesNote: "Recent entries only. The net above also counts costs recorded against a cycle — those are summarised in \"Where it went\".",
+  // The list is the SIX most recent entries drawn from all three ledgers
+  // (typed entries, pond costs, harvest sales), so it will not add up to the
+  // net above. Say so rather than leave a farmer to check the arithmetic.
+  entriesNote: "Recent entries only — the six newest. Pond costs and harvest sales are listed here too; \"Where it went\" adds up the whole period.",
   noFarmTitle: "No farms yet",
   noFarmSub: "Add a farm to start tracking money.",
 
@@ -121,10 +138,10 @@ const finance = {
   includeArchived: "Count archived ponds",
   includeArchivedHint: "Money from retired ponds is still money you spent and earned.",
   includeArchivedWorth: "{{amount}} of the figures above.",
-  // The entry list is farm-level and has no pond on it, so it cannot mark
-  // archived rows at all. Say that, rather than let its silence be read as
-  // "there is no archived money here".
-  entriesArchivedNote: "Archived ponds are counted in the totals above. Entries are recorded against the farm, not a pond, so they are not marked here — use the pond list to see a retired pond's own money.",
+  // Pond costs in the list DO carry the archived flag and are marked. A
+  // farm-level transaction has no pond, so it cannot be — say which is which
+  // rather than let the mixture read as "there is no archived money here".
+  entriesArchivedNote: "Archived ponds are counted in the totals above. A pond's own costs are marked archived in the list; an entry recorded against the farm has no pond to mark.",
   includeInventory: "Count inventory purchases",
   includeInventoryHint: "Stock you buy counts as an expense on the day you buy it.",
   includeInventoryOff: "Stock purchases are left out of the figures above.",
@@ -134,6 +151,7 @@ const finance = {
   // Pond and cycle filter
   byPond: "By pond",
   wholeFarm: "Whole farm",
+  fieldPondLabel: "Pond (optional)",
   allCycles: "All cycles",
   pondCostTotal: "Costs for this pond",
   cycleCostTotal: "Costs for this cycle",

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { isFeatureEnabled } from '../../config/features';
+import { useFlag } from '../../features/remoteFlags';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -20,6 +21,8 @@ import { EditCycleForm } from './EditCycleForm';
 
 export const CycleDetailScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
+    // Subscribes to the remote flag so the button follows it once flags load.
+    const cycleAnalysisOn = useFlag('cycleAnalysis') && isFeatureEnabled('cycleAnalysisReport');
     const { cycleId } = route.params;
     const [cycle, setCycle] = useState<Crop | null>(null);
     const [pnl, setPnl] = useState<CropPnl | null>(null);
@@ -245,7 +248,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                         onPress={() => navigation.navigate('HarvestPlans', { pondId: cycle.pondId, cropId: cycle.id })}
                         style={styles.actionBtn}
                     />
-                    {isFeatureEnabled('cycleAnalysisReport') && (
+                    {cycleAnalysisOn && (
                         <Button
                             title={t('cycles.btnAnalysis', 'Cycle analysis')}
                             variant="outlined"

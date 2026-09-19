@@ -864,6 +864,16 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                         <Icon name="chevron_right" size={22} color={c.dangerText} />
                     </TouchableOpacity>
                 )}
+                {/*
+                  * The credit ledger hangs off the USER and carries no farm and
+                  * no date, so this figure does not move when the farm chip or
+                  * the period chip does — unlike everything above it. A number
+                  * that ignores the filters sitting over it reads as a bug
+                  * unless it says why.
+                  */}
+                {outstanding.total > 0 && (
+                    <Text style={styles.note}>{t('finance.creditAllFarmsNote')}</Text>
+                )}
 
                 <SectionHeader
                     label={t('finance.recentEntries')}
@@ -893,26 +903,55 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                         // or delete behind it, so it renders as a plain row and
                         // says what it is.
                         const isHarvest = tx.source === 'harvest';
+                        /**
+                         * A cost typed on a pond. It lives in the `expenses`
+                         * table, which this list did not render — so the
+                         * headline moved and there was no line to point at:
+                         * "I added expense inside a pond but it didnt show
+                         * inside the money screen". Merged in by the backend
+                         * now, same read-time projection harvests use.
+                         */
+                        const isPondCost = tx.source === 'expense';
+                        // Say WHERE each row was entered, both ways. The pond's
+                        // Expenses tab marks a farm-money row "From farm Money";
+                        // this is the mirror. Without it the same cost appears
+                        // on two screens with nothing to say which one owns it —
+                        // and neither row is tappable, so a farmer looking for
+                        // the edit button has no idea which screen to go to.
                         const detail = isHarvest
                             ? tx.buyerName
                                 ? t('finance.harvestSoldTo', { buyer: tx.buyerName })
                                 : t('finance.harvestSale')
-                            : tx.paymentMethod;
-                        // No archived treatment here, deliberately. A
-                        // transaction hangs off a FARM and has no pond, so the
-                        // backend hard-codes `archived: false` on every row.
-                        // Colouring on that flag would paint every entry "live"
-                        // and quietly claim there is no archived money, when the
-                        // truth is this ledger cannot tell. The toggle hint and
-                        // the pond list above answer it from the report instead.
+                            : isPondCost
+                              ? t('finance.fromPondExpenses')
+                              : tx.paymentMethod;
+                        // The pond, when the row knows one. Pond costs always
+                        // do; a transaction does when the farmer picked one.
+                        const pond = tx.pondName ?? undefined;
+                        // Archived money is MARKED, not hidden (D3). Every
+                        // source can answer now — pond costs and harvest sales
+                        // always knew their pond, and a transaction that names
+                        // one has its pond joined server-side. A farm-level
+                        // transaction still cannot say, and reports `false`,
+                        // which is the truth for it: it belongs to no pond.
+                        const isArchived = tx.archived === true;
                         return (
                             <View key={tx.id} style={styles.entry}>
                                 <View style={{ flex: 1, minWidth: 0 }}>
-                                    <Text style={styles.entryTitle} numberOfLines={1}>
+                                    <Text
+                                        style={[styles.entryTitle, isArchived && styles.archivedText]}
+                                        numberOfLines={1}
+                                    >
                                         {tx.description || (isHarvest ? t('finance.harvestSale') : tx.category)}
                                     </Text>
                                     <Text style={styles.entryMeta} numberOfLines={1}>
-                                        {[shortDate(tx.transactionDate), farm, detail]
+                                        {[
+                                            shortDate(tx.transactionDate),
+                                            farm,
+                                            pond,
+                                            isArchived ? t('finance.archivedTag') : null,
+                                            detail,
+                                        ]
                                             .filter(Boolean)
                                             .join(' · ')}
                                     </Text>

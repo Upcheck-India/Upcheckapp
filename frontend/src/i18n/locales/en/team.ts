@@ -4,10 +4,9 @@ const team = {
     allFarms: "All farms",
     // The header button goes to the roster, so it says what it opens.
     manageTeam: 'Manage team',
+    manageTeamPending: "Manage team · {{count}} waiting",
     noFarmTitle: "No farms yet",
     noFarmSub: "Create or join a farm to see its team.",
-    checkedInAt: 'You checked in at {{time}}',
-    stillCheckedIn: 'Still checked in · {{elapsed}}',
     checkOut: 'Check out',
     // The shift card used to appear only once you were already in, so the
     // check-in itself had no control anywhere on the tab.
@@ -16,7 +15,6 @@ const team = {
     checkInCta: 'Check in',
     savedOffline: 'Saved — will sync when online',
     // Attendance/Leave subtitles for someone who only sees their own state.
-    yourAttendanceIn: 'Checked in · {{elapsed}}',
     leaveSelfSub: 'Request time off',
     // Asked instead of silently picking a farm for you.
     chooseFarmTitle: 'Which farm?',
@@ -45,9 +43,7 @@ const team = {
     rosterSub: 'Attendance, leave and join requests',
     rosterPeople: '{{count}} people',
     unknownPerson: 'Unknown',
-    youAreIn: "You're checked in",
     youSuffix: '{{name}} (you)',
-    sinceTime: 'Since {{time}}',
     att_in: 'In',
     att_out: 'Out',
     att_absent: 'Not in',
@@ -60,6 +56,37 @@ const team = {
     joinsWaiting: '{{count}} waiting to be let in',
     leaveMineWaiting: '{{count}} of your requests waiting',
     actionError: 'Could not update. Please try again.',
+
+    // Shift states (spec 2026-09-14 attendance B.2–B.5). Badges, then the sentence under them.
+    shift_forgot: 'Not checked out',
+    shift_overdue: 'Overdue',
+    shift_dueSoon: 'Due soon',
+    shift_justIn: 'Just in',
+    shift_onShift: 'On shift',
+    shift_out: 'Checked out',
+    shift_onLeave: 'On leave',
+    shift_notIn: 'Not checked in',
+    shiftLine_forgot: 'Not checked out since {{since}}',
+    shiftLine_overdue: 'Checkout was due {{due}} · overdue by {{by}}',
+    shiftLine_dueSoon: 'Checkout due {{due}} · in {{in}}',
+    shiftLine_justIn: 'Just checked in · {{time}}',
+    shiftLine_onShift: 'In since {{since}} · {{elapsed}} · due {{due}}',
+    shiftLine_out: 'Checked out {{time}} · {{total}} today',
+    checkOutOfFarm: 'Check out of {{farm}}?',
+    checkOutConfirmBody: 'Checked in {{time}} · {{elapsed}}',
+    switchFarm: 'Switch to {{farm}}',
+    switchFarmBody: "You're checked in at {{from}} since {{since}}. We'll check you out there.",
+    checkInAnother: 'Check in to another farm',
+    fixCheckout: 'Fix check-out time',
+    headcountTitle: 'Today · attendance',
+    todayHeadcount: '{{in}} in · {{out}} out · {{notIn}} not in · {{leave}} on leave (of {{total}})',
+    farmHeadcount: '{{in}} in · {{out}} out · {{notIn}} not in · {{leave}} on leave',
+    lateCount_one: '{{count}} late check-out',
+    lateCount_other: '{{count}} late check-outs',
+    inNow: 'In now',
+    nobodyInNow: 'Nobody checked in yet',
+    durationHm: '{{h}} h {{m}} min',
+    durationM: '{{m}} min',
 };
 
 export default team;

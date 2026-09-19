@@ -66,6 +66,44 @@ const pondSetup = {
   prefixPlaceholder: "prefix",
   namesLabel: "Names",
   pondsToCreate: "Ponds to create",
+
+  pondNameLabel: "Pond name",
+
+
+  pondNamePlaceholder: "e.g. North pond",
+
+
+  errPondName: "Give every pond a name",
+
+
+  moreDetails: "Add more details (optional)",
+
+
+  moreDetailsHint: "Leave this shut and we will assume an earthen pond of no fixed shape. The pond page will tell you those are not confirmed.",
+
+
+  stockedToggle: "Any of these ponds already stocked? (optional)",
+
+
+  stockedHint: "Tell us and the app can start showing growth, feed use and profit for that pond. Leave it blank to add later.",
+
+
+  stockedDateLabel: "Stocking date",
+
+
+  stockedDatePlaceholder: "YYYY-MM-DD",
+
+
+  stockedCountLabel: "Seed count",
+
+
+  stockedCountPlaceholder: "PL count",
+
+
+  firstCycleName: "{{pond}} — first cycle",
+
+
+  errCyclesPartial: "Your ponds were created. {{count}} cycle(s) could not be started — you can start them from the pond page.",
   areaPlaceholder: "area m²",
   areaOptionalNote: "Area is optional now. You can add it when you stock a pond.",
   createFarmCta: "Create farm",

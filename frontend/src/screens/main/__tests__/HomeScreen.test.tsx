@@ -22,7 +22,7 @@ jest.mock('../../../api/attendance', () => ({
     attendanceApi: { getAll: jest.fn() },
 }));
 jest.mock('../../../api/farmMembers', () => ({
-    farmMembersApi: { listMembers: jest.fn() },
+    farmMembersApi: { listMembers: jest.fn(), listMyPending: jest.fn() },
 }));
 jest.mock('../../../api/alertCenter', () => ({
     alertCenterApi: { today: jest.fn(), liveBriefing: jest.fn(), briefing: jest.fn() },
@@ -38,6 +38,10 @@ jest.mock('../../../api/tasks', () => ({
 // tasks, three calls each. Today now takes all three from ONE batched request.
 jest.mock('../../../api/teamOverview', () => ({
     fetchTeamOverview: jest.fn(),
+}));
+// The "Your day" card has its own tests (components/brief); here it just must not hit the network.
+jest.mock('../../../api/dailyBrief', () => ({
+    dailyBriefApi: { get: jest.fn(() => Promise.reject(new Error('not under test'))) },
 }));
 // See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why:
 // useFocusEffect needs a NavigationContainer the plain SafeAreaProvider
@@ -78,6 +82,7 @@ const mockedPondContext = pondContextApi.get as jest.Mock;
 const mockedForFarm = pondContextApi.forFarm as jest.Mock;
 const mockedAttendance = attendanceApi.getAll as jest.Mock;
 const mockedListMembers = farmMembersApi.listMembers as jest.Mock;
+const mockedListMyPending = farmMembersApi.listMyPending as jest.Mock;
 const mockedToday = alertCenterApi.today as jest.Mock;
 const mockedLiveBriefing = alertCenterApi.liveBriefing as jest.Mock;
 const mockedBriefing = alertCenterApi.briefing as jest.Mock;
@@ -141,6 +146,8 @@ const resetMocks = async () => {
     mockedPondContext.mockResolvedValue({ data: emptyPondContext });
     mockedForFarm.mockResolvedValue({ data: [] });
     mockedAttendance.mockResolvedValue({ data: [] });
+    // Default: nobody is waiting on an approval.
+    mockedListMyPending.mockResolvedValue({ data: [] });
     mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }] });
     mockedLiveBriefing.mockResolvedValue({ data: [] });
     mockedBriefing.mockResolvedValue({ data: [] });
@@ -319,123 +326,21 @@ describe('HomeScreen — the stat band', () => {
     });
 });
 
-describe('HomeScreen — Getting Started checklist', () => {
-    beforeEach(async () => {
-        await resetMocks();
-        await AsyncStorage.removeItem(CHECKLIST_HIDDEN_FLAG);
-        useActiveFarmStore.setState({ selectedFarm: FARM } as any);
-    });
-
-    it('shows the checklist with pond setup unfinished and everything else undone', async () => {
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-
-        const { findByText } = renderScreen();
-
-        expect(await findByText('Getting started')).toBeTruthy();
-        expect(await findByText('0/3')).toBeTruthy();
-        expect(await findByText('Set up your ponds')).toBeTruthy();
-        expect(await findByText('Log your first reading')).toBeTruthy();
-        expect(await findByText('Invite your team')).toBeTruthy();
-    });
-
-    it('marks items done as their real milestones are met, without hiding until all are', async () => {
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } }); // ponds: done
-        // "Logged a reading" is read off the Today snapshot now rather than a
-        // per-focus probe of one representative pond, so the fixture that
-        // drives it moved with it.
-        mockedForFarm.mockResolvedValue({
-            data: [{ ...emptyPondContext, lastFeedAt: '2026-07-01T00:00:00.000Z' }],
-        });
-        mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }] }); // invite: not done
-
-        const { findByText } = renderScreen();
-
-        expect(await findByText('2/3')).toBeTruthy();
-    });
-
-    it('disappears entirely once every milestone is complete', async () => {
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } });
-        // "Logged a reading" is read off the Today snapshot now rather than a
-        // per-focus probe of one representative pond, so the fixture that
-        // drives it moved with it.
-        mockedForFarm.mockResolvedValue({
-            data: [{ ...emptyPondContext, lastFeedAt: '2026-07-01T00:00:00.000Z' }],
-        });
-        mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }, { id: 'worker-1' }] });
-
-        const { queryByText, findByText } = renderScreen();
-        await findByText('All farms'); // wait for the screen to settle
-
-        await waitFor(() => expect(queryByText('Getting started')).toBeNull(), { timeout: 3000 });
-    });
-
-    it('tapping the unfinished ponds item navigates to PondSetup with only the remaining count', async () => {
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-
-        const { findByText } = renderScreen();
-        fireEvent.press(await findByText('Set up your ponds'));
-
-        expect(navigation.navigate).toHaveBeenCalledWith('PondSetup', { farmId: 'farm-1', totalPonds: 2 });
-    });
-
-    it('tapping the unfinished log item navigates to QuickLog', async () => {
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-
-        const { findByText } = renderScreen();
-        fireEvent.press(await findByText('Log your first reading'));
-
-        expect(navigation.navigate).toHaveBeenCalledWith('QuickLog', undefined);
-    });
-
-    it('tapping the unfinished invite item navigates to AddWorker with the farm id', async () => {
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-
-        const { findByText } = renderScreen();
-        fireEvent.press(await findByText('Invite your team'));
-
-        expect(navigation.navigate).toHaveBeenCalledWith('AddWorker', { farmId: 'farm-1' });
-    });
-
-    // Hiding is permanent, so it asks first — and a farmer who taps Hide by
-    // mistake and then cancels must keep their checklist.
-    it('asks before hiding, and keeps the list if the farmer cancels', async () => {
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-        const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-
-        const { findByText, queryByText } = renderScreen();
-        fireEvent.press(await findByText('Hide'));
-
-        expect(alert).toHaveBeenCalled();
-        expect(alert.mock.calls[0][0]).toBe('Hide the setup list?');
-        expect(queryByText('Getting started')).toBeTruthy();
-        expect(await AsyncStorage.getItem(CHECKLIST_HIDDEN_FLAG)).toBeNull();
-        alert.mockRestore();
-    });
-
-    it('never comes back once the farmer confirms', async () => {
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-        // Take the confirm button the screen offered and press it.
-        const alert = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
-            const confirm = (buttons ?? []).find((b) => b.text === 'Hide for good');
-            confirm?.onPress?.();
-        });
-
-        const { findByText, queryByText } = renderScreen();
-        fireEvent.press(await findByText('Hide'));
-
-        await waitFor(() => expect(queryByText('Getting started')).toBeNull());
-        await waitFor(async () =>
-            expect(await AsyncStorage.getItem(CHECKLIST_HIDDEN_FLAG)).toBe('1'),
-        );
-        alert.mockRestore();
-
-        // And it stays gone on the next visit.
-        const second = renderScreen();
-        await second.findByText('All farms');
-        expect(second.queryByText('Getting started')).toBeNull();
-    });
-});
-
+/**
+ * The "Getting Started checklist" tests LIVED HERE and are deliberately gone
+ * with the component (W6).
+ *
+ * Home rendered two activation guides with different sequences and different
+ * finish lines: the hero (ponds -> cycle -> first log -> invite) and this
+ * checklist (ponds -> log -> invite). The checklist could be completed 100%
+ * WITHOUT EVER STOCKING A CYCLE, because water-quality logging correctly works
+ * on an unstocked pond — so a farmer could tick every box while FCR, ABW,
+ * growth, feed advice, disease risk and P&L all stayed empty. Its finish line
+ * was not the value moment, and it was the easier of the two to finish.
+ *
+ * The hero tests below now cover the single guide, including the invite step
+ * this checklist used to own.
+ */
 describe('HomeScreen — worker first-run interstitial', () => {
     beforeEach(async () => {
         await resetMocks();
@@ -564,7 +469,17 @@ describe('HomeScreen — the hero before there is any data', () => {
         expect(navigation.navigate).toHaveBeenCalledWith('CreateCycle', { pondId: 'p1' });
     });
 
+    /**
+     * Stocked-ness is read from the POND's own `activeCycleId` now, not from a
+     * proxy (W6). It used to be `logsToday.total === 0`, where `logsToday`
+     * counts stocked ponds — true for one pond, wrong for four: a farmer who
+     * stocked one of four had `total > 0`, so the cycle step vanished for the
+     * other three even though they held nothing the app could compute on.
+     */
+    const STOCKED_POND = { ...POND, activeCycleId: 'c1' };
+
     it('asks for today\'s readings once a pond is stocked but unlogged', async () => {
+        mockedGetMine.mockResolvedValue({ data: [STOCKED_POND] });
         mockedForFarm.mockResolvedValue({ data: [{ ...emptyPondContext, cropId: 'c1' }] });
 
         const { findByText } = renderScreen();
@@ -572,15 +487,53 @@ describe('HomeScreen — the hero before there is any data', () => {
         expect(await findByText('Log today’s readings')).toBeTruthy();
     });
 
+    it('still asks for a cycle on the ponds that have none, when only one is stocked', async () => {
+        mockedGetMine.mockResolvedValue({
+            data: [STOCKED_POND, { ...POND_2, farmId: 'farm-1', activeCycleId: null }],
+        });
+        mockedForFarm.mockResolvedValue({ data: [{ ...emptyPondContext, cropId: 'c1' }] });
+
+        const { findByText } = renderScreen();
+
+        // The unstocked one, named — not silence because the other is stocked.
+        expect(await findByText('Stock a cycle in Pond 2')).toBeTruthy();
+    });
+
     it('falls back to All clear once the day is logged and nothing is wrong', async () => {
+        mockedGetMine.mockResolvedValue({ data: [STOCKED_POND] });
         mockedForFarm.mockResolvedValue({
             data: [{ ...emptyPondContext, cropId: 'c1', lastFeedAt: new Date().toISOString() }],
         });
+        // A team is already in place, so the invite step — the last one in the
+        // single guide (W6) — does not claim the hero.
+        mockedTeamOverview.mockResolvedValue(
+            teamOverview({ members: [{ userId: 'owner-1' }, { userId: 'u2' }] }),
+        );
 
         const { findByText, queryByText } = renderScreen();
 
         expect(await findByText('All clear')).toBeTruthy();
         expect(queryByText('Start here')).toBeNull();
+    });
+
+    /**
+     * The last step of the single guide, inherited from the checklist it
+     * replaced. The checklist's finish line was "invite your team" and it was
+     * reachable without ever stocking a cycle; here it comes AFTER the cycle
+     * and the first log, which is the order that ends at a real number.
+     */
+    it('asks a lone owner to invite their team once the farm is running', async () => {
+        mockedGetMine.mockResolvedValue({ data: [STOCKED_POND] });
+        mockedForFarm.mockResolvedValue({
+            data: [{ ...emptyPondContext, cropId: 'c1', lastFeedAt: new Date().toISOString() }],
+        });
+        mockedTeamOverview.mockResolvedValue(
+            teamOverview({ members: [{ userId: 'owner-1' }] }),
+        );
+
+        const { findByText } = renderScreen();
+
+        expect(await findByText('Add the people who work with you')).toBeTruthy();
     });
 
     // A real alert always outranks a setup step: something is actually wrong
@@ -599,6 +552,41 @@ describe('HomeScreen — the hero before there is any data', () => {
 
         expect(await findByText('Start the aerators')).toBeTruthy();
         expect(queryByText('Add your ponds')).toBeNull();
+    });
+
+    // R7: a molt step is cleared on its checklist; Quick Log never shows it.
+    it('sends a lunar alert to that pond\'s molt checklist, not Quick Log', async () => {
+        mockedLiveBriefing.mockResolvedValue({
+            data: [{
+                pondId: 'p1', source: 'lunar', topTitle: 'Post-molt — 1 action pending', topSeverity: 'watch',
+                alertCount: 1, steps: ['Restore feed'],
+            }],
+        });
+
+        const { findByText, getByText } = renderScreen();
+        expect(await findByText('Post-molt — 1 action pending')).toBeTruthy();
+
+        fireEvent.press(getByText('Done it'));
+        expect(navigation.navigate).toHaveBeenCalledWith('Lunar', { pondId: 'p1' });
+        expect(navigation.navigate).not.toHaveBeenCalledWith('QuickLog', expect.anything());
+    });
+
+    // Founder bug: "View all" under Then opened the Daily Brief, not the alerts.
+    it('"View all" under Then opens every alert, not the day page', async () => {
+        mockedGetMine.mockResolvedValue({ data: [POND, POND_2] });
+        mockedLiveBriefing.mockResolvedValue({
+            data: [
+                { pondId: 'p1', source: 'water', topTitle: 'Toxic ammonia', topSeverity: 'critical', alertCount: 2, steps: ['x'] },
+                { pondId: 'p2', source: 'feed', topTitle: 'Feed efficiency dropping', topSeverity: 'watch', alertCount: 1, steps: ['y'] },
+            ],
+        });
+
+        const { findByText, getAllByText } = renderScreen();
+        expect(await findByText('Then')).toBeTruthy();
+        // Other sections have their own "View all"; none of them may open the day page either.
+        getAllByText('View all').forEach((el) => fireEvent.press(el));
+        expect(navigation.navigate).toHaveBeenCalledWith('TodayAlerts', undefined);
+        expect(navigation.navigate).not.toHaveBeenCalledWith('DailyBrief', undefined);
     });
 
     // Ponds and cycles are owner/manager work. Telling a worker to do them is
@@ -642,5 +630,52 @@ describe('HomeScreen — first run', () => {
 
         expect(await findByText("Couldn't load your dashboard")).toBeTruthy();
         expect(queryByText('Create a farm')).toBeNull();
+    });
+
+    /**
+     * W1 — the third empty state.
+     *
+     * `getAccessibleFarmIds` filters on `status: 'active'`, correctly: a
+     * pending membership grants nothing. But that gave a worker who had just
+     * redeemed a valid code ZERO farms, so Home showed them the brand-new-user
+     * state — "No farms yet: create a farm or join with a code" — moments
+     * after they had joined one. They re-entered the code, were told it was
+     * wrong, and asked for another. The loop only ended when an owner happened
+     * to open the app.
+     *
+     * A waiting worker is not a new user with a decision to make, and nothing
+     * in this state may offer them one.
+     */
+    it('tells a worker awaiting approval that they are waiting, not that they have no farms', async () => {
+        mockedGetAll.mockResolvedValue({ data: [] });
+        mockedGetMine.mockResolvedValue({ data: [] });
+        mockedListMyPending.mockResolvedValue({
+            data: [
+                {
+                    farmId: 'farm-9',
+                    farmName: 'Kakinada East',
+                    requestedRole: 'worker',
+                    requestedAt: '2026-09-06T04:00:00.000Z',
+                },
+            ],
+        });
+
+        const { findByText, queryByText } = renderScreen();
+
+        expect(await findByText(/Waiting for Kakinada East to let you in/)).toBeTruthy();
+        // The two offers that sent them round in circles.
+        expect(queryByText('Create a farm')).toBeNull();
+        expect(queryByText('Join with a code')).toBeNull();
+    });
+
+    it('still offers create-or-join to someone genuinely new', async () => {
+        mockedGetAll.mockResolvedValue({ data: [] });
+        mockedGetMine.mockResolvedValue({ data: [] });
+        mockedListMyPending.mockResolvedValue({ data: [] });
+
+        const { findByText } = renderScreen();
+
+        expect(await findByText('Create a farm')).toBeTruthy();
+        expect(await findByText('Join with a code')).toBeTruthy();
     });
 });

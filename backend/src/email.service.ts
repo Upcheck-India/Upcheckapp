@@ -34,6 +34,11 @@ export class EmailService {
     return this.configService.get('APP_NAME', 'Upcheck');
   }
 
+  /** Where farmer-reported problems land. Config so it moves without a deploy. */
+  private get adminAlertEmail(): string {
+    return this.configService.get('ADMIN_ALERT_EMAIL', 'admin@upcheck.in');
+  }
+
   private async postToBrevo(body: unknown): Promise<Response> {
     return fetch(BREVO_API_URL, {
       method: 'POST',
@@ -142,4 +147,94 @@ export class EmailService {
       html,
     );
   }
+
+  /**
+   * A 6-digit code proving the recipient controls this address, for setting a
+   * first password or changing the account email. English only: the code is
+   * the payload and reads the same in every language. Throws like sendEmail.
+   */
+  async sendAccountCodeEmail(
+    toEmail: string,
+    code: string,
+    purpose: 'set_password' | 'change_email',
+  ): Promise<void> {
+    const action =
+      purpose === 'set_password'
+        ? 'set a password for your account'
+        : 'use this email address for your account';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#333;">
+          <h2 style="margin:0 0 12px;">${esc(this.appName)} verification code</h2>
+          <p>Enter this code in the app to ${esc(action)}:</p>
+          <p style="font-size:32px;font-weight:700;letter-spacing:6px;margin:16px 0;">${esc(code)}</p>
+          <p style="color:#666;">It expires in 10 minutes. If you did not ask for this, ignore this email — nothing changes without the code.</p>
+        </body>
+      </html>`;
+    await this.sendEmail(
+      toEmail,
+      `${this.appName} code: ${code}`,
+      html,
+    );
+  }
+
+  /**
+   * Tells the team a farmer filed a report, so it is not sat on until someone
+   * happens to open the dashboard.
+   *
+   * Carries what triage needs and nothing else. The reporter's phone number and
+   * email address are deliberately absent — the Privacy Policy governs sharing
+   * contact details, and none of them help decide what to do about a bug. The
+   * user id is enough to find the person in the dashboard if it comes to that.
+   *
+   * Throws like every other path here; the caller decides whether the failure
+   * is fatal (for feedback, it is not).
+   */
+  async sendFeedbackAlertEmail(report: {
+    id: string;
+    userId: string;
+    farmId: string | null;
+    category: string;
+    subject: string | null;
+    message: string;
+    attachmentCount: number;
+  }): Promise<void> {
+    const row = (label: string, value: string) =>
+      `<tr><td style="padding:4px 12px 4px 0;color:#666;">${label}</td><td style="padding:4px 0;"><strong>${esc(value)}</strong></td></tr>`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#333;">
+          <h2 style="margin:0 0 4px;">New ${esc(report.category)} report</h2>
+          <p style="margin:0 0 16px;color:#666;">${esc(report.subject ?? '(no title)')}</p>
+          <table style="border-collapse:collapse;font-size:14px;">
+            ${row('Report id', report.id)}
+            ${row('User id', report.userId)}
+            ${row('Farm id', report.farmId ?? '(none)')}
+            ${row('Category', report.category)}
+            ${row('Attachments', report.attachmentCount ? `${report.attachmentCount} photo(s)` : 'none')}
+          </table>
+          <h3 style="margin:20px 0 4px;">Message</h3>
+          <pre style="white-space:pre-wrap;font-family:inherit;background:#f8f9fa;border-radius:8px;padding:12px;margin:0;">${esc(report.message)}</pre>
+          <p style="margin-top:24px;font-size:12px;color:#888;">Reporter contact details are intentionally omitted — look the user id up in the dashboard if you need them.</p>
+        </body>
+      </html>`;
+
+    await this.sendEmail(
+      this.adminAlertEmail,
+      `[${this.appName}] ${report.category}: ${report.subject?.trim() || report.message.trim().split('\n')[0].slice(0, 80)}`,
+      html,
+    );
+  }
+}
+
+/** The message is farmer-typed free text going straight into an HTML body. */
+function esc(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

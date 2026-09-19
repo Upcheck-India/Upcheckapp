@@ -66,6 +66,44 @@ const pondSetup = {
   prefixPlaceholder: "ఉపసర్గ",
   namesLabel: "పేర్లు",
   pondsToCreate: "సృష్టించాల్సిన చెరువులు",
+
+  pondNameLabel: "చెరువు పేరు",
+
+
+  pondNamePlaceholder: "ఉదా. ఉత్తరపు చెరువు",
+
+
+  errPondName: "ప్రతి చెరువుకు ఒక పేరు ఇవ్వండి",
+
+
+  moreDetails: "మరిన్ని వివరాలు జోడించండి (ఐచ్ఛికం)",
+
+
+  moreDetailsHint: "దీన్ని మూసి ఉంచితే, నిర్దిష్ట ఆకారం లేని మట్టి చెరువుగా భావిస్తాం. అవి ధృవీకరించబడలేదని చెరువు పేజీ చెబుతుంది.",
+
+
+  stockedToggle: "ఈ చెరువుల్లో ఏవైనా ఇప్పటికే స్టాక్ చేయబడ్డాయా? (ఐచ్ఛికం)",
+
+
+  stockedHint: "చెబితే ఆ చెరువు పెరుగుదల, మేత వాడకం, లాభం యాప్ చూపడం మొదలుపెడుతుంది. ఖాళీగా వదిలితే తర్వాత జోడించవచ్చు.",
+
+
+  stockedDateLabel: "స్టాకింగ్ తేదీ",
+
+
+  stockedDatePlaceholder: "YYYY-MM-DD",
+
+
+  stockedCountLabel: "సీడ్ సంఖ్య",
+
+
+  stockedCountPlaceholder: "PL సంఖ్య",
+
+
+  firstCycleName: "{{pond}} — మొదటి సైకిల్",
+
+
+  errCyclesPartial: "మీ చెరువులు సృష్టించబడ్డాయి. {{count}} సైకిల్(లు) ప్రారంభించలేకపోయాం — చెరువు పేజీ నుండి ప్రారంభించండి.",
   areaPlaceholder: "విస్తీర్ణం m²",
   areaOptionalNote: "విస్తీర్ణం ఇప్పుడు తప్పనిసరి కాదు. చెరువులో పిల్లలు వేసేటప్పుడు జోడించవచ్చు.",
   createFarmCta: "ఫారమ్ సృష్టించండి",

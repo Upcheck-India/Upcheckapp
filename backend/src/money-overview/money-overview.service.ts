@@ -4,10 +4,10 @@ import { ReportsService } from '../reports/reports.service';
 import { TransactionsService } from '../transactions/transactions.service';
 import { CreditService } from '../credit/credit.service';
 import { HarvestsService } from '../harvests/harvests.service';
+import { ExpensesService } from '../finances/expenses.service';
 import {
   MoneyOverviewQueryDto,
   dateRangeWhere,
-  inDateRange,
 } from '../transactions/dto/money-query.dto';
 
 /**
@@ -35,6 +35,7 @@ export class MoneyOverviewService {
     private readonly transactions: TransactionsService,
     private readonly credit: CreditService,
     private readonly harvests: HarvestsService,
+    private readonly expenses: ExpensesService,
   ) {}
 
   async forUser(userId: string, q: Partial<MoneyOverviewQueryDto> = {}) {
@@ -45,7 +46,7 @@ export class MoneyOverviewService {
     const farms = await this.farms.findAll(userId);
 
     // prettier-ignore
-    const [reportPairs, transactionRows, creditRows, harvestRows] = await Promise.all([
+    const [reportPairs, transactionRows, creditRows, harvestRows, expenseRows] = await Promise.all([
       Promise.all(
         farms.map((farm: { id: string }) =>
           this.reports
@@ -69,7 +70,18 @@ export class MoneyOverviewService {
       // (the report sums salePriceTotal) but wrote no row the farmer could
       // point at. Merging here rather than writing a Transaction on harvest
       // create is what keeps revenue from being counted twice.
-      this.harvests.findMoneyEntries(userId).catch(() => []),
+      // Filtered in SQL, with the same date range and archive rule the report
+      // applies to the revenue it puts in the headline. It used to be filtered
+      // here in memory, AFTER the query's 500-row cap — so "this week" searched
+      // the 500 most recent harvests rather than the week's — and the archive
+      // toggle was not applied to it at all, leaving sale rows on screen that
+      // the total above them excluded.
+      this.harvests.findMoneyEntries(userId, q).catch(() => []),
+      // Pond costs, projected read-only into entry shape for the same reason
+      // harvests are: the report already sums this table into the headline, so
+      // the farmer could see the total move with no line to point at. See
+      // ExpensesService.findMoneyEntries.
+      this.expenses.findMoneyEntries(userId, q).catch(() => []),
     ]);
 
     const reports: Record<string, unknown> = {};
@@ -80,13 +92,6 @@ export class MoneyOverviewService {
       inventoryExpenses += Number((pair[1] as any)?.inventoryExpenses || 0);
     }
 
-    // Harvest rows are filtered here rather than in the query: HarvestsService
-    // belongs to another module and takes no date filter. Its read is capped
-    // at 500 rows, so this stays cheap.
-    const harvestsInRange = (harvestRows as any[]).filter((e) =>
-      inDateRange(e?.transactionDate, q),
-    );
-
     // One list, newest first, so a harvest sits among the entries the farmer
     // typed on the same day instead of in a section of its own.
     // `transactionDate` is a `YYYY-MM-DD` string on both sides; normalise a
@@ -95,7 +100,12 @@ export class MoneyOverviewService {
       e.transactionDate instanceof Date
         ? e.transactionDate.toISOString()
         : String(e.transactionDate ?? '');
-    const allEntries = [...transactionRows, ...harvestsInRange].sort((a, b) =>
+    // All three sources are now date- and archive-filtered in SQL.
+    const allEntries = [
+      ...transactionRows,
+      ...(harvestRows as any[]),
+      ...(expenseRows as any[]),
+    ].sort((a, b) =>
       sortKey(b).localeCompare(sortKey(a)),
     );
 

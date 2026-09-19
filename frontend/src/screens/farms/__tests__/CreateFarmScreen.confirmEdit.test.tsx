@@ -66,4 +66,29 @@ describe('CreateFarmScreen — confirm before saving an edit', () => {
 
         await waitFor(() => expect(farmsApi.update).toHaveBeenCalledWith('farm-1', expect.anything()));
     });
+
+    // The backend keeps non-shift farm fields owner-only; a manager sending the
+    // whole form would be refused even for a shift change.
+    it('a manager PATCHes only shift fields; an unknown role still sends the form', async () => {
+        const { useMembershipStore } = require('../../../store/membershipStore');
+        (farmsApi.update as jest.Mock).mockResolvedValue({ data: FARM });
+        jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => buttons?.[1].onPress?.());
+
+        const grant = jest.spyOn(useMembershipStore.getState(), 'grantForFarm');
+        grant.mockReturnValue({ role: 'manager', overrides: null, policy: null } as any);
+        const manager = renderScreen();
+        await manager.findByDisplayValue('Delta Farm');
+        fireEvent.press(manager.getByText('Save'));
+        await waitFor(() => expect(farmsApi.update).toHaveBeenCalled());
+        expect(Object.keys((farmsApi.update as jest.Mock).mock.calls[0][1])).not.toContain('name');
+        manager.unmount();
+
+        (farmsApi.update as jest.Mock).mockClear();
+        grant.mockReturnValue({ role: null, overrides: null, policy: null } as any);
+        const unknown = renderScreen();
+        await unknown.findByDisplayValue('Delta Farm');
+        fireEvent.press(unknown.getByText('Save'));
+        await waitFor(() => expect(farmsApi.update).toHaveBeenCalled());
+        expect((farmsApi.update as jest.Mock).mock.calls[0][1]).toMatchObject({ name: 'Delta Farm' });
+    });
 });

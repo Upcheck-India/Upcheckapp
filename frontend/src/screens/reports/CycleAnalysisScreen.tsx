@@ -8,11 +8,13 @@ import { LineChart } from '../../components/charts/LineChart';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { theme } from '../../theme';
 import { reportsApi, type CycleAnalysis } from '../../api/reports';
+import { useFlag } from '../../features/remoteFlags';
 
 const c = theme.roles.light;
 
 export const CycleAnalysisScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
+    const exportOn = useFlag('export');
     const { cycleId, cycleName } = route.params ?? {};
     const [data, setData] = useState<CycleAnalysis | null>(null);
     const [loading, setLoading] = useState(true);
@@ -45,7 +47,20 @@ export const CycleAnalysisScreen = ({ route, navigation }: any) => {
                 <Text style={styles.title} numberOfLines={1}>
                     {cycleName ? t('reports.cycleAnalysisFor', { name: cycleName, defaultValue: `Analysis · ${cycleName}` }) : t('reports.cycleAnalysis', 'Cycle analysis')}
                 </Text>
-                <View style={{ width: 40 }} />
+                {/* The report a farmer is looking at is the one they want to
+                    send, so the export starts pre-filled with this cycle. */}
+                {exportOn ? (
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate('Export', { dataset: 'cycle', cropId: cycleId })}
+                        style={styles.backBtn}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('export.title')}
+                    >
+                        <MaterialCommunityIcons name="share-variant" size={22} color={c.primary} />
+                    </TouchableOpacity>
+                ) : (
+                    <View style={styles.backBtn} />
+                )}
             </View>
 
             {loading ? (

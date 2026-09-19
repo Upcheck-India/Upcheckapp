@@ -34,6 +34,11 @@ const finance = {
 
   // List
   allExpenses: 'అన్ని ఖర్చులు',
+  // Marks a cycle-expense row that actually lives in the `transactions`
+  // table — typed on the farm Money screen and tagged to this pond. It is
+  // read-only here: the edit/delete endpoints on this tab do not own it.
+  fromFarmMoney: 'ఫారం డబ్బు నుండి',
+  fromPondExpenses: 'చెరువు ఖర్చుల నుండి',
 
   // Empty / loading states
   loadingExpenses: 'ఖర్చులు లోడ్ అవుతున్నాయి…',
@@ -46,6 +51,7 @@ const finance = {
 
   // Summary card
   financialSummary: 'ఆర్థిక సారాంశం',
+  ledgerOnlyNote: "ఇక్కడ నమోదు చేసిన ఎంట్రీలు మాత్రమే, మొత్తం కాలానికి. డబ్బు ట్యాబ్‌లో చెరువు ఖర్చులు, పంట అమ్మకాలు కూడా లెక్కిస్తారు.",
   totalIncome: 'మొత్తం ఆదాయం',
   totalExpense: 'మొత్తం ఖర్చు',
 
@@ -91,6 +97,7 @@ const finance = {
   byFarm: "ఫారం వారీగా",
   farmInOut: "వచ్చినది {{income}} · పోయినది {{expense}}",
   creditOutstanding: "డీలర్ అప్పు బాకీ",
+  creditAllFarmsNote: "అన్ని ఫారాలు, అన్ని తేదీలు — డీలర్ అప్పు పై చిప్‌లతో వడపోత కాదు.",
   creditDue: "{{dealer}} · {{date}} న",
   creditDealers: "{{count}} డీలర్లలో",
   creditDealers_one: "ఒక డీలర్",
@@ -99,7 +106,7 @@ const finance = {
   noEntries: "ఈ ఫారంకు ఇంకా ఏమీ నమోదు కాలేదు.",
   harvestSale: "పంట అమ్మకం",
   harvestSoldTo: "{{buyer}}కు అమ్మారు",
-  entriesNote: "ఇటీవలి ఎంట్రీలు మాత్రమే. పైన ఉన్న నికరంలో సైకిల్‌కు నమోదైన ఖర్చులూ ఉన్నాయి — అవి \"ఎక్కడికి పోయింది\"లో ఉన్నాయి.",
+  entriesNote: "ఇటీవలి ఆరు ఎంట్రీలు మాత్రమే. చెరువు ఖర్చులు, పంట అమ్మకాలు కూడా ఇక్కడే కనిపిస్తాయి; మొత్తం కాలపు మొత్తం \"ఎక్కడికి పోయింది\"లో ఉంది.",
   noFarmTitle: "ఇంకా ఫారాలు లేవు",
   noFarmSub: "డబ్బు ట్రాక్ చేయడానికి ఒక ఫారం చేర్చండి.",
 
@@ -114,7 +121,7 @@ const finance = {
   includeArchived: "ఆర్కైవ్ చెరువులను లెక్కించు",
   includeArchivedHint: "మూసిన చెరువుల డబ్బు కూడా మీ ఖర్చు, ఆదాయమే.",
   includeArchivedWorth: "పై లెక్కలలో {{amount}}.",
-  entriesArchivedNote: "పై మొత్తంలో ఆర్కైవ్ చెరువులూ ఉన్నాయి. ఎంట్రీలు ఫారం పేరుపై నమోదవుతాయి, చెరువు పేరుపై కాదు — అందుకే ఇక్కడ గుర్తు ఉండదు. మూసిన చెరువు సొంత లెక్క చూడాలంటే చెరువుల జాబితా తెరవండి.",
+  entriesArchivedNote: "పై మొత్తంలో ఆర్కైవ్ చెరువులూ ఉన్నాయి. చెరువు సొంత ఖర్చులు జాబితాలో ఆర్కైవ్‌గా గుర్తించబడ్డాయి; ఫారం పేరుపై నమోదైన ఎంట్రీకి చెరువు లేదు, అందుకే గుర్తు ఉండదు.",
   includeInventory: "స్టాక్ కొనుగోళ్లను లెక్కించు",
   includeInventoryHint: "కొన్న స్టాక్ ఆ రోజు ఖర్చుగా లెక్కిస్తారు.",
   includeInventoryOff: "పై లెక్కలలో స్టాక్ కొనుగోళ్లు చేర్చలేదు.",
@@ -123,6 +130,7 @@ const finance = {
 
   byPond: "చెరువుల వారీగా",
   wholeFarm: "మొత్తం ఫారం",
+  fieldPondLabel: "చెరువు (ఐచ్ఛికం)",
   allCycles: "అన్ని సైకిళ్లు",
   pondCostTotal: "ఈ చెరువు ఖర్చు",
   cycleCostTotal: "ఈ సైకిల్ ఖర్చు",

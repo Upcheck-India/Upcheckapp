@@ -25,7 +25,7 @@ import { istDayRangeUtc, toIstDateString } from '../../common/ist-date';
  * else leaves it on — the two toggles here are product defaults (D2, D3), so
  * an unset param must never silently drop money from the totals.
  */
-const DefaultTrue = () =>
+export const DefaultTrue = () =>
   Transform(({ value }) => value !== 'false' && value !== false);
 
 export class DateRangeDto {
@@ -49,10 +49,24 @@ export class TransactionQueryDto extends DateRangeDto {
   @IsOptional()
   type?: string;
 
+  /** Narrow to one pond's money. Farm-level rows have no pond and drop out. */
+  @IsUUID()
+  @IsOptional()
+  pondId?: string;
+
   /** Default TRUE — see D2. False excludes rows with an `inventoryItemId`. */
   @IsBoolean()
   @DefaultTrue()
   includeInventoryPurchases: boolean = true;
+
+  /**
+   * Default TRUE — see D3. False drops rows attributed to an ARCHIVED pond, so
+   * the toggle means the same thing here as it does for the expense ledger.
+   * Rows with no pond are farm-level money and are never dropped.
+   */
+  @IsBoolean()
+  @DefaultTrue()
+  includeArchivedPonds: boolean = true;
 }
 
 export class MoneyOverviewQueryDto extends DateRangeDto {

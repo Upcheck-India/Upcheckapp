@@ -22,6 +22,10 @@ import { InviteDto } from './dto/invite.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 import { Public } from '../auth/decorators/auth.decorators';
 import { EmailService } from '../email.service';
+import { Throttle } from '@nestjs/throttler';
+import { AccountService } from '../auth/account.service';
+import { UpdateMyProfileDto } from '../auth/dto/account.dto';
+import { AUTH_THROTTLE } from '../auth/supabase-auth.controller';
 
 @Controller('profiles')
 export class ProfilesController {
@@ -30,6 +34,7 @@ export class ProfilesController {
   constructor(
     private readonly profilesService: ProfilesService,
     private readonly emailService: EmailService,
+    private readonly accountService: AccountService,
   ) {}
 
   @Post()
@@ -68,7 +73,22 @@ export class ProfilesController {
   async findMe(@CurrentUser() user) {
     const { id, email } = user;
     this.logger.log(`GET /profiles/me — user.id: ${id}`);
-    return this.profilesService.upsert(id, email);
+    const [profile, account] = await Promise.all([
+      this.profilesService.upsert(id, email),
+      this.accountService.getAccountInfo(id),
+    ]);
+    return { ...profile, ...account };
+  }
+
+  /**
+   * The caller's display name. Declared before `PATCH :id` so "me" is never
+   * captured as an id. Writes profiles, users and auth metadata together.
+   */
+  @Throttle(AUTH_THROTTLE)
+  @Patch('me')
+  async updateMe(@CurrentUser() user, @Body() dto: UpdateMyProfileDto) {
+    await this.accountService.updateName(user.id, dto.fullName);
+    return this.findMe(user);
   }
 
   /**

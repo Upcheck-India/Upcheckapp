@@ -44,6 +44,8 @@ import { farmsApi } from '../../api/farms';
 import { pondsApi } from '../../api/ponds';
 import { usePermissions } from '../../hooks/usePermissions';
 import { personName } from '../../utils/personName';
+import { shareQrImage } from '../../utils/shareQrImage';
+import { capture, EVENTS } from '../../features/analytics';
 
 const c = theme.roles.light;
 
@@ -144,6 +146,9 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
             // tracking — one credential per farm is what an owner can reason
             // about.
             const { data } = await farmMembersApi.rotateInvite(farmId, {});
+            // The invite exists — the role it grants is a permission level,
+            // not a person.
+            capture(EVENTS.INVITE_SENT, { role: data.role });
             setInvites([data]);
             await Clipboard.setStringAsync(data.code);
             Alert.alert(t('members.inviteCreatedTitle'), t('members.inviteCreatedSub'));
@@ -185,6 +190,14 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
         }
     };
 
+    const inviteQrRef = useRef<any>(null);
+    const shareInviteImage = (code: string) =>
+        shareQrImage(inviteQrRef.current, {
+            filename: 'neerani-invite-qr.png',
+            dialogTitle: t('members.qr.inviteDialogTitle', { farm: farmName ?? '' }),
+            fallbackMessage: t('members.shareInviteMessage', { code, farm: farmName ?? '' }),
+        });
+
     // AddWorkerScreen's "send an invite instead" (for someone with no
     // account) lands here with autoShare — fire the share sheet ourselves
     // once a live invite is on screen, instead of making the owner hunt for
@@ -202,6 +215,9 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
         async (m: FarmMember) => {
             try {
                 await farmMembersApi.approveMember(farmId, m.userId);
+                // They redeemed a code and are now actually on the farm — the
+                // point at which the invite has been accepted.
+                capture(EVENTS.INVITE_ACCEPTED, { role: m.role });
                 setPending((cur) => cur.filter((p) => p.id !== m.id));
                 load();
             } catch (e: any) {
@@ -307,7 +323,14 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                             </View>
                             {!!activeInvite && (
                                 <View style={styles.qr}>
-                                    <QRCode value={activeInvite.code} size={72} />
+                                    {/* White + quiet zone baked into the SVG so the shared PNG scans. */}
+                                    <QRCode
+                                        value={activeInvite.code}
+                                        size={72}
+                                        backgroundColor="#FFFFFF"
+                                        quietZone={8}
+                                        getRef={(c) => { inviteQrRef.current = c; }}
+                                    />
                                 </View>
                             )}
                         </View>
@@ -328,6 +351,13 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                                 style={styles.codeBtn}
                             />
                         </View>
+                        {!!activeInvite && (
+                            <Button
+                                title={t('members.qr.shareImage')}
+                                variant="text"
+                                onPress={() => shareInviteImage(activeInvite.code)}
+                            />
+                        )}
                     </View>
                 )}
 

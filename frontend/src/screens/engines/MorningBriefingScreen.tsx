@@ -24,6 +24,7 @@ import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { pondContextApi } from '../../api/pondContext';
 import { qk } from '../../query/client';
+import { MoltInlineAction } from '../../components/molt/MoltInlineAction';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 
 const isToday = (iso: string | null | undefined) =>
@@ -195,12 +196,20 @@ export const MorningBriefingScreen = ({ navigation }: any) => {
                 <SeverityPill severity={sevMap(it.topSeverity)} label={it.topSeverity} />
               </View>
               <Text style={styles.action}>{it.topTitle}</Text>
-              {it.steps.slice(0, 2).map((s, j) => (
+              {/* A lunar title counts its steps ("3 actions pending"), so all of
+                  them are shown — printing two of three contradicted the title. */}
+              {(it.source === 'lunar' ? it.steps : it.steps.slice(0, 2)).map((s, j) => (
                 <View key={j} style={styles.step}>
                   <MaterialCommunityIcons name="arrow-right-thin" size={16} color={theme.roles.light.primary} />
                   <Text style={styles.stepText}>{s}</Text>
                 </View>
               ))}
+              <MoltInlineAction
+                item={it}
+                onLog={(route, params) => navigation.navigate(route, params)}
+                style={styles.inlineBtn}
+                labelStyle={styles.inlineLabel}
+              />
               {it.alertCount > 1 && (
                 <Text style={styles.more}>
                   {t(it.alertCount > 2 ? 'engines.briefing.moreAlerts' : 'engines.briefing.moreAlert', { count: it.alertCount - 1 })}
@@ -246,6 +255,11 @@ const styles = StyleSheet.create({
   step: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing[1] },
   stepText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textPrimary, flex: 1 },
   more: { ...theme.typeScale.caption, color: theme.roles.light.textTertiary, marginTop: theme.spacing[2] },
+  inlineBtn: {
+    alignSelf: 'flex-start', marginTop: theme.spacing[2], paddingHorizontal: theme.spacing[3], paddingVertical: theme.spacing[1.5],
+    borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.roles.light.primary,
+  },
+  inlineLabel: { ...theme.typeScale.labelMedium, color: theme.roles.light.primary },
 });
 
 export default MorningBriefingScreen;

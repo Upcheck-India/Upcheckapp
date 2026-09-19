@@ -34,6 +34,11 @@ const finance = {
 
   // List
   allExpenses: 'সমস্ত ব্যয়',
+  // Marks a cycle-expense row that actually lives in the `transactions`
+  // table — typed on the farm Money screen and tagged to this pond. It is
+  // read-only here: the edit/delete endpoints on this tab do not own it.
+  fromFarmMoney: 'ফার্ম টাকা থেকে',
+  fromPondExpenses: 'পুকুর খরচ থেকে',
 
   // Empty / loading states
   loadingExpenses: 'ব্যয় লোড হচ্ছে…',
@@ -46,6 +51,7 @@ const finance = {
 
   // Summary card
   financialSummary: 'আর্থিক সারসংক্ষেপ',
+  ledgerOnlyNote: "শুধু এখানে লেখা এন্ট্রি, সব সময়ের। টাকা ট্যাবে পুকুরের খরচ ও ফসল বিক্রিও ধরা হয়।",
   totalIncome: 'মোট আয়',
   totalExpense: 'মোট ব্যয়',
 
@@ -91,6 +97,7 @@ const finance = {
   byFarm: "খামার অনুযায়ী",
   farmInOut: "আয় {{income}} · ব্যয় {{expense}}",
   creditOutstanding: "ডিলার বাকি",
+  creditAllFarmsNote: "সব খামার, সব তারিখ — ডিলার বাকি উপরের চিপ দিয়ে ছাঁকা হয় না।",
   creditDue: "{{dealer}} · {{date}} তারিখে",
   creditDealers: "{{count}} জন ডিলারের কাছে",
   creditDealers_one: "একজন ডিলার",
@@ -99,7 +106,7 @@ const finance = {
   noEntries: "এই খামারের জন্য এখনও কিছু নথিভুক্ত হয়নি।",
   harvestSale: "ফসল বিক্রি",
   harvestSoldTo: "{{buyer}}-কে বিক্রি",
-  entriesNote: "শুধু সাম্প্রতিক এন্ট্রি। উপরের নিট হিসাবে চক্রে লেখা খরচও ধরা আছে — সেগুলি \"কোথায় গেল\"-তে দেখানো হয়েছে।",
+  entriesNote: "শুধু সাম্প্রতিক ছয়টি এন্ট্রি। পুকুরের খরচ ও ফসল বিক্রিও এখানে দেখা যায়; পুরো সময়ের যোগফল \"কোথায় গেল\"-তে আছে।",
   noFarmTitle: "এখনও কোনো খামার নেই",
   noFarmSub: "টাকার হিসাব রাখতে একটি খামার যোগ করুন।",
 
@@ -114,7 +121,7 @@ const finance = {
   includeArchived: "সংরক্ষিত পুকুর ধরুন",
   includeArchivedHint: "বন্ধ করা পুকুরের টাকাও আপনার খরচ ও আয়।",
   includeArchivedWorth: "উপরের হিসাবের মধ্যে {{amount}}।",
-  entriesArchivedNote: "উপরের মোটে সংরক্ষিত পুকুরও ধরা আছে। এন্ট্রি খামারের নামে লেখা হয়, পুকুরের নামে নয়, তাই এখানে চিহ্ন দেওয়া নেই — বন্ধ পুকুরের নিজের হিসাব দেখতে পুকুরের তালিকা খুলুন।",
+  entriesArchivedNote: "উপরের মোটে সংরক্ষিত পুকুরও ধরা আছে। পুকুরের নিজের খরচ তালিকায় সংরক্ষিত বলে চিহ্নিত; খামারের নামে লেখা এন্ট্রির কোনো পুকুর নেই, তাই চিহ্ন নেই।",
   includeInventory: "স্টক কেনা ধরুন",
   includeInventoryHint: "কেনা স্টক যেদিন কেনা হয় সেদিনের খরচ হিসেবে গোনা হয়।",
   includeInventoryOff: "উপরের হিসাবে স্টক কেনা ধরা হয়নি।",
@@ -123,6 +130,7 @@ const finance = {
 
   byPond: "পুকুর অনুযায়ী",
   wholeFarm: "পুরো খামার",
+  fieldPondLabel: "পুকুর (ঐচ্ছিক)",
   allCycles: "সব চক্র",
   pondCostTotal: "এই পুকুরের খরচ",
   cycleCostTotal: "এই চক্রের খরচ",

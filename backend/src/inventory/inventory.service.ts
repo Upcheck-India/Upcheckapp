@@ -119,8 +119,9 @@ export class InventoryService {
     }
 
     // Pairing onto a farm requires managing it — every farm in the set, not
-    // just one, since this establishes the pairing from scratch.
-    await Promise.all(
+    // just one, since this establishes the pairing from scratch. The Farms come
+    // back from the assertion, so the low-stock sync below costs no extra query.
+    const farms = await Promise.all(
       farmIds.map((f) =>
         this.farmAccess.assertCanAccessFarm(userId, f, 'MANAGE_INVENTORY'),
       ),
@@ -139,14 +140,25 @@ export class InventoryService {
     // ONE transaction, same as setPairing and adjustStock: an item saved
     // without its pairing rows is a zero-farm item, which assertPaired denies
     // to everyone — an unreachable orphan nobody can delete.
-    return this.dataSource.transaction(async (manager) => {
-      const saved = await manager.getRepository(InventoryItem).save(item);
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const row = await manager.getRepository(InventoryItem).save(item);
       await manager.insert(
         InventoryFarm,
-        farmIds.map((farmId) => ({ inventoryId: saved.id, farmId })),
+        farmIds.map((farmId) => ({ inventoryId: row.id, farmId })),
       );
-      return saved;
+      return row;
     });
+
+    // The THIRD writer of stock level, and it was the one still not telling the
+    // alerts (`update` was fixed, `adjustStock` always did). An item typed in
+    // already below its reorder level — "Feed A, 0 bags, reorder at 10", which
+    // is how a farmer records something they have run out of and must buy — is
+    // low the instant it exists: the list screen badges it immediately, because
+    // that badge is computed from the row. The alert was not raised until some
+    // LATER write happened to touch the item, so the store screen and the Today
+    // banner disagreed about the same item until then.
+    await this.syncLowStockAlerts(saved, farms);
+    return saved;
   }
 
   async findAll(
@@ -154,9 +166,6 @@ export class InventoryService {
     farmId?: string,
     category?: string,
   ): Promise<InventoryItemWithFarms[]> {
-    const where: any = {};
-    if (category) where.category = category;
-
     let scopeFarmIds: string[];
     if (farmId) {
       await this.farmAccess.assertCanAccessFarm(
@@ -180,13 +189,35 @@ export class InventoryService {
       where: { farmId: In(scopeFarmIds) },
     });
     const itemIds = [...new Set(pairs.map((p) => p.inventoryId))];
-    if (!itemIds.length) return [];
-    where.id = In(itemIds);
 
-    const items = await this.itemsRepository.find({
-      where,
-      order: { name: 'ASC' },
-    });
+    /**
+     * THE SAME scoping rule as `lowStockQuery` and `farmsFor`, which is the
+     * whole point: this was the one reader of the three that recognised ONLY
+     * `inventory_farms` and ignored the legacy `farm_id` column.
+     *
+     * So an un-backfilled row — one written before the join table existed, the
+     * exact case the other two readers keep a fallback for — was counted by
+     * `countLowStock` and readable by `findOne`, but absent from the list. The
+     * farmer tapped a "3 items low" badge on the dashboard and opened a store
+     * showing two of them, with no way to reach the third and no way to make
+     * the badge go away.
+     *
+     * Safe for the same reason it is safe there: every writer (`create`,
+     * `setPairing`) keeps `farm_id` inside the pairing set, so the OR can never
+     * pull in a farm the item is not actually stocked for.
+     */
+    const qb = this.itemsRepository.createQueryBuilder('item');
+    if (itemIds.length) {
+      qb.where(
+        '(item.farmId IN (:...scopeFarmIds) OR item.id IN (:...itemIds))',
+        { scopeFarmIds, itemIds },
+      );
+    } else {
+      qb.where('item.farmId IN (:...scopeFarmIds)', { scopeFarmIds });
+    }
+    if (category) qb.andWhere('item.category = :category', { category });
+
+    const items = await qb.orderBy('item.name', 'ASC').getMany();
 
     // Fix (Task 8 regression): a multi-paired item used to only carry its
     // single fast-path `farmId`, so a farm-list screen grouping by farm
@@ -357,15 +388,38 @@ export class InventoryService {
   }
 
   async update(id: string, updateDto: UpdateInventoryItemDto, userId: string) {
-    await this.loadItem(id, userId, 'MANAGE_INVENTORY');
+    const { farms } = await this.loadItem(id, userId, 'MANAGE_INVENTORY');
     // farmId is not on the DTO (D14) — an item cannot change farms.
     await this.itemsRepository.update(id, updateDto);
-    return this.itemsRepository.findOneBy({ id });
+    const saved = await this.itemsRepository.findOneBy({ id });
+
+    /**
+     * THIS is where the stuck banner came from.
+     *
+     * Editing an item is how a farmer actually restocks — open it, change the
+     * quantity, save — and this method wrote the new number and told the alerts
+     * nothing. Only `adjustStock` kept them honest. So the "running low" alert
+     * stayed open on an item that was full, could not be dismissed for good,
+     * and came back on every launch.
+     *
+     * Same call as `adjustStock` makes, deliberately: one rule, both writers.
+     */
+    if (saved) await this.syncLowStockAlerts(saved, farms);
+    return saved;
   }
 
   async remove(id: string, userId: string) {
     await this.loadItem(id, userId, 'MANAGE_INVENTORY');
-    return this.itemsRepository.delete(id);
+    const result = await this.itemsRepository.delete(id);
+
+    // A deleted item is not low on stock; it has no stock. The alert rows carry
+    // the item id in a JSON `data` blob, not a foreign key, so nothing cascades
+    // and nothing else would ever close them: deleting an item while it was low
+    // left "X is running low" open forever, pointing at a row that no longer
+    // exists — the stuck banner again, in the one shape dismissing it cannot
+    // fix, because the item can never come back above its reorder level.
+    await this.resolveLowStockAlerts(id);
+    return result;
   }
 
   /**
@@ -650,13 +704,59 @@ export class InventoryService {
     // stocked for depends on that stock; warning only whichever row Postgres
     // returned first left the others to discover the shortage themselves.
     // Mode is 'all' on any write capability, so `farms` is all of them.
-    if (isLowStock(savedItem)) {
-      for (const f of farms) {
-        await this.raiseLowStockAlert(savedItem, f);
-      }
-    }
+    await this.syncLowStockAlerts(savedItem, farms);
 
     return savedItem;
+  }
+
+  /**
+   * Bring the low-stock alerts into line with what the item now holds.
+   *
+   * EVERY path that can change stock level or reorder level must call this,
+   * which is the whole reason it is a method rather than two blocks.
+   * `adjustStock` did this inline and `update` did not — and `update` is what
+   * the inventory EDIT FORM calls. So a farmer who restocked the obvious way
+   * (open the item, change the quantity, save) left the alert open forever:
+   * the item was no longer low, so nothing would re-raise it and nothing would
+   * ever clear it. The banner sat on Today, survived being dismissed, and came
+   * back on every launch — "I restocked but it still shows low stock".
+   *
+   * Editing the reorder LEVEL counts too, in both directions: raising it above
+   * the quantity should warn, lowering it below should clear.
+   */
+  private async syncLowStockAlerts(item: InventoryItem, farms: Farm[]) {
+    if (isLowStock(item)) {
+      for (const f of farms) {
+        await this.raiseLowStockAlert(item, f);
+      }
+      return;
+    }
+    // No longer low, so the alert is no longer true.
+    await this.resolveLowStockAlerts(item.id);
+  }
+
+  /**
+   * Close every open low-stock alert for one item, for EVERY recipient — not
+   * just the actor, since the manager who reordered is often not the owner who
+   * was warned.
+   *
+   * Shared by the two things that make the alert untrue: the item rising back
+   * above its reorder level (`syncLowStockAlerts`) and the item ceasing to
+   * exist (`remove`).
+   */
+  private async resolveLowStockAlerts(itemId: string) {
+    try {
+      await this.alertsService.resolveAutoAlerts(
+        'inventory_low_stock',
+        'inventoryItemId',
+        itemId,
+      );
+    } catch (error: any) {
+      // Never fail a stock write, or a delete, because an alert would not close.
+      this.logger.error(
+        `Failed to resolve low stock alerts: ${error?.message ?? error}`,
+      );
+    }
   }
 
   /**
@@ -689,6 +789,21 @@ export class InventoryService {
 
       const message = `${item.name} is running low (${item.quantity} ${item.unit ?? ''}).`;
       for (const userId of recipients) {
+        // One open alert per item per person. Feed is logged daily, and every
+        // log from a low bag came back through here — so without this a farmer
+        // got the same sentence again every single day, and dismissing one
+        // just revealed the next. The alert reappears only after the current
+        // one is read AND the stock is still low.
+        if (
+          await this.alertsService.hasOpenAutoAlert(
+            userId,
+            'inventory_low_stock',
+            'inventoryItemId',
+            item.id,
+          )
+        ) {
+          continue;
+        }
         await this.alertsService.createAutoAlert(
           userId,
           farm.id,

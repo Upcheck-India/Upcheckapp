@@ -41,7 +41,7 @@ const home = {
   moreSectionHelp: 'సహాయం & సమాచారం',
   moreUserFallback: 'వినియోగదారు',
   moreEmailFallback: 'ఇమెయిల్ లేదు',
-  moreVersion: 'Upcheck v1.0.0',
+  moreVersion: 'Neerani v1.0.0',
   moreSignOutTitle: 'సైన్ అవుట్',
   moreSignOutMessage: 'మీరు నిజంగా సైన్ అవుట్ చేయాలనుకుంటున్నారా?',
   // Account items
@@ -77,7 +77,7 @@ const home = {
   // Help items
   moreHelp: 'సహాయం & మద్దతు',
   moreHelpDesc: 'తరచుగా అడిగే ప్రశ్నలు మరియు ట్యుటోరియల్లు',
-  moreAbout: 'Upcheck గురించి',
+  moreAbout: 'Neerani గురించి',
   moreAboutDesc: 'యాప్ వెర్షన్ మరియు క్రెడిట్స్',
 
   // ReportsScreen
@@ -106,6 +106,10 @@ const home = {
   pondIdle: 'ఖాళీ',
   quickLogTitle: 'త్వరిత లాగ్',
   quickLogSubtitle: 'నేటి రీడింగ్‌లను నమోదు చేయండి',
+  quickLogRoundsSection: "ఉదయపు రౌండ్",
+  quickLogRoundsTitle: "ప్రతి చెరువు నీటి నాణ్యత",
+  quickLogRoundsSub: "ఒకేసారి {{count}} చెరువులు",
+  quickLogSingleSection: "ఒక చెరువు కోసం నమోదు",
   quickLogPickPond: 'చెరువును ఎంచుకోండి',
   quickLogForPond: '{{pond}} కోసం నమోదు',
   quickLogNoPonds: 'ఇంకా చెరువులు లేవు',
@@ -119,7 +123,7 @@ const home = {
   quickLogNeedsCycle: 'సైకిల్ కావాలి',
   farmerFallback: 'రైతు',
   onboarding_languagePrompt: 'మీ భాషను ఎంచుకోండి',
-  onboarding_title: 'Upcheck కు స్వాగతం',
+  onboarding_title: 'Neerani కు స్వాగతం',
   onboarding_subtitle: 'మీ రొయ్యల చెరువు రోజువారీ సహాయకుడు',
   onboarding_feature1: 'నీరు, దాణా మరియు పెరుగుదలను సెకన్లలో నమోదు చేయండి',
   onboarding_feature2: 'మనుగడ మరియు లాభాన్ని పెంచడానికి స్మార్ట్ సలహా',
@@ -178,6 +182,8 @@ const home = {
 
   // Empty first-run dashboard (artboard 09)
   noFarmsYet: "ఇంకా ఫారమ్‌లు లేవు",
+  waitingApprovalTitle: "{{farm}} మిమ్మల్ని అనుమతించే వరకు వేచి ఉన్నాం",
+  waitingApprovalBody: "మీ అభ్యర్థన పంపబడింది. ఫారం యజమాని మిమ్మల్ని అనుమతిస్తారు — కోడ్‌ను మళ్లీ నమోదు చేయనవసరం లేదు.",
   createFarmCardSub: "మీ చెరువులను సెటప్ చేసి నమోదు ప్రారంభించండి",
   joinCodeCardTitle: "కోడ్‌తో చేరండి",
   joinCodeCardSub: "వేరొకరు నడిపే ఫారమ్‌లో పని చేయండి",
@@ -200,6 +206,9 @@ const home = {
   lunarMoltingTitle: "కుబుసం విడిచే సమయం",
   lunarMoltingBody: "అమావాస్య, పౌర్ణమి చుట్టూ రొయ్యల పెంకు మెత్తగా ఉంటుంది. మేత తగ్గించండి; పట్టుకోవద్దు, పంట తీయవద్దు.",
   lunarQuiet: "ఈరోజు కుబుసం విడిచే అవకాశం లేదు.",
+  moltWindowTitle: "మోల్ట్ విండో {{start}} – {{end}} · గరిష్ఠం {{peak}}",
+  moltPondsNeedAction: "{{total}} చెరువుల్లో {{pending}}కి చర్య అవసరం",
+  moltNextWindow: "తదుపరి మోల్ట్ విండో {{date}} నుండి",
   startHere: "ఇక్కడ మొదలుపెట్టండి",
   stepPondsTitle: "మీ చెరువులను చేర్చండి",
   stepPondsWhy: "అప్‌చెక్ ప్రతి చెరువు నీరు, మేత, పెరుగుదలను విడిగా గమనిస్తుంది. ఇప్పుడు గమనించడానికి ఏమీ లేదు.",
@@ -210,6 +219,9 @@ const home = {
   stepLogTitle: "నేటి రీడింగ్‌లు నమోదు చేయండి",
   stepLogWhy: "ఈరోజు ఏమీ నమోదు కాలేదు. ఇక్కడి ప్రతి హెచ్చరిక ఆక్సిజన్, pH నుంచే వస్తుంది.",
   stepLogCta: "ఇప్పుడు నమోదు చేయి",
+  stepInviteTitle: "మీతో పనిచేసేవారిని జోడించండి",
+  stepInviteWhy: "మీరు లేనప్పుడు కూడా వారు మేత, నీటి వివరాలు నమోదు చేయగలరు, అంకెలు ఒకే చోట ఉంటాయి.",
+  stepInviteCta: "మీ బృందాన్ని ఆహ్వానించండి",
   hideChecklist: "దాచు",
   hideChecklistTitle: "సెటప్ జాబితా దాచాలా?",
   hideChecklistBody: "ఇది మళ్ళీ రాదు. చెరువులు ఏర్పాటు చేయడం, రీడింగ్‌లు నమోదు చేయడం, జట్టును పిలవడం ఫారం, జట్టు ట్యాబ్‌లలో ఇంకా ఉంటాయి.",

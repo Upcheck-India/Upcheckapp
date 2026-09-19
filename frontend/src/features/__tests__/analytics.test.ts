@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // `mock`-prefixed so jest's out-of-scope guard allows the factory below.
 const mockConstructed = jest.fn();
 const mockCaptured = jest.fn();
+const mockScreen = jest.fn();
 const mockOptOut = jest.fn();
 const mockReset = jest.fn();
 const mockShutdown = jest.fn();
@@ -24,6 +25,7 @@ jest.mock('posthog-react-native', () => ({
             mockConstructed(key, opts);
         }
         capture = mockCaptured;
+        screen = mockScreen;
         optOut = mockOptOut;
         reset = mockReset;
         shutdown = mockShutdown;
@@ -34,8 +36,14 @@ import {
     capture,
     isAnalyticsRunning,
     sanitizeProps,
+    sanitizePersonProps,
+    setAmbientProps,
+    clearAmbientProps,
+    screenView,
+    sizeBand,
     stopAnalytics,
     syncAnalyticsConsent,
+    EVENTS,
 } from '../analytics';
 import { saveTelemetryPrefs } from '../telemetryPrefs';
 
@@ -50,7 +58,7 @@ describe('analytics consent gate', () => {
         expect(await syncAnalyticsConsent()).toBe(false);
         expect(isAnalyticsRunning()).toBe(false);
         expect(mockConstructed).not.toHaveBeenCalled();
-        capture('screen_view', { screen: 'Today' });
+        capture(EVENTS.LOG_RECORDED, { screen: 'Today' });
         expect(mockCaptured).not.toHaveBeenCalled();
     });
 
@@ -72,10 +80,19 @@ describe('analytics consent gate', () => {
         expect(isAnalyticsRunning()).toBe(true);
         expect(mockConstructed).toHaveBeenCalledWith(
             'phc_test_key',
-            expect.objectContaining({ enableSessionReplay: false, captureAppLifecycleEvents: false }),
+            // Replay stays off forever — it records screens showing pond names,
+            // expenses and harvest values, which the Policy says analytics never
+            // receives. Lifecycle events are ON deliberately: they are what DAU,
+            // retention and growth are computed from, they carry no farm data,
+            // and without them PostHog has events but no product story.
+            expect.objectContaining({
+                enableSessionReplay: false,
+                captureAppLifecycleEvents: true,
+                disableGeoip: true,
+            }),
         );
-        capture('screen_view', { screen: 'Today' });
-        expect(mockCaptured).toHaveBeenCalledWith('screen_view', { screen: 'Today' });
+        capture(EVENTS.LOG_RECORDED, { screen: 'Today' });
+        expect(mockCaptured).toHaveBeenCalledWith(EVENTS.LOG_RECORDED, { screen: 'Today' });
     });
 
     it('revoking stops collection AND shuts the client down', async () => {
@@ -90,7 +107,7 @@ describe('analytics consent gate', () => {
         expect(isAnalyticsRunning()).toBe(false);
 
         mockCaptured.mockClear();
-        capture('screen_view', { screen: 'Money' });
+        capture(EVENTS.LOG_RECORDED, { screen: 'Money' });
         expect(mockCaptured).not.toHaveBeenCalled();
     });
 });
@@ -101,18 +118,114 @@ describe('property allowlist', () => {
     it('drops everything that is not an allowlisted UI fact', () => {
         const record = {
             screen: 'Money',
-            count: 4,
             ok: true,
+            band: '2-5',
             amount: 45000,
             salary: 12000,
             biomass: 820,
             phone: '9876543210',
             pond: { id: 'p1', harvestKg: 900 },
         } as any;
-        expect(sanitizeProps(record)).toEqual({ screen: 'Money', count: 4, ok: true });
+        expect(sanitizeProps(record)).toEqual({ screen: 'Money', ok: true, band: '2-5' });
+    });
+
+    /**
+     * `count` was an allowlisted property and is deliberately gone. How many
+     * ponds a farmer holds is a commercial fact about their business, and the
+     * Policy says farm records never reach analytics. Quantities now go through
+     * sizeBand(), so an exact number is not representable rather than merely
+     * discouraged — the difference between a rule and a hope.
+     */
+    it('drops an exact count: quantities may only travel as a band', () => {
+        expect(sanitizeProps({ count: 47 } as any)).toEqual({});
+        expect(sanitizeProps({ band: sizeBand(47) })).toEqual({ band: '20+' });
+    });
+
+    it('bands bucket at the documented boundaries', () => {
+        expect(sizeBand(0)).toBe('1');
+        expect(sizeBand(1)).toBe('1');
+        expect(sizeBand(2)).toBe('2-5');
+        expect(sizeBand(5)).toBe('2-5');
+        expect(sizeBand(6)).toBe('6-20');
+        expect(sizeBand(20)).toBe('6-20');
+        expect(sizeBand(21)).toBe('20+');
+    });
+
+    it('keeps person properties to language, role and method', () => {
+        expect(
+            sanitizePersonProps({
+                language: 'ta',
+                role: 'worker',
+                method: 'truecaller',
+                email: 'x@y.z',
+                name: 'Ravi',
+            } as any),
+        ).toEqual({ language: 'ta', role: 'worker', method: 'truecaller' });
     });
 
     it('drops non-primitive values even under an allowlisted key', () => {
         expect(sanitizeProps({ screen: { name: 'Money' } } as any)).toEqual({});
+    });
+});
+
+/**
+ * Every event must be able to say WHICH ROLE it came from.
+ *
+ * `role` and `language` were set as person properties on identify and nowhere
+ * else. PostHog's person-on-events mode attaches a person property only to
+ * events sent AFTER the identify that set it — and `role` comes from the
+ * membership store, which loads well after the first screens render. So most
+ * of a first session arrived unattributed and the dashboards reported
+ * `role: unknown` for very nearly everything.
+ *
+ * Stamping the same two facts on the EVENT removes the dependency on timing.
+ */
+describe('ambient event properties', () => {
+    beforeEach(async () => {
+        await stopAnalytics();
+        await AsyncStorage.clear();
+        jest.clearAllMocks();
+        clearAmbientProps();
+        await saveTelemetryPrefs({ analytics: 'granted', crashReports: true });
+        await syncAnalyticsConsent();
+    });
+
+    it('stamps the role on a screen view', () => {
+        setAmbientProps({ role: 'worker', language: 'ta' });
+        screenView('Today');
+        expect(mockScreen).toHaveBeenCalledWith('Today', { role: 'worker', language: 'ta' });
+    });
+
+    it('stamps the role on a captured event', () => {
+        setAmbientProps({ role: 'owner', language: 'en' });
+        capture(EVENTS.LOG_RECORDED, { screen: 'Today' });
+        expect(mockCaptured).toHaveBeenCalledWith(
+            EVENTS.LOG_RECORDED,
+            expect.objectContaining({ role: 'owner', screen: 'Today' }),
+        );
+    });
+
+    it('lets an explicit prop win over the ambient one', () => {
+        // A call site naming a role means that role for that event.
+        setAmbientProps({ role: 'owner' });
+        capture(EVENTS.INVITE_ACCEPTED, { role: 'worker' });
+        expect(mockCaptured).toHaveBeenCalledWith(
+            EVENTS.INVITE_ACCEPTED,
+            expect.objectContaining({ role: 'worker' }),
+        );
+    });
+
+    it('carries nothing once cleared, so a signed-out device keeps no role', () => {
+        setAmbientProps({ role: 'manager' });
+        clearAmbientProps();
+        screenView('Login');
+        expect(mockScreen).toHaveBeenCalledWith('Login', {});
+    });
+
+    it('still refuses anything outside the allowlist', () => {
+        // The ambient channel must not become a back door for new fields.
+        setAmbientProps({ role: 'owner', email: 'ramu@pond.in' } as any);
+        screenView('Today');
+        expect(mockScreen).toHaveBeenCalledWith('Today', { role: 'owner' });
     });
 });

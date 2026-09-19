@@ -1,4 +1,50 @@
-import { WaterQualityService } from './water-quality.service';
+import { WaterQualityService, criticalThresholds } from './water-quality.service';
+
+/**
+ * Persisted alert limits now come from the shared per-species table. Deliberate
+ * behaviour change: pH critical-low moved 6.5 → 7.0 for penaeids (6.5 stays for
+ * scampi), matching what the app already coloured red.
+ */
+describe('WaterQualityService alert limits (shared thresholds)', () => {
+  it('reads vannamei limits by default, per-species when known', () => {
+    expect(criticalThresholds(null)).toEqual({
+      ph: { min: 7.0, max: 9.0 },
+      dissolvedOxygen: { min: 3 },
+      ammonia: { max: 0.5 },
+    });
+    expect(criticalThresholds('Macrobrachium rosenbergii').ph.min).toBe(6.5);
+  });
+
+  const run = async (record: any, species: string | null) => {
+    const createAutoAlert = jest.fn().mockResolvedValue(undefined);
+    const repo = { query: jest.fn().mockResolvedValue([{ species }]) };
+    const service = new WaterQualityService(
+      repo as any,
+      {} as any,
+      { supersedeOpenAlerts: jest.fn(), createAutoAlert } as any,
+      {} as any,
+    );
+    await (service as any).checkAndGenerateAlerts(
+      { id: 'r1', ...record },
+      { id: 'p1', farmId: 'f1', activeCycleId: 'c1' },
+      'u1',
+    );
+    return createAutoAlert.mock.calls.map((c) => c[3]);
+  };
+
+  it('pH 6.8 now raises a Low pH alert on a vannamei pond, not on scampi', async () => {
+    expect(await run({ ph: 6.8 }, 'Penaeus vannamei')).toEqual(['Low pH Alert']);
+    expect(await run({ ph: 6.8 }, 'Macrobrachium rosenbergii')).toEqual([]);
+  });
+
+  it('DO < 3 and ammonia > 0.5 still raise; healthy values do not', async () => {
+    expect(await run({ dissolvedOxygen: 2.9, ammonia: 0.6 }, null)).toEqual([
+      'Low Dissolved Oxygen Alert',
+      'High Ammonia Alert',
+    ]);
+    expect(await run({ ph: 8, dissolvedOxygen: 5, ammonia: 0.2 }, null)).toEqual([]);
+  });
+});
 
 /**
  * Per-column latest (§4.6) and the weekly-chemistry filter (§4.5).

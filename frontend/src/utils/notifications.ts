@@ -2,6 +2,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import i18n from '../i18n';
 import type { PondContext } from '../api/pondContext';
 import { pondSlotDone, chemistryDone, type Slot } from '../features/logProgress';
@@ -258,12 +259,27 @@ export async function syncReminders(
         // second, Android delivers on a channel the farmer never saw.
         const permission = await ensureNotificationPermission();
         await ensureNotificationChannel();
-        await cancelOurs();
+
+        // CANCEL ONLY WHEN WE ARE ABOUT TO RESCHEDULE.
+        //
+        // This used to cancel first and then hit these two early returns, and
+        // it runs on EVERY app foreground — so a single transient condition
+        // (permission not yet answered, `/ponds/mine` momentarily empty or
+        // failing) silently wiped every reminder the farmer had and put none
+        // back. Nothing rearmed them until a later launch happened to satisfy
+        // both guards, and from the farmer's side reminders had simply stopped
+        // with no explanation and nothing on screen.
+        //
+        // Bailing BEFORE the cancel leaves the previously scheduled window
+        // intact, which is strictly better: those notifications were correct
+        // when they were scheduled, and a stale reminder is a far smaller
+        // failure than silence.
         if (permission !== 'granted') {
             console.warn('[Notifications] Reminders not armed — permission is', permission);
             return;
         }
         if (!hasPonds) return;
+        await cancelOurs();
 
         /** Today's slot is skipped only when we KNOW every pond has logged it. */
         const allDone = (fn: (c: PondContext) => boolean) =>
@@ -322,6 +338,132 @@ export async function syncReminders(
         }
     } catch (e) {
         console.warn('[Notifications] Could not sync reminders', e);
+    }
+}
+
+const MOLT_REMINDER_TAG = 'molt-reminder';
+
+/**
+ * One local notification at 18:00 on the evening before each upcoming molt
+ * window's pre-start, so minerals and aerators happen BEFORE the peak.
+ *
+ * Idempotent: cancels only its own tag and re-schedules from the windows the
+ * server returned, so calling it on every foreground never duplicates. Never
+ * prompts — syncReminders owns the permission request; without a grant this
+ * leaves whatever is already scheduled alone (same rule as syncReminders).
+ */
+export async function syncMoltReminders(
+    windows: { key: string; kind: 'new' | 'full'; preStart: string }[],
+    now: Date = new Date(),
+): Promise<void> {
+    if (Platform.OS === 'web') return;
+    try {
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted' || windows.length === 0) return;
+        await ensureNotificationChannel();
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        await Promise.all(
+            scheduled
+                .filter((n: any) => n?.content?.data?.tag === MOLT_REMINDER_TAG)
+                .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+        );
+        for (const w of windows) {
+            const [y, m, d] = w.preStart.split('-').map(Number);
+            // Local 18:00 on the day before preStart.
+            const when = new Date(y, m - 1, d - 1, 18, 0, 0, 0);
+            if (when <= now) continue;
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: i18n.t('engines.lunar.reminderTitle', 'Molt window starts tomorrow'),
+                    body: i18n.t(
+                        'engines.lunar.reminderBody',
+                        'Dose minerals, check alkalinity and service aerators before the peak.',
+                    ),
+                    data: { tag: MOLT_REMINDER_TAG, windowKey: w.key },
+                },
+                trigger: {
+                    type: Notifications.SchedulableTriggerInputTypes.DATE,
+                    date: when,
+                    channelId: REMINDER_CHANNEL_ID,
+                },
+            });
+        }
+    } catch (e) {
+        console.warn('[Notifications] Could not sync molt reminders', e);
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Daily Brief reminders — 06:00 "morning brief" and 19:00 "day wrap"
+// ──────────────────────────────────────────────────────────────────────────────
+
+export const BRIEF_REMINDER_TAG = 'brief-reminder';
+export const BRIEF_REMINDERS_PREF_KEY = 'briefReminders';
+
+export const BRIEF_REMINDER_SLOTS = [
+    { slot: 'morning', hour: 6, minute: 0, title: 'dailyBrief.notify.morningTitle', body: 'dailyBrief.notify.morningBody' },
+    { slot: 'wrap', hour: 19, minute: 0, title: 'dailyBrief.notify.wrapTitle', body: 'dailyBrief.notify.wrapBody' },
+] as const;
+
+/** The Settings toggle. Absent = on: it only ever takes effect once permission is granted. */
+export async function loadBriefRemindersPref(): Promise<boolean> {
+    try {
+        const raw = await AsyncStorage.getItem(BRIEF_REMINDERS_PREF_KEY);
+        return raw == null ? true : JSON.parse(raw) !== false;
+    } catch {
+        return true;
+    }
+}
+
+export async function saveBriefRemindersPref(on: boolean): Promise<void> {
+    await AsyncStorage.setItem(BRIEF_REMINDERS_PREF_KEY, JSON.stringify(on));
+}
+
+/**
+ * Arm (or clear) the two daily brief reminders.
+ *
+ * Unlike the water-check window these carry no skip condition — the brief is
+ * worth opening whether or not anything is logged — so a repeating DAILY
+ * trigger is right, and it cannot lapse. Idempotent: cancels only its own tag
+ * and re-schedules, so every foreground call leaves exactly two, in the
+ * current language. Never prompts for permission; without a grant it leaves
+ * whatever is already scheduled alone (same rule as syncMoltReminders).
+ */
+export async function syncBriefReminders(enabled: boolean): Promise<void> {
+    if (Platform.OS === 'web') return;
+    try {
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        const cancelMine = () =>
+            Promise.all(
+                scheduled
+                    .filter((n: any) => n?.content?.data?.tag === BRIEF_REMINDER_TAG)
+                    .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
+            );
+        if (!enabled) {
+            await cancelMine();
+            return;
+        }
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted') return;
+        await ensureNotificationChannel();
+        await cancelMine();
+        for (const s of BRIEF_REMINDER_SLOTS) {
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: i18n.t(s.title),
+                    body: i18n.t(s.body),
+                    data: { tag: BRIEF_REMINDER_TAG, slot: s.slot },
+                },
+                trigger: {
+                    type: Notifications.SchedulableTriggerInputTypes.DAILY,
+                    hour: s.hour,
+                    minute: s.minute,
+                    channelId: REMINDER_CHANNEL_ID,
+                },
+            });
+        }
+    } catch (e) {
+        console.warn('[Notifications] Could not sync brief reminders', e);
     }
 }
 

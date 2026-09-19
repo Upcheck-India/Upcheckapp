@@ -1,11 +1,12 @@
 import { EngineAlertService } from './engine-alert.service';
-import { LunarService } from '../lunar/lunar.service';
+import { deriveItems, PondMolt } from '../molt/molt.service';
+import { windowForPeak } from '../molt/molt-window';
 
 function makeService() {
   return new EngineAlertService(
     null as any, // pondRepo (unused by evaluate)
     null as any, // pondContext
-    new LunarService(),
+    null as any, // molt (unused by evaluate)
     null as any, // alertCenter
     null as any, // farmAccess (unused by evaluate)
   );
@@ -49,6 +50,28 @@ describe('EngineAlertService.evaluate', () => {
     ).toBeUndefined();
   });
 
+  it('DO limits are per-species from the shared table (boundary: 3 is watch, 4 is fine)', () => {
+    const aer = (ctx: any) => svc.evaluate(ctx).find((d) => d.source === 'aeration')?.severity;
+    expect(aer({ ...baseCtx, waterQuality: { dissolvedOxygen: 3 } })).toBe('watch');
+    expect(aer({ ...baseCtx, waterQuality: { dissolvedOxygen: 4 } })).toBeUndefined();
+  });
+
+  it('free NH3 boundaries unchanged: 0.1 is fine, 0.3 is watch, above 0.3 critical', () => {
+    const w = (v: number) => svc.evaluate({ ...baseCtx, freeAmmoniaMgL: v }).find((d) => d.source === 'water')?.severity;
+    expect(w(0.1)).toBeUndefined();
+    expect(w(0.3)).toBe('watch');
+    expect(w(0.31)).toBe('critical');
+  });
+
+  // New rule (deliberate): pH outside the species' critical limits.
+  it('emits a critical pH alert outside 7.0–9.0 (vannamei), 6.5 low limit for scampi', () => {
+    const ph = (ctx: any) => svc.evaluate(ctx).find((d) => d.title === 'pH out of safe range')?.severity;
+    expect(ph({ ...baseCtx, waterQuality: { dissolvedOxygen: 6, ph: 6.9 } })).toBe('critical');
+    expect(ph({ ...baseCtx, waterQuality: { dissolvedOxygen: 6, ph: 9.2 } })).toBe('critical');
+    expect(ph({ ...baseCtx, waterQuality: { dissolvedOxygen: 6, ph: 7.2 } })).toBeUndefined();
+    expect(ph({ ...baseCtx, species: 'Macrobrachium rosenbergii', waterQuality: { dissolvedOxygen: 6, ph: 6.8 } })).toBeUndefined();
+  });
+
   it('flags poor feed efficiency when running FCR is high', () => {
     expect(
       svc
@@ -64,6 +87,71 @@ describe('EngineAlertService.evaluate', () => {
 
   it('emits nothing when everything is healthy', () => {
     expect(svc.evaluate(baseCtx)).toEqual([]);
+  });
+});
+
+describe('EngineAlertService.evaluate — molt checklist', () => {
+  const svc = makeService();
+  const window = windowForPeak(new Date('2026-09-11T03:28:07Z'), 'new');
+  const DAY = { pre: '2026-09-08', peak: '2026-09-11', post: '2026-09-13', inter: '2026-09-20' } as const;
+  const allDone = {
+    minerals: true,
+    alkalinity: true,
+    peakDo: true,
+    handlingInPeak: false,
+    postSampling: true,
+    feedBaselineKg: 100,
+    peakFeedDaysKg: [80],
+    postFeedDaysKg: [90],
+  };
+  const molt = (over: Partial<PondMolt> & { ev?: any; manual?: string[] }): PondMolt => {
+    const phase = over.phase ?? 'peak';
+    return {
+      pondId: 'p1',
+      window,
+      phase,
+      eligible: true,
+      sizeUnknown: false,
+      abwG: 12,
+      pendingCritical: 0,
+      items: deriveItems(phase, { ...allDone, ...over.ev }, new Set(over.manual ?? []), DAY[phase], window),
+      ...over,
+    } as PondMolt;
+  };
+  const lunar = (m: PondMolt) =>
+    svc.evaluate(baseCtx, m).filter((d) => d.source === 'lunar');
+
+  it('no alert when every item is done', () => {
+    expect(lunar(molt({ phase: 'peak', manual: ['aerator_service'] }))).toEqual([]);
+  });
+
+  it('critical at peak with a pending critical item, steps list pending items', () => {
+    const [a] = lunar(molt({ phase: 'peak', ev: { peakDo: false } }));
+    expect(a.severity).toBe('critical');
+    expect(a.title).toBe('Molt peak — 1 action pending');
+    expect(a.steps).toEqual(['Check and log night/pre-dawn DO']);
+    expect(a.actions).toEqual({
+      pondId: 'p1',
+      windowKey: '2026-09-11-new',
+      items: [{ key: 'night_do_check', source: 'auto', route: 'WaterQualityLog' }],
+    });
+  });
+
+  it('critical at peak when handling was logged (violated)', () => {
+    const [a] = lunar(molt({ phase: 'peak', ev: { handlingInPeak: true } }));
+    expect(a.severity).toBe('critical');
+  });
+
+  it('watch in pre with a pending important item', () => {
+    const [a] = lunar(molt({ phase: 'pre', ev: { minerals: false } }));
+    expect(a.severity).toBe('watch');
+  });
+
+  it('ineligible and size-unknown ponds get no molt alert', () => {
+    const pending = { phase: 'peak' as const, ev: { peakDo: false } };
+    expect(lunar(molt({ ...pending, eligible: false }))).toEqual([]);
+    expect(lunar(molt({ ...pending, eligible: false, sizeUnknown: true, abwG: null }))).toEqual([]);
+    expect(lunar(molt({ ...pending, window: null }))).toEqual([]);
   });
 });
 
@@ -97,14 +185,17 @@ const buildSvc = (over: any = {}) => {
       .fn()
       .mockResolvedValue(over.readablePonds ?? ['p1', 'p2']),
   };
+  const moltSvc = {
+    checklistsFor: jest.fn(async () => new Map()),
+  };
   const svc = new EngineAlertService(
     pondRepo as any,
     { buildContextsFor } as any,
-    new LunarService(),
+    moltSvc as any,
     { buildBriefing: jest.fn((drafts) => drafts) } as any,
     farmAccess as any,
   );
-  return { svc, buildContextsFor, pondRepo, farmAccess };
+  return { svc, buildContextsFor, pondRepo, farmAccess, moltSvc };
 };
 
 describe('EngineAlertService.activeContexts', () => {
@@ -177,5 +268,69 @@ describe('EngineAlertService.today', () => {
     for (const item of briefing) {
       expect(contexts.some((c) => c.pondId === item.pondId)).toBe(true);
     }
+  });
+
+  it('adds moltWindow from ONE bulk checklist call', async () => {
+    const { svc, moltSvc } = buildSvc();
+    moltSvc.checklistsFor.mockResolvedValueOnce(
+      new Map<string, any>([
+        ['p1', { pondId: 'p1', eligible: true, window: { peakDate: 'x', key: 'k' }, phase: 'peak', items: [{ key: 'night_do_check', priority: 'critical', status: 'pending', actionable: true, source: 'auto', route: 'WaterQualityLog' }] }],
+        ['p2', { eligible: false, window: null, phase: 'peak', items: [] }],
+      ]),
+    );
+    const { moltWindow, briefing } = await svc.today('user-1');
+    expect(moltSvc.checklistsFor).toHaveBeenCalledTimes(1);
+    expect(moltWindow).toMatchObject({ eligiblePonds: 1, pondsWithPending: 1 });
+    expect(moltWindow.next.key).toMatch(/-(new|full)$/);
+    // briefingFrom hands the molt actions to buildBriefing in data (mocked as identity here).
+    const lunarDraft: any = briefing.find((b: any) => b.data?.source === 'lunar');
+    expect(lunarDraft.data.actions).toEqual({ pondId: 'p1', windowKey: 'k', items: [{ key: 'night_do_check', source: 'auto', route: 'WaterQualityLog' }] });
+    expect(briefing.filter((b: any) => b.data?.source === 'lunar' || b.source === 'lunar')).toHaveLength(1);
+  });
+});
+
+describe('EngineAlertService.all', () => {
+  const withSaved = (over: any = {}) => {
+    const built = buildSvc(over);
+    (built.svc as any).alertCenter.savedAlerts = jest.fn(async () => over.saved ?? []);
+    return built;
+  };
+
+  it('returns every live alert uncollapsed — two alerts on one pond both come back', async () => {
+    const { svc } = withSaved({
+      readablePonds: ['p1'],
+      buildContextsFor: jest.fn(async (ids: string[]) =>
+        ids.map((pondId) => ({ ...baseCtx, pondId, farmId: 'farm-1', runningFcr: 2.1, freeAmmoniaMgL: 0.5 })),
+      ),
+    });
+    const { live } = await svc.all('user-1');
+    expect(live.map((a) => a.source)).toEqual(['water', 'feed']);
+    expect(live.every((a) => a.pondId === 'p1' && a.farmId === 'farm-1')).toBe(true);
+    expect(new Set(live.map((a) => a.key)).size).toBe(2);
+    expect(live[0].steps.length).toBeGreaterThan(1);
+  });
+
+  it('orders critical → watch → info, then by pond', async () => {
+    const { svc } = withSaved({
+      buildContextsFor: jest.fn(async () => [
+        { ...baseCtx, pondId: 'p2', farmId: 'f', runningFcr: 2.1 },
+        { ...baseCtx, pondId: 'p1', farmId: 'f', runningFcr: 2.1 },
+        { ...baseCtx, pondId: 'p2', farmId: 'f', freeAmmoniaMgL: 0.5 },
+      ]),
+    });
+    const { live } = await svc.all('user-1');
+    expect(live.map((a) => `${a.severity}:${a.pondId}`)).toEqual(['critical:p2', 'watch:p1', 'watch:p2']);
+  });
+
+  it('keeps the same per-pond scope as today', async () => {
+    const { svc, buildContextsFor } = withSaved({ readablePonds: ['p1'] });
+    await svc.all('scoped-worker');
+    expect(buildContextsFor.mock.calls[0][0]).toEqual(['p1']);
+  });
+
+  it('passes the saved alerts through', async () => {
+    const saved = [{ id: 'a1' }];
+    const { svc } = withSaved({ readablePonds: [], saved });
+    expect(await svc.all('u')).toEqual({ live: [], saved });
   });
 });

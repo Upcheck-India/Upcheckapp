@@ -10,6 +10,41 @@ const engines = {
     prefilled: 'आपके नवीनतम लॉग से भरा गया। ज़रूरत हो तो बदलें।',
     prefilledDoc: 'आपके नवीनतम लॉग से भरा गया · DOC {{doc}}। ज़रूरत हो तो बदलें।',
     couldNotCompute: 'गणना नहीं हो सकी',
+
+    needsInputs: "पहले ये भरें, ताकि उत्तर आपके तालाब का हो:",
+
+
+    needsSampling: "हाल की सैंपलिंग (औसत वज़न)",
+
+
+    needsPopulation: "तालाब में कितने झींगे हैं",
+
+
+    needsBiomass: "तालाब का कुल जैवभार",
+
+
+    needsAerators: "लगे हुए एरेटर की हॉर्सपावर",
+
+
+    needsDo: "मौजूदा घुलित ऑक्सीजन रीडिंग",
+
+
+    needsArea: "तालाब का क्षेत्रफल",
+
+
+    needsFeedPrice: "चारा किस भाव पर लेते हैं, प्रति किलो",
+
+
+    noData: "तालाब का डेटा नहीं",
+
+
+    contextUnavailable: "इस तालाब के ताज़ा आँकड़े नहीं मिल सके",
+
+
+    contextUnavailableBody: "आपके लिए कुछ भी अपने आप नहीं भरा गया है। यदि आपको मान पता हैं तो स्वयं भरें, तब उत्तर आपके तालाब का होगा।",
+
+
+    heuristicNote: "यह उद्योग का अनुभव-नियम है, माप नहीं — मार्गदर्शन के लिए उपयोगी, पर तालाब में जो दिखे उससे मिलाकर देखें।",
     couldNotSave: 'सहेजा नहीं जा सका',
     tryAgain: 'कृपया फिर से प्रयास करें।',
   },
@@ -68,6 +103,8 @@ const engines = {
     fasting: 'उपवास दिन',
     calculate: 'आज की फ़ीड निकालें',
     recommended: 'आज अनुशंसित',
+
+    rangeWhy: "यह एक दायरा है, क्योंकि आपकी हाल की रीडिंग कम हैं।",
     biomassFr: '{{biomass}} kg बायोमास · FR {{fr}}%',
   },
   harvest: {
@@ -144,6 +181,11 @@ const engines = {
     illuminated: '{{pct}}% प्रकाशित',
     moltWindow: 'मोल्ट विंडो · स्प्रिंग ज्वार में {{days}} दिन',
     toNextWindow: 'अगली मोल्ट विंडो में {{days}} दिन',
+
+    nextNewMoon: "अमावस्या: {{date}}",
+
+
+    nextFullMoon: "पूर्णिमा: {{date}}",
     assessment: 'मोल्ट-जोखिम आकलन',
     abw: 'औसत शारीरिक वज़न',
     assess: 'आँकें',
@@ -162,6 +204,43 @@ const engines = {
     priority_critical: 'अत्यावश्यक',
     priority_important: 'महत्वपूर्ण',
     priority_routine: 'नियमित',
+    timeline: 'मोल्ट विंडो',
+    phase_pre: 'मोल्ट से पहले',
+    phase_peak: 'चरम',
+    phase_post: 'मोल्ट के बाद',
+    dateRange: '{{start}} – {{end}}',
+    windowNew: 'अमावस्या {{date}}',
+    windowFull: 'पूर्णिमा {{date}}',
+    nextWindows: 'आने वाली मोल्ट विंडो',
+    checklist: 'मोल्ट चेकलिस्ट',
+    noWindowNow: 'अभी कोई मोल्ट विंडो नहीं है।',
+    sizeUnknown: 'इस तालाब की मोल्ट चेकलिस्ट देखने के लिए सैंपलिंग करें।',
+    tooSmall: '5 ग्राम से छोटे झींगे चाँद के साथ मोल्ट नहीं करते — अभी चेकलिस्ट की ज़रूरत नहीं।',
+    sample: 'सैंपलिंग लॉग करें',
+    item_minerals: 'खनिज (Ca/Mg/K) डालें और लॉग करें',
+    item_alkalinity_check: 'क्षारीयता जाँचें (लक्ष्य 120 ppm या अधिक)',
+    item_aerator_service: 'चरम से पहले एरेटर की सर्विस करें',
+    item_feed_cut: 'आज फ़ीड 15–30% घटाएँ (मोल्ट चरम)',
+    item_no_handling: 'चरम के दौरान सैंपलिंग, जाल या हार्वेस्ट नहीं',
+    item_night_do_check: 'रात / भोर से पहले DO जाँचें',
+    item_restore_feed: 'ट्रे खाली होने पर फ़ीड फिर बढ़ाएँ (2–3 दिन में +5–10%)',
+    item_post_sampling: 'खोल सख्त होने पर सैंपलिंग करें',
+    item_soft_shell_check: 'नरम खोल और आपस में खाने की जाँच करें',
+    status_done: 'हो गया',
+    status_pending: 'बाकी',
+    status_violated: 'पालन नहीं हुआ',
+    status_missed: 'छूट गया',
+    earlierInWindow: 'इस विंडो में पहले',
+    done: 'हो गया',
+    markDone: 'पूरा करें',
+    undo: 'वापस लें',
+    logIt: 'लॉग करें',
+    eligiblePonds: 'इस मोल्ट विंडो के तालाब',
+    noEligiblePonds: 'अभी किसी तालाब को मोल्ट चेकलिस्ट की ज़रूरत नहीं।',
+    pondProgress: '{{total}} में से {{done}} पूरे',
+    needsSampling: 'सैंपलिंग ज़रूरी',
+    reminderTitle: 'मोल्ट विंडो कल से शुरू',
+    reminderBody: 'चरम से पहले खनिज डालें, क्षारीयता जाँचें और एरेटर की सर्विस करें।',
   },
   pnl: {
     title: 'फसल लाभ-हानि',

@@ -41,7 +41,7 @@ const home = {
   moreSectionHelp: 'ସହାୟତା ଓ ତଥ୍ୟ',
   moreUserFallback: 'ବ୍ୟବହାରକାରୀ',
   moreEmailFallback: 'ଇମେଲ ନାହିଁ',
-  moreVersion: 'Upcheck v1.0.0',
+  moreVersion: 'Neerani v1.0.0',
   moreSignOutTitle: 'ସାଇନ ଆଉଟ',
   moreSignOutMessage: 'ଆପଣ ସତ ସାଇନ ଆଉଟ କରିବାକୁ ଚାହୁଁଛନ୍ତି?',
   // Account items
@@ -77,7 +77,7 @@ const home = {
   // Help items
   moreHelp: 'ସହାୟତା ଓ ସମର୍ଥନ',
   moreHelpDesc: 'FAQ ଓ ଟ୍ୟୁଟୋରିଆଲ',
-  moreAbout: 'Upcheck ବିଷୟରେ',
+  moreAbout: 'Neerani ବିଷୟରେ',
   moreAboutDesc: 'ଆପ ସଂସ୍କରଣ ଓ କ୍ରେଡିଟ',
 
   // ReportsScreen
@@ -106,6 +106,10 @@ const home = {
   pondIdle: 'ନିଷ୍କ୍ରିୟ',
   quickLogTitle: 'ଶୀଘ୍ର ଲଗ',
   quickLogSubtitle: 'ଆଜିର ରିଡିଂ ଲିପିବଦ୍ଧ କରନ୍ତୁ',
+  quickLogRoundsSection: "ସକାଳର ରାଉଣ୍ଡ",
+  quickLogRoundsTitle: "ପ୍ରତ୍ୟେକ ପୋଖରୀର ଜଳ ଗୁଣବତ୍ତା",
+  quickLogRoundsSub: "ଏକାଥରକେ {{count}} ପୋଖରୀ",
+  quickLogSingleSection: "ଗୋଟିଏ ପୋଖରୀ ପାଇଁ ଲେଖନ୍ତୁ",
   quickLogPickPond: 'ପୋଖରୀ ବାଛନ୍ତୁ',
   quickLogForPond: '{{pond}} ପାଇଁ ଲଗ',
   quickLogNoPonds: 'ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ପୋଖରୀ ନାହିଁ',
@@ -119,7 +123,7 @@ const home = {
   quickLogNeedsCycle: 'ସାଇକଲ ଦରକାର',
   farmerFallback: 'କୃଷକ',
   onboarding_languagePrompt: 'ଆପଣଙ୍କ ଭାଷା ବାଛନ୍ତୁ',
-  onboarding_title: 'Upcheck କୁ ସ୍ୱାଗତ',
+  onboarding_title: 'Neerani କୁ ସ୍ୱାଗତ',
   onboarding_subtitle: 'ଆପଣଙ୍କ ଚିଙ୍ଗୁଡ଼ି ଚାଷର ଦୈନିକ ସହାୟକ',
   onboarding_feature1: 'ପାଣି, ଖାଦ୍ୟ ଓ ବୃଦ୍ଧି ସେକେଣ୍ଡରେ ରେକର୍ଡ କରନ୍ତୁ',
   onboarding_feature2: 'ବଞ୍ଚିବା ଓ ଲାଭ ବଢ଼ାଇବା ପାଇଁ ସ୍ମାର୍ଟ ପରାମର୍ଶ',
@@ -178,6 +182,8 @@ const home = {
 
   // Empty first-run dashboard (artboard 09)
   noFarmsYet: "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଫାର୍ମ ନାହିଁ",
+  waitingApprovalTitle: "{{farm}} ଆପଣଙ୍କୁ ଅନୁମତି ଦେବା ପାଇଁ ଅପେକ୍ଷା",
+  waitingApprovalBody: "ଆପଣଙ୍କ ଅନୁରୋଧ ପଠାଯାଇଛି। ଫାର୍ମ ମାଲିକ ଆପଣଙ୍କୁ ଅନୁମତି ଦେବେ — କୋଡ୍ ପୁନର୍ବାର ଦେବାର ଆବଶ୍ୟକତା ନାହିଁ।",
   createFarmCardSub: "ଆପଣଙ୍କ ପୋଖରୀ ସେଟ୍ କରି ଲେଖିବା ଆରମ୍ଭ କରନ୍ତୁ",
   joinCodeCardTitle: "କୋଡ୍ ଦେଇ ଯୋଗ ଦିଅନ୍ତୁ",
   joinCodeCardSub: "ଅନ୍ୟ କେହି ଚଳାଉଥିବା ଫାର୍ମରେ କାମ କରନ୍ତୁ",
@@ -200,6 +206,9 @@ const home = {
   lunarMoltingTitle: "ଖୋଳ ବଦଳିବା ସମୟ",
   lunarMoltingBody: "ଅମାବାସ୍ୟା ଓ ପୂର୍ଣ୍ଣିମା ପାଖରେ ଚିଙ୍ଗୁଡ଼ିର ଖୋଳ ନରମ ରହେ। ଖାଦ୍ୟ କମ ଦିଅନ୍ତୁ, ଧରନ୍ତୁ ନାହିଁ କି ଅମଳ କରନ୍ତୁ ନାହିଁ।",
   lunarQuiet: "ଆଜି ଖୋଳ ବଦଳିବା ଆଶା ନାହିଁ।",
+  moltWindowTitle: "ମୋଲ୍ଟ ୱିଣ୍ଡୋ {{start}} – {{end}} · ଶୀର୍ଷ {{peak}}",
+  moltPondsNeedAction: "{{total}}ଟି ପୋଖରୀ ମଧ୍ୟରୁ {{pending}}ଟିରେ କାମ ବାକି",
+  moltNextWindow: "ପରବର୍ତ୍ତୀ ମୋଲ୍ଟ ୱିଣ୍ଡୋ {{date}}ରୁ",
   startHere: "ଏଠାରୁ ଆରମ୍ଭ କରନ୍ତୁ",
   stepPondsTitle: "ଆପଣଙ୍କ ପୋଖରୀ ଯୋଡ଼ନ୍ତୁ",
   stepPondsWhy: "ଅପଚେକ ପ୍ରତ୍ୟେକ ପୋଖରୀର ପାଣି, ଖାଦ୍ୟ ଓ ବୃଦ୍ଧି ଅଲଗା ଅଲଗା ଦେଖେ। ଏବେ ଦେଖିବାକୁ କିଛି ନାହିଁ।",
@@ -210,6 +219,9 @@ const home = {
   stepLogTitle: "ଆଜିର ରିଡିଂ ଲିପିବଦ୍ଧ କରନ୍ତୁ",
   stepLogWhy: "ଆଜି କିଛି ଲିପିବଦ୍ଧ ହୋଇନାହିଁ। ଏଠାକାର ପ୍ରତ୍ୟେକ ଚେତାବନୀ ଅମ୍ଳଜାନ ଓ pH ରୁ ହିଁ ତିଆରି।",
   stepLogCta: "ଏବେ ଲିପିବଦ୍ଧ କରନ୍ତୁ",
+  stepInviteTitle: "ଆପଣଙ୍କ ସହ କାମ କରୁଥିବା ଲୋକଙ୍କୁ ଯୋଡ଼ନ୍ତୁ",
+  stepInviteWhy: "ଆପଣ ନଥିଲେ ମଧ୍ୟ ସେମାନେ ଖାଦ୍ୟ ଓ ଜଳ ଲେଖି ପାରିବେ, ଆଉ ସଂଖ୍ୟାଗୁଡ଼ିକ ଏକ ଜାଗାରେ ରହିବ।",
+  stepInviteCta: "ଆପଣଙ୍କ ଦଳକୁ ଆମନ୍ତ୍ରଣ କରନ୍ତୁ",
   hideChecklist: "ଲୁଚାନ୍ତୁ",
   hideChecklistTitle: "ସେଟଅପ ତାଲିକା ଲୁଚାଇବେ?",
   hideChecklistBody: "ଏହା ଆଉ ଫେରିବ ନାହିଁ। ପୋଖରୀ ତିଆରି, ରିଡିଂ ଲିପିବଦ୍ଧ ଓ ଦଳକୁ ଡାକିବା ଫାର୍ମ ଓ ଦଳ ଟ୍ୟାବରୁ ଏବେ ବି ହେବ।",

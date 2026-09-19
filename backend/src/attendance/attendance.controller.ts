@@ -39,12 +39,20 @@ export class AttendanceController {
     @Query('date') date: string,
     @Query('from') from: string,
     @Query('to') to: string,
+    @Query('openOnly') openOnly: string,
     @CurrentUser() user,
   ) {
     if (!farmId) {
       throw new BadRequestException('farmId query parameter is required');
     }
-    return this.attendanceService.findMine(user.id, farmId, date, from, to);
+    return this.attendanceService.findMine(
+      user.id,
+      farmId,
+      date,
+      from,
+      to,
+      openOnly === 'true',
+    );
   }
 
   @Get()
@@ -53,6 +61,7 @@ export class AttendanceController {
     @Query('date') date: string,
     @Query('from') from: string,
     @Query('to') to: string,
+    @Query('openOnly') openOnly: string,
     @CurrentUser() user,
   ) {
     if (!farmId) {
@@ -64,6 +73,7 @@ export class AttendanceController {
       date,
       from,
       to,
+      openOnly === 'true',
     );
   }
 }

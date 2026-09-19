@@ -44,6 +44,7 @@ import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
 import { TeamOverviewModule } from './team-overview/team-overview.module';
 import { ActivityModule } from './activity/activity.module';
 import { MoneyOverviewModule } from './money-overview/money-overview.module';
+import { JoinLandingModule } from './join-landing/join-landing.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { PushModule } from './push/push.module';
 import { HealthModule } from './health/health.module';
@@ -51,6 +52,7 @@ import { MeasurementModule } from './measurement/measurement.module';
 import { IndiaModule } from './india/india.module';
 import { FeedAdvisorModule } from './feed-advisor/feed-advisor.module';
 import { LunarModule } from './lunar/lunar.module';
+import { MoltModule } from './molt/molt.module';
 import { DiseaseWarningModule } from './disease-warning/disease-warning.module';
 import { HarvestTimingModule } from './harvest-timing/harvest-timing.module';
 import { AerationModule } from './aeration/aeration.module';
@@ -61,6 +63,8 @@ import { BannedSubstancesModule } from './banned-substances/banned-substances.mo
 import { PondContextModule } from './pond-context/pond-context.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
+import { FeaturesModule } from './features/features.module';
+import { DailyBriefModule } from './daily-brief/daily-brief.module';
 
 @Module({
   imports: [
@@ -219,12 +223,14 @@ import { AnnouncementsModule } from './announcements/announcements.module';
     TeamOverviewModule,
     ActivityModule,
     MoneyOverviewModule,
+    JoinLandingModule,
     AttendanceModule,
     PushModule,
     MeasurementModule,
     IndiaModule,
     FeedAdvisorModule,
     LunarModule,
+    MoltModule,
     DiseaseWarningModule,
     HarvestTimingModule,
     AerationModule,
@@ -235,6 +241,8 @@ import { AnnouncementsModule } from './announcements/announcements.module';
     BannedSubstancesModule,
     FeedbackModule,
     AnnouncementsModule,
+    FeaturesModule,
+    DailyBriefModule,
   ],
   controllers: [AppController],
   providers: [

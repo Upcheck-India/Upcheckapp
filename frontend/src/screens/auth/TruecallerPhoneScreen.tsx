@@ -48,6 +48,7 @@ import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { authApi, type AuthResponse } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { capture, EVENTS } from '../../features/analytics';
 import { ConsentNotice } from '../../components/ui/ConsentNotice';
 import {
     TruecallerAuth,
@@ -61,9 +62,10 @@ const NAME_RE = /[A-Za-zÀ-ɏऀ-ॿ]/;
 // Indian mobile: 10 digits starting 6–9.
 const PHONE_RE = /^[6-9]\d{9}$/;
 
-export const TruecallerPhoneScreen = ({ navigation }: any) => {
+export const TruecallerPhoneScreen = ({ navigation, route }: any) => {
     const { t } = useTranslation();
     const setSession = useAuthStore((s) => s.setSession);
+    const armSignupIntent = useAuthStore((s) => s.armSignupIntent);
 
     const [stage, setStage] = useState<Stage>('input');
     const [phone, setPhone] = useState('');
@@ -120,6 +122,14 @@ export const TruecallerPhoneScreen = ({ navigation }: any) => {
             }
             if (data.session) {
                 setSession(data.session);
+                // Reported HERE and not inside setSession: api/client.ts calls
+                // setSession on every silent token refresh, so an event there
+                // would count a refresh as a login. This is the Truecaller missed-call fallback.
+                capture(EVENTS.LOGIN_COMPLETED, { method: 'truecaller' });
+                // IntentScreen's answer, carried through the missed-call
+                // fallback. Only present when this flow began at Register — see
+                // TruecallerLoginScreen for why arming is conditional.
+                if (route?.params?.intent) armSignupIntent(route.params.intent);
                 return;
             }
             setError(
@@ -130,7 +140,7 @@ export const TruecallerPhoneScreen = ({ navigation }: any) => {
             );
             setStage('input');
         },
-        [navigation, setSession, t],
+        [navigation, setSession, armSignupIntent, route?.params?.intent, t],
     );
 
     const submitToken = useCallback(

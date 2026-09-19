@@ -10,6 +10,8 @@
  * device smoke-test. Only the four external-dependency features stay off at
  * launch.
  */
+import { isRemoteFlagOn, type RemoteFlagKey } from '../features/remoteFlags';
+
 export type FeatureKey =
     | 'boundaryMap'
     | 'pondDimensionHistory'
@@ -38,6 +40,17 @@ export const FEATURES: Record<FeatureKey, boolean> = {
     expertConsultation: false, // needs a recruited expert panel + payments
 };
 
+/** These two are also remote kill switches (features/remoteFlags.ts). */
+const REMOTE: Partial<Record<FeatureKey, RemoteFlagKey>> = {
+    cycleAnalysisReport: 'cycleAnalysis',
+    diseaseDiagnosis: 'diseaseDiagnosis',
+};
+
+/**
+ * Not reactive: in render, also call `useFlag(...)` so the screen updates when
+ * the remote flags arrive.
+ */
 export function isFeatureEnabled(key: FeatureKey): boolean {
-    return FEATURES[key];
+    const remote = REMOTE[key];
+    return FEATURES[key] && (!remote || isRemoteFlagOn(remote));
 }

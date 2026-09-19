@@ -37,24 +37,33 @@ import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { useMembershipStore } from '../../store/membershipStore';
 import { apiErrorMessage } from '../../api/errors';
-import { attendanceApi } from '../../api/attendance';
+import { attendanceApi, type AttendanceRecord } from '../../api/attendance';
 import { farmMembersApi } from '../../api/farmMembers';
 import { leaveRequestsApi } from '../../api/leaveRequests';
 import {
     buildRoster,
     canDecideOnTeam,
     fetchTeamOverview,
+    myShiftCards,
     type AttendanceState,
     type RosterEntry,
     type RosterSection,
 } from '../../api/teamOverview';
-import { qk } from '../../query/client';
+import { qk, invalidateForEntity } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
+import { capture, EVENTS } from '../../features/analytics';
+import { useFlag } from '../../features/remoteFlags';
+import { roleCan } from '../../permissions/capabilities';
+import { formatTime } from '../../utils/formatDate';
+import { ShiftBadge, ShiftCard, useShiftLine } from '../../components/attendance/ShiftCard';
+import { CheckOutSheet } from '../../components/attendance/CheckOutSheet';
+import { formatDuration, type TFn } from '../../features/attendance/shiftState';
 
 /** The roster is always every farm — narrowing it is what the Team tab is for. */
 const ALL = 'all';
 
-const ATTENDANCE_TONE: Record<AttendanceState, StatusType> = {
+/** `unknown` gets no badge at all — see AttendanceState. */
+const ATTENDANCE_TONE: Record<Exclude<AttendanceState, 'unknown'>, StatusType> = {
     in: 'safe',
     out: 'idle',
     absent: 'idle',
@@ -63,9 +72,6 @@ const ATTENDANCE_TONE: Record<AttendanceState, StatusType> = {
 const shortDate = (iso: string) =>
     new Date(iso).toLocaleDateString([], { day: '2-digit', month: 'short' });
 
-const hhmm = (iso: string) =>
-    new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-
 export const AllWorkersScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
     const userId = useAuthStore((s) => s.user?.id);
@@ -73,8 +79,10 @@ export const AllWorkersScreen = ({ navigation }: any) => {
     const memberships = useMembershipStore((s) => s.memberships);
     /** Which row has a request in flight — disables just that row's buttons. */
     const [busyKey, setBusyKey] = useState<string | null>(null);
-    /** Optimistically hidden after Check out, until the refetch lands. */
-    const [checkedOutId, setCheckedOutId] = useState<string | null>(null);
+    /** The check-out sheet: own forgotten shift, or a manager acting on a member. */
+    const [sheet, setSheet] = useState<{ record: AttendanceRecord; farmId: string; personName?: string } | null>(null);
+    const lineFor = useShiftLine();
+    const now = new Date();
 
     // The SAME key the Team tab reads. Arriving from the tab this resolves from
     // cache with no request at all; arriving from Settings it costs the one
@@ -89,13 +97,25 @@ export const AllWorkersScreen = ({ navigation }: any) => {
     const hasData = overview != null;
 
     const sections = useMemo(
-        () => buildRoster(overview, { selfUserId: userId, unknownLabel: t('team.unknownPerson') }),
-        [overview, userId, t],
+        () =>
+            buildRoster(overview, {
+                selfUserId: userId,
+                unknownLabel: t('team.unknownPerson'),
+                // Only farms whose attendance I manage carry full states; the
+                // rest get names from presentNow, never a wall of "Not in" (B9).
+                managesAttendance: (farmId) => {
+                    const g = grantForFarm(farmId);
+                    return roleCan(g.role, 'WRITE_MANAGEMENT', g.overrides, g.policy);
+                },
+            }),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [overview, userId, t, grantForFarm, memberships],
     );
 
-    const rawMyAttendance = overview?.myAttendance ?? null;
-    const myAttendance =
-        rawMyAttendance && rawMyAttendance.id === checkedOutId ? null : rawMyAttendance;
+    const farmNameOf = (id: string) =>
+        overview?.farms?.find((f: any) => f.id === id)?.name ?? '';
+    /** Every farm, always named (B6) — not only farms that have a roster section. */
+    const myCards = myShiftCards(overview, (overview?.farms ?? []).map((f: any) => f.id), userId, now);
 
     /**
      * Approving is a bare-role decision, per farm: an owner of two farms who is
@@ -129,17 +149,26 @@ export const AllWorkersScreen = ({ navigation }: any) => {
         [query, t],
     );
 
-    const myFarmName = myAttendance
-        ? sections.find((s) => s.farmId === myAttendance.farmId)?.farmName
-        : undefined;
-
-    const checkOut = useCallback(() => {
-        if (!myAttendance) return;
-        void run(`self-${myAttendance.id}`, async () => {
-            await attendanceApi.checkOut(myAttendance.id);
-            setCheckedOutId(myAttendance.id);
-        });
-    }, [myAttendance, run]);
+    /** Confirm naming the farm, then the same call-and-refetch as every decision here. */
+    const checkOut = (record: AttendanceRecord) =>
+        Alert.alert(
+            t('team.checkOutOfFarm', { farm: farmNameOf(record.farmId) }),
+            t('team.checkOutConfirmBody', {
+                time: formatTime(record.checkInAt),
+                elapsed: formatDuration(Date.now() - Date.parse(record.checkInAt), t as unknown as TFn),
+            }),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('team.checkOut'),
+                    onPress: () =>
+                        void run(`self-${record.id}`, async () => {
+                            await attendanceApi.checkOut(record.id);
+                            invalidateForEntity('attendance');
+                        }),
+                },
+            ],
+        );
 
     /**
      * Check in needs ONE farm. The roster spans every farm, so rather than
@@ -150,30 +179,50 @@ export const AllWorkersScreen = ({ navigation }: any) => {
         () => navigation.navigate('MainApp', { screen: 'Team' }),
         [navigation],
     );
+    const teamTabOn = useFlag('teamTab');
 
-    const renderSelfCard = () => (
-        <Card style={styles.selfCard}>
-            <Icon name="schedule" size={22} color={theme.roles.light.primary} />
-            <View style={styles.selfText}>
-                <Text style={styles.selfTitle}>
-                    {myAttendance ? t('team.youAreIn') : t('team.notCheckedIn')}
-                </Text>
-                <Text style={styles.selfSub} numberOfLines={1}>
-                    {myAttendance
-                        ? [myFarmName, t('team.sinceTime', { time: hhmm(myAttendance.checkInAt) })]
-                              .filter(Boolean)
-                              .join(' · ')
-                        : t('team.checkInSub')}
-                </Text>
+    const renderSelfCard = () =>
+        myCards.length > 0 ? (
+            <View style={styles.selfCards}>
+                {/* Same card as the Team tab: farm and state always shown (B.4). */}
+                {myCards.map(({ farmId, card }) => {
+                    const open = !!card.record && !card.record.checkOutAt;
+                    const forgot = card.state === 'forgot';
+                    return (
+                        <ShiftCard
+                            key={farmId}
+                            testID={`shift-card-${farmId}`}
+                            farmName={farmNameOf(farmId)}
+                            card={card}
+                            now={now}
+                            busy={busyKey !== null}
+                            actionLabel={open ? (forgot ? t('team.fixCheckout') : t('team.checkOut')) : undefined}
+                            onAction={() =>
+                                forgot ? setSheet({ record: card.record!, farmId }) : checkOut(card.record!)
+                            }
+                        />
+                    );
+                })}
             </View>
-            <Button
-                title={myAttendance ? t('team.checkOut') : t('team.checkInCta')}
-                onPress={myAttendance ? checkOut : goCheckIn}
-                disabled={busyKey !== null}
-                style={styles.selfBtn}
-            />
-        </Card>
-    );
+        ) : (
+            <Card style={styles.selfCard}>
+                <Icon name="schedule" size={22} color={theme.roles.light.primary} />
+                <View style={styles.selfText}>
+                    <Text style={styles.selfTitle}>{t('team.notCheckedIn')}</Text>
+                    <Text style={styles.selfSub} numberOfLines={1}>{t('team.checkInSub')}</Text>
+                </View>
+                {/* Check-in's farm chooser lives on the Team tab; with that tab
+                    flagged off the button would navigate nowhere, so it goes too. */}
+                {teamTabOn && (
+                    <Button
+                        title={t('team.checkInCta')}
+                        onPress={goCheckIn}
+                        disabled={busyKey !== null}
+                        style={styles.selfBtn}
+                    />
+                )}
+            </Card>
+        );
 
     const renderSectionHeader = ({ section }: { section: RosterSection }) => (
         <View style={styles.sectionHeader}>
@@ -211,15 +260,35 @@ export const AllWorkersScreen = ({ navigation }: any) => {
                             {t(`members.role_${item.role}`)}
                         </Text>
                     </View>
-                    <StatusBadge
-                        status={item.pendingJoin ? 'warning' : ATTENDANCE_TONE[item.attendance]}
-                        label={
-                            item.pendingJoin
-                                ? t('team.pendingJoinBadge')
-                                : t(`team.att_${item.attendance}`)
-                        }
-                    />
+                    {item.pendingJoin ? (
+                        <StatusBadge status="warning" label={t('team.pendingJoinBadge')} />
+                    ) : item.shift ? (
+                        <ShiftBadge state={item.shift.state} />
+                    ) : item.attendance !== 'unknown' ? (
+                        <StatusBadge
+                            status={ATTENDANCE_TONE[item.attendance]}
+                            label={t(`team.att_${item.attendance}`)}
+                        />
+                    ) : null}
                 </View>
+
+                {/* Full state for managers (B.5): the sentence, and Check out on an open shift (B.6). */}
+                {!item.pendingJoin && item.shift && (item.shift.record || item.shift.state === 'on_leave') && (
+                    <View style={[styles.indent, styles.shiftBlock]}>
+                        <Text style={styles.leaveText}>{lineFor(item.shift, now)}</Text>
+                        {decide && !item.isSelf && item.shift.record && !item.shift.record.checkOutAt && (
+                            <Button
+                                title={t('team.checkOut')}
+                                variant="outlined"
+                                onPress={() =>
+                                    setSheet({ record: item.shift!.record!, farmId: item.farmId, personName: item.name })
+                                }
+                                disabled={rowBusy}
+                                style={styles.actionBtn}
+                            />
+                        )}
+                    </View>
+                )}
 
                 {/* Waiting to be let in. Owner/manager decide here; everyone
                     else just sees that the person is not in yet. */}
@@ -228,9 +297,12 @@ export const AllWorkersScreen = ({ navigation }: any) => {
                         <Button
                             title={t('members.letIn')}
                             onPress={() =>
-                                run(item.key, () =>
-                                    farmMembersApi.approveMember(item.farmId, item.userId),
-                                )
+                                run(item.key, async () => {
+                                    await farmMembersApi.approveMember(item.farmId, item.userId);
+                                    // Same funnel step as FarmMembersScreen's
+                                    // approve — the other door onto it.
+                                    capture(EVENTS.INVITE_ACCEPTED, { role: item.role });
+                                })
                             }
                             disabled={rowBusy}
                             style={styles.actionBtn}
@@ -365,6 +437,14 @@ export const AllWorkersScreen = ({ navigation }: any) => {
                     />
                 }
             />
+            <CheckOutSheet
+                record={sheet?.record ?? null}
+                farmName={sheet ? farmNameOf(sheet.farmId) : ''}
+                farm={sheet ? overview?.farms?.find((f: any) => f.id === sheet.farmId) : null}
+                personName={sheet?.personName}
+                onClose={() => setSheet(null)}
+                onDone={() => void query.refetch()}
+            />
         </ScreenWrapper>
     );
 };
@@ -382,6 +462,8 @@ const styles = StyleSheet.create({
         marginBottom: theme.spacing[2],
         backgroundColor: theme.roles.light.infoBg,
     },
+    selfCards: { paddingBottom: theme.spacing[2] },
+    shiftBlock: { gap: theme.spacing[2] },
     selfText: { flex: 1, minWidth: 0 },
     selfTitle: {
         ...theme.typeScale.bodyLarge,

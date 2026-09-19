@@ -37,9 +37,9 @@ const logs = {
   disease_bannedTitle: 'Banned Substance Referenced',
   disease_restrictedTitle: 'Restricted Substance Referenced',
   disease_bannedBody:
-    'This entry references: {{names}}.\n\nThese are prohibited in shrimp aquaculture for export and can cause your harvest to be rejected (CAA/MPEDA).\n\nUpcheck only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
+    'This entry references: {{names}}.\n\nThese are prohibited in shrimp aquaculture for export and can cause your harvest to be rejected (CAA/MPEDA).\n\nNeerani only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
   disease_restrictedBody:
-    'This entry references: {{names}}.\n\nThis is export-restricted — observe the withdrawal period before harvest.\n\nUpcheck only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
+    'This entry references: {{names}}.\n\nThis is export-restricted — observe the withdrawal period before harvest.\n\nNeerani only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
   disease_saveAnyway: 'Save Anyway',
   disease_bannerBannedTitle: 'Banned substance detected',
   disease_bannerRestrictedTitle: 'Restricted substance detected',
@@ -151,9 +151,9 @@ const logs = {
   treatment_bannedTitle: 'Banned Substance Referenced',
   treatment_restrictedTitle: 'Restricted Substance Referenced',
   treatment_bannedBody:
-    'This entry references: {{names}}.\n\nThese are prohibited in shrimp aquaculture for export and can cause your harvest to be rejected (CAA/MPEDA).\n\nUpcheck only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
+    'This entry references: {{names}}.\n\nThese are prohibited in shrimp aquaculture for export and can cause your harvest to be rejected (CAA/MPEDA).\n\nNeerani only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
   treatment_restrictedBody:
-    'This entry references: {{names}}.\n\nThis is export-restricted — observe the withdrawal period before harvest.\n\nUpcheck only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
+    'This entry references: {{names}}.\n\nThis is export-restricted — observe the withdrawal period before harvest.\n\nNeerani only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
   treatment_saveAnyway: 'Save Anyway',
   treatment_bannerBannedTitle: 'Banned substance detected',
   treatment_bannerRestrictedTitle: 'Restricted substance detected',
@@ -164,6 +164,20 @@ const logs = {
 
   // ── Water Quality Log ─────────────────────────────────────────────────────
   waterQuality_title: 'Water Quality',
+  needsOneValue: "Enter at least one reading before saving.",
+  parameterUnusual: "Unusual — save it if that is what you measured.",
+  parameterOutOfBounds: "Check this — only {{min}}–{{max}} can be saved.",
+  roundsEyebrow: "Morning rounds",
+  roundsTitle: "All ponds, one pass",
+  roundsLead: "Fill in what you measured. Ponds you leave blank are not saved.",
+  roundsPond: "Pond",
+  roundsNote: "A highlighted box is unusual, not blocked — an emergency reading is exactly what to record.",
+  roundsSave: "Save",
+  roundsSaveN: "Save {{count}} ponds",
+  roundsSaved: "Saved {{count}} ponds",
+  roundsQueued: "Saved {{count}} ponds — will sync when online",
+  roundsPartial: "Saved {{saved}}. {{failed}} could not be saved — they are still here, try again.",
+  roundsRetryHint: "The ponds below were not saved. Your readings are still here.",
   waterQuality_sectionPhysical: 'Physical Parameters',
   waterQuality_sectionChemical: 'Chemical Parameters',
   waterQuality_labelTemperature: 'Temperature',
@@ -200,5 +214,9 @@ const logs = {
   weeklyChem_groupHint_buffering: 'How well the pond holds its pH. Low values swing the pH and stall moulting.',
   weeklyChem_groupHint_clarity: 'Secchi depth — how deep you can still see the disc. Reads the plankton bloom.',
   waterQuality_sectionDaily: "Today's Reading",
+  moltPeakTitle: 'Molt peak — shrimp are soft-shelled',
+  moltPeakSampling: 'Avoid sampling or netting until {{date}}. You can still save this log.',
+  moltPeakHarvest: 'Harvesting now means soft shells and a lower price. Wait until {{date}} if you can.',
+  moltPeakTreatment: 'Molting shrimp are stressed — hold non-urgent treatments until {{date}}.',
 };
 export default logs;

@@ -41,7 +41,7 @@ const home = {
   moreSectionHelp: 'உதவி & தகவல்',
   moreUserFallback: 'பயனர்',
   moreEmailFallback: 'மின்னஞ்சல் இல்லை',
-  moreVersion: 'Upcheck v1.0.0',
+  moreVersion: 'Neerani v1.0.0',
   moreSignOutTitle: 'வெளியேறு',
   moreSignOutMessage: 'நிச்சயமாக வெளியேற விரும்புகிறீர்களா?',
   // Account items
@@ -77,7 +77,7 @@ const home = {
   // Help items
   moreHelp: 'உதவி & ஆதரவு',
   moreHelpDesc: 'அடிக்கடி கேட்கப்படும் கேள்விகள் மற்றும் பயிற்சிகள்',
-  moreAbout: 'Upcheck பற்றி',
+  moreAbout: 'Neerani பற்றி',
   moreAboutDesc: 'ஆப் பதிப்பு மற்றும் வரவேற்புகள்',
 
   // ReportsScreen
@@ -106,6 +106,10 @@ const home = {
   pondIdle: 'காலி',
   quickLogTitle: 'விரைவு பதிவு',
   quickLogSubtitle: 'இன்றைய அளவீடுகளைப் பதிவு செய்யவும்',
+  quickLogRoundsSection: "காலைச் சுற்று",
+  quickLogRoundsTitle: "ஒவ்வொரு குளத்தின் நீர்த் தரம்",
+  quickLogRoundsSub: "ஒரே முறையில் {{count}} குளங்கள்",
+  quickLogSingleSection: "ஒரு குளத்திற்குப் பதிவிடு",
   quickLogPickPond: 'குளத்தைத் தேர்ந்தெடு',
   quickLogForPond: '{{pond}} க்கான பதிவு',
   quickLogNoPonds: 'இன்னும் குளங்கள் இல்லை',
@@ -119,7 +123,7 @@ const home = {
   quickLogNeedsCycle: 'சுழற்சி தேவை',
   farmerFallback: 'விவசாயி',
   onboarding_languagePrompt: 'உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்',
-  onboarding_title: 'Upcheck-க்கு வரவேற்கிறோம்',
+  onboarding_title: 'Neerani-க்கு வரவேற்கிறோம்',
   onboarding_subtitle: 'உங்கள் இறால் பண்ணையின் தினசரி உதவியாளர்',
   onboarding_feature1: 'நீர், தீவனம் மற்றும் வளர்ச்சியை வினாடிகளில் பதிவு செய்யுங்கள்',
   onboarding_feature2: 'உயிர்வாழ்வு மற்றும் லாபத்தை அதிகரிக்க அறிவார்ந்த ஆலோசனை',
@@ -178,6 +182,8 @@ const home = {
 
   // Empty first-run dashboard (artboard 09)
   noFarmsYet: "இன்னும் பண்ணைகள் இல்லை",
+  waitingApprovalTitle: "{{farm}} உங்களை அனுமதிக்கக் காத்திருக்கிறோம்",
+  waitingApprovalBody: "உங்கள் கோரிக்கை அனுப்பப்பட்டது. பண்ணை உரிமையாளர் உங்களை அனுமதிப்பார் — குறியீட்டை மீண்டும் உள்ளிட வேண்டாம்.",
   createFarmCardSub: "உங்கள் குளங்களை அமைத்துப் பதிவு செய்யத் தொடங்குங்கள்",
   joinCodeCardTitle: "குறியீட்டுடன் சேரவும்",
   joinCodeCardSub: "வேறொருவர் நடத்தும் பண்ணையில் வேலை செய்யுங்கள்",
@@ -200,6 +206,9 @@ const home = {
   lunarMoltingTitle: "ஓடு உரிக்கும் நேரம்",
   lunarMoltingBody: "அமாவாசை, பௌர்ணமியைச் சுற்றி இறாலின் ஓடு மென்மையாக இருக்கும். தீவனம் குறையுங்கள்; பிடிக்கவோ அறுவடை செய்யவோ வேண்டாம்.",
   lunarQuiet: "இன்று ஓடு உரிக்கும் வாய்ப்பு இல்லை.",
+  moltWindowTitle: "மோல்ட் சாளரம் {{start}} – {{end}} · உச்சம் {{peak}}",
+  moltPondsNeedAction: "{{total}} குளங்களில் {{pending}}-க்கு செயல் தேவை",
+  moltNextWindow: "அடுத்த மோல்ட் சாளரம் {{date}} முதல்",
   startHere: "இங்கிருந்து தொடங்குங்கள்",
   stepPondsTitle: "உங்கள் குளங்களைச் சேர்க்கவும்",
   stepPondsWhy: "அப்செக் ஒவ்வொரு குளத்தின் நீர், தீவனம், வளர்ச்சியைத் தனித்தனியே கவனிக்கிறது. இப்போது கவனிக்க எதுவும் இல்லை.",
@@ -210,6 +219,9 @@ const home = {
   stepLogTitle: "இன்றைய அளவீடுகளைப் பதிவு செய்",
   stepLogWhy: "இன்று எதுவும் பதிவாகவில்லை. இங்குள்ள ஒவ்வொரு எச்சரிக்கையும் ஆக்சிஜன், pH இலிருந்தே உருவாகிறது.",
   stepLogCta: "இப்போது பதிவு செய்",
+  stepInviteTitle: "உங்களுடன் பணிபுரிபவர்களைச் சேர்க்கவும்",
+  stepInviteWhy: "நீங்கள் இல்லாதபோதும் அவர்கள் தீவனத்தையும் நீரையும் பதிவு செய்யலாம், எண்கள் ஒரே இடத்தில் இருக்கும்.",
+  stepInviteCta: "உங்கள் குழுவை அழைக்கவும்",
   hideChecklist: "மறை",
   hideChecklistTitle: "அமைப்புப் பட்டியலை மறைக்கவா?",
   hideChecklistBody: "இது மீண்டும் வராது. குளங்கள் அமைப்பது, அளவீடு பதிவது, குழுவை அழைப்பது எல்லாம் பண்ணை மற்றும் குழு தாவல்களில் தொடரும்.",

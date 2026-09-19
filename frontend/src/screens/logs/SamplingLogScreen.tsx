@@ -6,6 +6,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { MoltPeakBanner } from '../../components/molt/MoltPeakBanner';
 import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
@@ -86,6 +87,7 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
 
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
+                <MoltPeakBanner messageKey="logs.moltPeakSampling" />
 
                 <Card style={styles.card}>
                     <Input label={t('common.date')} value={date} onChangeText={setDate} placeholder={t('logs.datePlaceholder')} required />

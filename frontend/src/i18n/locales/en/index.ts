@@ -35,6 +35,12 @@ import sync from './sync';
 import notifications from './notifications';
 import whatsNew from './whatsNew';
 import activity from './activity';
+// `export` is a reserved word, so the binding is renamed; the NAMESPACE below
+// is still `export`, which is what every t('export.…') call looks up.
+import exportNs from './export';
+import dayReport from './dayReport';
+import dailyBrief from './dailyBrief';
+import alerts from './alerts';
 
 export default {
   common,
@@ -68,4 +74,8 @@ export default {
   notifications,
   whatsNew,
   activity,
+  export: exportNs,
+  dayReport,
+  dailyBrief,
+  alerts,
 };

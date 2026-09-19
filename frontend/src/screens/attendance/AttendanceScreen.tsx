@@ -39,6 +39,10 @@ import { personName } from '../../utils/personName';
 // is what took the Simulations screen down in Tamil. formatDate.ts formats in
 // the app's chosen language and falls back to plain text instead of throwing.
 import { formatDate, formatTime } from '../../utils/formatDate';
+import { CheckOutSheet } from '../../components/attendance/CheckOutSheet';
+import { useMembershipStore } from '../../store/membershipStore';
+import type { ShiftFarm } from '../../features/attendance/shiftState';
+import { canDecideOnTeam } from '../../api/teamOverview';
 
 /** Days of own history before "Show earlier days". */
 const HISTORY_DAYS = 6;
@@ -75,6 +79,10 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
     const [refreshing, setRefreshing] = useState(false);
     const [busy, setBusy] = useState(false);
     const [loadError, setLoadError] = useState<any>(null);
+    /** The manager check-out sheet, for one member's open shift. */
+    const [sheet, setSheet] = useState<{ record: AttendanceRecord; name: string } | null>(null);
+    // Shift fields ride on the membership's farm when the backend sends them; else the 9 h default.
+    const farmShift = useMembershipStore((s) => s.memberships.find((m) => m.farmId === farmId)?.farm) as ShiftFarm | null | undefined;
 
     const load = useCallback(async () => {
         try {
@@ -148,7 +156,13 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
             const res = await saveRecord({
                 entity: 'attendance',
                 endpoint: '/attendance/check-in',
-                payload: { farmId },
+                // checkInAt is sent EXPLICITLY, and must stay that way.
+                // Without it the server falls back to the column default, which is
+                // CURRENT_TIMESTAMP at the moment the row is written — and offline that
+                // is when the queue DRAINS, not when the worker pressed the button. A
+                // 06:00 check-in with no signal, drained at 18:00, recorded an 18:00
+                // start and erased the whole day. This is a pay record.
+                payload: { farmId, checkInAt: new Date().toISOString() },
             });
             Alert.alert(
                 t('attendance.checkedInTitle'),
@@ -284,17 +298,31 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
                                             <Text style={[styles.cell, styles.colIn]}>
                                                 {formatTime(shift.checkInAt)}
                                             </Text>
-                                            <Text
-                                                style={[
-                                                    styles.cell,
-                                                    styles.colOut,
-                                                    !shift.checkOutAt && styles.stillIn,
-                                                ]}
-                                            >
-                                                {shift.checkOutAt
-                                                    ? formatTime(shift.checkOutAt)
-                                                    : t('attendance.stillInShort')}
-                                            </Text>
+                                            {!shift.checkOutAt && canDecideOnTeam(perms.role) && row.userId !== user?.id ? (
+                                                <TouchableOpacity
+                                                    style={styles.colOut}
+                                                    testID={`team-checkout-${shift.id}`}
+                                                    onPress={() => setSheet({ record: shift, name: row.name })}
+                                                    accessibilityRole="button"
+                                                    accessibilityLabel={`${t('team.checkOut')} · ${row.name}`}
+                                                >
+                                                    <Text style={[styles.cell, styles.checkOutLink]}>
+                                                        {t('team.checkOut')}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ) : (
+                                                <Text
+                                                    style={[
+                                                        styles.cell,
+                                                        styles.colOut,
+                                                        !shift.checkOutAt && styles.stillIn,
+                                                    ]}
+                                                >
+                                                    {shift.checkOutAt
+                                                        ? formatTime(shift.checkOutAt)
+                                                        : t('attendance.stillInShort')}
+                                                </Text>
+                                            )}
                                         </View>
                                     ));
                                 })}
@@ -334,6 +362,14 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
                     </>
                 )}
             </ScrollView>
+            <CheckOutSheet
+                record={sheet?.record ?? null}
+                farmName={farmName ?? ''}
+                farm={farmShift}
+                personName={sheet?.name}
+                onClose={() => setSheet(null)}
+                onDone={load}
+            />
         </ScreenWrapper>
     );
 };
@@ -432,6 +468,7 @@ const styles = StyleSheet.create({
         textAlign: 'right',
     },
     stillIn: { ...theme.typeScale.bodySmall, color: theme.roles.light.infoText },
+    checkOutLink: { ...theme.typeScale.labelLarge, color: theme.roles.light.textLink, minHeight: 44, textAlignVertical: 'center' },
     colIn: { width: 78 },
     colOut: { width: 78 },
 

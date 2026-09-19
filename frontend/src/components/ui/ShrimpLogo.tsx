@@ -61,7 +61,12 @@ export const ShrimpLogo = ({
  * BrandLockup — the mark plus the wordmark, side by side. The onboarding
  * designs open with this on every pre-account screen (artboards 01, 02 and the
  * first-run dashboard header), so it lives here rather than being redrawn in
- * three files. "upcheck" is a brand name and is deliberately not translated.
+ * three files. "Neerani" is a brand name: it is deliberately NOT translated and
+ * NOT transliterated, so it reads identically in all six locales and stays one
+ * searchable string in the Play Store.
+ *
+ * It is rendered as TEXT, not baked into the logo artwork — which is why the
+ * rename shipped as an over-the-air update instead of waiting for a binary.
  */
 export const BrandLockup = ({ size = 24 }: { size?: number }) => (
   <View style={styles.lockup}>
@@ -70,7 +75,7 @@ export const BrandLockup = ({ size = 24 }: { size?: number }) => (
       color={theme.roles.light.primaryHover}
       eyeColor={theme.roles.light.primaryHover}
     />
-    <Text style={[styles.wordmark, { fontSize: size * 0.75, lineHeight: size }]}>upcheck</Text>
+    <Text style={[styles.wordmark, { fontSize: size * 0.75, lineHeight: size }]}>Neerani</Text>
   </View>
 );
 
@@ -79,7 +84,21 @@ const styles = StyleSheet.create({
   wordmark: {
     fontFamily: 'Nunito-ExtraBold',
     color: theme.roles.light.primaryHover,
+    // Two separate causes of the same symptom, both of which clipped "Neerani"
+    // to "Neeran":
+    //
+    // 1. This sits in a flex ROW. Without flexShrink: 0 the Text is a
+    //    shrinkable child, so a constrained parent compresses it and cuts the
+    //    tail. The name is a brand mark — it shrinks to nothing before it is
+    //    allowed to be wrong.
+    // 2. Negative letterSpacing under-measures a string on Android: the layout
+    //    width loses the trailing advance, and the final glyph is clipped. The
+    //    old wordmark ended in "k", whose advance left enough slack to hide it;
+    //    "i" is narrow and did not. Tracking is kept for the look, with padding
+    //    to give the last glyph the room the measurement forgets.
+    flexShrink: 0,
     letterSpacing: -0.4,
+    paddingRight: 2,
   },
 });
 

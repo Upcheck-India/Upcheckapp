@@ -12,17 +12,24 @@ export interface Transaction {
     referenceNumber?: string;
     createdAt: string;
     /**
-     * ALWAYS FALSE for a transaction, and the backend says so deliberately
-     * (`transactions.service.ts`): a transaction hangs off a FARM, not a pond,
-     * so there is no pond here that could be archived. The flag exists only so
-     * transaction and expense rows share one shape on the client.
+     * The pond this money is attributed to is archived. Real now — the read
+     * joins the pond — but only meaningful when the row names one: a
+     * farm-level transaction belongs to no pond and always reports `false`.
      *
-     * Do not read a `false` here as "no archived money" — read the financial
-     * report's `ponds[]` for that.
+     * So a `false` still does not mean "no archived money on this farm". The
+     * financial report's `ponds[]` is the only thing that answers that.
      */
     archived?: boolean;
+    /** The pond's display name, when the row names a pond. */
+    pondName?: string | null;
     /** The row came from an inventory purchase rather than a typed entry. */
     inventoryPurchase?: boolean;
+    /**
+     * The pond this money belongs to, if the farmer named one. Null means the
+     * cost is the whole farm's — a licence, a shared generator — which is what
+     * every row written before the field existed is.
+     */
+    pondId?: string | null;
 }
 
 export interface CreateTransactionDto {
@@ -34,6 +41,8 @@ export interface CreateTransactionDto {
     description?: string;
     paymentMethod?: string;
     referenceNumber?: string;
+    /** Optional: the pond this money belongs to. Omitted means "whole farm". */
+    pondId?: string;
 }
 
 export interface UpdateTransactionDto {
@@ -44,6 +53,7 @@ export interface UpdateTransactionDto {
     description?: string;
     paymentMethod?: string;
     referenceNumber?: string;
+    pondId?: string | null;
 }
 
 export interface TransactionSummary {

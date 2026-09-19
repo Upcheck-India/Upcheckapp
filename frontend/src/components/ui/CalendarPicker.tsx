@@ -11,6 +11,8 @@ interface CalendarPickerProps {
     maxDate?: Date;
     required?: boolean;
     helperText?: string;
+    /** Replace the labelled field with your own trigger (e.g. a date in a header). */
+    renderTrigger?: (open: () => void) => React.ReactNode;
 }
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -37,6 +39,7 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
     maxDate,
     required = false,
     helperText,
+    renderTrigger,
 }) => {
     const [open, setOpen] = useState(false);
     const [viewMonth, setViewMonth] = useState(new Date(value.getFullYear(), value.getMonth(), 1));
@@ -57,8 +60,15 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
     const canGoPrev = !min || new Date(year, month, 1) > min;
     const canGoNext = !max || new Date(year, month + 1, 1) <= max;
 
+    const openPicker = () => {
+        setViewMonth(new Date(value.getFullYear(), value.getMonth(), 1));
+        setOpen(true);
+    };
+
     return (
-        <View style={styles.container}>
+        <View style={!renderTrigger && styles.container}>
+            {renderTrigger ? renderTrigger(openPicker) : (
+            <>
             <View style={styles.labelHeader}>
                 <Text style={styles.label}>{label}</Text>
                 {required && <Text style={styles.requiredAsterisk}>*</Text>}
@@ -66,10 +76,7 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
 
             <TouchableOpacity
                 style={styles.field}
-                onPress={() => {
-                    setViewMonth(new Date(value.getFullYear(), value.getMonth(), 1));
-                    setOpen(true);
-                }}
+                onPress={openPicker}
                 activeOpacity={0.8}
                 accessibilityRole="button"
                 accessibilityLabel={label}
@@ -85,6 +92,8 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
             </TouchableOpacity>
 
             {helperText && <Text style={styles.helper}>{helperText}</Text>}
+            </>
+            )}
 
             <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
                 <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>

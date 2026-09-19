@@ -1,11 +1,22 @@
 import {
   IsEmail,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
   MinLength,
 } from 'class-validator';
+
+/**
+ * The one password policy. Signup, set-password and change-password all use
+ * it, so a password accepted at signup can always be set again later — and
+ * frontend `features/passwordPolicy.ts` mirrors exactly this.
+ */
+export const PASSWORD_POLICY_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
+export const PASSWORD_POLICY_MESSAGE =
+  'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (any non-letter, non-digit character such as # - _ . @ ! etc.)';
 
 /**
  * Server-side validation for POST /auth/supabase/signup.
@@ -27,10 +38,7 @@ export class SignupDto {
   // this exact rule. (min length is enforced separately by @MinLength(8).)
   @IsString()
   @MinLength(8)
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/, {
-    message:
-      'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (any non-letter, non-digit character such as # - _ . @ ! etc.)',
-  })
+  @Matches(PASSWORD_POLICY_REGEX, { message: PASSWORD_POLICY_MESSAGE })
   password: string;
 
   @IsOptional()
@@ -44,6 +52,24 @@ export class SignupDto {
   @IsOptional()
   @IsString()
   username?: string;
+
+  /**
+   * The farmer's UI language, stored in Supabase `user_metadata` so the auth
+   * EMAIL TEMPLATES can branch on it — `{{ if eq .Data.language "ta" }}`.
+   *
+   * Supabase has one template per email type with no locale switching, so the
+   * language has to travel with the user or every farmer gets English. Absent
+   * or unrecognised falls through to English, which is also what every account
+   * created before this field existed will do.
+   *
+   * Constrained to the six locales the app ships. Anything else is rejected
+   * rather than stored: this string is interpolated into a Go template
+   * comparison, and an open string field there is not something to be relaxed
+   * about.
+   */
+  @IsOptional()
+  @IsIn(['en', 'hi', 'bn', 'ta', 'te', 'or'])
+  language?: string;
 
   // NOTE: no `accountType`. It was a global owner/worker flag stored in
   // Supabase user_metadata that gated exactly one endpoint (farm creation)

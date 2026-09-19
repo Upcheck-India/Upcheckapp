@@ -27,10 +27,15 @@ import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { Button } from '../../components/ui/Button';
 import { Icon, type IconName } from '../../components/ui/Icon';
+import { UpdateStatus } from '../../components/ui/UpdateStatus';
 import { theme } from '../../theme';
+import { appVersion } from '../../utils/appVersion';
 import {
     registerForPushNotificationsAsync,
     syncReminders,
+    syncBriefReminders,
+    loadBriefRemindersPref,
+    saveBriefRemindersPref,
     getReminderStatus,
     DEFAULT_REMINDER_TIMES,
     type ReminderTimes,
@@ -45,6 +50,7 @@ import {
     type TelemetryPrefs,
 } from '../../features/telemetryPrefs';
 import { syncAnalyticsConsent } from '../../features/analytics';
+import { resolveFlag, useRemoteFlagsStore, type RemoteFlagKey } from '../../features/remoteFlags';
 import { setCrashReportingEnabled } from '../../utils/sentry';
 import { alertCenterApi } from '../../api/alertCenter';
 import { pondsApi } from '../../api/ponds';
@@ -139,6 +145,20 @@ export const SettingsScreen = ({ navigation }: any) => {
 
     useFocusEffect(refreshReminderStatus);
 
+    // Daily Brief reminders (06:00 / 19:00). Default on; never asks for
+    // permission itself — without a grant the row says what to do instead.
+    const briefOn = resolveFlag(useRemoteFlagsStore((s) => s.flags), 'dailyBrief');
+    const [briefReminders, setBriefReminders] = useState(true);
+    useEffect(() => {
+        loadBriefRemindersPref().then(setBriefReminders);
+    }, []);
+    const updateBriefReminders = useCallback((on: boolean) => {
+        setBriefReminders(on);
+        saveBriefRemindersPref(on)
+            .then(() => syncBriefReminders(on))
+            .catch((e) => console.warn('[Settings] Could not save brief reminder preference', e));
+    }, []);
+
     const updateReminderTime = useCallback(
         (slot: ReminderSlot, field: keyof HM, value: number) => {
             setReminderTimes((prev) => {
@@ -204,20 +224,37 @@ export const SettingsScreen = ({ navigation }: any) => {
         ]);
     };
 
-    const tools: LinkRow[] = [
+    // Remote kill switches (features/remoteFlags.ts): a row whose flag is off is
+    // simply not listed. Rows with no entry here are never hidden.
+    const remoteFlags = useRemoteFlagsStore((s) => s.flags);
+    const ROW_FLAG: Record<string, RemoteFlagKey> = {
+        calculators: 'calculators',
+        simulations: 'simulators',
+        diseases: 'diseaseEncyclopedia',
+        news: 'news',
+        export: 'export',
+        shop: 'shop',
+    };
+    const flagged = (rows: LinkRow[]) =>
+        rows.filter((r) => !ROW_FLAG[r.key] || resolveFlag(remoteFlags, ROW_FLAG[r.key]));
+
+    const tools: LinkRow[] = flagged([
         { key: 'calculators', icon: 'insights', label: t('home.moreCalculators'), route: 'CalculatorHub' },
         { key: 'simulations', icon: 'show_chart', label: t('home.moreSimulations'), route: 'SimulationList' },
         { key: 'diseases', icon: 'science', label: t('home.moreDiseaseEncyclopedia'), route: 'DiseaseList' },
         { key: 'reference', icon: 'assessment', label: t('home.moreReference'), route: 'Reference' },
         { key: 'news', icon: 'receipt_long', label: t('home.moreNews'), route: 'NewsList' },
-    ];
+        // The always-reachable way in. The cycle report has its own button, but
+        // "send my books to the bank" does not start from a cycle screen.
+        { key: 'export', icon: 'share', label: t('export.entry'), route: 'Export' },
+    ]);
 
-    const farmLinks: LinkRow[] = [
+    const farmLinks: LinkRow[] = flagged([
         { key: 'workers', icon: 'groups', label: t('home.moreAllWorkers'), route: 'AllWorkers' },
         { key: 'inventory', icon: 'warehouse', label: t('home.moreInventory'), route: 'Inventory' },
         { key: 'feedProducts', icon: 'set_meal', label: t('home.moreFeedProducts'), route: 'FeedProducts' },
         { key: 'shop', icon: 'workspace_premium', label: t('home.moreShop'), route: 'Shop' },
-    ];
+    ]);
 
     // The four reminder slots, paired with their translated labels — a single
     // list so the row and the sheet title always agree on what "morning"
@@ -364,6 +401,24 @@ export const SettingsScreen = ({ navigation }: any) => {
                         trackColor={{ false: c.borderDefault, true: c.primaryHover }}
                     />
                 </View>
+                {briefOn && (
+                    <View style={styles.row}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={styles.rowLabel}>{t('dailyBrief.settings.toggle')}</Text>
+                            <Text style={styles.rowSub}>
+                                {briefReminders && blocked
+                                    ? t('dailyBrief.settings.needsPermission')
+                                    : t('dailyBrief.settings.toggleDesc')}
+                            </Text>
+                        </View>
+                        <Switch
+                            value={briefReminders}
+                            onValueChange={updateBriefReminders}
+                            trackColor={{ false: c.borderDefault, true: c.primaryHover }}
+                            accessibilityLabel={t('dailyBrief.settings.toggle')}
+                        />
+                    </View>
+                )}
                 <Row
                     row={{
                         key: 'notifications',
@@ -405,6 +460,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                 ))}
 
                 <SectionHeader label={t('settings.security')} />
+                <Row row={{ key: 'account', icon: 'badge', label: t('settings.account.entry'), route: 'Account' }} />
                 <Row row={{ key: '2fa', icon: 'key', label: t('settings.twoFactor'), route: 'TwoFactor' }} />
 
                 {/* Not in p6 — kept so these eleven screens keep an entry point. */}
@@ -484,7 +540,14 @@ export const SettingsScreen = ({ navigation }: any) => {
                 <Row row={{ key: 'terms', icon: 'badge', label: t('settings.termsOfService'), route: 'Terms' }} />
                 <View style={styles.row}>
                     <Text style={[styles.rowLabel, { flex: 1 }]}>{t('common.version')}</Text>
-                    <Text style={styles.version}>v1.0.0</Text>
+                    <Text style={styles.version}>v{appVersion()}</Text>
+                </View>
+                {/* Directly under the version, because "which version am I on"
+                    and "did my last launch actually pick up the fix" are the
+                    same question to a farmer — and EAS Update applies on the
+                    NEXT launch, so the answer is invisible without this. */}
+                <View style={styles.updateStatusRow}>
+                    <UpdateStatus />
                 </View>
 
                 <View style={styles.accountActions}>
@@ -689,6 +752,10 @@ const styles = StyleSheet.create({
     reminderStatusBad: { backgroundColor: c.warningBg, borderColor: c.warningBorder },
     reminderStatusText: { ...theme.typeScale.bodySmall, color: c.textPrimary },
     version: { fontFamily: 'DMMono-Regular', fontSize: 13, color: c.textTertiary },
+    updateStatusRow: {
+        paddingHorizontal: theme.spacing[5],
+        paddingBottom: theme.spacing[3],
+    },
 
     accountActions: {
         flexDirection: 'row',

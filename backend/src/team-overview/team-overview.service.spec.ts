@@ -1,4 +1,5 @@
 import { TeamOverviewService } from './team-overview.service';
+import { AttendanceService } from '../attendance/attendance.service';
 
 /**
  * The Team tab used to make 26 requests from the phone (1 farm list + 5 calls
@@ -18,9 +19,12 @@ function makeService(over: any = {}) {
   const attendance = {
     findMine: jest.fn().mockResolvedValue(over.mine ?? []),
     findAllForFarm: jest.fn().mockResolvedValue(over.all ?? []),
+    presentNow: jest.fn().mockResolvedValue(over.presentNow ?? []),
   };
   const leaveRequests = {
-    findAllForFarm: jest.fn().mockResolvedValue(over.leave ?? []),
+    findAllForFarm: jest.fn((_u: string, _f: string, status: string) =>
+      Promise.resolve(status === 'approved' ? over.approved ?? [] : over.leave ?? []),
+    ),
     findMine: jest.fn().mockResolvedValue(over.myLeave ?? []),
   };
   const invites = {
@@ -49,7 +53,8 @@ describe('TeamOverviewService', () => {
 
     await svc.forUser('u');
 
-    expect(attendance.findAllForFarm).toHaveBeenCalledTimes(2);
+    // today + open (≤14 days), per farm
+    expect(attendance.findAllForFarm).toHaveBeenCalledTimes(4);
     expect(members.listMembers).toHaveBeenCalledTimes(2);
   });
 
@@ -70,8 +75,10 @@ describe('TeamOverviewService', () => {
 
     await svc.forUser('u', 'f2');
 
-    expect(attendance.findAllForFarm).toHaveBeenCalledTimes(1);
-    expect(attendance.findAllForFarm).toHaveBeenCalledWith('u', 'f2');
+    expect(attendance.findAllForFarm).toHaveBeenCalledTimes(2);
+    for (const call of attendance.findAllForFarm.mock.calls) {
+      expect(call.slice(0, 2)).toEqual(['u', 'f2']);
+    }
   });
 
   /**
@@ -104,7 +111,7 @@ describe('TeamOverviewService', () => {
 
     await svc.forUser('u', 'someone-elses-farm');
 
-    expect(attendance.findAllForFarm).toHaveBeenCalledTimes(2);
+    expect(attendance.findAllForFarm).toHaveBeenCalledTimes(4);
     for (const call of attendance.findAllForFarm.mock.calls) {
       expect(['f1', 'f2']).toContain(call[1]);
     }
@@ -181,5 +188,100 @@ describe('TeamOverviewService', () => {
     });
 
     expect((await svc.forUser('u')).myAttendance).toBeNull();
+  });
+
+  // B4: a check-out forgotten last week (other farm) must not beat today's shift.
+  it('myAttendance is the NEWEST open record across farms; myOpen newest first', async () => {
+    const { svc, attendance } = makeService();
+    attendance.findMine.mockImplementation((_u, farmId, date, _f, _t, openOnly) => {
+      if (!openOnly) return Promise.resolve([]);
+      return Promise.resolve(
+        farmId === 'f1'
+          ? [{ id: 'old', farmId: 'f1', checkInAt: new Date('2026-09-07T01:00:00Z'), checkOutAt: null }]
+          : [{ id: 'new', farmId: 'f2', checkInAt: new Date('2026-09-14T01:00:00Z'), checkOutAt: null }],
+      );
+    });
+
+    const out = await svc.forUser('u');
+
+    expect(out.myAttendance?.id).toBe('new');
+    expect(out.myOpen.map((r: any) => r.id)).toEqual(['new', 'old']);
+    // open read has no date cap; today read is today's IST date
+    expect(attendance.findMine).toHaveBeenCalledWith('u', 'f1', undefined, undefined, undefined, true);
+    expect(attendance.findMine).toHaveBeenCalledWith('u', 'f1', expect.stringMatching(/^\d{4}-\d\d-\d\d$/));
+  });
+
+  // B7: not the farm's whole history — today's check-ins plus open ≤ 14 days.
+  it('allAttendance = today (IST) ∪ open from 14 days ago, deduped', async () => {
+    const { svc, attendance } = makeService({ farms: [farm('f1')] });
+    const both = { id: 'r1', checkInAt: 'x', checkOutAt: null };
+    attendance.findAllForFarm.mockImplementation((_u, _f, date) =>
+      Promise.resolve(date ? [both, { id: 'r2' }] : [both, { id: 'r3' }]),
+    );
+
+    const out = await svc.forUser('owner');
+
+    expect(out.allAttendance.map((r: any) => r.id).sort()).toEqual(['r1', 'r2', 'r3']);
+    const openCall = attendance.findAllForFarm.mock.calls.find((c: any[]) => c[5] === true)!;
+    const fromMs = new Date(`${openCall[3]}T00:00:00+05:30`).getTime();
+    const days = (Date.now() - fromMs) / 86400000;
+    expect(days).toBeGreaterThanOrEqual(14);
+    expect(days).toBeLessThan(15);
+  });
+
+  it('approvedLeaveToday covers today only, from the farm queue and own requests, deduped', async () => {
+    const today = new Date(Date.now() + 5.5 * 3600000).toISOString().slice(0, 10);
+    const cover = { id: 'l1', status: 'approved', startDate: '2000-01-01', endDate: '2999-01-01' };
+    const { svc } = makeService({
+      farms: [farm('f1')],
+      approved: [cover, { id: 'l2', status: 'approved', startDate: '2000-01-01', endDate: '2000-01-02' }],
+      myLeave: [cover, { id: 'l3', status: 'approved', startDate: today, endDate: today }, { id: 'l4', status: 'pending', startDate: today, endDate: today }],
+    });
+
+    const out = await svc.forUser('u');
+
+    expect(out.approvedLeaveToday.map((l: any) => l.id).sort()).toEqual(['l1', 'l3']);
+  });
+
+  // Q5: a worker sees WHO is in, never when. Uses the real AttendanceService so
+  // the stripping is exercised, with farm access that refuses WRITE_MANAGEMENT.
+  it('worker payload: presentNow names, no colleague check-in times anywhere', async () => {
+    const colleagueIn = new Date('2026-09-14T00:35:00Z');
+    const repo = {
+      find: jest.fn((opts: any) =>
+        Promise.resolve(
+          opts.where.userId
+            ? [] // the worker's own records
+            : [{ id: 'c1', farmId: 'f1', userId: 'col', checkInAt: colleagueIn, checkOutAt: null, user: { firstName: 'Suresh' } }],
+        ),
+      ),
+    };
+    const access = {
+      assertCanAccessFarm: jest.fn((_u: string, _f: string, cap: string) =>
+        cap === 'READ' ? Promise.resolve({}) : Promise.reject(new Error('Forbidden')),
+      ),
+    };
+    const realAttendance = new AttendanceService(repo as any, access as any, {} as any);
+    const leave = {
+      findAllForFarm: jest.fn().mockRejectedValue(new Error('Forbidden')),
+      findMine: jest.fn().mockResolvedValue([]),
+    };
+    const svc = new TeamOverviewService(
+      { findAll: jest.fn().mockResolvedValue([farm('f1')]) } as any,
+      realAttendance,
+      leave as any,
+      { findMine: jest.fn().mockResolvedValue([]) } as any,
+      { listMembers: jest.fn().mockResolvedValue([]) } as any,
+      { listPending: jest.fn().mockRejectedValue(new Error('Forbidden')) } as any,
+      {} as any,
+    );
+
+    const out = await svc.forUser('worker');
+
+    expect(out.presentNow).toEqual([{ farmId: 'f1', userId: 'col', name: 'Suresh' }]);
+    expect(out.allAttendance).toEqual([]);
+    const json = JSON.stringify(out);
+    expect(json).not.toContain(colleagueIn.toISOString());
+    expect(json).not.toContain('checkInAt');
   });
 });

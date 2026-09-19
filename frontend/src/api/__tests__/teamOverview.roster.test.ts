@@ -166,6 +166,46 @@ describe('buildRoster', () => {
     it('is empty, not thrown, with no data yet', () => {
         expect(buildRoster(undefined)).toEqual([]);
     });
+
+    // Spec 2026-09-14 B9/Q5.
+    it('worker on an older backend: colleagues are "unknown", never "Not in"', () => {
+        const sections = buildRoster(
+            overview({ members: [member({ userId: 'u1' }), member({ userId: 'u2' })] }),
+            { selfUserId: 'u1', now: NOW, managesAttendance: () => false },
+        );
+        const byUser = Object.fromEntries(sections[0].data.map((e) => [e.userId, [e.attendance, e.shift]]));
+        expect(byUser.u2).toEqual(['unknown', null]);
+        expect(byUser.u1).toEqual(['absent', null]);
+    });
+
+    it('worker with presentNow: in/absent from names only, no shift detail', () => {
+        const sections = buildRoster(
+            overview({
+                members: [member({ userId: 'u1' }), member({ userId: 'u2' })],
+                presentNow: [{ farmId: 'f1', userId: 'u2', name: 'Anita' }],
+            }),
+            { now: NOW, managesAttendance: () => false },
+        );
+        expect(sections[0].data.map((e) => [e.userId, e.attendance, e.shift])).toEqual([
+            ['u1', 'absent', null],
+            ['u2', 'in', null],
+        ]);
+    });
+
+    it('manager: full shift state from today\'s records and approved leave', () => {
+        const sections = buildRoster(
+            overview({
+                members: [member({ userId: 'u1' }), member({ userId: 'u2' })],
+                allAttendance: [attendance()],
+                approvedLeaveToday: [
+                    { id: 'l', farmId: 'f1', userId: 'u2', status: 'approved', startDate: '2026-09-04', endDate: '2026-09-04' } as any,
+                ],
+            }),
+            { now: NOW },
+        );
+        const byUser = Object.fromEntries(sections[0].data.map((e) => [e.userId, e.shift?.bucket]));
+        expect(byUser).toEqual({ u1: 'in', u2: 'leave' });
+    });
 });
 
 describe('teamBadgeCount', () => {

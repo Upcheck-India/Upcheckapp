@@ -6,12 +6,45 @@ This is the operator checklist for shipping Upcheck to the Play Store. Items mar
 
 ---
 
-## 0. ✅ [RESOLVED] Restricted permissions removed
-The restricted `READ_CALL_LOG`, `RECEIVE_SMS`, `CALL_PHONE`, and `ANSWER_PHONE_CALLS` permissions have been **removed** from `frontend/android/app/src/main/AndroidManifest.xml` and from the runtime requests in `src/native/truecallerPermissions.ts`. Only the normal `READ_PHONE_STATE` remains, which is sufficient for **Truecaller One-Tap**. Phone sign-in still works via One-Tap; users can also sign in with email, Google, or the in-app **email OTP**.
+## 0. ⚠️ [BLOCKER] Restricted permissions are PRESENT and declared deliberately
 
-> ⚠️ **Do not run `expo prebuild` without re-stripping.** `android/` is committed (bare workflow), so EAS uses the manifest as-is. If anyone regenerates native code via prebuild, the `@dhana-cs/react-native-truecaller` `withTruecaller` plugin will re-inject CALL_LOG/SMS — re-remove them (or patch the plugin) before building.
+**This section said "RESOLVED — removed" and that was wrong.** Verified against
+the tree on 2026-09-07: `frontend/android/app/src/main/AndroidManifest.xml`
+lines 7–8 declare `READ_CALL_LOG` and `ANSWER_PHONE_CALLS`. `RECEIVE_SMS` and
+`CALL_PHONE` are genuinely gone.
+
+How the claim came to be false, since it will happen again otherwise — the
+removal was done in ONE of the two places that ask for these permissions:
+
+| Place | State |
+|---|---|
+| `src/native/truecallerPermissions.ts` | cleaned — requests only `READ_PHONE_STATE` |
+| `src/screens/auth/TruecallerPhoneScreen.tsx:277-280` | **still requests both**, via its own separate `requestMultiple` |
+| `frontend/plugins/withTruecaller` (`PERMISSIONS`, ~line 26) | **re-injects both into the manifest** |
+
+So the helper's own header comment — "were removed for Play Store compliance,
+so they are no longer requested" — is true of the helper and false of the app.
+
+**Current decision (owner, 2026-09-07): KEEP them and file the declaration.**
+The missed-call verification path stays. See
+`docs/PLAY_STORE_SUBMISSION.md` → *Sensitive permission declarations* for the
+justification text to paste into Play Console → **App content → Sensitive app
+permissions**.
+
+Expect human review and added days. Play restricts the Call Log permission
+group to apps whose core function is phone handling or caller ID, so rejection
+is a realistic outcome. **The fallback, if Play refuses:** strip both
+permissions from the manifest, from `withTruecaller`'s `PERMISSIONS`, and from
+`TruecallerPhoneScreen`'s runtime request. Truecaller One-Tap needs only
+`READ_PHONE_STATE` and keeps working; email, Google and email OTP are
+unaffected. Only the missed-call path for users without the Truecaller app
+installed is lost.
+
+> ⚠️ **Never run `expo prebuild`.** `android/` is committed (bare workflow) and
+> holds hand-written Truecaller native code that prebuild destroys.
 >
-> Remaining manifest permissions worth a quick sanity check for your use case: `RECORD_AUDIO` and `SYSTEM_ALERT_WINDOW` are present (likely pulled in by a dependency). They are not *restricted* like CALL_LOG/SMS, but remove them if no feature uses them, to minimise review friction and the Data Safety surface.
+> `RECORD_AUDIO` is used (voice notes on a pond record) and `READ_CONTACTS` is
+> read at pick time only — both are declared in the Data Safety section.
 
 ---
 

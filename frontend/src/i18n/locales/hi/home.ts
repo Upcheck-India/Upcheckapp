@@ -41,7 +41,7 @@ const home = {
   moreSectionHelp: 'सहायता और जानकारी',
   moreUserFallback: 'उपयोगकर्ता',
   moreEmailFallback: 'कोई ईमेल नहीं',
-  moreVersion: 'Upcheck v1.0.0',
+  moreVersion: 'Neerani v1.0.0',
   moreSignOutTitle: 'साइन आउट',
   moreSignOutMessage: 'क्या आप वाकई साइन आउट करना चाहते हैं?',
   // Account items
@@ -77,7 +77,7 @@ const home = {
   // Help items
   moreHelp: 'सहायता और समर्थन',
   moreHelpDesc: 'FAQ और ट्यूटोरियल',
-  moreAbout: 'Upcheck के बारे में',
+  moreAbout: 'Neerani के बारे में',
   moreAboutDesc: 'ऐप संस्करण और श्रेय',
 
   // ReportsScreen
@@ -106,6 +106,10 @@ const home = {
   pondIdle: 'खाली',
   quickLogTitle: 'त्वरित लॉग',
   quickLogSubtitle: 'आज की रीडिंग दर्ज करें',
+  quickLogRoundsSection: "सुबह का राउंड",
+  quickLogRoundsTitle: "हर तालाब की जल गुणवत्ता",
+  quickLogRoundsSub: "एक बार में {{count}} तालाब",
+  quickLogSingleSection: "एक तालाब के लिए दर्ज करें",
   quickLogPickPond: 'तालाब चुनें',
   quickLogForPond: '{{pond}} के लिए दर्ज',
   quickLogNoPonds: 'अभी कोई तालाब नहीं',
@@ -119,7 +123,7 @@ const home = {
   quickLogNeedsCycle: 'साइकिल चाहिए',
   farmerFallback: 'किसान',
   onboarding_languagePrompt: 'अपनी भाषा चुनें',
-  onboarding_title: 'Upcheck में आपका स्वागत है',
+  onboarding_title: 'Neerani में आपका स्वागत है',
   onboarding_subtitle: 'आपके झींगा फार्म का दैनिक सहायक',
   onboarding_feature1: 'पानी, फ़ीड और वृद्धि कुछ ही सेकंड में दर्ज करें',
   onboarding_feature2: 'जीवित रहने की दर और मुनाफ़ा बढ़ाने के लिए स्मार्ट सलाह',
@@ -178,6 +182,8 @@ const home = {
 
   // Empty first-run dashboard (artboard 09)
   noFarmsYet: "अभी कोई फ़ार्म नहीं",
+  waitingApprovalTitle: "{{farm}} के अनुमति देने का इंतज़ार",
+  waitingApprovalBody: "आपका अनुरोध भेज दिया गया है। फ़ार्म मालिक आपको अंदर ले लेंगे — कोड दोबारा डालने की ज़रूरत नहीं।",
   createFarmCardSub: "अपने तालाब सेट करें और दर्ज करना शुरू करें",
   joinCodeCardTitle: "कोड से शामिल हों",
   joinCodeCardSub: "किसी और के चलाए फ़ार्म पर काम करें",
@@ -200,6 +206,9 @@ const home = {
   lunarMoltingTitle: "मोल्टिंग समय",
   lunarMoltingBody: "नए और पूर्ण चाँद के आसपास झींगे का खोल नरम रहता है। दाना कम दें, पकड़ें या हार्वेस्ट न करें।",
   lunarQuiet: "आज मोल्टिंग की उम्मीद नहीं।",
+  moltWindowTitle: "मोल्ट विंडो {{start}} – {{end}} · चरम {{peak}}",
+  moltPondsNeedAction: "{{total}} में से {{pending}} तालाबों में काम बाकी",
+  moltNextWindow: "अगली मोल्ट विंडो {{date}} से",
   startHere: "यहाँ से शुरू करें",
   stepPondsTitle: "अपने तालाब जोड़ें",
   stepPondsWhy: "अपचेक हर तालाब का पानी, दाना और बढ़त अलग-अलग देखता है। अभी देखने को कुछ नहीं है।",
@@ -210,6 +219,9 @@ const home = {
   stepLogTitle: "आज की रीडिंग दर्ज करें",
   stepLogWhy: "आज कुछ दर्ज नहीं हुआ। यहाँ की हर चेतावनी ऑक्सीजन और पीएच से ही बनती है।",
   stepLogCta: "अभी दर्ज करें",
+  stepInviteTitle: "अपने साथ काम करने वालों को जोड़ें",
+  stepInviteWhy: "आपकी अनुपस्थिति में वे चारा और पानी दर्ज कर सकते हैं, और सारे आँकड़े एक ही जगह रहते हैं।",
+  stepInviteCta: "अपनी टीम को बुलाएँ",
   hideChecklist: "छिपाएँ",
   hideChecklistTitle: "सेटअप सूची छिपाएँ?",
   hideChecklistBody: "यह दोबारा नहीं आएगी। तालाब बनाना, रीडिंग दर्ज करना और टीम को बुलाना फ़ार्म और टीम टैब से अब भी हो सकता है।",

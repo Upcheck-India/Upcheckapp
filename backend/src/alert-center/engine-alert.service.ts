@@ -6,9 +6,37 @@ import {
   PondContextService,
   PondContext,
 } from '../pond-context/pond-context.service';
-import { LunarService } from '../lunar/lunar.service';
-import { AlertCenterService, BriefingItem } from './alert-center.service';
+import {
+  MoltService,
+  PondMolt,
+  MoltAlertActions,
+  moltAlertFor,
+} from '../molt/molt.service';
+import {
+  currentMoltWindow,
+  MoltPhase,
+  MoltWindow,
+} from '../molt/molt-window';
+import {
+  AlertCenterService,
+  BriefingItem,
+  SavedAlert,
+  rank,
+} from './alert-center.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { FREE_NH3, classify, thresholdFor } from '../common/wq-thresholds';
+
+/**
+ * Home's molt line. `window` is null outside a window; `next` is always the
+ * coming window so the quiet line can still name a date.
+ */
+export interface MoltWindowSummary {
+  window: MoltWindow | null;
+  phase: MoltPhase;
+  next: MoltWindow;
+  eligiblePonds: number;
+  pondsWithPending: number;
+}
 
 export interface AlertDraft {
   pondId: string | null;
@@ -17,6 +45,13 @@ export interface AlertDraft {
   title: string;
   body: string;
   steps: string[];
+  /** Lunar only: what the client can tick or route (spec A.5). */
+  actions?: MoltAlertActions;
+}
+
+export interface LiveAlert extends AlertDraft {
+  key: string;
+  farmId: string;
 }
 
 /**
@@ -31,16 +66,17 @@ export class EngineAlertService {
     @InjectRepository(Pond)
     private readonly pondRepo: Repository<Pond>,
     private readonly pondContext: PondContextService,
-    private readonly lunar: LunarService,
+    private readonly molt: MoltService,
     private readonly alertCenter: AlertCenterService,
     private readonly farmAccess: FarmAccessService,
   ) {}
 
   /**
-   * Evaluate a pond's context into alert drafts. Pure given `now`; uses only
-   * signals derivable from logged data (free-NH3, DO, running FCR, lunar molt).
+   * Evaluate a pond's context into alert drafts. Pure; uses only signals
+   * derivable from logged data (free-NH3, DO, running FCR) plus the pond's
+   * precomputed molt checklist (see MoltService.checklistsFor).
    */
-  evaluate(ctx: PondContext, now = new Date()): AlertDraft[] {
+  evaluate(ctx: PondContext, moltStatus?: PondMolt): AlertDraft[] {
     const drafts: AlertDraft[] = [];
     const wq = ctx.waterQuality;
     const push = (
@@ -52,9 +88,14 @@ export class EngineAlertService {
     ) =>
       drafts.push({ pondId: ctx.pondId, source, severity, title, body, steps });
 
+    // Limits come from the shared per-species table (common/wq-thresholds), the
+    // same one the Day Score and the app's colours read.
+    const nh3Zone =
+      ctx.freeAmmoniaMgL != null ? classify(ctx.freeAmmoniaMgL, FREE_NH3) : null;
+
     // Free ammonia (toxic fraction).
-    if (ctx.freeAmmoniaMgL != null) {
-      if (ctx.freeAmmoniaMgL > 0.3) {
+    if (nh3Zone) {
+      if (nh3Zone === 'critical') {
         push(
           'critical',
           'water',
@@ -66,7 +107,7 @@ export class EngineAlertService {
             'Add probiotics; verify pH is not spiking',
           ],
         );
-      } else if (ctx.freeAmmoniaMgL > 0.1) {
+      } else if (nh3Zone === 'caution') {
         push(
           'watch',
           'water',
@@ -78,8 +119,12 @@ export class EngineAlertService {
     }
 
     // Dissolved oxygen.
-    if (wq?.dissolvedOxygen != null && wq.dissolvedOxygen < 4) {
-      const severity = wq.dissolvedOxygen < 3 ? 'critical' : 'watch';
+    const doZone =
+      wq?.dissolvedOxygen != null
+        ? classify(wq.dissolvedOxygen, thresholdFor(ctx.species, 'do'))
+        : 'optimal';
+    if (wq?.dissolvedOxygen != null && doZone !== 'optimal') {
+      const severity = doZone === 'critical' ? 'critical' : 'watch';
       push(
         severity,
         'aeration',
@@ -93,6 +138,16 @@ export class EngineAlertService {
       );
     }
 
+    // pH — critical band only (outside the species' critical limits); the
+    // caution band is a colour on the log screen, not an alert.
+    if (wq?.ph != null && classify(wq.ph, thresholdFor(ctx.species, 'ph')) === 'critical') {
+      push('critical', 'water', 'pH out of safe range', `pH ${wq.ph}`, [
+        'Check the reading again',
+        'Partial water exchange',
+        'Correct with lime (low pH) or molasses (high pH)',
+      ]);
+    }
+
     // Feed efficiency.
     if (ctx.runningFcr != null && ctx.runningFcr > 1.8) {
       push(
@@ -104,32 +159,21 @@ export class EngineAlertService {
       );
     }
 
-    // Lunar molt risk (needs latest ABW).
-    if (ctx.abwG != null) {
-      const phase = this.lunar.moonPhase(now);
-      const risk = this.lunar.computeMoltRisk(phase, ctx.abwG, {
-        do: wq?.dissolvedOxygen ?? undefined,
-        freeNh3: ctx.freeAmmoniaMgL ?? undefined,
-        temp: wq?.temperature ?? undefined,
-      });
-      if (risk.band === 'Critical') {
-        push('critical', 'lunar', 'Molt-peak risk', `Molt risk ${risk.score}`, [
-          'Cut feed 15–30%',
-          'Maximize aeration 02:00–06:00',
-          'No handling, sampling or treatments',
-        ]);
-      } else if (risk.band === 'Watch' && phase.inMoltWindow) {
-        push(
-          'watch',
-          'lunar',
-          'Molt window approaching',
-          `Molt risk ${risk.score}`,
-          ['Raise alkalinity ≥120 ppm', 'Top up Ca/Mg/K before the molt'],
-        );
-      }
+    // Molt window checklist (eligible ponds only; resolves once items are done).
+    const a = moltStatus ? moltAlertFor(moltStatus) : null;
+    if (a) {
+      push(a.severity, 'lunar', a.title, a.body, a.steps);
+      drafts[drafts.length - 1].actions = a.actions;
     }
 
     return drafts;
+  }
+
+  /** Molt checklists for a set of contexts — a fixed number of queries. */
+  private moltFor(contexts: PondContext[]): Promise<Map<string, PondMolt>> {
+    return this.molt.checklistsFor(
+      contexts.map((c) => ({ pondId: c.pondId, cropId: c.cropId, abwG: c.abwG })),
+    );
   }
 
   /**
@@ -192,21 +236,54 @@ export class EngineAlertService {
   }
 
   /** Roll evaluated contexts into the briefing shape the client renders. */
-  private briefingFrom(contexts: PondContext[]): BriefingItem[] {
-    const drafts: AlertDraft[] = contexts.flatMap((ctx) => this.evaluate(ctx));
+  private briefingFrom(
+    contexts: PondContext[],
+    molts: Map<string, PondMolt>,
+  ): BriefingItem[] {
+    const drafts: AlertDraft[] = contexts.flatMap((ctx) =>
+      this.evaluate(ctx, molts.get(ctx.pondId)),
+    );
     return this.alertCenter.buildBriefing(
       drafts.map((d) => ({
         pondId: d.pondId,
         severity: d.severity,
         title: d.title,
-        data: { source: d.source, steps: d.steps },
+        data: { source: d.source, steps: d.steps, ...(d.actions ? { actions: d.actions } : {}) },
       })),
     );
   }
 
   /** Live per-pond briefing across all of a user's active ponds. */
   async liveBriefing(userId: string): Promise<BriefingItem[]> {
-    return this.briefingFrom(await this.activeContexts(userId));
+    const contexts = await this.activeContexts(userId);
+    return this.briefingFrom(contexts, await this.moltFor(contexts));
+  }
+
+  /**
+   * Every alert, uncollapsed (GET /alert-center/all): each live engine draft for
+   * the same pond set `today` reads, plus every unread persisted alert.
+   * `buildBriefing` keeps one per pond; this screen shows them all.
+   */
+  async all(userId: string): Promise<{ live: LiveAlert[]; saved: SavedAlert[] }> {
+    const [contexts, saved] = await Promise.all([
+      this.activeContexts(userId),
+      this.alertCenter.savedAlerts(userId),
+    ]);
+    const molts = contexts.length ? await this.moltFor(contexts) : new Map();
+    const live: LiveAlert[] = contexts.flatMap((ctx) =>
+      this.evaluate(ctx, molts.get(ctx.pondId)).map((d) => ({
+        ...d,
+        farmId: ctx.farmId,
+        // Stable across refreshes: counts in titles ("2 actions pending") change.
+        key: `${d.source}:${d.pondId}:${d.title.replace(/\d+/g, '#')}`,
+      })),
+    );
+    live.sort(
+      (a, b) =>
+        rank(b.severity) - rank(a.severity) ||
+        String(a.pondId).localeCompare(String(b.pondId)),
+    );
+    return { live, saved };
   }
 
   /**
@@ -219,10 +296,25 @@ export class EngineAlertService {
    * 5. `evaluate` is pure over a context, so this is only a matter of not
    * discarding what liveBriefing already had in hand.
    */
-  async today(
-    userId: string,
-  ): Promise<{ contexts: PondContext[]; briefing: BriefingItem[] }> {
+  async today(userId: string): Promise<{
+    contexts: PondContext[];
+    briefing: BriefingItem[];
+    moltWindow: MoltWindowSummary;
+  }> {
     const contexts = await this.activeContexts(userId);
-    return { contexts, briefing: this.briefingFrom(contexts) };
+    const molts = contexts.length ? await this.moltFor(contexts) : new Map();
+    const { window, phase, next } = currentMoltWindow(new Date());
+    const all = [...molts.values()];
+    return {
+      contexts,
+      briefing: this.briefingFrom(contexts, molts),
+      moltWindow: {
+        window,
+        phase,
+        next,
+        eligiblePonds: all.filter((m) => m.eligible).length,
+        pondsWithPending: all.filter((m) => moltAlertFor(m) !== null).length,
+      },
+    };
   }
 }

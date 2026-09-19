@@ -50,6 +50,12 @@ export class AlertCenterController {
     return this.engineAlerts.today(user.id);
   }
 
+  /** Every alert, one row each: `{ live, saved }` (Today's alerts screen). */
+  @Get('all')
+  all(@CurrentUser() user) {
+    return this.engineAlerts.all(user.id);
+  }
+
   /** Emit an alert into the unified stream. */
   @Post('emit')
   emit(@Body() body: EmitBody, @CurrentUser() user) {

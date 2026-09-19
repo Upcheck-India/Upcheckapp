@@ -125,6 +125,25 @@ export class Farm {
   rolePolicy: RolePolicy | null;
 
   /**
+   * Farm-wide shift end, IST wall clock. Postgres returns 'HH:MM:SS'; the API
+   * speaks 'HH:MM'. null = no set end, so expected end is check-in + shiftHours
+   * (spec 2026-09-14 attendance B.1, founder Q4).
+   */
+  @Column({
+    name: 'shift_end_local',
+    type: 'time',
+    nullable: true,
+    transformer: {
+      to: (v: string | null | undefined) => v,
+      from: (v: string | null) => (v ? v.slice(0, 5) : null),
+    },
+  })
+  shiftEndLocal: string | null;
+
+  @Column({ name: 'shift_hours', type: 'smallint', default: 9 })
+  shiftHours: number;
+
+  /**
    * Nominated recovery contact — a member who may claim ownership if the owner
    * account is lost (phone lost, number changed, person leaves).
    *

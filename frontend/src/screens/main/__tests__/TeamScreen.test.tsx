@@ -23,6 +23,8 @@ jest.mock('../../../api/farmMembers', () => ({
 // time itself. These tests cover what the SCREEN does with the data — scope,
 // dedupe, rendering — so they drive the batched call directly.
 jest.mock('../../../api/teamOverview', () => ({
+    // The pure helpers (shift cards, roster, role gate) run for real.
+    ...jest.requireActual('../../../api/teamOverview'),
     fetchTeamOverview: jest.fn(),
 }));
 // Check-in from this tab goes through the same offline queue as the log
@@ -232,15 +234,20 @@ describe('TeamScreen — worker access to attendance and leave', () => {
         fireEvent.press(await findByText('Check in'));
         fireEvent.press(await findByTestId('farm-choice-farm-2'));
 
-        await waitFor(() =>
-            expect(saveRecord as jest.Mock).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    entity: 'attendance',
-                    endpoint: '/attendance/check-in',
-                    payload: { farmId: 'farm-2' },
-                }),
-            ),
-        );
+        await waitFor(() => expect(saveRecord as jest.Mock).toHaveBeenCalled());
+
+        // Asserted as BEHAVIOUR, not as a call shape. The previous version
+        // pinned `payload: { farmId: 'farm-2' }` exactly, which meant it
+        // passed only while the check-in time was NOT being sent — and with
+        // no time the server defaults to the moment the row is written, which
+        // offline is when the queue drains rather than when the worker
+        // pressed the button. The test enforced the bug.
+        const sent = (saveRecord as jest.Mock).mock.calls[0][0];
+        expect(sent.entity).toBe('attendance');
+        expect(sent.endpoint).toBe('/attendance/check-in');
+        expect(sent.payload.farmId).toBe('farm-2');
+        expect(Number.isNaN(Date.parse(sent.payload.checkInAt))).toBe(false);
+        expect(Math.abs(Date.parse(sent.payload.checkInAt) - Date.now())).toBeLessThan(60_000);
     });
 });
 

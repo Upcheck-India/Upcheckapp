@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     View,
@@ -26,6 +26,7 @@ import {
     CreateTransactionDto,
     TransactionSummary,
 } from '../../api/transactions';
+import { pondsApi, type Pond } from '../../api/ponds';
 import { apiErrorMessage } from '../../api/errors';
 
 type FilterKey = 'all' | 'income' | 'expense';
@@ -59,18 +60,47 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
     const [formType, setFormType] = useState<'income' | 'expense'>('income');
     const [formDate, setFormDate] = useState(toISODate(new Date()));
     const [formError, setFormError] = useState<string | null>(null);
+    /** Null means "whole farm" — the default, and what every older row is. */
+    const [formPondId, setFormPondId] = useState<string | null>(null);
+    const [ponds, setPonds] = useState<Pond[]>([]);
+
+    // The farm's ponds, for the optional attribution picker. Archived included:
+    // a cost can land on a pond that has since been retired, and hiding it
+    // would silently re-attribute the money to the whole farm.
+    // Best-effort — failing to load ponds must not block recording money.
+    useEffect(() => {
+        if (!farmId) return;
+        let alive = true;
+        void pondsApi
+            .getAll(farmId, { take: 100, includeArchived: true })
+            .then((res) => {
+                const data: any = res.data;
+                const list = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
+                if (alive) setPonds(list as Pond[]);
+            })
+            .catch(() => undefined);
+        return () => {
+            alive = false;
+        };
+    }, [farmId]);
 
     const fetchAll = useCallback(async (activeFilter: FilterKey = filter) => {
         try {
             const typeParam =
                 activeFilter === 'all' ? undefined : (activeFilter as 'income' | 'expense');
 
+            // "All ›" from the combined Money tab navigates here with NO farm,
+            // deliberately, so the ledger shows every farm. The summary
+            // endpoint is per-farm and was still called — `/transactions/farm/
+            // undefined/summary` — which rejected, took the whole Promise.all
+            // down with it and left the farmer staring at an error alert over
+            // an empty list. No farm, no summary card; the list still loads.
             const [txRes, sumRes] = await Promise.all([
                 transactionsApi.getAll(farmId, typeParam),
-                transactionsApi.getSummary(farmId),
+                farmId ? transactionsApi.getSummary(farmId) : Promise.resolve(null),
             ]);
             setTransactions(txRes.data);
-            setSummary(sumRes.data);
+            setSummary(sumRes?.data ?? null);
         } catch (err: any) {
             Alert.alert(t('common.error'), apiErrorMessage(err, t('finance.loadError')));
         } finally {
@@ -105,6 +135,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
         setFormDescription('');
         setFormType('income');
         setFormDate(toISODate(new Date()));
+        setFormPondId(null);
         setFormError(null);
     };
 
@@ -134,6 +165,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
             category: formCategory.trim(),
             amount: parsedAmount,
             description: formDescription.trim() || undefined,
+            pondId: formPondId ?? undefined,
         };
 
         try {
@@ -155,6 +187,16 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
         return (
             <Card style={styles.summaryCard} variant="elevated">
                 <Text style={styles.summaryTitle}>{t('finance.financialSummary')}</Text>
+                {/*
+                  * Same three words as the Money tab's hero — "Total income",
+                  * "Total expense", "Net profit" — over a DIFFERENT number:
+                  * this endpoint sums the `transactions` table only, for all
+                  * time, for one farm, while the Money tab also counts pond
+                  * costs and harvest sales over the period the farmer picked.
+                  * Both are true. Neither is wrong. Which one this is has to
+                  * be on the card, or the app reads as disagreeing with itself.
+                  */}
+                <Text style={styles.summaryNote}>{t('finance.ledgerOnlyNote')}</Text>
                 <View style={styles.summaryRow}>
                     <View style={styles.summaryItem}>
                         <Text style={styles.summaryLabel}>{t('finance.totalIncome')}</Text>
@@ -351,6 +393,62 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
                     />
                 </View>
             </View>
+
+            {/*
+              * Which pond this money belongs to — OPTIONAL, and "Whole farm"
+              * is the default because a licence fee or a shared generator
+              * genuinely belongs to no single pond.
+              *
+              * Without this the two ledgers could not answer the same
+              * question: a cost typed on a pond knew its pond, a cost typed
+              * here never did, so "what did this pond cost me" silently
+              * omitted half the farmer's own entries.
+              */}
+            {ponds.length > 0 && (
+                <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>{t('finance.fieldPondLabel')}</Text>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.pondChips}
+                    >
+                        <TouchableOpacity
+                            testID="pond-choice-farm"
+                            style={[styles.pondChip, !formPondId && styles.pondChipActive]}
+                            onPress={() => setFormPondId(null)}
+                        >
+                            <Text
+                                style={[
+                                    styles.pondChipText,
+                                    !formPondId && styles.pondChipTextActive,
+                                ]}
+                            >
+                                {t('finance.wholeFarm')}
+                            </Text>
+                        </TouchableOpacity>
+                        {ponds.map((p) => (
+                            <TouchableOpacity
+                                key={p.id}
+                                testID={`pond-choice-${p.id}`}
+                                style={[
+                                    styles.pondChip,
+                                    formPondId === p.id && styles.pondChipActive,
+                                ]}
+                                onPress={() => setFormPondId(p.id)}
+                            >
+                                <Text
+                                    style={[
+                                        styles.pondChipText,
+                                        formPondId === p.id && styles.pondChipTextActive,
+                                    ]}
+                                >
+                                    {p.displayName || p.pondCode || p.name}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
 
             {/* Description */}
             <View style={styles.fieldGroup}>
@@ -549,6 +647,12 @@ const styles = StyleSheet.create({
     summaryTitle: {
         ...theme.typeScale.h3,
         color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[1],
+    },
+    summaryNote: {
+        ...theme.typeScale.bodySmall,
+        fontSize: 11,
+        color: theme.roles.light.textTertiary,
         marginBottom: theme.spacing[4],
     },
     summaryRow: {
@@ -717,6 +821,27 @@ const styles = StyleSheet.create({
         color: theme.roles.light.textSecondary,
         marginBottom: theme.spacing[1.5],
     },
+    pondChips: {
+        gap: theme.spacing[2],
+        paddingVertical: theme.spacing[0.5],
+    },
+    pondChip: {
+        paddingHorizontal: theme.spacing[3],
+        paddingVertical: theme.spacing[1.5],
+        borderRadius: theme.radius.full,
+        borderWidth: 1,
+        borderColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surfaceVariant,
+    },
+    pondChipActive: {
+        borderColor: theme.roles.light.borderBrand,
+        backgroundColor: theme.roles.light.surface,
+    },
+    pondChipText: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.textSecondary,
+    },
+    pondChipTextActive: { color: theme.roles.light.textPrimary },
     inputContainer: {
         borderWidth: 1,
         borderColor: theme.roles.light.borderDefault,

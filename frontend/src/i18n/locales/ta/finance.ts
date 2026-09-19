@@ -34,6 +34,11 @@ const finance = {
 
   // List
   allExpenses: 'அனைத்து செலவுகளும்',
+  // Marks a cycle-expense row that actually lives in the `transactions`
+  // table — typed on the farm Money screen and tagged to this pond. It is
+  // read-only here: the edit/delete endpoints on this tab do not own it.
+  fromFarmMoney: 'பண்ணை பணத்திலிருந்து',
+  fromPondExpenses: 'குள செலவிலிருந்து',
 
   // Empty / loading states
   loadingExpenses: 'செலவுகளை ஏற்றுகிறது…',
@@ -46,6 +51,7 @@ const finance = {
 
   // Summary card
   financialSummary: 'நிதி சுருக்கம்',
+  ledgerOnlyNote: "இங்கே பதிவு செய்த உள்ளீடுகள் மட்டும், மொத்த காலத்திற்கும். பணம் தாவலில் குளச் செலவுகளும் அறுவடை விற்பனையும் சேர்க்கப்படும்.",
   totalIncome: 'மொத்த வருமானம்',
   totalExpense: 'மொத்த செலவு',
 
@@ -91,6 +97,7 @@ const finance = {
   byFarm: "பண்ணை வாரியாக",
   farmInOut: "வரவு {{income}} · செலவு {{expense}}",
   creditOutstanding: "வியாபாரி கடன் நிலுவை",
+  creditAllFarmsNote: "அனைத்து பண்ணைகள், அனைத்து தேதிகள் — வியாபாரி கடன் மேலே உள்ள சிப்களால் வடிகட்டப்படாது.",
   creditDue: "{{dealer}} · {{date}} அன்று",
   creditDealers: "{{count}} வியாபாரிகளிடம்",
   creditDealers_one: "ஒரு வியாபாரி",
@@ -99,7 +106,7 @@ const finance = {
   noEntries: "இந்தப் பண்ணைக்கு இன்னும் எதுவும் பதிவாகவில்லை.",
   harvestSale: "அறுவடை விற்பனை",
   harvestSoldTo: "{{buyer}}-க்கு விற்கப்பட்டது",
-  entriesNote: "சமீபத்திய பதிவுகள் மட்டும். மேலே உள்ள நிகரத்தில் சுழற்சியில் பதிந்த செலவுகளும் அடங்கும் — அவை \"எங்கே சென்றது\" பகுதியில் உள்ளன.",
+  entriesNote: "சமீபத்திய ஆறு பதிவுகள் மட்டும். குளச் செலவுகளும் அறுவடை விற்பனையும் இங்கேயே தெரியும்; முழுக் காலத்தின் கூட்டுத்தொகை \"எங்கே சென்றது\" பகுதியில் உள்ளது.",
   noFarmTitle: "இன்னும் பண்ணை இல்லை",
   noFarmSub: "பணத்தைக் கண்காணிக்க ஒரு பண்ணையைச் சேர்க்கவும்.",
 
@@ -114,7 +121,7 @@ const finance = {
   includeArchived: "காப்பக குளங்களைச் சேர்",
   includeArchivedHint: "மூடப்பட்ட குளங்களின் பணமும் உங்கள் செலவும் வருமானமும் தான்.",
   includeArchivedWorth: "மேலே உள்ள கணக்கில் {{amount}}.",
-  entriesArchivedNote: "மேலே உள்ள மொத்தத்தில் காப்பக குளங்களும் சேர்ந்துள்ளன. பதிவுகள் பண்ணையின் பெயரில் எழுதப்படுகின்றன, குளத்தின் பெயரில் அல்ல — எனவே இங்கே அவை குறிக்கப்படவில்லை. மூடிய குளத்தின் சொந்தக் கணக்கைப் பார்க்க குளப் பட்டியலைத் திறக்கவும்.",
+  entriesArchivedNote: "மேலே உள்ள மொத்தத்தில் காப்பக குளங்களும் சேர்ந்துள்ளன. குளத்தின் சொந்தச் செலவுகள் பட்டியலில் காப்பகம் எனக் குறிக்கப்பட்டுள்ளன; பண்ணையின் பெயரில் எழுதப்பட்ட பதிவுக்குக் குளம் இல்லை, எனவே குறி இல்லை.",
   includeInventory: "இருப்பு வாங்கியதைச் சேர்",
   includeInventoryHint: "வாங்கிய இருப்பு அந்த நாளின் செலவாகக் கணக்கிடப்படும்.",
   includeInventoryOff: "மேலே உள்ள கணக்கில் இருப்பு வாங்கியது சேர்க்கப்படவில்லை.",
@@ -123,6 +130,7 @@ const finance = {
 
   byPond: "குளம் வாரியாக",
   wholeFarm: "முழு பண்ணை",
+  fieldPondLabel: "குளம் (விருப்பத்திற்குரியது)",
   allCycles: "எல்லா சுழற்சிகளும்",
   pondCostTotal: "இந்தக் குளத்தின் செலவு",
   cycleCostTotal: "இந்தச் சுழற்சியின் செலவு",

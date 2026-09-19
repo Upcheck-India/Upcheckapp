@@ -43,14 +43,9 @@ export class ProfilesService {
   ): Promise<Partial<Profile> | null> {
     const profile = await this.profilesRepository.findOne({
       where: { username },
-      select: [
-        'id',
-        'username',
-        'fullName',
-        'avatarUrl',
-        'website',
-        'createdAt',
-      ] as any,
+      // No createdAt: profiles has no such column, and selecting it made
+      // TypeORM throw on every public profile lookup.
+      select: ['id', 'username', 'fullName', 'avatarUrl', 'website'],
     });
     return profile ?? null;
   }
@@ -62,6 +57,16 @@ export class ProfilesService {
     username?: string,
   ): Promise<Profile> {
     let profile = await this.profilesRepository.findOneBy({ id });
+    // Signup never wrote a name here (fullName ''), so every email account
+    // showed no name. Heal from users.first/last_name, which the signup
+    // trigger does fill — on creation, and for existing rows on next read.
+    if (!fullName && !profile?.fullName) {
+      fullName = (await this.nameFromUsers(id)) || fullName;
+      if (profile && fullName) {
+        profile.fullName = fullName;
+        await this.profilesRepository.save(profile);
+      }
+    }
     if (!profile) {
       const generated =
         username || `user_${id.replace(/-/g, '').substring(0, 10)}`;
@@ -105,6 +110,18 @@ export class ProfilesService {
       }
     }
     return profile;
+  }
+
+  private async nameFromUsers(id: string): Promise<string> {
+    const rows: { first_name: string | null; last_name: string | null }[] =
+      await this.dataSource.query(
+        `SELECT first_name, last_name FROM users WHERE id = $1`,
+        [id],
+      );
+    return [rows[0]?.first_name, rows[0]?.last_name]
+      .map((p) => (p ?? '').trim())
+      .filter(Boolean)
+      .join(' ');
   }
 
   async update(id: string, updateProfileDto: UpdateProfileDto) {
@@ -190,28 +207,40 @@ export class ProfilesService {
    * `jsonb || jsonb` is applied by Postgres inside the statement, so a
    * concurrent write to a different key cannot be silently lost between our
    * read and our write.
+   *
+   * An explicit `null` DELETES the key rather than merging it. There has to be
+   * a way to say "forget this", and `undefined` cannot be it: `undefined` does
+   * not survive `JSON.stringify` on the client, so a clear request arrived as
+   * an empty body and wrote nothing. That silently stranded every owner who
+   * finished farm setup — the intent stayed on the row and the app re-armed the
+   * first-run gate from it on every launch. Deleting rather than storing a null
+   * keeps `getPreferences` answering with absent-means-absent.
    */
   async setPreferences(
     userId: string,
     patch: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     const allowed: Record<string, unknown> = {};
+    const removed: string[] = [];
     for (const key of ProfilesService.WRITABLE_PREFERENCE_KEYS) {
-      if (patch[key] !== undefined) allowed[key] = patch[key];
+      if (patch[key] === null) removed.push(key);
+      else if (patch[key] !== undefined) allowed[key] = patch[key];
     }
     // Nothing writable was sent — return what is stored rather than issuing an
     // UPDATE that would only bump updated_at.
-    if (Object.keys(allowed).length === 0) {
+    if (Object.keys(allowed).length === 0 && removed.length === 0) {
       return this.getPreferences(userId);
     }
 
+    // Merge then subtract, in one statement so it stays atomic.
     const rows: { preferences: Record<string, unknown> }[] =
       await this.dataSource.query(
         `UPDATE users
-            SET preferences = COALESCE(preferences, '{}'::jsonb) || $2::jsonb
+            SET preferences =
+                  (COALESCE(preferences, '{}'::jsonb) || $2::jsonb) - $3::text[]
           WHERE id = $1
       RETURNING preferences`,
-        [userId, JSON.stringify(allowed)],
+        [userId, JSON.stringify(allowed), removed],
       );
     return rows[0]?.preferences ?? allowed;
   }

@@ -68,6 +68,22 @@ describe('AlertCenterService', () => {
     expect(briefing[1].pondId).toBe('B');
   });
 
+  it('buildBriefing carries the chosen top alert\'s molt actions, never another alert\'s', () => {
+    const svc = new AlertCenterService({} as any);
+    const actions = { pondId: 'A', windowKey: '2026-09-11-new', items: [{ key: 'restore_feed', source: 'manual', route: null }] };
+    const [lunarTop] = svc.buildBriefing([
+      { pondId: 'A', severity: 'info', title: 'News', data: { source: 'news' } },
+      { pondId: 'A', severity: 'watch', title: 'Post-molt — 1 action pending', data: { source: 'lunar', steps: ['s'], actions } },
+    ]);
+    expect(lunarTop).toMatchObject({ source: 'lunar', actions });
+    const [waterTop] = svc.buildBriefing([
+      { pondId: 'A', severity: 'watch', title: 'Post-molt — 1 action pending', data: { source: 'lunar', steps: ['s'], actions } },
+      { pondId: 'A', severity: 'critical', title: 'Toxic ammonia', data: { source: 'water', steps: [] } },
+    ]);
+    expect(waterTop.source).toBe('water');
+    expect(waterTop).not.toHaveProperty('actions');
+  });
+
   it('morningBriefing reads the user unread alerts', async () => {
     const alerts = {
       findByUser: jest.fn().mockResolvedValue([
@@ -83,5 +99,23 @@ describe('AlertCenterService', () => {
     const b = await svc.morningBriefing('u');
     expect(alerts.findByUser).toHaveBeenCalledWith('u', true);
     expect(b[0].topTitle).toBe('WSSV');
+  });
+});
+
+describe('AlertCenterService.savedAlerts', () => {
+  it('returns every unread alert, "warning" normalised to "watch", steps from data', async () => {
+    const createdAt = new Date();
+    const alerts = {
+      findByUser: jest.fn().mockResolvedValue([
+        { id: '1', pondId: 'A', farmId: 'F', type: 'disease', severity: 'warning', title: 'T1', message: 'M1', data: { steps: ['s'] }, createdAt },
+        { id: '2', pondId: 'A', farmId: 'F', type: 'system', severity: 'critical', title: 'T2', message: 'M2', data: null, createdAt },
+      ]),
+    };
+    const out = await new AlertCenterService(alerts as any).savedAlerts('u');
+    expect(alerts.findByUser).toHaveBeenCalledWith('u', true);
+    expect(out).toEqual([
+      { id: '1', pondId: 'A', farmId: 'F', type: 'disease', severity: 'watch', title: 'T1', message: 'M1', steps: ['s'], createdAt },
+      { id: '2', pondId: 'A', farmId: 'F', type: 'system', severity: 'critical', title: 'T2', message: 'M2', steps: [], createdAt },
+    ]);
   });
 });

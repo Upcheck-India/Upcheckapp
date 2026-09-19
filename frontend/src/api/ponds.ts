@@ -29,6 +29,12 @@ export interface Pond {
     updatedAt: string;
     farm?: any;
     activeCycle?: any;
+    /**
+     * Which of this pond's measurements the APP filled in rather than the
+     * farmer — see `Pond.assumedFields` on the backend. Rendered as "not
+     * confirmed" rather than presented as an answer nobody gave.
+     */
+    assumedFields?: string[];
 }
 
 export interface CreatePondDto {
@@ -46,6 +52,12 @@ export interface CreatePondDto {
     overrideAreaM2?: number;
     displayName?: string;
     batchCount?: number;
+    /**
+     * Fields this client filled in WITHOUT asking, so the pond can say which
+     * of its numbers are assumed. Onboarding sends this; the full create form
+     * sends nothing, because every value there was typed by the farmer.
+     */
+    assumedFields?: string[];
 }
 
 // POST /ponds wraps the created pond with derived geometry figures.
@@ -66,7 +78,13 @@ export const pondsApi = {
 
     getById: (id: string) => apiClient.get<Pond>(`/ponds/${id}`),
 
-    create: (data: CreatePondDto) => apiClient.post<Pond>('/ponds', data),
+    /**
+     * POST /ponds returns the created pond WRAPPED with its derived geometry
+     * (see CreatePondResult), not a bare Pond. It was typed as `Pond` here,
+     * which is why callers carried `as unknown as CreatePondResult` casts —
+     * the declaration was wrong and every caller paid for it.
+     */
+    create: (data: CreatePondDto) => apiClient.post<CreatePondResult>('/ponds', data),
 
     update: (id: string, data: UpdatePondDto) => apiClient.patch<Pond>(`/ponds/${id}`, data),
 

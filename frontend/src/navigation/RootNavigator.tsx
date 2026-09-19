@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { theme } from '../theme';
@@ -7,131 +7,30 @@ import { useMembershipStore } from '../store/membershipStore';
 import type { SignupIntent } from '../store/authStore';
 import type { FarmRole } from '../api/farmMembers';
 import type { CreateFarmDto } from '../api/farms';
+import type { ExportDataset } from '../features/export/types';
 import { hasChosenLanguage } from '../i18n';
+import {
+    loadTelemetryPrefs,
+    shouldAskAnalyticsConsent,
+} from '../features/telemetryPrefs';
 
-// Auth Screens
-import { LoginScreen } from '../screens/auth/LoginScreen';
-import { RegisterScreen } from '../screens/auth/RegisterScreen';
-import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
-import { ResetPasswordScreen } from '../screens/auth/ResetPasswordScreen';
-import { TruecallerLoginScreen } from '../screens/auth/TruecallerLoginScreen';
-import { TruecallerPhoneScreen } from '../screens/auth/TruecallerPhoneScreen';
-
-// Main Navigation
+// EAGER — only what the app can actually paint on first frame.
+//
+// Everything else is supplied through `getComponent` below, which `require`s
+// the screen module at first navigation instead of at import time. That keeps
+// ~110 screen modules (and with them expo-camera, expo-image-picker,
+// expo-location, react-native-chart-kit, react-native-qrcode-svg and
+// @react-native-google-signin) off the startup path. `getComponent` is
+// synchronous, so there is no Suspense boundary and no loading flash.
+//
+// Kept eager:
+//  - MainNavigator: where an authenticated user lands (`MainApp`).
+//  - LanguageScreen: the first route of the unauthenticated stack.
+//  - WelcomeScreen: one tap after Language, and its assets are shared with it.
 import { MainNavigator } from './MainNavigator';
-import { QuickLogScreen } from '../screens/main/QuickLogScreen';
-
-// Phase 2 Screens
-import { CreateFarmScreen } from '../screens/farms/CreateFarmScreen';
-import { FarmDetailScreen } from '../screens/farms/FarmDetailScreen';
-import { FarmMembersScreen } from '../screens/farms/FarmMembersScreen';
-import { MemberDetailScreen } from '../screens/farms/MemberDetailScreen';
-import { AllWorkersScreen } from '../screens/farms/AllWorkersScreen';
-import { AddWorkerScreen } from '../screens/farms/AddWorkerScreen';
-import { CreatePondScreen } from '../screens/ponds/CreatePondScreen';
-import { PondDashboardScreen } from '../screens/ponds/PondDashboardScreen';
-import { CreateCycleScreen } from '../screens/cycles/CreateCycleScreen';
-import { CycleDetailScreen } from '../screens/cycles/CycleDetailScreen';
-import { CycleListScreen } from '../screens/cycles/CycleListScreen';
-import { ActivityScreen } from '../screens/activity/ActivityScreen';
-import { PondDimensionHistoryScreen } from '../screens/ponds/PondDimensionHistoryScreen';
-import { CycleAnalysisScreen } from '../screens/reports/CycleAnalysisScreen';
-
-// Phase 3 Screens (Logs)
-import { WaterQualityLogScreen } from '../screens/logs/WaterQualityLogScreen';
-import { FeedLogScreen } from '../screens/logs/FeedLogScreen';
-import { FeedingTrayChecksScreen } from '../screens/logs/FeedingTrayChecksScreen';
-import { SamplingLogScreen } from '../screens/logs/SamplingLogScreen';
-import { TreatmentLogScreen } from '../screens/logs/TreatmentLogScreen';
-import { HarvestLogScreen } from '../screens/logs/HarvestLogScreen';
-import { MortalityLogScreen } from '../screens/logs/MortalityLogScreen';
-import { ChemicalLogScreen } from '../screens/logs/ChemicalLogScreen';
-import { PlanktonLogScreen } from '../screens/logs/PlanktonLogScreen';
-import { MicrobiologyLogScreen } from '../screens/logs/MicrobiologyLogScreen';
-import { DiseaseLogScreen } from '../screens/logs/DiseaseLogScreen';
-
-// Phase 4 Screens (Calculators & Simulations)
-import { CalculatorHubScreen } from '../screens/calculators/CalculatorHubScreen';
-import { CultivationPerformanceScreen } from '../screens/calculators/CultivationPerformanceScreen';
-import { DailyFeedCalculatorScreen } from '../screens/calculators/DailyFeedCalculatorScreen';
-import { ProductAmountScreen } from '../screens/calculators/ProductAmountScreen';
-import { FreeAmmoniaScreen } from '../screens/calculators/FreeAmmoniaScreen';
-
-import { SimulationListScreen } from '../screens/simulation/SimulationListScreen';
-import { SimulationCreateScreen } from '../screens/simulation/SimulationCreateScreen';
-import { SimulationResultsScreen } from '../screens/simulation/SimulationResultsScreen';
-
-// Phase 5 Screens (History & Polish)
-import { WaterQualityHistoryScreen } from '../screens/logs/History/WaterQualityHistoryScreen';
-import { FeedHistoryScreen } from '../screens/logs/History/FeedHistoryScreen';
-import { SamplingHistoryScreen } from '../screens/logs/History/SamplingHistoryScreen';
-import { TreatmentHistoryScreen } from '../screens/logs/History/TreatmentHistoryScreen';
-import { HarvestHistoryScreen } from '../screens/logs/History/HarvestHistoryScreen';
-import { ChemicalHistoryScreen } from '../screens/logs/History/ChemicalHistoryScreen';
-import { PlanktonHistoryScreen } from '../screens/logs/History/PlanktonHistoryScreen';
-import { MicrobiologyHistoryScreen } from '../screens/logs/History/MicrobiologyHistoryScreen';
-import { DiseaseHistoryScreen } from '../screens/logs/History/DiseaseHistoryScreen';
-import { MortalityHistoryScreen } from '../screens/logs/History/MortalityHistoryScreen';
-import { MeasurementsScreen } from '../screens/measurements/MeasurementsScreen';
-import { DailyRoutineScreen } from '../screens/engines/DailyRoutineScreen';
-import { WeeklyChemistryScreen } from '../screens/logs/WeeklyChemistryScreen';
-import { WeeklyChemistryHistoryScreen } from '../screens/logs/History/WeeklyChemistryHistoryScreen';
-import { EnginesHubScreen } from '../screens/engines/EnginesHubScreen';
-import { FeedAdvisorScreen } from '../screens/engines/FeedAdvisorScreen';
-import { HarvestTimingScreen } from '../screens/engines/HarvestTimingScreen';
-import { DiseaseRiskScreen } from '../screens/engines/DiseaseRiskScreen';
-import { AerationScreen } from '../screens/engines/AerationScreen';
-import { LunarScreen } from '../screens/engines/LunarScreen';
-import { CropPnlScreen } from '../screens/engines/CropPnlScreen';
-import { MorningBriefingScreen } from '../screens/engines/MorningBriefingScreen';
-
-import { ProfileScreen } from '../screens/settings/ProfileScreen';
-import { DeleteAccountScreen } from '../screens/settings/DeleteAccountScreen';
-import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
-import { HelpScreen } from '../screens/settings/HelpScreen';
-import { ReportIssueScreen } from '../screens/settings/ReportIssueScreen';
-import { SyncStatusScreen } from '../screens/settings/SyncStatusScreen';
-import { FeedbackDetailScreen } from '../screens/settings/FeedbackDetailScreen';
-import { AboutScreen } from '../screens/settings/AboutScreen';
-import { InventoryListScreen } from '../screens/inventory/InventoryListScreen';
-import { InventoryDetailScreen } from '../screens/inventory/InventoryDetailScreen';
-import { InventoryFormScreen } from '../screens/inventory/InventoryFormScreen';
-
-// Disease Encyclopedia
-import { DiseaseListScreen } from '../screens/diseases/DiseaseListScreen';
-import { DiseaseDetailScreen } from '../screens/diseases/DiseaseDetailScreen';
-import { DiagnoseScreen } from '../screens/diseases/DiagnoseScreen';
-
-// Tasks
-import { TaskListScreen } from '../screens/tasks/TaskListScreen';
-import { TaskComposerScreen } from '../screens/tasks/TaskComposerScreen';
-import { RecurringTasksScreen } from '../screens/tasks/RecurringTasksScreen';
-import { LeaveRequestsScreen } from '../screens/leave/LeaveRequestsScreen';
-import { AttendanceScreen } from '../screens/attendance/AttendanceScreen';
-import { AttendanceLogScreen } from '../screens/attendance/AttendanceLogScreen';
-import { NewsListScreen } from '../screens/news/NewsListScreen';
-import { NewsDetailScreen } from '../screens/news/NewsDetailScreen';
-import { ShopScreen } from '../screens/shop/ShopScreen';
-import { ExpensesScreen } from '../screens/finance/ExpensesScreen';
-import { TransactionsScreen } from '../screens/finance/TransactionsScreen';
-import { ReferenceScreen } from '../screens/reference/ReferenceScreen';
-import { HarvestPlansScreen } from '../screens/harvest/HarvestPlansScreen';
+import { withFlag } from '../components/FeatureGate';
 import { LanguageScreen } from '../screens/onboarding/LanguageScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
-import { IntentScreen } from '../screens/onboarding/IntentScreen';
-import { PondNamesScreen } from '../screens/onboarding/PondNamesScreen';
-import { JoinedFarmScreen } from '../screens/onboarding/JoinedFarmScreen';
-import { PondSetupScreen } from '../screens/onboarding/PondSetupScreen';
-import { JoinFarmScreen } from '../screens/onboarding/JoinFarmScreen';
-import { OtpLoginScreen } from '../screens/auth/OtpLoginScreen';
-import { OtpCallbackScreen } from '../screens/auth/OtpCallbackScreen';
-import { TwoFactorChallengeScreen } from '../screens/auth/TwoFactorChallengeScreen';
-import { TwoFactorScreen } from '../screens/settings/TwoFactorScreen';
-import { GrowthAndHarvestScreen } from '../screens/calculators/GrowthAndHarvestScreen';
-import { FeedProductsScreen } from '../screens/feedProducts/FeedProductsScreen';
-import { FeedStatsScreen } from '../screens/feed/FeedStatsScreen';
-import { PrivacyPolicyScreen } from '../screens/legal/PrivacyPolicyScreen';
-import { TermsScreen } from '../screens/legal/TermsScreen';
 
 export type RootStackParamList = {
     // Auth
@@ -141,18 +40,24 @@ export type RootStackParamList = {
     Register: { intent?: SignupIntent } | undefined;
     ForgotPassword: undefined;
     ResetPassword: undefined;
-    TruecallerLogin: undefined;
-    TruecallerPhone: undefined;
+    // Both carry IntentScreen's answer when the flow began at Register (W2).
+    TruecallerLogin: { intent?: SignupIntent } | undefined;
+    TruecallerPhone: { intent?: SignupIntent } | undefined;
     OtpLogin: undefined;
     OtpCallback: undefined;
     TwoFactorChallenge: { tempToken: string };
     TwoFactor: undefined;
     DeleteAccount: undefined;
+    Account: undefined;
     PrivacyPolicy: undefined;
     Terms: undefined;
 
     // Main
     MainApp: undefined;
+    // Every pond's water quality in one pass (L3).
+    MorningRounds: undefined;
+    // Asked once, after the account exists and before farm setup (W8).
+    AnalyticsConsent: undefined;
     QuickLog: undefined;
     HarvestLog: { pondId: string; pondName: string; cropId?: string };
 
@@ -224,7 +129,12 @@ export type RootStackParamList = {
     Aeration: { pondId?: string; pondName?: string; cropId?: string };
     Lunar: { pondId?: string; pondName?: string; cropId?: string };
     CropPnl: { pondId?: string; pondName?: string; cropId?: string };
-    MorningBriefing: undefined;
+    // Old name for the day page — renders DailyBriefScreen (legacy screen only while the flag is off).
+    MorningBriefing: { date?: string; farmId?: string } | undefined;
+    // One IST day at a glance. No date = today (IST); no farmId = all farms.
+    DailyBrief: { date?: string; farmId?: string } | undefined;
+    // Every alert, uncollapsed (Home "Then" › All).
+    TodayAlerts: undefined;
 
     Profile: undefined;
     Notifications: undefined;
@@ -283,9 +193,60 @@ export type RootStackParamList = {
     GrowthAndHarvest: undefined;
     FeedProducts: undefined;
     FeedStats: { pondId: string; pondName?: string; cropId?: string; farmId?: string };
+
+    // One configurable export flow. Every param is a PRE-FILL of a control the
+    // farmer can still change — arriving from a cycle preselects that cycle,
+    // arriving from Settings preselects nothing.
+    // Attendance entry points (Team, the log, a member) also pass the person
+    // and an inclusive YYYY-MM-DD range.
+    Export: {
+        dataset?: ExportDataset;
+        farmId?: string;
+        pondId?: string;
+        cropId?: string;
+        userId?: string;
+        startDate?: string;
+        endDate?: string;
+    } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+/**
+ * Where the app opens. Pure, exported and tested, because the last version of
+ * this rule ENDED IN `undefined` and nobody could see what that meant.
+ *
+ * React Navigation treats an undefined `initialRouteName` as "the first
+ * registered screen", and the first screen in the signed-out stack is
+ * `Language`. So the branch that was supposed to mean "everyone else starts on
+ * the main app / login" silently meant "start on the language picker": anyone
+ * who logged out, or whose refresh token was revoked (which routes through
+ * `clearSession()`), reopened the app at a language question and had to walk
+ * Language → Welcome → "Skip for now" → Login to reach a form they had used a
+ * hundred times. Every branch is explicit now, and none of them is a fallthrough.
+ *
+ * Order matters and encodes the product decisions:
+ *  1. Consent first once an account exists (W8/D2) — asked before farm setup so
+ *     the setup funnel itself is measurable.
+ *  2. Then first-run setup, owner or worker.
+ *  3. Then the app.
+ *  4. Signed out: the language picker on a first run, the login screen after.
+ */
+export const initialRouteFor = (s: {
+    isAuthenticated: boolean;
+    needsConsent: boolean;
+    pendingFarmSetup: boolean;
+    pendingFarmJoin: boolean;
+    needsLanguage: boolean;
+}): keyof RootStackParamList => {
+    if (s.isAuthenticated) {
+        if (s.needsConsent) return 'AnalyticsConsent';
+        if (s.pendingFarmSetup) return 'CreateFarm';
+        if (s.pendingFarmJoin) return 'JoinFarm';
+        return 'MainApp';
+    }
+    return s.needsLanguage ? 'Language' : 'Login';
+};
 
 const RootNavigator = () => {
     // One selector per field, deliberately. Subscribing to the whole store made
@@ -313,6 +274,29 @@ const RootNavigator = () => {
         hasChosenLanguage().then((chosen) => setNeedsLanguage(!chosen));
     }, []);
 
+    /**
+     * Whether the farmer still owes us an answer on product analytics (W8).
+     *
+     * Seventeen events are wired and the ONLY place to grant consent is a
+     * Settings toggle nobody is prompted to open — so in production the
+     * activation funnel is dark for effectively every user, and every decision
+     * about it ships on judgement with no way to tell whether it worked.
+     * "Never ask" is not the same as privacy-first.
+     *
+     * Asked once, after the account exists and before farm setup, so the setup
+     * funnel itself is measurable. `null` = still reading; hold the splash
+     * rather than flash a screen and replace it, exactly as `needsLanguage`
+     * does. A decline is permanent (see telemetryPrefs) — this never re-asks.
+     */
+    const [needsConsent, setNeedsConsent] = useState<boolean | null>(null);
+    const refreshConsentGate = useCallback(() => {
+        loadTelemetryPrefs()
+            .then((p) => setNeedsConsent(shouldAskAnalyticsConsent(p)))
+            // Unreadable storage must not strand anyone on a consent screen.
+            .catch(() => setNeedsConsent(false));
+    }, []);
+    useEffect(refreshConsentGate, [refreshConsentGate]);
+
     // Load the user's farm memberships once authenticated so usePermissions()
     // resolves correctly on every screen; clear them on logout.
     useEffect(() => {
@@ -323,7 +307,7 @@ const RootNavigator = () => {
     // ONLY startup may hold the splash. An in-flight login/signup must not, or
     // the navigator unmounts and the error message arrives at the first
     // onboarding screen instead of the screen the farmer was typing into.
-    if (isBootstrapping || needsLanguage === null) {
+    if (isBootstrapping || needsLanguage === null || needsConsent === null) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.roles.light.background }}>
                 <ActivityIndicator size="large" color={theme.roles.light.primary} />
@@ -333,18 +317,29 @@ const RootNavigator = () => {
 
     return (
         <Stack.Navigator
-            // Owners who just registered land on Create-Farm first (mandatory
-            // first-run setup); workers who just registered land on Join-Farm
-            // first; everyone else starts on the main app / login.
-            initialRouteName={
-                isAuthenticated && pendingFarmSetup
-                    ? 'CreateFarm'
-                    : isAuthenticated && pendingFarmJoin
-                        ? 'JoinFarm'
-                        : !isAuthenticated && needsLanguage
-                            ? 'Language'
-                            : undefined
-            }
+            /**
+             * The consent ask comes FIRST once there is an account (W8/D2) —
+             * before farm setup, so the setup funnel itself is measurable.
+             * Then owners land on Create-Farm and workers on Join-Farm; a
+             * signed-out farmer gets the language picker on first run and the
+             * login screen every time after.
+             *
+             * Every branch is explicit, and the last one especially (W3). It
+             * used to be `: undefined`, which makes React Navigation fall back
+             * to the FIRST REGISTERED SCREEN — and the first screen in the
+             * signed-out stack is `Language`. So the branch was dead: anyone
+             * who logged out, or whose refresh token was revoked (which routes
+             * through `clearSession()`), reopened the app at the language
+             * picker and had to walk Language → Welcome → "Skip for now" →
+             * Login to get back to a form they had used a hundred times.
+             */
+            initialRouteName={initialRouteFor({
+                isAuthenticated,
+                needsConsent,
+                pendingFarmSetup,
+                pendingFarmJoin,
+                needsLanguage,
+            })}
             screenOptions={{
                 headerShown: false,
                 animation: 'slide_from_right',
@@ -358,174 +353,183 @@ const RootNavigator = () => {
                         the way the farmer walks it. */}
                     <Stack.Screen name="Language" component={LanguageScreen} />
                     <Stack.Screen name="Welcome" component={WelcomeScreen} />
-                    <Stack.Screen name="Intent" component={IntentScreen} />
-                    <Stack.Screen name="Login" component={LoginScreen} />
-                    <Stack.Screen name="Register" component={RegisterScreen} />
+                    <Stack.Screen name="Intent" getComponent={() => require('../screens/onboarding/IntentScreen').IntentScreen} />
+                    <Stack.Screen name="Login" getComponent={() => require('../screens/auth/LoginScreen').LoginScreen} />
+                    <Stack.Screen name="Register" getComponent={() => require('../screens/auth/RegisterScreen').RegisterScreen} />
                     <Stack.Screen
                         name="ForgotPassword"
-                        component={ForgotPasswordScreen}
+                        getComponent={() => require('../screens/auth/ForgotPasswordScreen').ForgotPasswordScreen}
                         options={{ headerShown: true, title: 'Forgot Password', headerTintColor: theme.roles.light.primary }}
                     />
-                    <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+                    <Stack.Screen name="ResetPassword" getComponent={() => require('../screens/auth/ResetPasswordScreen').ResetPasswordScreen} />
                     <Stack.Screen
                         name="TruecallerLogin"
-                        component={TruecallerLoginScreen}
+                        getComponent={() => require('../screens/auth/TruecallerLoginScreen').TruecallerLoginScreen}
                         options={{ headerShown: true, title: 'Sign in with Truecaller', headerTintColor: theme.roles.light.primary }}
                     />
                     <Stack.Screen
                         name="TruecallerPhone"
-                        component={TruecallerPhoneScreen}
+                        getComponent={() => require('../screens/auth/TruecallerPhoneScreen').TruecallerPhoneScreen}
                         options={{ headerShown: false }}
                     />
-                    <Stack.Screen name="OtpLogin" component={OtpLoginScreen} />
-                    <Stack.Screen name="OtpCallback" component={OtpCallbackScreen} />
-                    <Stack.Screen name="TwoFactorChallenge" component={TwoFactorChallengeScreen} />
+                    <Stack.Screen name="OtpLogin" getComponent={() => require('../screens/auth/OtpLoginScreen').OtpLoginScreen} />
+                    <Stack.Screen name="OtpCallback" getComponent={() => require('../screens/auth/OtpCallbackScreen').OtpCallbackScreen} />
+                    <Stack.Screen name="TwoFactorChallenge" getComponent={() => require('../screens/auth/TwoFactorChallengeScreen').TwoFactorChallengeScreen} />
                     {/* Legal — reachable pre-auth from the Register consent line */}
-                    <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-                    <Stack.Screen name="Terms" component={TermsScreen} />
+                    <Stack.Screen name="PrivacyPolicy" getComponent={() => require('../screens/legal/PrivacyPolicyScreen').PrivacyPolicyScreen} />
+                    <Stack.Screen name="Terms" getComponent={() => require('../screens/legal/TermsScreen').TermsScreen} />
                 </>
             ) : (
                 <>
                     <Stack.Screen name="MainApp" component={MainNavigator} />
-                    <Stack.Screen name="QuickLog" component={QuickLogScreen} options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="AnalyticsConsent" getComponent={() => require('../screens/onboarding/AnalyticsConsentScreen').AnalyticsConsentScreen} />
+                    <Stack.Screen name="QuickLog" getComponent={() => require('../screens/main/QuickLogScreen').QuickLogScreen} options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="MorningRounds" getComponent={() => require('../screens/logs/MorningRoundsScreen').MorningRoundsScreen} />
 
-                    <Stack.Screen name="CreateFarm" component={CreateFarmScreen} />
-                    <Stack.Screen name="PondNames" component={PondNamesScreen} />
-                    <Stack.Screen name="PondSetup" component={PondSetupScreen} />
-                    <Stack.Screen name="JoinFarm" component={JoinFarmScreen} />
-                    <Stack.Screen name="JoinedFarm" component={JoinedFarmScreen} />
-                    <Stack.Screen name="FarmDetail" component={FarmDetailScreen} />
-                    <Stack.Screen name="FarmMembers" component={FarmMembersScreen} />
+                    <Stack.Screen name="CreateFarm" getComponent={() => require('../screens/farms/CreateFarmScreen').CreateFarmScreen} />
+                    <Stack.Screen name="PondNames" getComponent={() => require('../screens/onboarding/PondNamesScreen').PondNamesScreen} />
+                    <Stack.Screen name="PondSetup" getComponent={() => require('../screens/onboarding/PondSetupScreen').PondSetupScreen} />
+                    <Stack.Screen name="JoinFarm" getComponent={() => require('../screens/onboarding/JoinFarmScreen').JoinFarmScreen} />
+                    <Stack.Screen name="JoinedFarm" getComponent={() => require('../screens/onboarding/JoinedFarmScreen').JoinedFarmScreen} />
+                    <Stack.Screen name="FarmDetail" getComponent={() => require('../screens/farms/FarmDetailScreen').FarmDetailScreen} />
+                    <Stack.Screen name="FarmMembers" getComponent={() => require('../screens/farms/FarmMembersScreen').FarmMembersScreen} />
 
-                    <Stack.Screen name="MemberDetail" component={MemberDetailScreen} />
-                    <Stack.Screen name="AllWorkers" component={AllWorkersScreen} />
-                    <Stack.Screen name="AddWorker" component={AddWorkerScreen} />
-                    <Stack.Screen name="CreatePond" component={CreatePondScreen} />
-                    <Stack.Screen name="PondDashboard" component={PondDashboardScreen} />
-                    <Stack.Screen name="CreateCycle" component={CreateCycleScreen} />
-                    <Stack.Screen name="CycleDetail" component={CycleDetailScreen} />
-                    <Stack.Screen name="CycleList" component={CycleListScreen} />
+                    <Stack.Screen name="MemberDetail" getComponent={() => require('../screens/farms/MemberDetailScreen').MemberDetailScreen} />
+                    <Stack.Screen name="AllWorkers" getComponent={() => require('../screens/farms/AllWorkersScreen').AllWorkersScreen} />
+                    <Stack.Screen name="AddWorker" getComponent={() => require('../screens/farms/AddWorkerScreen').AddWorkerScreen} />
+                    <Stack.Screen name="CreatePond" getComponent={() => require('../screens/ponds/CreatePondScreen').CreatePondScreen} />
+                    <Stack.Screen name="PondDashboard" getComponent={() => require('../screens/ponds/PondDashboardScreen').PondDashboardScreen} />
+                    <Stack.Screen name="CreateCycle" getComponent={() => require('../screens/cycles/CreateCycleScreen').CreateCycleScreen} />
+                    <Stack.Screen name="CycleDetail" getComponent={() => require('../screens/cycles/CycleDetailScreen').CycleDetailScreen} />
+                    <Stack.Screen name="CycleList" getComponent={() => require('../screens/cycles/CycleListScreen').CycleListScreen} />
                     {/* The cross-table timeline. Renders its own ScreenHeader,
                         same as AttendanceLog. */}
-                    <Stack.Screen name="Activity" component={ActivityScreen} />
-                    <Stack.Screen name="PondDimensionHistory" component={PondDimensionHistoryScreen} />
-                    <Stack.Screen name="CycleAnalysis" component={CycleAnalysisScreen} />
+                    <Stack.Screen name="Activity" getComponent={() => require('../screens/activity/ActivityScreen').ActivityScreen} />
+                    <Stack.Screen name="PondDimensionHistory" getComponent={() => require('../screens/ponds/PondDimensionHistoryScreen').PondDimensionHistoryScreen} />
+                    <Stack.Screen name="CycleAnalysis" getComponent={() => withFlag('cycleAnalysis', require('../screens/reports/CycleAnalysisScreen').CycleAnalysisScreen)} />
 
-                    <Stack.Screen name="WaterQualityLog" component={WaterQualityLogScreen} />
-                    <Stack.Screen name="FeedLog" component={FeedLogScreen} />
-                    <Stack.Screen name="FeedingTrayChecks" component={FeedingTrayChecksScreen} />
-                    <Stack.Screen name="SamplingLog" component={SamplingLogScreen} />
-                    <Stack.Screen name="TreatmentLog" component={TreatmentLogScreen} />
-                <Stack.Screen name="HarvestLog" component={HarvestLogScreen} />
-                    <Stack.Screen name="MortalityLog" component={MortalityLogScreen} />
-                    <Stack.Screen name="ChemicalLog" component={ChemicalLogScreen} />
-                    <Stack.Screen name="PlanktonLog" component={PlanktonLogScreen} />
-                    <Stack.Screen name="MicrobiologyLog" component={MicrobiologyLogScreen} />
-                    <Stack.Screen name="DiseaseLog" component={DiseaseLogScreen} />
+                    <Stack.Screen name="WaterQualityLog" getComponent={() => require('../screens/logs/WaterQualityLogScreen').WaterQualityLogScreen} />
+                    <Stack.Screen name="FeedLog" getComponent={() => require('../screens/logs/FeedLogScreen').FeedLogScreen} />
+                    <Stack.Screen name="FeedingTrayChecks" getComponent={() => require('../screens/logs/FeedingTrayChecksScreen').FeedingTrayChecksScreen} />
+                    <Stack.Screen name="SamplingLog" getComponent={() => require('../screens/logs/SamplingLogScreen').SamplingLogScreen} />
+                    <Stack.Screen name="TreatmentLog" getComponent={() => require('../screens/logs/TreatmentLogScreen').TreatmentLogScreen} />
+                    <Stack.Screen name="HarvestLog" getComponent={() => require('../screens/logs/HarvestLogScreen').HarvestLogScreen} />
+                    <Stack.Screen name="MortalityLog" getComponent={() => require('../screens/logs/MortalityLogScreen').MortalityLogScreen} />
+                    <Stack.Screen name="ChemicalLog" getComponent={() => require('../screens/logs/ChemicalLogScreen').ChemicalLogScreen} />
+                    <Stack.Screen name="PlanktonLog" getComponent={() => require('../screens/logs/PlanktonLogScreen').PlanktonLogScreen} />
+                    <Stack.Screen name="MicrobiologyLog" getComponent={() => require('../screens/logs/MicrobiologyLogScreen').MicrobiologyLogScreen} />
+                    <Stack.Screen name="DiseaseLog" getComponent={() => require('../screens/logs/DiseaseLogScreen').DiseaseLogScreen} />
 
                     {/* Phase 4 */}
-                    <Stack.Screen name="CalculatorHub" component={CalculatorHubScreen} />
-                    <Stack.Screen name="CultivationPerformance" component={CultivationPerformanceScreen} />
-                    <Stack.Screen name="DailyFeedCalculator" component={DailyFeedCalculatorScreen} />
-                    <Stack.Screen name="ProductAmount" component={ProductAmountScreen} />
-                    <Stack.Screen name="FreeAmmonia" component={FreeAmmoniaScreen} />
+                    <Stack.Screen name="CalculatorHub" getComponent={() => withFlag('calculators', require('../screens/calculators/CalculatorHubScreen').CalculatorHubScreen)} />
+                    <Stack.Screen name="CultivationPerformance" getComponent={() => withFlag('calculators', require('../screens/calculators/CultivationPerformanceScreen').CultivationPerformanceScreen)} />
+                    <Stack.Screen name="DailyFeedCalculator" getComponent={() => withFlag('calculators', require('../screens/calculators/DailyFeedCalculatorScreen').DailyFeedCalculatorScreen)} />
+                    <Stack.Screen name="ProductAmount" getComponent={() => withFlag('calculators', require('../screens/calculators/ProductAmountScreen').ProductAmountScreen)} />
+                    <Stack.Screen name="FreeAmmonia" getComponent={() => withFlag('calculators', require('../screens/calculators/FreeAmmoniaScreen').FreeAmmoniaScreen)} />
 
-                    <Stack.Screen name="SimulationList" component={SimulationListScreen} />
-                    <Stack.Screen name="SimulationCreate" component={SimulationCreateScreen} />
-                    <Stack.Screen name="SimulationResults" component={SimulationResultsScreen} />
+                    <Stack.Screen name="SimulationList" getComponent={() => withFlag('simulators', require('../screens/simulation/SimulationListScreen').SimulationListScreen)} />
+                    <Stack.Screen name="SimulationCreate" getComponent={() => withFlag('simulators', require('../screens/simulation/SimulationCreateScreen').SimulationCreateScreen)} />
+                    <Stack.Screen name="SimulationResults" getComponent={() => withFlag('simulators', require('../screens/simulation/SimulationResultsScreen').SimulationResultsScreen)} />
 
                     {/* Phase 5 (History) */}
-                    <Stack.Screen name="WaterQualityHistory" component={WaterQualityHistoryScreen} />
-                    <Stack.Screen name="FeedHistory" component={FeedHistoryScreen} />
-                    <Stack.Screen name="SamplingHistory" component={SamplingHistoryScreen} />
-                    <Stack.Screen name="TreatmentHistory" component={TreatmentHistoryScreen} />
-                    <Stack.Screen name="HarvestHistory" component={HarvestHistoryScreen} />
-                    <Stack.Screen name="ChemicalHistory" component={ChemicalHistoryScreen} />
-                    <Stack.Screen name="PlanktonHistory" component={PlanktonHistoryScreen} />
-                    <Stack.Screen name="MicrobiologyHistory" component={MicrobiologyHistoryScreen} />
-                    <Stack.Screen name="DiseaseHistory" component={DiseaseHistoryScreen} />
-                    <Stack.Screen name="MortalityHistory" component={MortalityHistoryScreen} />
+                    <Stack.Screen name="WaterQualityHistory" getComponent={() => require('../screens/logs/History/WaterQualityHistoryScreen').WaterQualityHistoryScreen} />
+                    <Stack.Screen name="FeedHistory" getComponent={() => require('../screens/logs/History/FeedHistoryScreen').FeedHistoryScreen} />
+                    <Stack.Screen name="SamplingHistory" getComponent={() => require('../screens/logs/History/SamplingHistoryScreen').SamplingHistoryScreen} />
+                    <Stack.Screen name="TreatmentHistory" getComponent={() => require('../screens/logs/History/TreatmentHistoryScreen').TreatmentHistoryScreen} />
+                    <Stack.Screen name="HarvestHistory" getComponent={() => require('../screens/logs/History/HarvestHistoryScreen').HarvestHistoryScreen} />
+                    <Stack.Screen name="ChemicalHistory" getComponent={() => require('../screens/logs/History/ChemicalHistoryScreen').ChemicalHistoryScreen} />
+                    <Stack.Screen name="PlanktonHistory" getComponent={() => require('../screens/logs/History/PlanktonHistoryScreen').PlanktonHistoryScreen} />
+                    <Stack.Screen name="MicrobiologyHistory" getComponent={() => require('../screens/logs/History/MicrobiologyHistoryScreen').MicrobiologyHistoryScreen} />
+                    <Stack.Screen name="DiseaseHistory" getComponent={() => require('../screens/logs/History/DiseaseHistoryScreen').DiseaseHistoryScreen} />
+                    <Stack.Screen name="MortalityHistory" getComponent={() => require('../screens/logs/History/MortalityHistoryScreen').MortalityHistoryScreen} />
                     <Stack.Screen
                         name="Measurements"
-                        component={MeasurementsScreen}
+                        getComponent={() => require('../screens/measurements/MeasurementsScreen').MeasurementsScreen}
                         options={{ headerShown: true, title: 'Measurements', headerTintColor: theme.roles.light.primary }}
                     />
-                    <Stack.Screen name="DailyRoutine" component={DailyRoutineScreen} options={{ headerShown: true, title: 'Daily Routine', headerTintColor: theme.roles.light.primary }} />
-                    <Stack.Screen name="WeeklyChemistry" component={WeeklyChemistryScreen} options={{ headerShown: true, title: 'Weekly Chemistry', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="DailyRoutine" getComponent={() => require('../screens/engines/DailyRoutineScreen').DailyRoutineScreen} options={{ headerShown: true, title: 'Daily Routine', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="WeeklyChemistry" getComponent={() => require('../screens/logs/WeeklyChemistryScreen').WeeklyChemistryScreen} options={{ headerShown: true, title: 'Weekly Chemistry', headerTintColor: theme.roles.light.primary }} />
                     {/* Own back header, matching WaterQualityHistoryScreen. */}
-                    <Stack.Screen name="WeeklyChemistryHistory" component={WeeklyChemistryHistoryScreen} options={{ headerShown: false }} />
-                    <Stack.Screen name="EnginesHub" component={EnginesHubScreen} options={{ headerShown: true, title: 'Decision Engines', headerTintColor: theme.roles.light.primary }} />
-                    <Stack.Screen name="FeedAdvisor" component={FeedAdvisorScreen} options={{ headerShown: true, title: 'Feed Advisor', headerTintColor: theme.roles.light.primary }} />
-                    <Stack.Screen name="HarvestTiming" component={HarvestTimingScreen} options={{ headerShown: true, title: 'Harvest Timing', headerTintColor: theme.roles.light.primary }} />
-                    <Stack.Screen name="DiseaseRisk" component={DiseaseRiskScreen} options={{ headerShown: true, title: 'Disease Early-Warning', headerTintColor: theme.roles.light.primary }} />
-                    <Stack.Screen name="Aeration" component={AerationScreen} options={{ headerShown: true, title: 'Aeration & Power', headerTintColor: theme.roles.light.primary }} />
-                    <Stack.Screen name="Lunar" component={LunarScreen} options={{ headerShown: true, title: 'Lunar Molt', headerTintColor: theme.roles.light.primary }} />
-                    <Stack.Screen name="CropPnl" component={CropPnlScreen} options={{ headerShown: true, title: 'Crop P&L', headerTintColor: theme.roles.light.primary }} />
-                    <Stack.Screen name="MorningBriefing" component={MorningBriefingScreen} options={{ headerShown: true, title: 'Morning Briefing', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="WeeklyChemistryHistory" getComponent={() => require('../screens/logs/History/WeeklyChemistryHistoryScreen').WeeklyChemistryHistoryScreen} options={{ headerShown: false }} />
+                    <Stack.Screen name="EnginesHub" getComponent={() => require('../screens/engines/EnginesHubScreen').EnginesHubScreen} options={{ headerShown: true, title: 'Decision Engines', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="FeedAdvisor" getComponent={() => withFlag('feedAdvisor', require('../screens/engines/FeedAdvisorScreen').FeedAdvisorScreen)} options={{ headerShown: true, title: 'Feed Advisor', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="HarvestTiming" getComponent={() => require('../screens/engines/HarvestTimingScreen').HarvestTimingScreen} options={{ headerShown: true, title: 'Harvest Timing', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="DiseaseRisk" getComponent={() => require('../screens/engines/DiseaseRiskScreen').DiseaseRiskScreen} options={{ headerShown: true, title: 'Disease Early-Warning', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="Aeration" getComponent={() => require('../screens/engines/AerationScreen').AerationScreen} options={{ headerShown: true, title: 'Aeration & Power', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="Lunar" getComponent={() => withFlag('lunar', require('../screens/engines/LunarScreen').LunarScreen)} options={{ headerShown: true, title: 'Lunar Molt', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="CropPnl" getComponent={() => require('../screens/engines/CropPnlScreen').CropPnlScreen} options={{ headerShown: true, title: 'Crop P&L', headerTintColor: theme.roles.light.primary }} />
+                    <Stack.Screen name="MorningBriefing" getComponent={() => require('../screens/brief/MorningBriefingRoute').MorningBriefingRoute} />
+                    <Stack.Screen name="DailyBrief" getComponent={() => withFlag('dailyBrief', require('../screens/brief/DailyBriefScreen').DailyBriefScreen)} />
+                    {/* Header for the back button only; the screen titles itself (translated). */}
+                    <Stack.Screen name="TodayAlerts" getComponent={() => require('../screens/alerts/TodayAlertsScreen').TodayAlertsScreen} options={{ headerShown: true, title: '', headerTintColor: theme.roles.light.primary }} />
 
                     {/* Phase 5 (Settings & Notifications) */}
-                    <Stack.Screen name="Profile" component={ProfileScreen} />
-                    <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
-                    <Stack.Screen name="Notifications" component={NotificationsScreen} />
-                    <Stack.Screen name="Help" component={HelpScreen} />
-                    <Stack.Screen name="ReportIssue" component={ReportIssueScreen} />
-                    <Stack.Screen name="SyncStatus" component={SyncStatusScreen} />
-                    <Stack.Screen name="FeedbackDetail" component={FeedbackDetailScreen} />
-                    <Stack.Screen name="About" component={AboutScreen} />
-                    <Stack.Screen name="Inventory" component={InventoryListScreen} />
-                    <Stack.Screen name="InventoryDetail" component={InventoryDetailScreen} />
+                    <Stack.Screen name="Profile" getComponent={() => require('../screens/settings/ProfileScreen').ProfileScreen} />
+                    <Stack.Screen name="DeleteAccount" getComponent={() => require('../screens/settings/DeleteAccountScreen').DeleteAccountScreen} />
+                    <Stack.Screen name="Account" getComponent={() => require('../screens/settings/AccountScreen').AccountScreen} />
+                    <Stack.Screen name="Notifications" getComponent={() => require('../screens/notifications/NotificationsScreen').NotificationsScreen} />
+                    <Stack.Screen name="Help" getComponent={() => require('../screens/settings/HelpScreen').HelpScreen} />
+                    <Stack.Screen name="ReportIssue" getComponent={() => require('../screens/settings/ReportIssueScreen').ReportIssueScreen} />
+                    <Stack.Screen name="SyncStatus" getComponent={() => require('../screens/settings/SyncStatusScreen').SyncStatusScreen} />
+                    <Stack.Screen name="FeedbackDetail" getComponent={() => require('../screens/settings/FeedbackDetailScreen').FeedbackDetailScreen} />
+                    <Stack.Screen name="About" getComponent={() => require('../screens/settings/AboutScreen').AboutScreen} />
+                    <Stack.Screen name="Inventory" getComponent={() => require('../screens/inventory/InventoryListScreen').InventoryListScreen} />
+                    <Stack.Screen name="InventoryDetail" getComponent={() => require('../screens/inventory/InventoryDetailScreen').InventoryDetailScreen} />
                     {/* One screen for create AND edit, so the category chips,
                         unit list and icon picker cannot drift apart (D4). */}
-                    <Stack.Screen name="InventoryForm" component={InventoryFormScreen} options={{ headerShown: false }} />
+                    <Stack.Screen name="InventoryForm" getComponent={() => require('../screens/inventory/InventoryFormScreen').InventoryFormScreen} options={{ headerShown: false }} />
 
                     {/* Disease Encyclopedia */}
-                    <Stack.Screen name="DiseaseList" component={DiseaseListScreen} />
-                    <Stack.Screen name="DiseaseDetail" component={DiseaseDetailScreen} />
-                    <Stack.Screen name="Diagnose" component={DiagnoseScreen} />
+                    <Stack.Screen name="DiseaseList" getComponent={() => withFlag('diseaseEncyclopedia', require('../screens/diseases/DiseaseListScreen').DiseaseListScreen)} />
+                    <Stack.Screen name="DiseaseDetail" getComponent={() => require('../screens/diseases/DiseaseDetailScreen').DiseaseDetailScreen} />
+                    <Stack.Screen name="Diagnose" getComponent={() => withFlag('diseaseDiagnosis', require('../screens/diseases/DiagnoseScreen').DiagnoseScreen)} />
 
                     {/* Tasks */}
-                    <Stack.Screen name="TaskList" component={TaskListScreen} />
-                    <Stack.Screen name="TaskCompose" component={TaskComposerScreen} />
-                    <Stack.Screen name="RecurringTasks" component={RecurringTasksScreen} />
-                    <Stack.Screen name="LeaveRequests" component={LeaveRequestsScreen} />
-                    <Stack.Screen name="Attendance" component={AttendanceScreen} />
-                    <Stack.Screen name="AttendanceLog" component={AttendanceLogScreen} />
+                    <Stack.Screen name="TaskList" getComponent={() => withFlag('tasks', require('../screens/tasks/TaskListScreen').TaskListScreen)} />
+                    <Stack.Screen name="TaskCompose" getComponent={() => withFlag('tasks', require('../screens/tasks/TaskComposerScreen').TaskComposerScreen)} />
+                    <Stack.Screen name="RecurringTasks" getComponent={() => withFlag('tasks', require('../screens/tasks/RecurringTasksScreen').RecurringTasksScreen)} />
+                    <Stack.Screen name="LeaveRequests" getComponent={() => require('../screens/leave/LeaveRequestsScreen').LeaveRequestsScreen} />
+                    <Stack.Screen name="Attendance" getComponent={() => require('../screens/attendance/AttendanceScreen').AttendanceScreen} />
+                    <Stack.Screen name="AttendanceLog" getComponent={() => require('../screens/attendance/AttendanceLogScreen').AttendanceLogScreen} />
 
                     {/* News / eShop / Reference */}
-                    <Stack.Screen name="NewsList" component={NewsListScreen} />
-                    <Stack.Screen name="NewsDetail" component={NewsDetailScreen} />
-                    <Stack.Screen name="Shop" component={ShopScreen} />
-                    <Stack.Screen name="Reference" component={ReferenceScreen} />
+                    <Stack.Screen name="NewsList" getComponent={() => withFlag('news', require('../screens/news/NewsListScreen').NewsListScreen)} />
+                    <Stack.Screen name="NewsDetail" getComponent={() => withFlag('news', require('../screens/news/NewsDetailScreen').NewsDetailScreen)} />
+                    <Stack.Screen name="Shop" getComponent={() => withFlag('shop', require('../screens/shop/ShopScreen').ShopScreen)} />
+                    <Stack.Screen name="Reference" getComponent={() => require('../screens/reference/ReferenceScreen').ReferenceScreen} />
 
                     {/* Finance */}
-                    <Stack.Screen name="Expenses" component={ExpensesScreen} />
-                    <Stack.Screen name="Transactions" component={TransactionsScreen} />
+                    <Stack.Screen name="Expenses" getComponent={() => require('../screens/finance/ExpensesScreen').ExpensesScreen} />
+                    <Stack.Screen name="Transactions" getComponent={() => require('../screens/finance/TransactionsScreen').TransactionsScreen} />
 
                     {/* Harvest planning */}
-                    <Stack.Screen name="HarvestPlans" component={HarvestPlansScreen} />
+                    <Stack.Screen name="HarvestPlans" getComponent={() => require('../screens/harvest/HarvestPlansScreen').HarvestPlansScreen} />
 
                     {/* Security */}
-                    <Stack.Screen name="TwoFactor" component={TwoFactorScreen} />
+                    <Stack.Screen name="TwoFactor" getComponent={() => require('../screens/settings/TwoFactorScreen').TwoFactorScreen} />
                     {/* DEEPLINK-1: the reset link must open even when a session
                         already exists, so ResetPassword is reachable from the
                         authenticated stack too — and TwoFactorChallenge so the
                         AUTH-2 reset→2FA hand-off can complete from here. */}
-                    <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-                    <Stack.Screen name="OtpCallback" component={OtpCallbackScreen} />
-                    <Stack.Screen name="TwoFactorChallenge" component={TwoFactorChallengeScreen} />
+                    <Stack.Screen name="ResetPassword" getComponent={() => require('../screens/auth/ResetPasswordScreen').ResetPasswordScreen} />
+                    <Stack.Screen name="OtpCallback" getComponent={() => require('../screens/auth/OtpCallbackScreen').OtpCallbackScreen} />
+                    <Stack.Screen name="TwoFactorChallenge" getComponent={() => require('../screens/auth/TwoFactorChallengeScreen').TwoFactorChallengeScreen} />
 
                     {/* Additional calculators + feed products */}
-                    <Stack.Screen name="GrowthAndHarvest" component={GrowthAndHarvestScreen} />
-                    <Stack.Screen name="FeedProducts" component={FeedProductsScreen} />
+                    <Stack.Screen name="GrowthAndHarvest" getComponent={() => withFlag('calculators', require('../screens/calculators/GrowthAndHarvestScreen').GrowthAndHarvestScreen)} />
+                    <Stack.Screen name="FeedProducts" getComponent={() => require('../screens/feedProducts/FeedProductsScreen').FeedProductsScreen} />
                     <Stack.Screen
                         name="FeedStats"
-                        component={FeedStatsScreen}
+                        getComponent={() => require('../screens/feed/FeedStatsScreen').FeedStatsScreen}
                         options={{ headerShown: true, title: 'Feed Statistics', headerTintColor: theme.roles.light.primary }}
                     />
 
+                    {/* Export — reachable from the cycle report and from Settings */}
+                    <Stack.Screen name="Export" getComponent={() => withFlag('export', require('../screens/export/ExportScreen').ExportScreen)} />
+
                     {/* Legal */}
-                    <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-                    <Stack.Screen name="Terms" component={TermsScreen} />
+                    <Stack.Screen name="PrivacyPolicy" getComponent={() => require('../screens/legal/PrivacyPolicyScreen').PrivacyPolicyScreen} />
+                    <Stack.Screen name="Terms" getComponent={() => require('../screens/legal/TermsScreen').TermsScreen} />
                 </>
             )}
         </Stack.Navigator>

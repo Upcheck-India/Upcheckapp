@@ -32,14 +32,18 @@ function makeService(over: any = {}) {
   const harvests = {
     findMoneyEntries: jest.fn().mockResolvedValue(over.harvests ?? []),
   };
+  const expenses = {
+    findMoneyEntries: jest.fn().mockResolvedValue(over.expenses ?? []),
+  };
   const svc = new MoneyOverviewService(
     farms as any,
     reports as any,
     transactions as any,
     credit as any,
     harvests as any,
+    expenses as any,
   );
-  return { svc, farms, reports, transactions, credit, harvests };
+  return { svc, farms, reports, transactions, credit, harvests, expenses };
 }
 
 /** A harvest sale as the backend projects it — read-only, no transaction id. */
@@ -153,6 +157,81 @@ describe('MoneyOverviewService', () => {
     expect(reports.getFinancialReport).toHaveBeenCalledTimes(2);
   });
 
+  /**
+   * "I added expense inside a pond but it didnt show inside the money screen."
+   *
+   * Same shape of bug as the harvest one above, on the other ledger. Costs
+   * typed on a pond live in `expenses`, not `transactions`. The headline summed
+   * them (the report reads that table) but the entry list rendered
+   * `transactions` only, and the pond costs were fetched solely when the farmer
+   * drilled into one specific pond — so the total moved and nothing on screen
+   * explained why.
+   */
+  it('shows a pond cost as a line item in the entry list', async () => {
+    const { svc } = makeService({
+      expenses: [
+        {
+          id: 'expense:e1',
+          source: 'expense',
+          farmId: 'f1',
+          pondId: 'p1',
+          pondName: 'North pond',
+          transactionDate: '2026-01-03',
+          type: 'expense',
+          category: 'Feed',
+          amount: 8000,
+        },
+      ],
+    });
+
+    const out = await svc.forUser('u');
+
+    expect(out.allEntries.find((e: any) => e.id === 'expense:e1')).toMatchObject({
+      source: 'expense',
+      type: 'expense',
+      amount: 8000,
+      farmId: 'f1',
+      pondName: 'North pond',
+    });
+  });
+
+  it('interleaves pond costs with transactions by date, newest first', async () => {
+    const { svc } = makeService({
+      entries: [
+        { id: 'tx-late', transactionDate: '2026-02-10' },
+        { id: 'tx-early', transactionDate: '2026-02-01' },
+      ],
+      expenses: [
+        { id: 'expense:e1', source: 'expense', transactionDate: '2026-02-05' },
+      ],
+    });
+
+    const out = await svc.forUser('u');
+
+    expect(out.allEntries.map((e: any) => e.id)).toEqual([
+      'tx-late',
+      'expense:e1',
+      'tx-early',
+    ]);
+  });
+
+  /**
+   * Merged at read time for the same reason harvests are: the financial report
+   * already sums the expenses table into the headline, so writing a real
+   * Transaction per expense would count every pond cost twice.
+   */
+  it('gives a pond cost row no transaction id to edit or delete', async () => {
+    const { svc } = makeService({
+      expenses: [{ id: 'expense:e1', source: 'expense', transactionDate: '2026-02-05' }],
+    });
+
+    const out = await svc.forUser('u');
+
+    const row: any = out.allEntries.find((e: any) => e.source === 'expense');
+    expect(row.id).toMatch(/^expense:/);
+    expect(row.id).not.toBe('e1');
+  });
+
   it('gives a synthetic harvest row no transaction id to edit or delete', async () => {
     const { svc } = makeService({ harvests: [harvestEntry()] });
 
@@ -223,16 +302,40 @@ describe('MoneyOverviewService', () => {
       expect(farms.findAll).not.toHaveBeenCalled();
     });
 
-    // Harvests are read through another module's service, which takes no date
-    // filter, so the range is applied here.
-    it('drops harvest rows outside the range, inclusive on both bounds', async () => {
+    /**
+     * The harvest range used to be applied HERE, with a `.filter()` over rows
+     * the query had already capped at 500 — so "this week" searched the 500
+     * most recent harvests instead of the week's, and a farm with more than
+     * that showed an empty week. It belongs in SQL, which means this layer's
+     * job is to hand the filters down intact.
+     */
+    it('hands the range and the archive toggle down to the harvest query', async () => {
+      const { svc, harvests } = makeService({ entries: [] });
+
+      await svc.forUser('u', {
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+        includeArchivedPonds: false,
+      });
+
+      expect(harvests.findMoneyEntries).toHaveBeenCalledWith(
+        'u',
+        expect.objectContaining({
+          startDate: '2026-02-01',
+          endDate: '2026-02-28',
+          includeArchivedPonds: false,
+        }),
+      );
+    });
+
+    // Whatever the three queries return is merged as-is: they are each already
+    // filtered, so a second pass here could only disagree with them.
+    it('keeps every row the harvest query returned', async () => {
       const { svc } = makeService({
         entries: [],
         harvests: [
-          harvestEntry({ id: 'h-before', transactionDate: '2026-01-31' }),
           harvestEntry({ id: 'h-start', transactionDate: '2026-02-01' }),
           harvestEntry({ id: 'h-end', transactionDate: '2026-02-28' }),
-          harvestEntry({ id: 'h-after', transactionDate: '2026-03-01' }),
         ],
       });
 
@@ -241,10 +344,7 @@ describe('MoneyOverviewService', () => {
         endDate: '2026-02-28',
       });
 
-      expect(out.allEntries.map((e: any) => e.id)).toEqual([
-        'h-end',
-        'h-start',
-      ]);
+      expect(out.allEntries.map((e: any) => e.id)).toEqual(['h-end', 'h-start']);
     });
 
     it('sums the per-farm inventory subtotals so the tab needs no second request', async () => {

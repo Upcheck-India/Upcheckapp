@@ -3,12 +3,16 @@
  * separate from navigation so it is testable without a navigator and reusable
  * for both the warm-app listener and the cold-start check.
  *
- * A reminder (`{ tag: 'wq-reminder' | 'chem-reminder', slot }`, see
- * utils/notifications.ts) has no destination of its own — tapping one just
- * opens the app, which is already what happens. Only a payload this function
+ * A water/chemistry reminder (`{ tag: 'wq-reminder' | 'chem-reminder', slot }`,
+ * see utils/notifications.ts) has no destination of its own — tapping one just
+ * opens the app. The daily brief reminder (`brief-reminder`) opens the Daily
+ * Brief on the day it is TAPPED (IST), not the day it was scheduled — a
+ * reminder read the next morning should show that morning. Only a payload this function
  * recognises routes anywhere; anything else — including a shape that merely
  * resembles one — is ignored rather than risking a crash on a malformed push.
  */
+import { istDate } from './dailyBriefText';
+
 export type NotificationRoute =
     | {
           screen: 'FeedbackDetail';
@@ -31,15 +35,24 @@ export type NotificationRoute =
           // RootNavigator:249 declares `LeaveRequests: { farmId: string; farmName?: string }`.
           screen: 'LeaveRequests';
           params: { farmId: string };
+      }
+    | {
+          screen: 'DailyBrief';
+          params: { date: string };
       };
 
-export function routeForNotification(data: unknown): NotificationRoute | null {
+export function routeForNotification(data: unknown, now: Date = new Date()): NotificationRoute | null {
     if (!data || typeof data !== 'object') return null;
-    const { type, reportId, farmId } = data as {
+    const { type, reportId, farmId, tag } = data as {
         type?: unknown;
         reportId?: unknown;
         farmId?: unknown;
+        tag?: unknown;
     };
+
+    if (tag === 'brief-reminder') {
+        return { screen: 'DailyBrief', params: { date: istDate(now) } };
+    }
 
     if (type === 'feedback_reply' && typeof reportId === 'string' && reportId.length > 0) {
         return { screen: 'FeedbackDetail', params: { id: reportId } };

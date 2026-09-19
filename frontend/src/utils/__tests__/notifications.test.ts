@@ -28,7 +28,13 @@ jest.mock('expo-notifications', () => ({
 jest.mock('expo-device', () => ({ isDevice: true }));
 
 import type { PondContext } from '../../api/pondContext';
-import { syncReminders, getReminderStatus, DEFAULT_REMINDER_TIMES } from '../notifications';
+import {
+    syncReminders,
+    getReminderStatus,
+    syncBriefReminders,
+    BRIEF_REMINDER_TAG,
+    DEFAULT_REMINDER_TIMES,
+} from '../notifications';
 
 const ctx = (over: Partial<PondContext>): PondContext =>
     ({
@@ -168,6 +174,46 @@ describe('syncReminders', () => {
         await syncReminders([ctx({ waterQuality: null })], DEFAULT_REMINDER_TIMES, now);
         expect(mockSchedule).not.toHaveBeenCalled();
     });
+
+    /**
+     * The regression these two pin.
+     *
+     * cancelOurs() used to run BEFORE the permission and hasPonds guards, and
+     * syncReminders runs on every app foreground. So one transient condition —
+     * a permission not yet answered, /ponds/mine momentarily empty or failing —
+     * wiped every reminder the farmer had and scheduled none back. Nothing
+     * rearmed them until a later launch happened to satisfy both guards, and
+     * from the farmer's side reminders had simply stopped, with no explanation
+     * and nothing on screen.
+     *
+     * Bailing out must leave the existing window ALONE. Those notifications
+     * were correct when scheduled; a stale reminder is a far smaller failure
+     * than silence.
+     */
+    it('does not wipe the existing window when permission is denied', async () => {
+        // Seed an existing window, or cancelOurs() has nothing to cancel and
+        // the assertion below would pass whether or not the bug is present.
+        mockGetAll.mockResolvedValue([
+            { identifier: 'existing-1', content: { data: { tag: 'wq-reminder' } } },
+        ]);
+        mockGetPermissions.mockResolvedValue({ status: 'denied' });
+        mockRequestPermissions.mockResolvedValue({ status: 'denied' });
+        await syncReminders([ctx({ waterQuality: null })], DEFAULT_REMINDER_TIMES, now);
+        expect(mockCancel).not.toHaveBeenCalled();
+    });
+
+    it('does not wipe the existing window when the pond list is momentarily empty', async () => {
+        // hasPonds=false is the "/ponds/mine returned nothing this time" case,
+        // which a flaky rural connection produces regularly.
+        // Seed an existing window, or cancelOurs() has nothing to cancel and
+        // the assertion below would pass whether or not the bug is present.
+        mockGetAll.mockResolvedValue([
+            { identifier: 'existing-1', content: { data: { tag: 'wq-reminder' } } },
+        ]);
+        await syncReminders([], DEFAULT_REMINDER_TIMES, now, false);
+        expect(mockCancel).not.toHaveBeenCalled();
+        expect(mockSchedule).not.toHaveBeenCalled();
+    });
 });
 
 describe('getReminderStatus', () => {
@@ -191,5 +237,59 @@ describe('getReminderStatus', () => {
         expect(status.permission).toBe('granted');
         expect(status.scheduled).toBe(2);
         expect(status.next?.getTime()).toBe(1_000);
+    });
+});
+
+describe('syncBriefReminders', () => {
+    /** Keep a fake OS queue so a second call sees what the first scheduled. */
+    let queue: any[];
+    beforeEach(() => {
+        queue = [{ identifier: 'wq', content: { data: { tag: 'wq-reminder' } } }];
+        let n = 0;
+        mockGetAll.mockImplementation(async () => [...queue]);
+        mockSchedule.mockImplementation(async (req: any) => {
+            const id = `b${n++}`;
+            queue.push({ identifier: id, ...req });
+            return id;
+        });
+        mockCancel.mockImplementation(async (id: string) => {
+            queue = queue.filter((q) => q.identifier !== id);
+        });
+    });
+    afterEach(() => {
+        mockGetAll.mockReset().mockResolvedValue([]);
+        mockSchedule.mockReset().mockResolvedValue('id');
+        mockCancel.mockReset().mockResolvedValue(undefined);
+    });
+
+    const brief = () => queue.filter((q) => q.content?.data?.tag === BRIEF_REMINDER_TAG);
+
+    it('schedules exactly a 06:00 and a 19:00 daily reminder, however often it runs', async () => {
+        await syncBriefReminders(true);
+        await syncBriefReminders(true);
+        await syncBriefReminders(true);
+        expect(brief()).toHaveLength(2);
+        expect(brief().map((q) => [q.trigger.type, q.trigger.hour, q.trigger.minute])).toEqual([
+            ['daily', 6, 0],
+            ['daily', 19, 0],
+        ]);
+        expect(brief()[0].content.title).toBe('Your morning brief is ready');
+        // Never touches the water-check reminders.
+        expect(queue.some((q) => q.identifier === 'wq')).toBe(true);
+    });
+
+    it('clears only its own reminders when turned off', async () => {
+        await syncBriefReminders(true);
+        await syncBriefReminders(false);
+        expect(brief()).toHaveLength(0);
+        expect(queue.map((q) => q.identifier)).toEqual(['wq']);
+    });
+
+    it('never asks for permission, and leaves the queue alone without it', async () => {
+        mockGetPermissions.mockResolvedValue({ status: 'undetermined' });
+        mockRequestPermissions.mockClear();
+        await syncBriefReminders(true);
+        expect(mockRequestPermissions).not.toHaveBeenCalled();
+        expect(mockSchedule).not.toHaveBeenCalled();
     });
 });

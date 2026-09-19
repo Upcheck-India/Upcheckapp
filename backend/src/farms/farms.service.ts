@@ -12,7 +12,7 @@ import { randomBytes } from 'crypto';
 import { Farm } from './farm.entity';
 import { Crop } from '../crops/crop.entity';
 import { CreateFarmDto } from './dto/create-farm.dto';
-import { UpdateFarmDto } from './dto/update-farm.dto';
+import { UpdateFarmDto, SHIFT_FIELDS } from './dto/update-farm.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { FarmMember } from '../farm-access/farm-member.entity';
 import {
@@ -150,7 +150,16 @@ export class FarmsService {
    * and a default that still returned them would make the action decorative.
    */
   async findAll(userId: string, includeArchived = false) {
-    const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+    // `includeArchived` MUST be threaded into the access lookup, not just the
+    // where-clause below. getAccessibleFarmIds defaults to excluding archived
+    // farms, so omitting it here filtered them out of `farmIds` first and the
+    // where-clause was then choosing between two archive-free sets — making
+    // `?includeArchived=true` return an empty list, always. The "include
+    // archived" toggle on the farms list looked broken because it was.
+    const farmIds = await this.farmAccess.getAccessibleFarmIds(
+      userId,
+      includeArchived,
+    );
     if (farmIds.length === 0) return [];
     return this.farmsRepository.find({
       where: includeArchived
@@ -177,7 +186,16 @@ export class FarmsService {
     return farm;
   }
 
-  async update(id: string, updateFarmDto: UpdateFarmDto) {
+  // callerId is required: the route admits managers (for the shift), so this
+  // check is the only thing keeping every other farm field owner-only. An
+  // optional id would let a future caller skip it by omission.
+  async update(id: string, updateFarmDto: UpdateFarmDto, callerId: string) {
+    const touchesNonShift = Object.entries(updateFarmDto).some(
+      ([k, v]) => v !== undefined && !SHIFT_FIELDS.includes(k),
+    );
+    if (touchesNonShift) {
+      await this.farmAccess.assertCanAccessFarm(callerId, id, 'OWNER_ONLY');
+    }
     await this.farmsRepository.update(id, updateFarmDto);
     return this.findOne(id);
   }

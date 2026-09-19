@@ -3,15 +3,36 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import type { Session, User } from '@supabase/supabase-js';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import i18n from '../i18n';
 import { authApi } from '../api/auth';
 import { apiErrorMessage } from '../api/errors';
 import { profilesApi } from '../api/profiles';
+import { farmsApi } from '../api/farms';
 import { TruecallerAuth } from '../native/TruecallerAuth';
 import { useSyncStore } from './syncStore';
 import { useActiveFarmStore } from './activeFarmStore';
 import { useNotificationStore } from './notificationStore';
 import { useUploadStore } from './uploadStore';
 import { clearCachedReads } from '../query/client';
+import { capture, EVENTS, type AnalyticsProps } from '../features/analytics';
+
+/**
+ * HTTP failure → the analytics `reason` CATEGORY.
+ *
+ * Deliberately not the message: a backend message carries emails, ids and
+ * whatever it chose to interpolate, and the Privacy Policy says none of that
+ * reaches analytics. No response at all means the request never landed —
+ * offline, DNS, timeout — which is 'network', not 'unknown'.
+ */
+const failureReason = (err: any): AnalyticsProps['reason'] => {
+    const status = err?.response?.status;
+    if (status == null) return 'network';
+    if (status === 401) return 'auth';
+    if (status === 403) return 'permission';
+    if (status === 400 || status === 422) return 'validation';
+    if (status === 409) return 'conflict';
+    return 'unknown';
+};
 
 export type AuthStatus =
     | 'initializing'       // app just launched, checking stored session
@@ -59,7 +80,22 @@ interface AuthState {
     accessToken: string | null;
     isAuthenticated: boolean;
 
-    // ── Persisted (via partialize) — refresh token restored on hydration ──
+    /**
+     * The refresh token, held as STATE IN ITS OWN RIGHT — not derived from
+     * `session` when persisting.
+     *
+     * It used to be written as `partialize: () => ({ refreshToken:
+     * state.session?.refresh_token })`, which re-derives it on EVERY state
+     * write. `enterOfflineSession()` sets `session: null` — so the one path
+     * built to keep a farmer signed in through a network blip was itself
+     * erasing the token from SecureStore. The next cold start found nothing to
+     * restore and showed the login screen: "the app logs me out on network
+     * errors and phone restarts".
+     *
+     * Only `clearSession()` may null it. Supabase rotates the token on every
+     * refresh, so `setSession` keeps the newest one and never regresses to a
+     * spent one.
+     */
     refreshToken?: string | null;
 
     // ── Pending verification ──
@@ -98,11 +134,29 @@ interface AuthState {
     enterOfflineSession: () => void;
     recoverSession: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
-    googleLogin: (idToken: string, intent?: 'signin' | 'signup') => Promise<{ requires2FA: boolean; tempToken?: string }>;
+    /**
+     * `intent` is the OAUTH intent ('signin' vs 'signup'), which the backend
+     * uses to decide whether an unknown email may provision an account.
+     * `signupIntent` is the FIRST-RUN routing answer from IntentScreen — a
+     * different question with a confusingly similar name, so both are spelled
+     * out rather than merged.
+     */
+    googleLogin: (
+        idToken: string,
+        intent?: 'signin' | 'signup',
+        signupIntent?: SignupIntent,
+    ) => Promise<{ requires2FA: boolean; tempToken?: string }>;
+    /** Arm the first-run gates from IntentScreen's answer. See the impl. */
+    armSignupIntent: (intent?: SignupIntent) => void;
     signup: (email: string, password: string, firstName?: string, lastName?: string, intent?: SignupIntent) => Promise<void>;
     logout: () => Promise<void>;
     deleteAccount: (password?: string) => Promise<void>;
     forgotPassword: (email: string) => Promise<void>;
+    /**
+     * Fold a fresh GET /profiles/me into `user` after a name or email change.
+     * Identity display only — never touches the session or tokens.
+     */
+    refreshUser: (profile: { fullName?: string | null; email?: string | null; emailIsInternal?: boolean }) => void;
 }
 
 /**
@@ -124,10 +178,14 @@ export const isInternalEmail = (email?: string | null): boolean =>
  */
 const displayNameOf = (user: User): string => {
     const meta: any = user.user_metadata ?? {};
-    const fromParts = [meta.first_name, meta.last_name]
-        .map((p: unknown) => (typeof p === 'string' ? p.trim() : ''))
-        .filter(Boolean)
-        .join(' ');
+    const join = (a: unknown, b: unknown) =>
+        [a, b]
+            .map((p) => (typeof p === 'string' ? p.trim() : ''))
+            .filter(Boolean)
+            .join(' ');
+    // Email signup wrote only camelCase firstName/lastName for years, so
+    // those accounts saw their email prefix as a name. Read both spellings.
+    const fromParts = join(meta.first_name, meta.last_name) || join(meta.firstName, meta.lastName);
 
     return (
         meta.full_name ||
@@ -165,6 +223,7 @@ export const useAuthStore = create<AuthState>()(
             session: null,
             accessToken: null,
             isAuthenticated: false,
+            refreshToken: null,
             pendingVerificationEmail: null,
             pendingFarmSetup: false,
             pendingFarmJoin: false,
@@ -173,6 +232,9 @@ export const useAuthStore = create<AuthState>()(
             setSession: (session) =>
                 set({
                     session,
+                    // Keep the newest rotated token; never fall back to null and
+                    // strand the device with no way to refresh again.
+                    refreshToken: session.refresh_token ?? get().refreshToken ?? null,
                     accessToken: session.access_token,
                     user: mapSupabaseUser(session.user),
                     isAuthenticated: true,
@@ -197,6 +259,11 @@ export const useAuthStore = create<AuthState>()(
             // render lands them on the main app, and clear the stored intent so a
             // reinstall does not send them back through setup they have done.
             completeFarmSetup: () => {
+                // Fire on the TRANSITION only. Four screens call this (create,
+                // skip, the pond-names step, the gate) and some call it whether
+                // or not the gate is up; keyed on the flag actually dropping,
+                // one farmer finishing onboarding is one event.
+                if (get().pendingFarmSetup) capture(EVENTS.ONBOARDING_COMPLETED);
                 set({ pendingFarmSetup: false });
                 void get().clearOnboardingIntent();
             },
@@ -204,6 +271,8 @@ export const useAuthStore = create<AuthState>()(
             // Worker joined a farm (or skipped) — drop the gate so the next
             // render lands them on the main app.
             completeFarmJoin: () => {
+                // Same transition rule as completeFarmSetup.
+                if (get().pendingFarmJoin) capture(EVENTS.ONBOARDING_COMPLETED);
                 set({ pendingFarmJoin: false });
                 void get().clearOnboardingIntent();
             },
@@ -231,7 +300,14 @@ export const useAuthStore = create<AuthState>()(
 
             clearOnboardingIntent: async () => {
                 try {
-                    await profilesApi.setMyPreferences({ onboardingIntent: undefined });
+                    // `null`, NOT `undefined`. JSON.stringify DROPS undefined
+                    // properties, so this request used to go out as `{}` and the
+                    // server — which skips undefined keys — wrote nothing. The
+                    // intent therefore survived every completed setup, forever,
+                    // and restoreOnboardingIntent re-armed the gate from it on
+                    // the next launch. Null is a value that actually travels;
+                    // the server deletes the key when it sees one.
+                    await profilesApi.setMyPreferences({ onboardingIntent: null });
                 } catch {
                     // Same: never let bookkeeping fail the action that succeeded.
                 }
@@ -241,22 +317,79 @@ export const useAuthStore = create<AuthState>()(
              * Re-derive the first-run gates from the server after a session is
              * restored on a device that has never seen this account.
              *
-             * Only ever turns a gate ON when the server still holds an intent —
-             * an intent is cleared once acted on, so a farmer who already made
-             * their farm cannot be trapped back in setup.
+             * An intent is a resume point for someone who has not arrived yet,
+             * so it may only gate someone with NO farm. It is not enough to
+             * trust that the intent was cleared on the way past: clearing is
+             * best-effort and fire-and-forget, so it can be lost to a dropped
+             * connection even now that the payload itself is fixed. One lost
+             * clear used to mean the farm-creation screen on every single launch
+             * with no way out, which is exactly what happened in production.
+             * Owning a farm is the durable fact; the stored intent is not.
              */
             restoreOnboardingIntent: async () => {
                 // A device that already knows where it is does not need asking.
                 if (get().pendingFarmSetup || get().pendingFarmJoin) return;
                 try {
                     const { data } = await profilesApi.getMyPreferences();
-                    if (data?.onboardingIntent === 'own_farm') {
-                        set({ pendingFarmSetup: true });
-                    } else if (data?.onboardingIntent === 'work_on_farm') {
-                        set({ pendingFarmJoin: true });
+                    const intent = data?.onboardingIntent;
+                    if (intent !== 'own_farm' && intent !== 'work_on_farm') return;
+
+                    // Only paid for when an intent actually survives, so the
+                    // common case (nothing stored) costs no extra round trip.
+                    // Covers BOTH gates: /farms is member-aware, so a worker who
+                    // has joined somewhere comes back non-empty too.
+                    const { data: farms } = await farmsApi.getAll();
+                    if (farms?.length) {
+                        // Stale. Heal the row so this stops costing a request.
+                        void get().clearOnboardingIntent();
+                        return;
                     }
+
+                    set(
+                        intent === 'own_farm'
+                            ? { pendingFarmSetup: true }
+                            : { pendingFarmJoin: true },
+                    );
                 } catch {
                     // Offline or unreachable — leave the gates as they are.
+                    // Failing here leaves them OFF, which is the safe direction:
+                    // a farmer who should have been gated reaches the app and
+                    // can still create a farm from it, whereas a wrong gate is a
+                    // screen they cannot get past.
+                }
+            },
+
+            /**
+             * Route the first run from the stated intent, and remember it.
+             *
+             * Someone who runs their own farm sets one up; someone joining an
+             * existing farm enters a code. Read by RootNavigator once
+             * authenticated. The intent grants NOTHING — either person can do
+             * either thing later; it only decides which screen comes next.
+             *
+             * Extracted because it used to live inside `signup()`, i.e. on the
+             * EMAIL PATH ONLY. `IntentScreen` is a whole screen asking a real
+             * question, and for anyone signing up with Google or Truecaller the
+             * answer was thrown away: no gate was set, and the server-side
+             * resume point that survives a reinstall was never armed. Truecaller
+             * is described in RegisterScreen's own header as "the only working
+             * phone-number sign-up route" — the likely dominant path for this
+             * audience — so for most farmers that screen was pure ceremony.
+             *
+             * Called on every sign-up path now. A missing intent clears both
+             * gates, which is the correct state for a plain sign-IN.
+             */
+            armSignupIntent: (intent) => {
+                set({
+                    pendingFarmSetup: intent === 'own_farm',
+                    pendingFarmJoin: intent === 'work_on_farm',
+                });
+                // Persist server-side so a reinstall, or signing in on a second
+                // phone mid-setup, resumes here instead of asking again.
+                // Fire-and-forget: failing to remember which screen to open
+                // next must not fail the signup that just succeeded.
+                if (intent) {
+                    void get().persistOnboardingIntent(intent);
                 }
             },
 
@@ -277,6 +410,9 @@ export const useAuthStore = create<AuthState>()(
                 clearCachedReads();
                 set({
                     session: null,
+                    // The ONLY place this is dropped. A logout is the one event
+                    // that genuinely ends the ability to refresh.
+                    refreshToken: null,
                     accessToken: null,
                     user: null,
                     isAuthenticated: false,
@@ -408,9 +544,11 @@ export const useAuthStore = create<AuthState>()(
                     }
                     if (data.session) {
                         get().setSession(data.session);
+                        capture(EVENTS.LOGIN_COMPLETED, { method: 'email' });
                     }
                     return { requires2FA: false };
                 } catch (err: any) {
+                    capture(EVENTS.LOGIN_FAILED, { method: 'email', reason: failureReason(err) });
                     const message = apiErrorMessage(err, err.message || 'Login failed');
                     // An unverified account is a DEAD END unless we re-arm the
                     // resend banner. `pendingVerificationEmail` was only ever set
@@ -427,7 +565,11 @@ export const useAuthStore = create<AuthState>()(
                 }
             },
 
-            googleLogin: async (idToken: string, intent?: 'signin' | 'signup') => {
+            googleLogin: async (
+                idToken: string,
+                intent?: 'signin' | 'signup',
+                signupIntent?: SignupIntent,
+            ) => {
                 set({ isLoading: true, error: null });
                 try {
                     const { data } = await authApi.googleOAuth(idToken, intent);
@@ -439,11 +581,30 @@ export const useAuthStore = create<AuthState>()(
                     }
                     if (data.session) {
                         get().setSession(data.session);
+                        // The backend REJECTS an unknown email when intent is
+                        // 'signin' (supabase-auth.service.signInWithIdToken), so
+                        // an account can only be provisioned on the 'signup'
+                        // path — that is the closest signal to "created" the
+                        // response carries.
+                        // ponytail: intent, not a server "isNewUser" flag, so
+                        // an existing account tapping Create Account counts as a
+                        // signup. Return the flag from the backend if the split
+                        // ever has to be exact.
+                        capture(
+                            intent === 'signin' ? EVENTS.LOGIN_COMPLETED : EVENTS.SIGNUP_COMPLETED,
+                            { method: 'google' },
+                        );
+                        // Honour the intent the farmer gave on IntentScreen —
+                        // only on the SIGN-UP path. Arming these gates on a
+                        // plain sign-in would drag a returning owner back
+                        // through first-run farm setup.
+                        if (intent !== 'signin') get().armSignupIntent(signupIntent);
                     } else {
                         set({ isLoading: false });
                     }
                     return { requires2FA: false };
                 } catch (err: any) {
+                    capture(EVENTS.LOGIN_FAILED, { method: 'google', reason: failureReason(err) });
                     const message = apiErrorMessage(err, err.message || 'Google sign in failed');
                     get().setError(message);
                     return { requires2FA: false };
@@ -453,23 +614,16 @@ export const useAuthStore = create<AuthState>()(
             signup: async (email, password, firstName, lastName, intent) => {
                 set({ isLoading: true, error: null });
                 try {
-                    const { data } = await authApi.signup({ email, password, firstName, lastName });
-                    // Route the first run from the stated intent: someone who runs
-                    // their own farm sets one up, someone joining an existing farm
-                    // enters a code. Read by RootNavigator once authenticated. The
-                    // intent grants NOTHING — either person can do either thing
-                    // later; it only decides which screen comes next.
-                    set({
-                        pendingFarmSetup: intent === 'own_farm',
-                        pendingFarmJoin: intent === 'work_on_farm',
-                    });
-                    // Persist it server-side so a reinstall, or signing in on a
-                    // second phone mid-setup, resumes here instead of asking
-                    // again. Fire-and-forget: failing to remember which screen
-                    // to open next must not fail the signup that just succeeded.
-                    if (intent) {
-                        void get().persistOnboardingIntent(intent);
-                    }
+                    // i18n.language is the live UI language; it decides which language the
+                    // verification and password-reset emails arrive in, and it is
+                    // the only chance to record it — Supabase reads user_metadata
+                    // written at signup.
+                    const { data } = await authApi.signup({ email, password, firstName, lastName, language: i18n.language });
+                    // The account exists from here whether or not a session came
+                    // back — an unconfirmed email withholds the session, it does
+                    // not withhold the account.
+                    capture(EVENTS.SIGNUP_COMPLETED, { method: 'email' });
+                    get().armSignupIntent(intent);
                     if (data.session) {
                         get().setSession(data.session);
                     } else {
@@ -516,12 +670,36 @@ export const useAuthStore = create<AuthState>()(
                 // clears the local session (returns the user to the sign-in stack).
                 // Password is re-verified server-side for email/password accounts.
                 await profilesApi.deleteMe(password);
+                // BEFORE the teardown below, and it has to stay there.
+                // clearSession() flips isAuthenticated, which runs App.tsx's
+                // identify effect with a null id — that calls client.reset(),
+                // which drops the queued batch along with the person id. An
+                // ACCOUNT_DELETED captured after that point is either discarded
+                // or attributed to a fresh anonymous stranger, so the one event
+                // that measures churn would never arrive. Captured here it is
+                // already in the queue, under the right person, before anything
+                // is torn down. After deleteMe resolves, so a failed deletion
+                // does not report a churn that did not happen.
+                capture(EVENTS.ACCOUNT_DELETED);
                 try {
                     TruecallerAuth.clear();
                 } catch {
                     // ignore
                 }
                 get().clearSession();
+            },
+
+            refreshUser: (profile) => {
+                const user = get().user;
+                if (!user) return;
+                const name = profile.fullName?.trim();
+                const email =
+                    !profile.email
+                        ? user.email
+                        : profile.emailIsInternal || isInternalEmail(profile.email)
+                            ? ''
+                            : profile.email;
+                set({ user: { ...user, name: name || user.name, email } });
             },
 
             forgotPassword: async (email) => {
@@ -547,7 +725,8 @@ export const useAuthStore = create<AuthState>()(
             // Store: refresh_token for session restoration, user.id/email for quick access
             // Do NOT persist full session object or user metadata
             partialize: (state) => ({
-                refreshToken: state.session?.refresh_token,
+                // From the field, NOT from `session` — see the AuthState comment.
+                refreshToken: state.refreshToken,
                 userId: state.user?.id,
                 userEmail: state.user?.email,
                 pendingVerificationEmail: state.pendingVerificationEmail,

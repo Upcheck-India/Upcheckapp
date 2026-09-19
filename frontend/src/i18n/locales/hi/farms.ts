@@ -151,5 +151,9 @@ const farms = {
   errorArchiveFarm: "फ़ार्म संग्रहित नहीं हो सका।",
   errorUnarchiveFarm: "फ़ार्म वापस नहीं लाया जा सका।",
   errorDeleteFarm: "फ़ार्म हटाया नहीं जा सका।",
+  shiftEndLabel: "शिफ़्ट ख़त्म होने का समय (24 घंटे)",
+  shiftHoursLabel: "शिफ़्ट की अवधि (घंटे)",
+  shiftHint: "इससे टीम को पता चलता है कि चेक आउट कब करना है। ख़ाली छोड़ें तो चेक इन के समय में शिफ़्ट की अवधि जोड़ी जाएगी।",
+  shiftEndInvalid: "24 घंटे का समय लिखें, जैसे 18:00।",
 };
 export default farms;

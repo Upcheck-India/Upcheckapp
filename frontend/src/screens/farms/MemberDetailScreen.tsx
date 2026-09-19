@@ -37,6 +37,7 @@ import { CapabilityGrid } from '../../components/members/CapabilityGrid';
 import { useMembershipStore } from '../../store/membershipStore';
 import { pondLabel } from '../../utils/pondHealth';
 import { fullName } from './FarmMembersScreen';
+import { useFlag } from '../../features/remoteFlags';
 
 const c = theme.roles.light;
 
@@ -50,6 +51,7 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
     const { farmId, farmName, member: initial } = route.params ?? {};
     const perms = usePermissions(farmId);
     const farmPolicy = useMembershipStore((s) => s.grantForFarm(farmId).policy);
+    const exportOn = useFlag('export');
 
     const [member, setMember] = useState<FarmMember>(initial);
     const [ponds, setPonds] = useState<Pond[]>([]);
@@ -274,6 +276,19 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
                     </>
                 )}
 
+                {/* One person's attendance through the export pipeline (B.7). Reading
+                    the farm's attendance is WRITE_MANAGEMENT — the server's check. */}
+                {exportOn && perms.canManageOperations && (
+                    <Button
+                        title={t('attendance.exportAttendance')}
+                        variant="outlined"
+                        onPress={() =>
+                            navigation.navigate('Export', { dataset: 'attendance', farmId, userId: member.userId })
+                        }
+                        style={styles.exportBtn}
+                    />
+                )}
+
                 {(canManageMember(perms.role, member.role) || perms.canTransferOwnership) && (
                     /*
                      * Stacked full-width, not two half-width buttons side by
@@ -356,6 +371,7 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: c.borderDefault,
     },
+    exportBtn: { marginHorizontal: theme.spacing[5], marginTop: theme.spacing[6] },
     transferBtn: { borderColor: c.warningBorder },
     transferLabel: { color: c.warningText },
     removeBtn: { borderColor: c.dangerBorder },

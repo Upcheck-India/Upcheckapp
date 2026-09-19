@@ -13,7 +13,10 @@ jest.mock('../../../api/attendance', () => ({
 }));
 jest.mock('../../../api/leaveRequests', () => ({ leaveRequestsApi: { getAll: jest.fn() } }));
 jest.mock('../../../api/farmMembers', () => ({ farmMembersApi: { listMembers: jest.fn() } }));
-jest.mock('../../../api/teamOverview', () => ({ fetchTeamOverview: jest.fn() }));
+jest.mock('../../../api/teamOverview', () => ({
+    ...jest.requireActual('../../../api/teamOverview'),
+    fetchTeamOverview: jest.fn(),
+}));
 jest.mock('../../../sync/recordSync', () => ({
     saveRecord: jest.fn(),
     drainRecordQueue: jest.fn().mockResolvedValue(undefined),

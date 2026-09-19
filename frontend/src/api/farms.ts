@@ -17,6 +17,14 @@ export interface Farm {
     userId: string;
     /** Per-role capability defaults for this farm. `null` = the built-in matrix. */
     rolePolicy?: RolePolicy | null;
+    /**
+     * Shift end for the whole farm, IST wall clock 'HH:MM', or null (spec
+     * 2026-09-14 attendance B.1, founder Q4). Settable by owner/manager via the
+     * farm update endpoint. Absent from older backends.
+     */
+    shiftEndLocal?: string | null;
+    /** Fallback shift length in hours when shiftEndLocal is unset or the check-in is late. Default 9. */
+    shiftHours?: number;
     createdAt: string;
     updatedAt: string;
     /** Set while the farm is archived — it drops out of every list and total. */
@@ -50,7 +58,12 @@ export interface CreateFarmDto {
     boundary?: { latitude: number; longitude: number }[];
 }
 
-export interface UpdateFarmDto extends Partial<CreateFarmDto> {}
+export interface UpdateFarmDto extends Partial<CreateFarmDto> {
+    /** 'HH:MM' IST or null to clear. Owner or manager (the only fields a manager may send). */
+    shiftEndLocal?: string | null;
+    /** 1–16. */
+    shiftHours?: number;
+}
 
 export const farmsApi = {
     // Archived farms are excluded server-side unless `includeArchived` is set.

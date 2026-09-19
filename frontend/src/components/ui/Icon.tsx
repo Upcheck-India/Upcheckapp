@@ -45,7 +45,9 @@ export type IconName =
     | 'history' | 'search' | 'archive' | 'unarchive'
     // Phase 3 polish — telling the daily chemical log and weekly chemistry
     // panel tiles apart; both used to render 'science'.
-    | 'calendar_month';
+    | 'calendar_month'
+    // attendance shift states (spec 2026-09-14 B.2)
+    | 'alarm' | 'login' | 'logout';
 
 export interface IconProps {
     name: IconName;

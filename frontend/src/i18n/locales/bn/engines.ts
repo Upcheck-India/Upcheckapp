@@ -10,6 +10,41 @@ const engines = {
     prefilled: 'আপনার সর্বশেষ লগ থেকে পূরণ করা হয়েছে। প্রয়োজনে পরিবর্তন করুন।',
     prefilledDoc: 'আপনার সর্বশেষ লগ থেকে · DOC {{doc}}। প্রয়োজনে পরিবর্তন করুন।',
     couldNotCompute: 'গণনা করা যায়নি',
+
+    needsInputs: "আগে এগুলি দিন, যাতে উত্তরটি আপনার পুকুরের হয়:",
+
+
+    needsSampling: "সাম্প্রতিক স্যাম্পলিং (গড় ওজন)",
+
+
+    needsPopulation: "পুকুরে কত চিংড়ি আছে",
+
+
+    needsBiomass: "পুকুরের মোট জৈববস্তু",
+
+
+    needsAerators: "স্থাপিত এয়ারেটরের হর্সপাওয়ার",
+
+
+    needsDo: "বর্তমান দ্রবীভূত অক্সিজেনের রিডিং",
+
+
+    needsArea: "পুকুরের আয়তন",
+
+
+    needsFeedPrice: "খাবারের দাম, প্রতি কেজি",
+
+
+    noData: "পুকুরের তথ্য নেই",
+
+
+    contextUnavailable: "এই পুকুরের সাম্প্রতিক তথ্য পড়া যায়নি",
+
+
+    contextUnavailableBody: "আপনার জন্য কিছুই আগে থেকে ভরা হয়নি। মান জানা থাকলে নিজে লিখুন, তাহলে উত্তরটি আপনার পুকুরের হবে।",
+
+
+    heuristicNote: "এটি প্রচলিত অভিজ্ঞতার নিয়ম, কোনো পরিমাপ নয় — দিকনির্দেশ হিসেবে কাজে লাগে, তবে পুকুরে যা দেখছেন তার সঙ্গে মিলিয়ে নিন।",
     couldNotSave: 'সংরক্ষণ করা যায়নি',
     tryAgain: 'অনুগ্রহ করে আবার চেষ্টা করুন।',
   },
@@ -68,6 +103,8 @@ const engines = {
     fasting: 'উপবাস দিন',
     calculate: 'আজকের খাবার হিসাব করুন',
     recommended: 'আজ প্রস্তাবিত',
+
+    rangeWhy: "এটি একটি পরিসর, কারণ আপনার সাম্প্রতিক রিডিং কম।",
     biomassFr: '{{biomass}} kg বায়োমাস · FR {{fr}}%',
   },
   harvest: {
@@ -144,6 +181,11 @@ const engines = {
     illuminated: '{{pct}}% আলোকিত',
     moltWindow: 'মোল্ট উইন্ডো · স্প্রিং জোয়ারে {{days}} দিন',
     toNextWindow: 'পরবর্তী মোল্ট উইন্ডোতে {{days}} দিন',
+
+    nextNewMoon: "অমাবস্যা: {{date}}",
+
+
+    nextFullMoon: "পূর্ণিমা: {{date}}",
     assessment: 'মোল্ট-ঝুঁকি মূল্যায়ন',
     abw: 'গড় দেহ ওজন',
     assess: 'মূল্যায়ন',
@@ -162,6 +204,43 @@ const engines = {
     priority_critical: 'জরুরি',
     priority_important: 'গুরুত্বপূর্ণ',
     priority_routine: 'নিয়মিত',
+    timeline: 'মোল্ট উইন্ডো',
+    phase_pre: 'মোল্টের আগে',
+    phase_peak: 'চূড়ান্ত সময়',
+    phase_post: 'মোল্টের পরে',
+    dateRange: '{{start}} – {{end}}',
+    windowNew: 'অমাবস্যা {{date}}',
+    windowFull: 'পূর্ণিমা {{date}}',
+    nextWindows: 'আসন্ন মোল্ট উইন্ডো',
+    checklist: 'মোল্ট চেকলিস্ট',
+    noWindowNow: 'এখন কোনো মোল্ট উইন্ডো নেই।',
+    sizeUnknown: 'এই পুকুরের মোল্ট চেকলিস্ট দেখতে নমুনা নিন।',
+    tooSmall: '৫ গ্রামের কম চিংড়ি চাঁদের সাথে খোলস বদলায় না — এখনও চেকলিস্ট লাগবে না।',
+    sample: 'নমুনা লগ করুন',
+    item_minerals: 'খনিজ (Ca/Mg/K) দিন ও লগ করুন',
+    item_alkalinity_check: 'ক্ষারত্ব পরীক্ষা করুন (লক্ষ্য 120 ppm বা বেশি)',
+    item_aerator_service: 'চূড়ান্ত সময়ের আগে এরেটর সার্ভিস করুন',
+    item_feed_cut: 'আজ খাবার 15–30% কমান (খোলস বদলের চূড়ান্ত সময়)',
+    item_no_handling: 'চূড়ান্ত সময়ে নমুনা, জাল বা ফসল তোলা নয়',
+    item_night_do_check: 'রাতে / ভোরের আগে DO পরীক্ষা করুন',
+    item_restore_feed: 'ট্রে খালি হলে খাবার আবার বাড়ান (2–3 দিনে +5–10%)',
+    item_post_sampling: 'খোলস শক্ত হলে নমুনা নিন',
+    item_soft_shell_check: 'নরম খোলস ও একে অপরকে খাওয়া পরীক্ষা করুন',
+    status_done: 'হয়েছে',
+    status_pending: 'বাকি',
+    status_violated: 'মানা হয়নি',
+    status_missed: 'বাদ পড়েছে',
+    earlierInWindow: 'এই উইন্ডোতে আগে',
+    done: 'হয়েছে',
+    markDone: 'সম্পন্ন করুন',
+    undo: 'ফিরিয়ে নিন',
+    logIt: 'লগ করুন',
+    eligiblePonds: 'এই মোল্ট উইন্ডোর পুকুর',
+    noEligiblePonds: 'এখন কোনো পুকুরের মোল্ট চেকলিস্ট লাগবে না।',
+    pondProgress: '{{total}}টির মধ্যে {{done}}টি সম্পন্ন',
+    needsSampling: 'নমুনা দরকার',
+    reminderTitle: 'মোল্ট উইন্ডো কাল শুরু',
+    reminderBody: 'চূড়ান্ত সময়ের আগে খনিজ দিন, ক্ষারত্ব পরীক্ষা করুন ও এরেটর সার্ভিস করুন।',
   },
   pnl: {
     title: 'ফসল লাভ-ক্ষতি',
