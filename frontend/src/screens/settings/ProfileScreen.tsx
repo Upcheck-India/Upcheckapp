@@ -15,7 +15,9 @@ import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
-import { profilesApi, ProfileCompat } from '../../api/profiles';
+import { profilesApi, ProfileCompat, type MyAvatar } from '../../api/profiles';
+import { Avatar } from '../../components/ui/Avatar';
+import { ProfilePhotoSection } from '../../components/profile/ProfilePhotoSection';
 
 export const ProfileScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -176,6 +178,16 @@ export const ProfileScreen = ({ navigation }: any) => {
     }
 
     const displayName = profile?.fullName || user?.name || 'User';
+    const initials =
+        displayName.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+    const avatar: MyAvatar = {
+        avatarUrl: profile?.avatarUrl ?? null,
+        avatarThumbUrl: profile?.avatarThumbUrl ?? profile?.avatarUrl ?? null,
+        hasUploadedAvatar: !!profile?.hasUploadedAvatar,
+        showAvatarToTeam: profile?.showAvatarToTeam !== false,
+    };
+    const setAvatar = (next: MyAvatar) =>
+        setProfile((p) => (p ? { ...p, ...next, avatarUrl: next.avatarUrl ?? undefined } : p));
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -189,7 +201,7 @@ export const ProfileScreen = ({ navigation }: any) => {
 
                 <Animated.View style={[styles.profileInfoContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
                     <View style={styles.avatarContainer}>
-                        <MaterialCommunityIcons name="account" size={48} color={theme.roles.light.primary} />
+                        <Avatar uri={avatar.avatarThumbUrl} initials={initials} seed={user?.id ?? displayName} size={76} />
                     </View>
                     <Text style={styles.userName}>{displayName}</Text>
                     <Text style={styles.userEmail}>{user?.email || 'N/A'}</Text>
@@ -198,6 +210,7 @@ export const ProfileScreen = ({ navigation }: any) => {
 
             <Animated.View style={{ opacity: fadeAnim }}>
                 <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+                        <ProfilePhotoSection avatar={avatar} onChange={setAvatar} initials={initials} seed={user?.id ?? displayName} />
                         <Card style={styles.infoCard}>
                             <View style={styles.infoRow}>
                                 <MaterialCommunityIcons name="email" size={20} color={theme.roles.light.textSecondary} />

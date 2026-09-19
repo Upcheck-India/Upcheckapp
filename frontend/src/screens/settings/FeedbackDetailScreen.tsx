@@ -9,7 +9,7 @@
  * is the answer.
  *
  * The attachments are signed here rather than in the list read: signing every
- * report's photos on every pull-to-refresh would be a round trip to Storage
+ * report's photos on every pull-to-refresh would be signing work
  * for pixels nobody has asked to see yet.
  */
 import { useCallback, useState } from 'react';
@@ -20,7 +20,6 @@ import {
     ScrollView,
     TouchableOpacity,
     RefreshControl,
-    Image,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -34,6 +33,7 @@ import { theme } from '../../theme';
 import { formatDate, formatTime } from '../../utils/formatDate';
 import { feedbackApi, type FeedbackReport } from '../../api/feedback';
 import { statusTone } from './feedbackStatus';
+import { PhotoStrip } from '../../components/ui/PhotoStrip';
 
 const c = theme.roles.light;
 
@@ -135,14 +135,13 @@ export const FeedbackDetailScreen = ({ route, navigation }: any) => {
                                     PHOTO_ATTACH_ENABLED in ReportIssueScreen);
                                     reports that already have them still show
                                     them here. */}
-                                {report.attachmentUrls.map((url) => (
-                                    <Image
-                                        key={url}
-                                        source={{ uri: url }}
-                                        style={styles.photo}
-                                        testID="feedback-photo"
-                                    />
-                                ))}
+                                <PhotoStrip
+                                    full={report.attachmentUrls}
+                                    thumbs={report.attachmentThumbUrls}
+                                    size={104}
+                                    thumbStyle={styles.photo}
+                                    testID="feedback-photo"
+                                />
                             </View>
                         )}
                     </>
@@ -246,7 +245,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: theme.spacing[5],
         paddingTop: theme.spacing[1],
     },
-    photo: { width: 104, height: 104, borderRadius: theme.radius.xs },
+    photo: { borderRadius: theme.radius.xs },
 
     loadError: {
         flexDirection: 'row',

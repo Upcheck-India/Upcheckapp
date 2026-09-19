@@ -109,3 +109,19 @@ describe('linkTruecallerToUser — phone canonicalization', () => {
     ).resolves.toEqual({ linked: true, phoneNumber: '917010133018' });
   });
 });
+
+describe('a provider avatar never replaces an uploaded profile picture', () => {
+  it('linking Truecaller writes avatar_url only; the uploaded avatar_path survives', async () => {
+    const uploaded = 'me/0b8c5f5e-6f1f-4c61-9d5e-0a8f0f7f2a11.webp';
+    const { svc, table } = build([
+      { id: 'me', phone: null, avatar_path: uploaded } as Row & { avatar_path: string },
+    ]);
+    await svc.linkTruecallerToUser('me', {
+      phoneNumber: '+917010133018',
+      avatarUrl: 'https://truecaller.example/pic.jpg',
+    });
+    const row: any = table.get('me');
+    expect(row.avatar_url).toBe('https://truecaller.example/pic.jpg');
+    expect(row.avatar_path).toBe(uploaded);
+  });
+});

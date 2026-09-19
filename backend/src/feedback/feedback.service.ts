@@ -31,6 +31,8 @@ function isMissingTable(err: any): boolean {
 /** What the app and the dashboard see — the entity plus signed image URLs. */
 export interface FeedbackView extends FeedbackReport {
   attachmentUrls: string[];
+  /** 400px thumbnails, same order as attachmentUrls. */
+  attachmentThumbUrls: string[];
 }
 
 @Injectable()
@@ -95,8 +97,8 @@ export class FeedbackService {
       });
       // The list does not sign attachments: it renders a paperclip count, not
       // thumbnails, so signing N reports × 3 images on every pull-to-refresh
-      // would be a round trip to Storage for pixels nobody looks at.
-      return rows.map((r) => ({ ...r, attachmentUrls: [] }));
+      // would be wasted signing for pixels nobody looks at.
+      return rows.map((r) => ({ ...r, attachmentUrls: [], attachmentThumbUrls: [] }));
     } catch (err) {
       if (isMissingTable(err)) {
         this.logger.warn('feedback_reports is missing — returning no reports.');
@@ -138,7 +140,7 @@ export class FeedbackService {
         take: query.limit ?? 50,
         skip: query.offset ?? 0,
       });
-      return rows.map((r) => ({ ...r, attachmentUrls: [] }));
+      return rows.map((r) => ({ ...r, attachmentUrls: [], attachmentThumbUrls: [] }));
     } catch (err) {
       if (isMissingTable(err)) {
         this.logger.warn('feedback_reports is missing — returning no reports.');
@@ -220,11 +222,9 @@ export class FeedbackService {
   }
 
   private async withUrls(report: FeedbackReport): Promise<FeedbackView> {
-    return {
-      ...report,
-      attachmentUrls: await this.storage.signAttachments(
-        report.attachmentPaths ?? [],
-      ),
-    };
+    const { full, thumb } = await this.storage.signAttachments(
+      report.attachmentPaths ?? [],
+    );
+    return { ...report, attachmentUrls: full, attachmentThumbUrls: thumb };
   }
 }

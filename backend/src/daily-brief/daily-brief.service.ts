@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional } from '@nestjs/common';
+import { AvatarService } from '../avatars/avatar.service';
 import { DataSource } from 'typeorm';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { roleSatisfies } from '../farm-access/farm-capability';
@@ -93,6 +94,8 @@ export class DailyBriefService {
     private readonly molt: MoltService,
     private readonly pondContext: PondContextService,
     private readonly calc: ShrimpCalculationsService,
+    // @Optional so the existing specs need no stub; always present in the app.
+    @Optional() private readonly avatars?: AvatarService,
   ) {}
 
   async get(userId: string, q: { date: string; farmId?: string }, now = new Date()): Promise<DailyBrief> {
@@ -782,6 +785,11 @@ export class DailyBriefService {
         completedAt: new Date(t.completed_at).toISOString(), completedByName: nameOf(completerOf(t)),
       })),
     };
+    // Pictures for the people rows: privacy + shared-farm checked server side.
+    const pics = await this.avatars?.resolve(userId, farmIds, done.people.map((p) => p.userId));
+    if (pics) {
+      done.people = done.people.map((p) => ({ ...p, avatarThumbUrl: pics.get(p.userId)?.avatarThumbUrl ?? null }));
+    }
 
     // ── molt roll-up ──
     const moltList = [...molts.values()];

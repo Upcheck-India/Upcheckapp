@@ -156,6 +156,7 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
                                 value={photos}
                                 onChange={setPhotos}
                                 existingUrls={editRecord?.photoSignedUrls}
+                                existingThumbs={editRecord?.photoThumbUrls}
                             />
                         </View>
                     )}

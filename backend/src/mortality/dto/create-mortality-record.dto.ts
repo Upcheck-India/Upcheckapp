@@ -55,7 +55,7 @@ export class CreateMortalityRecordDto {
   @IsIn(MORTALITY_CAUSES)
   suspectedCause?: string;
 
-  /** `health-photos` paths from POST /health-observations/photos/:pondId. */
+  /** `health/` photo paths from POST /health-observations/photos/:pondId. */
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(6)

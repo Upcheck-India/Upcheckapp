@@ -1,6 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { DiseaseService } from './disease.service';
 import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
+import { R2StorageService } from '../storage/r2-storage.service';
 
 const FARM_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const FARM_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -19,7 +20,7 @@ describe('DiseaseService — D6 record fields', () => {
       update: jest.fn().mockResolvedValue({ affected: 1 }),
       manager: { query: jest.fn().mockResolvedValue([{ farm_id: FARM_A }]) },
     };
-    const photos = new HealthPhotoStorageService({ get: () => undefined } as any);
+    const photos = new HealthPhotoStorageService(new R2StorageService({ get: () => undefined } as any));
     service = new DiseaseService({} as any, {} as any, repo, photos);
   });
 

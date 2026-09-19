@@ -14,6 +14,8 @@ export interface MortalityRecord {
     /** Private storage paths; `photoSignedUrls` are their short-lived URLs. */
     photoUrls?: string[];
     photoSignedUrls?: string[];
+    /** 400px thumbnails of `photoSignedUrls`, same order. */
+    photoThumbUrls?: string[];
 }
 
 export interface CreateMortalityRecordDto {

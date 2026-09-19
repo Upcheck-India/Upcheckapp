@@ -24,6 +24,8 @@ export interface DiseaseRecord {
     resolvedOn?: string | null;
     /** Signed, short-lived URLs of `photoUrls` (which are private paths). */
     photoSignedUrls?: string[];
+    /** 400px thumbnails of `photoSignedUrls`, same order. */
+    photoThumbUrls?: string[];
     /** Joined library row, so History can show the NAME, not the id. */
     disease?: { id: string; name: string } | null;
 }

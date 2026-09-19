@@ -21,6 +21,20 @@ export interface Profile {
     providers?: string[];
     /** The email is the internal Truecaller login address, not a real one. */
     emailIsInternal?: boolean;
+    // ── Profile picture, GET /profiles/me only (see MyAvatar) ──
+    avatarThumbUrl?: string | null;
+    hasUploadedAvatar?: boolean;
+    showAvatarToTeam?: boolean;
+}
+
+/** The caller's own picture: uploaded (signed, 1h) beats the Google/Truecaller one. */
+export interface MyAvatar {
+    avatarUrl: string | null;
+    avatarThumbUrl: string | null;
+    /** True when it is an uploaded picture (so it can be removed). */
+    hasUploadedAvatar: boolean;
+    /** Farm-mates see it only while this is on. Never public. */
+    showAvatarToTeam: boolean;
 }
 
 /**
@@ -115,6 +129,22 @@ export const profilesApi = {
 
     setMyPreferences: (patch: UserPreferences) =>
         apiClient.patch<UserPreferences>('/profiles/me/preferences', patch),
+
+    /** Upload a cropped, compressed JPEG as the caller's picture. Online only. */
+    uploadAvatar: (uri: string) => {
+        const form = new FormData();
+        form.append('file', { uri, name: 'avatar.jpg', type: 'image/jpeg' } as any);
+        return apiClient.post<MyAvatar>('/profiles/me/avatar', form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000,
+        });
+    },
+
+    /** Deletes the uploaded picture from the server and storage. */
+    removeAvatar: () => apiClient.delete<MyAvatar>('/profiles/me/avatar'),
+
+    setAvatarVisibility: (showAvatarToTeam: boolean) =>
+        apiClient.patch<MyAvatar>('/profiles/me/avatar-visibility', { showAvatarToTeam }),
 };
 
 /** Server-persisted, per-user preferences. Routes first-run; grants nothing. */

@@ -37,6 +37,7 @@ import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { useMembershipStore } from '../../store/membershipStore';
 import { apiErrorMessage } from '../../api/errors';
+import { Avatar } from '../../components/ui/Avatar';
 import { attendanceApi, type AttendanceRecord } from '../../api/attendance';
 import { farmMembersApi } from '../../api/farmMembers';
 import { leaveRequestsApi } from '../../api/leaveRequests';
@@ -241,17 +242,13 @@ export const AllWorkersScreen = ({ navigation }: any) => {
         return (
             <View style={styles.row}>
                 <View style={styles.rowTop}>
-                    <View style={[styles.avatar, item.pendingJoin && styles.avatarPending]}>
-                        <Icon
-                            name={item.pendingJoin ? 'person_add' : 'groups'}
-                            size={20}
-                            color={
-                                item.pendingJoin
-                                    ? theme.roles.light.warningText
-                                    : theme.roles.light.primary
-                            }
-                        />
-                    </View>
+                    {item.pendingJoin ? (
+                        <View style={[styles.avatar, styles.avatarPending]}>
+                            <Icon name="person_add" size={20} color={theme.roles.light.warningText} />
+                        </View>
+                    ) : (
+                        <Avatar uri={item.avatarThumbUrl} initials={item.initials} seed={item.userId} size={40} />
+                    )}
                     <View style={styles.rowText}>
                         <Text style={styles.name} numberOfLines={1}>
                             {item.isSelf ? t('team.youSuffix', { name: item.name }) : item.name}

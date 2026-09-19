@@ -14,6 +14,7 @@ const common = {
   share: 'షేర్ చేయి',
   add: 'జోడించు',
   close: 'మూసివేయి',
+  viewPhoto: 'ఫోటో చూడండి',
   confirm: 'నిర్ధారించు',
   back: 'వెనుకకు',
   featureUnavailable: 'ప్రస్తుతం అందుబాటులో లేదు',

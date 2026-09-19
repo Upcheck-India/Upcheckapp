@@ -61,5 +61,16 @@ services:
       # is the intended failure. Never let this reach a browser bundle.
       - key: ADMIN_API_KEY
         sync: false
+      # Cloudflare R2 photo storage (backend/src/storage/r2-storage.service.ts).
+      # Not boot-critical: unset means photo uploads 503 and reads show no
+      # photos. Token scoped to the upcheck-photos bucket, Object Read & Write.
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
   # Note: a former "otp-cleanup" cron was removed — OTP login is Supabase-native
   # and 2FA pending/temp tokens auto-expire in Redis, so there is nothing to prune.

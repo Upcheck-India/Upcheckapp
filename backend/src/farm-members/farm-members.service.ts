@@ -19,6 +19,7 @@ import { User } from '../auth/user.entity';
 import { Farm } from '../farms/farm.entity';
 import { Pond } from '../ponds/pond.entity';
 import { AddMemberDto, AssignableRole } from './dto/add-member.dto';
+import { AvatarService } from '../avatars/avatar.service';
 
 /** Public-safe view of a user (never exposes auth/email/phone beyond display). */
 export interface PublicUser {
@@ -26,7 +27,9 @@ export interface PublicUser {
   firstName: string | null;
   lastName: string | null;
   username: string | null;
+  /** Only set on member lists, and only when the viewer may see it. */
   avatarUrl: string | null;
+  avatarThumbUrl: string | null;
 }
 
 const toPublicUser = (u: User): PublicUser => ({
@@ -34,7 +37,8 @@ const toPublicUser = (u: User): PublicUser => ({
   firstName: u.firstName,
   lastName: u.lastName,
   username: u.username,
-  avatarUrl: u.avatarUrl,
+  avatarUrl: null,
+  avatarThumbUrl: null,
 });
 
 // Every lookup here only ever needs the fields toPublicUser() reads. A bare
@@ -50,7 +54,8 @@ const PUBLIC_USER_SELECT = {
   firstName: true,
   lastName: true,
   username: true,
-  avatarUrl: true,
+  // No avatarUrl: pictures go only through AvatarService, which applies the
+  // owner's privacy setting and the shared-farm check.
 } as const;
 
 @Injectable()
@@ -65,6 +70,7 @@ export class FarmMembersService {
     @InjectRepository(Pond)
     private readonly pondsRepo: Repository<Pond>,
     private readonly farmAccess: FarmAccessService,
+    private readonly avatars: AvatarService,
   ) {}
 
   /** Resolve one user by unique id (QR payload), else phone, else email. */
@@ -326,6 +332,13 @@ export class FarmMembersService {
       members.map((m) => m.id),
     );
 
+    // Pictures for the whole roster: one query + one local signing pass.
+    const avatars = await this.avatars.resolve(
+      callerId,
+      [farmId],
+      members.map((m) => m.userId),
+    );
+
     return members.map((m) => ({
       id: m.id,
       farmId: m.farmId,
@@ -335,7 +348,9 @@ export class FarmMembersService {
       // Empty = every pond on the farm. Owners and managers are never scoped.
       pondIds: scopes.get(m.id) ?? [],
       createdAt: m.createdAt,
-      user: userById.has(m.userId) ? toPublicUser(userById.get(m.userId)!) : null,
+      user: userById.has(m.userId)
+        ? { ...toPublicUser(userById.get(m.userId)!), ...avatars.get(m.userId) }
+        : null,
     }));
   }
 

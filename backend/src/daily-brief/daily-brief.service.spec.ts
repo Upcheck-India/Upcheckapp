@@ -481,6 +481,18 @@ describe('DailyBriefService — what we did', () => {
     expect(people[2]).toMatchObject({ name: 'Chetan', counts: {}, tasksDone: 0, shift: { checkIn: '2026-09-14T02:00:00.000Z', checkOut: '2026-09-14T11:00:00.000Z', hours: 9 } });
   });
 
+  it('people carry the picture AvatarService allows the caller, resolved once for everyone', async () => {
+    const { svc } = build({ rows });
+    const resolve = jest.fn().mockResolvedValue(
+      new Map([['u2', { avatarUrl: 'https://r2/u2.webp?s', avatarThumbUrl: 'https://r2/u2.thumb.webp?s' }]]),
+    );
+    (svc as any).avatars = { resolve };
+    const people = (await svc.get('u1', { date: D }, NOW)).done!.people;
+    expect(resolve).toHaveBeenCalledTimes(1);
+    expect(resolve).toHaveBeenCalledWith('u1', [FARM], ['u2', 'u1', 'u3']);
+    expect(people.map((p) => p.avatarThumbUrl)).toEqual(['https://r2/u2.thumb.webp?s', null, null]);
+  });
+
   it('a worker caller gets shift null and no attendance read', async () => {
     const { svc, calls } = build({ rows, role: 'worker' });
     const brief = await svc.get('u1', { date: D }, NOW);

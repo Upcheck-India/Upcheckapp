@@ -70,7 +70,8 @@ describe('existing attachments still display', () => {
         const { getAllByTestId, getByText, queryByText } = renderScreen();
 
         await waitFor(() => expect(getAllByTestId('feedback-photo')).toHaveLength(2));
-        expect(getAllByTestId('feedback-photo')[0].props.source).toEqual({
+        // No thumbnails from this (older) server: the full URL stands in.
+        expect([].concat(getAllByTestId('feedback-photo')[0].props.source)[0]).toMatchObject({
             uri: 'https://signed/a.jpg',
         });
         expect(getByText('Photos')).toBeTruthy();

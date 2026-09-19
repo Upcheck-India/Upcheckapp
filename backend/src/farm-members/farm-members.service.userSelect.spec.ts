@@ -6,6 +6,7 @@ import { User } from '../auth/user.entity';
 import { Farm } from '../farms/farm.entity';
 import { Pond } from '../ponds/pond.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { AvatarService } from '../avatars/avatar.service';
 
 /**
  * Live-incident regression: "Add Worker" 500'd because every usersRepo
@@ -22,19 +23,20 @@ describe('FarmMembersService — user lookups never select unused columns', () =
   let membersRepo: { findOne: jest.Mock; find?: jest.Mock; create?: jest.Mock; save?: jest.Mock };
   let farmsRepo: { findOne: jest.Mock };
   let farmAccess: Record<string, jest.Mock>;
+  let avatars: { resolve: jest.Mock };
 
   const PUBLIC_USER_SELECT = {
     id: true,
     firstName: true,
     lastName: true,
     username: true,
-    avatarUrl: true,
   };
 
   beforeEach(async () => {
     usersRepo = { findOne: jest.fn() };
     membersRepo = { findOne: jest.fn() };
     farmsRepo = { findOne: jest.fn() };
+    avatars = { resolve: jest.fn().mockResolvedValue(new Map()) };
     farmAccess = {
       // listMembers batches pond scopes for the roster.
       getPondScopesForMembers: jest.fn().mockResolvedValue(new Map()),
@@ -50,6 +52,7 @@ describe('FarmMembersService — user lookups never select unused columns', () =
         { provide: getRepositoryToken(Farm), useValue: farmsRepo },
         { provide: getRepositoryToken(Pond), useValue: { find: jest.fn() } },
         { provide: FarmAccessService, useValue: farmAccess },
+        { provide: AvatarService, useValue: avatars },
       ],
     }).compile();
 
@@ -131,8 +134,41 @@ describe('FarmMembersService — user lookups never select unused columns', () =
       expect.objectContaining({ select: PUBLIC_USER_SELECT }),
     );
     expect(result[0].user).toEqual({
-      id: 'u1', firstName: 'A', lastName: 'B', username: 'ab', avatarUrl: null,
+      id: 'u1', firstName: 'A', lastName: 'B', username: 'ab', avatarUrl: null, avatarThumbUrl: null,
     });
+  });
+
+  it('listMembers asks AvatarService (viewer + this farm) for the roster in one batch', async () => {
+    membersRepo.find = jest.fn().mockResolvedValue([
+      { id: 'm1', farmId: 'farm-1', userId: 'u1', role: 'worker', createdAt: new Date() },
+      { id: 'm2', farmId: 'farm-1', userId: 'u2', role: 'worker', createdAt: new Date() },
+    ]);
+    usersRepo.find = jest.fn().mockResolvedValue([
+      { id: 'u1', firstName: 'A', lastName: 'B', username: 'ab' },
+      { id: 'u2', firstName: 'C', lastName: 'D', username: 'cd' },
+    ]);
+    avatars.resolve.mockResolvedValue(
+      new Map([
+        ['u1', { avatarUrl: 'https://r2/u1.webp?sig', avatarThumbUrl: 'https://r2/u1.thumb.webp?sig' }],
+        ['u2', { avatarUrl: null, avatarThumbUrl: null }],
+      ]),
+    );
+
+    const result = await service.listMembers('farm-1', 'viewer-1');
+
+    expect(avatars.resolve).toHaveBeenCalledTimes(1);
+    expect(avatars.resolve).toHaveBeenCalledWith('viewer-1', ['farm-1'], ['u1', 'u2']);
+    expect(result[0].user).toMatchObject({ avatarThumbUrl: 'https://r2/u1.thumb.webp?sig' });
+    expect(result[1].user).toMatchObject({ avatarUrl: null, avatarThumbUrl: null });
+  });
+
+  it('lookupUser (someone not yet on the farm) never returns a picture', async () => {
+    usersRepo.findOne.mockResolvedValue({
+      id: 'u9', firstName: 'X', lastName: 'Y', username: 'xy', avatarUrl: 'https://lh3.googleusercontent.com/a/p',
+    });
+    const user = await service.lookupUser({ userId: 'u9' });
+    expect(user.avatarUrl).toBeNull();
+    expect(user.avatarThumbUrl).toBeNull();
   });
 
   it('listMembers does not query users at all when the farm has no members', async () => {
