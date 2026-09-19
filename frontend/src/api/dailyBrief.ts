@@ -185,6 +185,8 @@ export interface PersonDay {
     /** Ponds they logged anything in. */
     pondIds: string[];
     tasksDone: number;
+    /** Their picture, when the server allows this viewer to see it. */
+    avatarThumbUrl?: string | null;
 }
 
 export interface PondWork {

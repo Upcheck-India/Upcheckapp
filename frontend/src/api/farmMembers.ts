@@ -12,7 +12,12 @@ export interface PublicUser {
     firstName: string | null;
     lastName: string | null;
     username: string | null;
+    /**
+     * Their picture, only on member lists and only when the server allows it
+     * (their "show to my farm team" setting + a shared farm). Else null.
+     */
     avatarUrl: string | null;
+    avatarThumbUrl?: string | null;
 }
 
 /** Whether a membership grants anything yet. See backend FarmMemberStatus. */

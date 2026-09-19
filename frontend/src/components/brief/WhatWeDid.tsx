@@ -10,6 +10,7 @@ import { theme } from '../../theme';
 import type { DailyBrief } from '../../api/dailyBrief';
 import { fmtNum, istTime, shiftLine, workLine } from '../../features/dailyBriefText';
 import { Section, HIT, c } from './Section';
+import { Avatar } from '../ui/Avatar';
 
 const LIMIT = 3;
 
@@ -47,9 +48,13 @@ export const WhatWeDid: React.FC<{ brief: DailyBrief; names: Record<string, stri
                         .join(' ');
                     return (
                         <View key={p.userId} style={styles.row} testID={`done-person-${p.userId}`}>
-                            <View style={styles.avatar}>
-                                <Text style={styles.avatarText}>{(p.name.trim()[0] ?? '?').toUpperCase()}</Text>
-                            </View>
+                            <Avatar
+                                uri={p.avatarThumbUrl}
+                                initials={(p.name.trim()[0] ?? '?').toUpperCase()}
+                                seed={p.userId}
+                                size={32}
+                                testID={`done-avatar-${p.userId}`}
+                            />
                             <View style={styles.body}>
                                 <Text style={styles.main}>
                                     {p.name}
@@ -114,8 +119,6 @@ export const WhatWeDid: React.FC<{ brief: DailyBrief; names: Record<string, stri
 const styles = StyleSheet.create({
     sub: { ...theme.typeScale.labelMedium, color: c.textTertiary, marginTop: theme.spacing[2], textTransform: 'uppercase' },
     row: { flexDirection: 'row', gap: theme.spacing[3], paddingVertical: theme.spacing[2], alignItems: 'flex-start' },
-    avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: c.surfaceVariant, alignItems: 'center', justifyContent: 'center' },
-    avatarText: { ...theme.typeScale.labelLarge, color: c.textPrimary },
     body: { flex: 1, minWidth: 0 },
     main: { ...theme.typeScale.bodyMedium, color: c.textPrimary, fontFamily: 'DMSans-SemiBold' },
     role: { ...theme.typeScale.bodySmall, color: c.textTertiary },

@@ -33,7 +33,8 @@ import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { todayLocalISODate } from '../../utils/localDate';
-import { personName } from '../../utils/personName';
+import { personName, personInitials } from '../../utils/personName';
+import { Avatar } from '../../components/ui/Avatar';
 // Not `toLocaleTimeString(undefined, …)`: that asks for the DEVICE locale, and
 // Hermes ships without full ICU data for every Indian language — the same call
 // is what took the Simulations screen down in Tamil. formatDate.ts formats in
@@ -62,6 +63,9 @@ const elapsedSince = (iso: string): string => {
 interface TeamRow {
     userId: string;
     name: string;
+    initials: string;
+    /** From the member list, only when the server allows it. */
+    avatarThumbUrl: string | null;
     /** Every shift today, oldest first. Empty means they have not come in. */
     shifts: AttendanceRecord[];
 }
@@ -133,6 +137,8 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
             return members.map((m) => ({
                 userId: m.userId,
                 name: personName(m.user, t('attendance.unknownPerson')),
+                initials: personInitials(m.user),
+                avatarThumbUrl: m.user?.avatarThumbUrl ?? null,
                 shifts: byUser.get(m.userId) ?? [],
             }));
         }
@@ -141,6 +147,8 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
         return [...byUser.entries()].map(([userId, shifts]) => ({
             userId,
             name: personName(shifts[0]?.user, t('attendance.unknownPerson')),
+            initials: personInitials(shifts[0]?.user),
+            avatarThumbUrl: null,
             shifts,
         }));
     }, [members, teamToday, t]);
@@ -277,6 +285,7 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
                                     if (row.shifts.length === 0) {
                                         return (
                                             <View key={row.userId} style={styles.row}>
+                                                <Avatar uri={row.avatarThumbUrl} initials={row.initials} seed={row.userId} size={28} style={styles.rowAvatar} />
                                                 <Text style={[styles.name, styles.absent]} numberOfLines={1}>
                                                     {label}
                                                 </Text>
@@ -292,6 +301,11 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
                                     // duplicate of them.
                                     return row.shifts.map((shift, i) => (
                                         <View key={shift.id} style={styles.row}>
+                                            {i === 0 ? (
+                                                <Avatar uri={row.avatarThumbUrl} initials={row.initials} seed={row.userId} size={28} style={styles.rowAvatar} />
+                                            ) : (
+                                                <View style={[styles.rowAvatar, { width: 28 }]} />
+                                            )}
                                             <Text style={styles.name} numberOfLines={1}>
                                                 {i === 0 ? label : ''}
                                             </Text>
@@ -458,6 +472,7 @@ const styles = StyleSheet.create({
         borderTopColor: theme.roles.light.surfaceVariant,
         minHeight: 44,
     },
+    rowAvatar: { marginRight: theme.spacing[2] },
     name: { ...theme.typeScale.labelLarge, flex: 1, minWidth: 0, color: theme.roles.light.textPrimary },
     absent: { color: theme.roles.light.textDisabled },
     noRecord: { ...theme.typeScale.bodySmall, color: theme.roles.light.textDisabled },

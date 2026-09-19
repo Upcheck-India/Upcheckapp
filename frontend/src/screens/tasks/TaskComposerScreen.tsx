@@ -36,7 +36,8 @@ import { apiErrorMessage } from '../../api/errors';
 import { fetchTeamOverview } from '../../api/teamOverview';
 import { pondsApi, type Pond } from '../../api/ponds';
 import type { FarmMember } from '../../api/farmMembers';
-import { personName } from '../../utils/personName';
+import { personName, personInitials } from '../../utils/personName';
+import { Avatar } from '../../components/ui/Avatar';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAppQuery } from '../../query/hooks';
 import { qk } from '../../query/client';
@@ -344,6 +345,9 @@ export const TaskComposerScreen = ({ route, navigation }: any) => {
                                     options={members.map((m) => ({
                                         value: m.userId,
                                         label: personName(m.user, t('team.unknownPerson')),
+                                        leading: (
+                                            <Avatar uri={m.user?.avatarThumbUrl} initials={personInitials(m.user)} seed={m.userId} size={22} />
+                                        ),
                                     }))}
                                     value={validAssignees}
                                     onChange={(v: string[]) => setAssignees(v)}
