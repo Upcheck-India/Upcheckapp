@@ -72,6 +72,8 @@ export interface AnalyticsProps {
     role?: FarmRole;
     /** A bucketed quantity. Use sizeBand(); exact counts are not representable. */
     band?: SizeBand;
+    /** An alert's level (disease_alert_raised). A UI severity, not a farm fact. */
+    severity?: 'watch' | 'critical';
 }
 
 const ALLOWED_PROPS: (keyof AnalyticsProps)[] = [
@@ -85,6 +87,7 @@ const ALLOWED_PROPS: (keyof AnalyticsProps)[] = [
     'reason',
     'role',
     'band',
+    'severity',
 ];
 
 /**
@@ -240,6 +243,10 @@ export const EVENTS = {
     // Reliability — problems that are not crashes, so Sentry never sees them.
     SAVE_FAILED: 'save_failed',
     SYNC_QUEUE_DRAINED: 'sync_queue_drained',
+
+    // Validation (disease spec D7): did a Critical precede a confirmed case?
+    // `kind` = the disease code, `severity` = watch | critical. Never a pond id.
+    DISEASE_ALERT_RAISED: 'disease_alert_raised',
 } as const;
 
 export type AnalyticsEvent = (typeof EVENTS)[keyof typeof EVENTS];

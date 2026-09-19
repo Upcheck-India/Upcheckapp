@@ -7,19 +7,27 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DiseaseRiskSnapshot } from './disease-risk-snapshot.entity';
 import { PondsService } from '../ponds/ponds.service';
+import type { TextKey } from '../molt/molt.service';
 
 /**
- * Flat indicator set derived from a pond's latest data + trends. The derivation
- * (computing `*Up` slopes, threshold crossings) happens upstream; the engine
- * only maps indicators → per-disease scores, so it stays pure and testable.
+ * Flat indicator set. `DiseaseIndicatorsService.derive` fills it from the
+ * pond's logs (D7); the engine only maps indicators → per-disease scores, so
+ * it stays pure and testable.
+ *
+ * `undefined` = UNKNOWN (no data), never "false": it lowers coverage, not the
+ * score. `regionalWssv` / `regionWfd` / `hpStress` have no data source yet and
+ * stay unknown (regional data needs the location strategy).
  */
 export interface DiseaseIndicators {
   // WSSV
+  /** Kept name: now "temperature fell ≥ 2 °C between readings < 24 h apart, last 3 IST days". */
   tempDrop3in48h?: boolean;
   doBelow4?: boolean;
   seasonWinter?: boolean;
   regionalWssv?: boolean;
   redBody?: boolean;
+  /** Biosecurity prep < 50 % done, or seed not PCR-tested / positive for WSSV (D5). */
+  entryRisk?: boolean;
   // AHPND
   docBelow35?: boolean;
   yellowVibrioUp?: boolean;
@@ -54,25 +62,44 @@ export type DiseaseName =
   | 'RMS'
   | 'LSS';
 
+export type IndicatorKey = keyof DiseaseIndicators;
+
+/** Why a TRUE indicator fired, as an app i18n key + params ("fell 2.4 °C on 18/09"). */
+export type IndicatorEvidence = Partial<Record<IndicatorKey, TextKey>>;
+
 export interface DiseaseRisk {
   disease: DiseaseName;
   score: number; // 0..100
   band: 'Low' | 'Watch' | 'Critical';
   triggers: Array<keyof DiseaseIndicators>;
   steps: string[];
+  /** How many of this disease's indicators had data. */
+  coverage: { known: number; total: number };
+  /** One per trigger, in plain words (6 locales). */
+  triggerKeys: TextKey[];
+  /** One per step (6 locales); `steps` stays the English. */
+  stepKeys: TextKey[];
 }
 
-/** Per-disease weighted indicator signatures (farmer_features_spec.md §2). */
+/**
+ * Per-disease weighted indicator signatures (farmer_features_spec.md §2).
+ *
+ * ponytail: hand weights, calibrate against disease outcomes (D6) later.
+ * Rebalanced (D7) so every disease can reach Critical (≥ 60) from indicators
+ * the app can derive — WFD was capped at 40 while vibrioUp / ehpRiskUp were
+ * never set. Each disease's weights still sum to 1.
+ */
 const SIGNATURES: Record<
   DiseaseName,
   Array<{ indicator: keyof DiseaseIndicators; weight: number }>
 > = {
   WSSV: [
     { indicator: 'tempDrop3in48h', weight: 0.3 },
-    { indicator: 'doBelow4', weight: 0.15 },
-    { indicator: 'seasonWinter', weight: 0.2 },
-    { indicator: 'regionalWssv', weight: 0.2 },
-    { indicator: 'redBody', weight: 0.15 },
+    { indicator: 'doBelow4', weight: 0.1 },
+    { indicator: 'seasonWinter', weight: 0.1 },
+    { indicator: 'regionalWssv', weight: 0.15 },
+    { indicator: 'redBody', weight: 0.2 },
+    { indicator: 'entryRisk', weight: 0.15 },
   ],
   AHPND: [
     { indicator: 'docBelow35', weight: 0.25 },
@@ -140,7 +167,92 @@ const STEPS: Record<DiseaseName, string[]> = {
   ],
 };
 
+export const DISEASES = Object.keys(SIGNATURES) as DiseaseName[];
+
+/** Every indicator any signature reads — the denominator of overall coverage. */
+export const ALL_INDICATORS = [
+  ...new Set(DISEASES.flatMap((d) => SIGNATURES[d].map((s) => s.indicator))),
+];
+
+/** No data source yet: always unknown (regional data needs district + k≥5). */
+export const NOT_DERIVABLE: IndicatorKey[] = ['regionalWssv', 'regionWfd', 'hpStress'];
+
+/** Field rule of thumb, uncalibrated (E4): score ≥ 60 Critical, ≥ 30 Watch. */
+const CRITICAL_AT = 60;
+const WATCH_AT = 30;
+/** Field rule of thumb, uncalibrated: EHP at Watch or above feeds WFD. */
+const EHP_FEEDS_WFD_AT = 30;
+
 const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/** Share of the indicators that have data (known = true or false). */
+export const coverageOf = (indicators: DiseaseIndicators, keys: IndicatorKey[]) => ({
+  known: keys.filter((k) => indicators[k] !== undefined).length,
+  total: keys.length,
+});
+
+function scoreOne(
+  disease: DiseaseName,
+  indicators: DiseaseIndicators,
+  evidence: IndicatorEvidence,
+): DiseaseRisk {
+  const triggers: IndicatorKey[] = [];
+  let sum = 0;
+  for (const { indicator, weight } of SIGNATURES[disease]) {
+    if (indicators[indicator]) {
+      sum += weight;
+      triggers.push(indicator);
+    }
+  }
+  const score = round1(100 * sum);
+  const band: DiseaseRisk['band'] =
+    score >= CRITICAL_AT ? 'Critical' : score >= WATCH_AT ? 'Watch' : 'Low';
+  return {
+    disease,
+    score,
+    band,
+    triggers,
+    steps: STEPS[disease],
+    coverage: coverageOf(indicators, SIGNATURES[disease].map((s) => s.indicator)),
+    triggerKeys: triggers.map(
+      (i) => evidence[i] ?? { key: `engines.disease.why_${i}` },
+    ),
+    stepKeys: STEPS[disease].map((_, i) => ({
+      key: `engines.disease.step_${disease}_${i}`,
+    })),
+  };
+}
+
+/**
+ * `ehpRiskUp` = EHP scored ≥ 30 in the same run. TRUE when it did; FALSE only
+ * when it could not have, even if every unknown EHP indicator were true;
+ * otherwise unknown.
+ */
+function withEhpRisk(
+  indicators: DiseaseIndicators,
+  evidence: IndicatorEvidence,
+): [DiseaseIndicators, IndicatorEvidence] {
+  if (indicators.ehpRiskUp !== undefined) return [indicators, evidence];
+  const ehp = scoreOne('EHP', indicators, evidence);
+  const unknownWeight = SIGNATURES.EHP.filter(
+    (s) => indicators[s.indicator] === undefined,
+  ).reduce((a, s) => a + s.weight, 0);
+  const ehpRiskUp =
+    ehp.score >= EHP_FEEDS_WFD_AT
+      ? true
+      : ehp.score + 100 * unknownWeight < EHP_FEEDS_WFD_AT
+        ? false
+        : undefined;
+  return [
+    { ...indicators, ehpRiskUp },
+    ehpRiskUp
+      ? {
+          ...evidence,
+          ehpRiskUp: { key: 'engines.disease.why_ehpRiskUp', params: { score: ehp.score } },
+        }
+      : evidence,
+  ];
+}
 
 @Injectable()
 export class DiseaseWarningService {
@@ -154,24 +266,14 @@ export class DiseaseWarningService {
    * Score every disease from the indicator set and return them ranked
    * high→low. score = 100 × Σ(weight where indicator matched).
    */
-  computeRisks(indicators: DiseaseIndicators): DiseaseRisk[] {
-    const risks: DiseaseRisk[] = (Object.keys(SIGNATURES) as DiseaseName[]).map(
-      (disease) => {
-        const triggers: Array<keyof DiseaseIndicators> = [];
-        let sum = 0;
-        for (const { indicator, weight } of SIGNATURES[disease]) {
-          if (indicators[indicator]) {
-            sum += weight;
-            triggers.push(indicator);
-          }
-        }
-        const score = round1(100 * sum);
-        const band: DiseaseRisk['band'] =
-          score >= 60 ? 'Critical' : score >= 30 ? 'Watch' : 'Low';
-        return { disease, score, band, triggers, steps: STEPS[disease] };
-      },
+  computeRisks(
+    indicators: DiseaseIndicators,
+    evidence: IndicatorEvidence = {},
+  ): DiseaseRisk[] {
+    const [ind, ev] = withEhpRisk(indicators, evidence);
+    return DISEASES.map((d) => scoreOne(d, ind, ev)).sort(
+      (a, b) => b.score - a.score,
     );
-    return risks.sort((a, b) => b.score - a.score);
   }
 
   /**
@@ -228,6 +330,25 @@ export class DiseaseWarningService {
       risks,
     });
     return this.repo.save(snap);
+  }
+
+  /**
+   * Keep ONE derived snapshot per pond per IST day (the latest read wins), so
+   * outcomes (D6) can later be checked against what the app said that day.
+   * No access check: the caller already cleared the pond.
+   */
+  async saveDaily(
+    pondId: string,
+    cropId: string | null,
+    date: string,
+    risks: DiseaseRisk[],
+  ): Promise<void> {
+    const existing = await this.repo.findOne({ where: { pondId, date } });
+    await this.repo.save(
+      existing
+        ? Object.assign(existing, { cropId, risks })
+        : this.repo.create({ pondId, cropId, date, risks }),
+    );
   }
 
   async recent(pondId: string, userId: string): Promise<DiseaseRiskSnapshot[]> {
