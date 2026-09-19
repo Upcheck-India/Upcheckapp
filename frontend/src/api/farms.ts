@@ -25,6 +25,8 @@ export interface Farm {
     shiftEndLocal?: string | null;
     /** Fallback shift length in hours when shiftEndLocal is unset or the check-in is late. Default 9. */
     shiftHours?: number;
+    /** D4: printed on the cycle input record. Owner-only edit. Absent from older backends. */
+    caaRegistrationNo?: string | null;
     createdAt: string;
     updatedAt: string;
     /** Set while the farm is archived — it drops out of every list and total. */
@@ -63,6 +65,8 @@ export interface UpdateFarmDto extends Partial<CreateFarmDto> {
     shiftEndLocal?: string | null;
     /** 1–16. */
     shiftHours?: number;
+    /** D4. Owner only; null clears. */
+    caaRegistrationNo?: string | null;
 }
 
 export const farmsApi = {

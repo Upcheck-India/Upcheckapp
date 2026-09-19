@@ -78,6 +78,10 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
     const editRole = useMembershipStore((st) => st.grantForFarm(editFarmId).role);
     const canEditShift = isEdit && canDecideOnTeam(editRole);
     const [shiftEnd, setShiftEnd] = useState('');
+    // D4: CAA registration number — owner only (the backend refuses managers).
+    const canEditCaa = isEdit && editRole === 'owner';
+    const [caaNo, setCaaNo] = useState('');
+    const [loadedCaa, setLoadedCaa] = useState('');
     const [shiftHours, setShiftHours] = useState(DEFAULT_SHIFT_HOURS);
     /** As loaded, so only a CHANGE is sent — an older backend never sees the fields. */
     const [loadedShift, setLoadedShift] = useState<{ end: string; hours: number }>({ end: '', hours: DEFAULT_SHIFT_HOURS });
@@ -104,6 +108,8 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                 setShiftEnd(loaded.end);
                 setShiftHours(loaded.hours);
                 setLoadedShift(loaded);
+                setCaaNo(data.caaRegistrationNo ?? '');
+                setLoadedCaa(data.caaRegistrationNo ?? '');
             })
             .catch(() => {
                 Alert.alert(t('common.error'), t('farms.errorLoadFarm'));
@@ -212,7 +218,9 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                 // change. Managers send the shift and nothing else.
                 // Keyed on 'manager', not "not owner": a role not loaded yet must
                 // never silently drop an owner's name/address edits.
-                await farmsApi.update(editFarmId!, editRole === 'manager' ? shift : { ...editable, ...shift });
+                // CAA only when changed, so an older backend never sees it.
+                const caa = canEditCaa && caaNo.trim() !== loadedCaa ? { caaRegistrationNo: caaNo.trim() || null } : {};
+                await farmsApi.update(editFarmId!, editRole === 'manager' ? shift : { ...editable, ...shift, ...caa });
                 showToast({ message: t('farms.farmSavedToast', { name: name.trim() }), type: 'success' });
                 navigation.goBack();
                 return;
@@ -331,6 +339,16 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                     <View style={styles.mapSlot}>
                         <Text style={styles.mapSlotText}>{t('farms.mapPlaceholder')}</Text>
                     </View>
+                )}
+
+                {canEditCaa && (
+                    <Input
+                        label={t('farms.fieldCaaNo')}
+                        value={caaNo}
+                        onChangeText={setCaaNo}
+                        hint={t('farms.caaHint')}
+                        testID="farm-caa-no"
+                    />
                 )}
 
                 <Input
