@@ -142,6 +142,7 @@ const finance = {
   // farm-level transaction has no pond, so it cannot be — say which is which
   // rather than let the mixture read as "there is no archived money here".
   entriesArchivedNote: "Archived ponds are counted in the totals above. A pond's own costs are marked archived in the list; an entry recorded against the farm has no pond to mark.",
+  duplicateHarvestIncome: "Possible duplicate harvest income in {{count}} cycle(s): a completed harvest plan and a logged harvest are both counted. Check the entries before relying on the total.",
   includeInventory: "Count inventory purchases",
   includeInventoryHint: "Stock you buy counts as an expense on the day you buy it.",
   includeInventoryOff: "Stock purchases are left out of the figures above.",

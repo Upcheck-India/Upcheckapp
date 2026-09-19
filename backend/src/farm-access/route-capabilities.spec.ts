@@ -200,6 +200,17 @@ const ROUTES: Row[] = [
       capability: 'RECORD_HARVEST',
     },
   ],
+  // H4: the app gates plan delete on RECORD_HARVEST; the server must agree.
+  [
+    HarvestPlansController,
+    'remove',
+    {
+      entityType: 'HarvestPlan',
+      paramName: 'id',
+      ownerPath: 'pond.farm.userId',
+      capability: 'RECORD_HARVEST',
+    },
+  ],
 ];
 
 const metaFor = (

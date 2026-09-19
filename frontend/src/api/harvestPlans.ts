@@ -41,15 +41,8 @@ export const harvestPlansApi = {
     update: (id: string, data: Partial<Omit<CreateHarvestPlanDto, 'pondId' | 'cropId'>>) =>
         apiClient.patch<HarvestPlan>(`/harvest-plans/${id}`, data),
 
-    complete: (id: string, payload: {
-        actualHarvestDate: Date;
-        actualWeightKg: number;
-        actualPricePerKg: number;
-        farmId: string;
-        cropId?: string;
-    }) =>
-        apiClient.patch<HarvestPlan>(`/harvest-plans/${id}/complete`, payload),
-
+    // No `complete`: a plan is completed by logging its harvest (H4) —
+    // HarvestLog sends `planId` on POST /harvests.
     delete: (id: string) =>
         apiClient.delete(`/harvest-plans/${id}`),
 };

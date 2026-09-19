@@ -89,6 +89,9 @@ const logs = {
   harvest_validationWeight: 'वजन आवश्यक है',
   harvest_errorSave: 'कटाई दर्ज करने में विफल। कृपया पुनः प्रयास करें।',
   harvest_errorCycleClosed: 'यह चक्र पहले ही बंद हो चुका है। कटाई सहेजी नहीं गई।',
+  harvest_fromPlan: "यह कटाई सहेजने पर {{date}} की कटाई योजना पूरी हो जाएगी।",
+  harvest_planAlreadyCompleted: "कटाई सहेजी गई। योजना किसी दूसरे डिवाइस पर पहले ही पूरी हो चुकी थी — संभावित दोहरी आय के लिए पैसा (Money) देखें।",
+  harvest_planNotLinked: "कटाई सहेजी गई, पर इसे कटाई योजना से जोड़ा नहीं जा सका।",
   // Graded harvest record + harvest drives the pond (harvest-and-molt H1/H2).
   harvest_labelDate: 'हार्वेस्ट की तारीख',
   harvest_gradeTitle: 'ग्रेड {{n}}',

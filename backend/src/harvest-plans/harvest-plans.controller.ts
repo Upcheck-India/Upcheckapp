@@ -54,6 +54,9 @@ export class HarvestPlansController {
   // RECORD_HARVEST, not WRITE_MANAGEMENT: completing a plan closes the cycle
   // and books the sale. On WRITE_MANAGEMENT a manager whose RECORD_HARVEST the
   // owner had revoked could still harvest through here.
+  // H4 compatibility shim for old app builds — it now logs a harvest (see
+  // HarvestPlansService.completePlan). TODO(H4, next release): 410 Gone
+  // `{ code: 'USE_HARVEST_LOG' }`.
   @Patch(':id/complete')
   @UseGuards(OwnershipGuard)
   @OwnsResource('HarvestPlan', 'id', 'pond.farm.userId', 'RECORD_HARVEST')
@@ -65,9 +68,11 @@ export class HarvestPlansController {
     return this.harvestPlansService.completePlan(id, payload, user.id);
   }
 
+  // RECORD_HARVEST, same as the harvest that completes a plan (H4) — the app
+  // gates the delete and "Mark complete" buttons on the same capability.
   @Delete(':id')
   @UseGuards(OwnershipGuard)
-  @OwnsResource('HarvestPlan', 'id', 'pond.farm.userId', 'WRITE_MANAGEMENT')
+  @OwnsResource('HarvestPlan', 'id', 'pond.farm.userId', 'RECORD_HARVEST')
   remove(@Param('id') id: string) {
     return this.harvestPlansService.remove(id);
   }

@@ -31,6 +31,7 @@ function makeService(over: any = {}) {
   const credit = { list: jest.fn().mockResolvedValue(over.credit ?? []) };
   const harvests = {
     findMoneyEntries: jest.fn().mockResolvedValue(over.harvests ?? []),
+    planIncomeOverlaps: jest.fn().mockResolvedValue(over.overlaps ?? []),
   };
   const expenses = {
     findMoneyEntries: jest.fn().mockResolvedValue(over.expenses ?? []),
@@ -359,6 +360,29 @@ describe('MoneyOverviewService', () => {
 
       expect(out.inventoryExpenses).toBe(4500);
     });
+  });
+
+  // H4: a pre-H4 plan completion booked a transaction; a harvest on the same
+  // cycle is also revenue. Flagged on the farm's report, not silently summed.
+  it('flags a cycle with both a plan-income transaction and a harvest', async () => {
+    const overlap = { cropId: 'c1', pondId: 'p1' };
+    const { svc, harvests } = makeService({ overlaps: [overlap] });
+
+    const out: any = await svc.forUser('u');
+
+    expect(harvests.planIncomeOverlaps).toHaveBeenCalledWith('f1');
+    expect(out.reports.f1.possibleDuplicateHarvestIncome).toEqual([overlap]);
+    // The headline is untouched — a flag, not a rewrite of money.
+    expect(out.reports.f1.revenue).toBe(100);
+  });
+
+  it('never asks for the flag on a farm whose report was refused', async () => {
+    const { svc, reports, harvests } = makeService();
+    reports.getFinancialReport.mockRejectedValue(new Error('403'));
+
+    await svc.forUser('worker');
+
+    expect(harvests.planIncomeOverlaps).not.toHaveBeenCalled();
   });
 
   it('returns nothing for a caller on no farms', async () => {

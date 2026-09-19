@@ -338,6 +338,12 @@ export const MoneyScreen = ({ navigation, route }: any) => {
         [scopedExpenses],
     );
 
+    /** H4: cycles where a pre-H4 plan completion and a harvest both booked the sale. */
+    const duplicateIncomeCycles = useMemo(
+        () => scopedFarms.reduce((a, f) => a + (reports[f.id]?.possibleDuplicateHarvestIncome?.length ?? 0), 0),
+        [scopedFarms, reports],
+    );
+
     /** What the "count inventory purchases" toggle is worth, in rupees. */
     const inventoryTotal = useMemo(
         () => scopedFarms.reduce((a, f) => a + Number(reports[f.id]?.inventoryExpenses ?? 0), 0),
@@ -608,6 +614,11 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                             <Text style={styles.heroEmptyCta}>{t('finance.addEntry')} ›</Text>
                         )}
                     </TouchableOpacity>
+                )}
+                {duplicateIncomeCycles > 0 && (
+                    <Text style={[styles.note, { color: c.warningText }]}>
+                        {t('finance.duplicateHarvestIncome', { count: duplicateIncomeCycles })}
+                    </Text>
                 )}
 
                 {/*

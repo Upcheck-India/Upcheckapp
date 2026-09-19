@@ -28,6 +28,14 @@ export class CreateHarvestDto {
   @IsUUID()
   cropId: string;
 
+  /**
+   * The harvest plan this harvest completes (H4). The plan is completed in
+   * the same transaction, only if it is on this crop's pond and still planned.
+   */
+  @IsUUID()
+  @IsOptional()
+  planId?: string;
+
   @IsDateString()
   harvestDate: string;
 
