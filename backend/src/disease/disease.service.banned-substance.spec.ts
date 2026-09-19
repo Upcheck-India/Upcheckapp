@@ -4,6 +4,7 @@ import { DiseaseService } from './disease.service';
 import { DiseaseLibrary } from './disease-library.entity';
 import { DiseaseLibraryTranslation } from './disease-library-translation.entity';
 import { DiseaseRecord } from './disease-record.entity';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 import { BANNED_LIST_VERSION } from '../banned-substances/banned-substances.data';
 
 /**
@@ -36,6 +37,7 @@ describe('DiseaseService.recordOccurrence/updateRecord — banned-substance flag
         { provide: getRepositoryToken(DiseaseLibrary), useValue: {} },
         { provide: getRepositoryToken(DiseaseRecord), useValue: recordRepo },
         { provide: getRepositoryToken(DiseaseLibraryTranslation), useValue: {} },
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn() } },
       ],
     }).compile();
     service = module.get(DiseaseService);

@@ -13,6 +13,19 @@ export interface DiseaseRecord {
     /** Server-evaluated at write time (BANNED-1) — never client-set. */
     bannedSubstanceFlag?: 'none' | 'restricted' | 'banned';
     bannedSubstanceMatches?: string[];
+    // ── D6 (absent on a backend older than migration 1780701500000) ──
+    symptomSigns?: string[];
+    severity?: 'mild' | 'moderate' | 'severe' | null;
+    affectedPct?: number | string | null;
+    confirmedBy?: 'suspected' | 'microscopy' | 'pcr' | 'lab_other' | null;
+    confirmedOn?: string | null;
+    labName?: string | null;
+    outcome?: 'ongoing' | 'recovered' | 'emergency_harvest' | 'crop_lost';
+    resolvedOn?: string | null;
+    /** Signed, short-lived URLs of `photoUrls` (which are private paths). */
+    photoSignedUrls?: string[];
+    /** Joined library row, so History can show the NAME, not the id. */
+    disease?: { id: string; name: string } | null;
 }
 
 export interface DiseaseLibrary {
@@ -35,6 +48,14 @@ export interface CreateDiseaseRecordDto {
     severityAtDetection?: string;
     photoUrls?: string[];
     notes?: string;
+    symptomSigns?: string[];
+    severity?: string;
+    affectedPct?: number;
+    confirmedBy?: string;
+    confirmedOn?: string;
+    labName?: string;
+    outcome?: string;
+    resolvedOn?: string;
 }
 
 export const diseaseApi = {

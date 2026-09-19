@@ -1,18 +1,92 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Not, Repository } from 'typeorm';
 import { Harvest } from './harvest.entity';
 import { Crop } from '../crops/crop.entity';
+import { Pond } from '../ponds/pond.entity';
 import { CreateHarvestDto } from './dto/create-harvest.dto';
 import { UpdateHarvestDto } from './dto/update-harvest.dto';
+import { GradeDto } from './dto/grade.dto';
 import { CropsService } from '../crops/crops.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { toIstDateString } from '../common/ist-date';
+import { harvestTotals, HarvestTotals } from './harvest-totals';
+import { isMissingSchema } from '../pond-context/pond-context.service';
+
+/** A stored grade line as the API returns it. */
+export interface HarvestGrade {
+  id: string;
+  countPerKg: number | null;
+  weightKg: number;
+  pricePerKg: number | null;
+}
+
+/**
+ * The H1 fields that live outside the entity (see harvest.entity.ts). A
+ * harvest with `grades: []` is an old, ungraded one: readers treat it as one
+ * implicit line of `weightKg` at `salePriceTotal`.
+ */
+export interface HarvestDetails {
+  grades: HarvestGrade[];
+  rejectedKg: number | null;
+  rejectedReason: string | null;
+  pieces: number | null;
+  piecesEstimated: boolean;
+}
+
+/** ₹/kg outside this band is a warning the client must confirm (warn, not block). */
+export const PRICE_BAND = { min: 50, max: 2000 } as const;
+
+type GradeLine = { id?: string; countPerKg: number | null; weightKg: number; pricePerKg: number | null };
+
+/** Warn-not-block (daily-logging D4): a 400 the client turns into a confirm. */
+export function assertPriceBand(lines: GradeLine[], confirmed?: boolean): void {
+  if (confirmed) return;
+  const out = lines.find(
+    (g) =>
+      g.pricePerKg != null &&
+      (g.pricePerKg < PRICE_BAND.min || g.pricePerKg > PRICE_BAND.max),
+  );
+  if (out) {
+    throw new BadRequestException({
+      statusCode: 400,
+      code: 'OUT_OF_RANGE',
+      field: 'pricePerKg',
+      value: out.pricePerKg,
+      range: PRICE_BAND,
+      message: `₹${out.pricePerKg}/kg is outside ₹${PRICE_BAND.min}–${PRICE_BAND.max}/kg. Send confirmOutOfRange to keep it.`,
+    });
+  }
+}
+
+/** A harvest happens on or before today (IST), and not before stocking. */
+export function assertHarvestDate(
+  harvestDate: string,
+  stockingDate: unknown,
+  now: Date = new Date(),
+): void {
+  const day = harvestDate.slice(0, 10);
+  if (day > toIstDateString(now)) {
+    throw new BadRequestException({
+      statusCode: 400,
+      code: 'HARVEST_DATE_FUTURE',
+      message: 'A harvest date cannot be in the future.',
+    });
+  }
+  if (stockingDate && day < asDateString(stockingDate)) {
+    throw new BadRequestException({
+      statusCode: 400,
+      code: 'HARVEST_DATE_BEFORE_STOCKING',
+      message: 'A harvest date cannot be before the cycle was stocked.',
+    });
+  }
+}
 
 /**
  * A harvest sale, projected into the shape the Money tab's entry list renders.
@@ -46,10 +120,24 @@ const asDateString = (d: unknown): string =>
  * member without VIEW_FINANCIALS goes through this — masked, not dropped, so
  * the member still gets the weights.
  */
-export const maskFinancials = <T extends Pick<Harvest, 'salePriceTotal' | 'buyerName'>>(
+export const maskFinancials = <
+  T extends Pick<Harvest, 'salePriceTotal' | 'buyerName'> & {
+    grades?: { pricePerKg: number | null }[];
+  },
+>(
   row: T,
   canView: boolean,
-): T => (canView ? row : { ...row, salePriceTotal: null, buyerName: null });
+): T =>
+  canView
+    ? row
+    : {
+        ...row,
+        salePriceTotal: null,
+        buyerName: null,
+        ...(row.grades
+          ? { grades: row.grades.map((g) => ({ ...g, pricePerKg: null })) }
+          : {}),
+      };
 
 @Injectable()
 export class HarvestsService {
@@ -78,7 +166,7 @@ export class HarvestsService {
           'RECORD_HARVEST',
         );
         return maskFinancials(
-          existing,
+          await this.withDetails(existing),
           await this.canViewFinancials(userId, existing.crop.pondId),
         );
       }
@@ -96,6 +184,20 @@ export class HarvestsService {
       crop.pondId,
       'RECORD_HARVEST',
     );
+    const canView = await this.canViewFinancials(userId, crop.pondId);
+
+    const {
+      grades,
+      rejectedKg,
+      rejectedReason,
+      confirmOutOfRange,
+      ...fields
+    } = createDto;
+    // A price is money: without VIEW_FINANCIALS it is stripped, not refused —
+    // the manager weighs at the pond, the owner adds the price later (H1).
+    if (!canView) delete fields.salePriceTotal;
+    const lines = grades ? this.cleanGrades(grades, canView) : null;
+    if (lines) assertPriceBand(lines, confirmOutOfRange);
 
     // One transaction: lock the crop, refuse a closed cycle BEFORE inserting,
     // insert, and (for a full harvest) close the cycle. It used to save the row
@@ -113,10 +215,28 @@ export class HarvestsService {
           message: 'This cycle is already closed.',
         });
       }
+      assertHarvestDate(createDto.harvestDate, locked.stockingDate);
+
+      // Graded: the row is the aggregate of its lines, derived here — the
+      // client's weightKg / salePriceTotal are ignored. Ungraded (old app
+      // builds): the old single-total path, untouched.
+      let totals: HarvestTotals | null = null;
+      if (lines) {
+        totals = harvestTotals(
+          lines,
+          await this.abwAt(manager, createDto.cropId, createDto.harvestDate),
+        );
+        Object.assign(fields, {
+          weightKg: totals.weightKg,
+          salePriceTotal: totals.salePriceTotal,
+          averageSize: totals.averageSize,
+        });
+      }
 
       const row = await manager.save(
-        manager.create(Harvest, { ...createDto, createdById: userId }),
+        manager.create(Harvest, { ...fields, createdById: userId }),
       );
+      await this.writeDetails(manager, row.id, lines, totals, rejectedKg, rejectedReason);
       if (createDto.harvestType === 'full') {
         await this.cropsService.closeCycle(
           createDto.cropId,
@@ -128,10 +248,134 @@ export class HarvestsService {
       return row;
     });
 
-    return maskFinancials(
-      saved,
-      await this.canViewFinancials(userId, crop.pondId),
+    return maskFinancials(await this.withDetails(saved), canView);
+  }
+
+  /** Normalise grade lines; drop prices the caller may not set. */
+  private cleanGrades(grades: GradeDto[], canView: boolean): GradeLine[] {
+    return grades.map((g) => ({
+      id: g.id,
+      countPerKg: g.countPerKg ?? null,
+      weightKg: g.weightKg,
+      pricePerKg: canView ? (g.pricePerKg ?? null) : null,
+    }));
+  }
+
+  /** Latest weighed ABW on or before the harvest day (for estimated pieces). */
+  private async abwAt(
+    manager: EntityManager,
+    cropId: string,
+    day: string,
+  ): Promise<number | null> {
+    const [row] = await manager.query(
+      `SELECT mbw_g::float AS mbw FROM sampling_data
+        WHERE crop_id = $1 AND mbw_g IS NOT NULL AND sampling_date <= $2
+        ORDER BY sampling_date DESC LIMIT 1`,
+      [cropId, day.slice(0, 10)],
     );
+    return row?.mbw != null ? Number(row.mbw) : null;
+  }
+
+  /**
+   * Write the H1 fields that live outside the entity. `lines` replaces ALL
+   * grade lines (no-op on a fresh harvest); `undefined` rejected fields are
+   * left alone, `null` clears them. Runs inside the caller's transaction.
+   * Needs migration 1780700900000 — only reached by clients that send H1
+   * fields, so old app builds never touch it.
+   */
+  private async writeDetails(
+    manager: EntityManager,
+    harvestId: string,
+    lines: GradeLine[] | null,
+    totals: HarvestTotals | null,
+    rejectedKg: number | null | undefined,
+    rejectedReason: string | null | undefined,
+  ): Promise<void> {
+    if (lines) {
+      await manager.query(`DELETE FROM harvest_grades WHERE harvest_id = $1`, [
+        harvestId,
+      ]);
+      const params: unknown[] = [harvestId];
+      const values = lines.map((g, i) => {
+        params.push(g.id ?? null, g.countPerKg, g.weightKg, g.pricePerKg, i);
+        const b = params.length - 5;
+        return `(COALESCE($${b + 1}::uuid, gen_random_uuid()), $1, $${b + 2}, $${b + 3}, $${b + 4}, $${b + 5})`;
+      });
+      await manager.query(
+        `INSERT INTO harvest_grades (id, harvest_id, count_per_kg, weight_kg, price_per_kg, sort_order)
+         VALUES ${values.join(', ')}`,
+        params,
+      );
+    }
+    const sets: string[] = [];
+    const params: unknown[] = [harvestId];
+    const set = (col: string, v: unknown) => {
+      params.push(v);
+      sets.push(`${col} = $${params.length}`);
+    };
+    if (totals) {
+      set('pieces', totals.pieces);
+      set('pieces_estimated', totals.piecesEstimated);
+    }
+    if (rejectedKg !== undefined) set('rejected_kg', rejectedKg);
+    if (rejectedReason !== undefined) set('rejected_reason', rejectedReason);
+    if (sets.length) {
+      await manager.query(
+        `UPDATE harvests SET ${sets.join(', ')} WHERE id = $1`,
+        params,
+      );
+    }
+  }
+
+  /**
+   * Attach the H1 fields to entity rows, in ONE query. Before migration
+   * 1780700900000 is applied this degrades to "ungraded, no deductions"
+   * instead of 500-ing every harvest read.
+   */
+  private async withDetails<T extends { id: string }>(
+    row: T,
+  ): Promise<T & HarvestDetails> {
+    return (await this.withDetailsMany([row]))[0];
+  }
+
+  private async withDetailsMany<T extends { id: string }>(
+    rows: T[],
+  ): Promise<(T & HarvestDetails)[]> {
+    if (!rows.length) return [];
+    let details: any[] = [];
+    try {
+      details = await this.harvestsRepository.query(
+        `SELECT h.id, h.rejected_kg::float AS "rejectedKg", h.rejected_reason AS "rejectedReason",
+                h.pieces, h.pieces_estimated AS "piecesEstimated",
+                COALESCE(json_agg(json_build_object(
+                  'id', g.id, 'countPerKg', g.count_per_kg,
+                  'weightKg', g.weight_kg, 'pricePerKg', g.price_per_kg
+                ) ORDER BY g.sort_order) FILTER (WHERE g.id IS NOT NULL), '[]') AS grades
+           FROM harvests h LEFT JOIN harvest_grades g ON g.harvest_id = h.id
+          WHERE h.id = ANY($1::uuid[])
+          GROUP BY h.id`,
+        [rows.map((r) => r.id)],
+      );
+    } catch (err) {
+      if (!isMissingSchema(err)) throw err;
+    }
+    const byId = new Map((details ?? []).map((d) => [d.id, d]));
+    return rows.map((r) => {
+      const d = byId.get(r.id);
+      return {
+        ...r,
+        grades: (d?.grades ?? []).map((g: any) => ({
+          id: g.id,
+          countPerKg: g.countPerKg == null ? null : Number(g.countPerKg),
+          weightKg: Number(g.weightKg),
+          pricePerKg: g.pricePerKg == null ? null : Number(g.pricePerKg),
+        })),
+        rejectedKg: d?.rejectedKg ?? null,
+        rejectedReason: d?.rejectedReason ?? null,
+        pieces: d?.pieces ?? null,
+        piecesEstimated: !!d?.piecesEstimated,
+      };
+    });
   }
 
   /** Does the caller hold VIEW_FINANCIALS on this pond's farm? */
@@ -199,7 +443,8 @@ export class HarvestsService {
     const financialFarmIds = new Set(
       await this.farmAccess.getFarmIdsWithCapability(userId, 'VIEW_FINANCIALS'),
     );
-    return entities.map((h, i) =>
+    const detailed = await this.withDetailsMany(entities);
+    return detailed.map((h, i) =>
       maskFinancials(h, financialFarmIds.has(raw[i]?.row_farm_id)),
     );
   }
@@ -310,7 +555,10 @@ export class HarvestsService {
     }));
   }
 
-  async findOne(id: string, userId: string): Promise<Harvest> {
+  async findOne(
+    id: string,
+    userId: string,
+  ): Promise<Harvest & HarvestDetails> {
     const harvest = await this.harvestsRepository.findOne({
       where: { id },
       relations: ['crop'],
@@ -321,7 +569,7 @@ export class HarvestsService {
     // The crop was loaded only to find the pond — keep the response shape.
     const { crop, ...row } = harvest;
     return maskFinancials(
-      row as Harvest,
+      await this.withDetails(row as Harvest),
       await this.canViewFinancials(userId, crop.pondId),
     );
   }
@@ -353,15 +601,147 @@ export class HarvestsService {
     id: string,
     dto: UpdateHarvestDto,
     userId: string,
-  ): Promise<Harvest> {
-    await this.assertCanRecord(id, userId);
-    await this.harvestsRepository.update(id, { ...dto, updatedById: userId });
+  ): Promise<Harvest & HarvestDetails> {
+    const existing = await this.assertCanRecord(id, userId);
+    const {
+      grades,
+      rejectedKg,
+      rejectedReason,
+      confirmOutOfRange,
+      harvestType,
+      ...fields
+    } = dto;
+    // Immutable (H2): a full harvest closed the cycle. Old builds resend the
+    // same type on every edit — accepted and ignored.
+    if (harvestType && harvestType !== existing.harvestType) {
+      throw new BadRequestException({
+        statusCode: 400,
+        code: 'HARVEST_TYPE_IMMUTABLE',
+        message:
+          'The harvest type cannot be changed. Delete this harvest and log it again.',
+      });
+    }
+    const canView = await this.canViewFinancials(
+      userId,
+      existing.crop.pondId,
+    );
+    if (!canView) {
+      delete fields.salePriceTotal;
+      delete fields.buyerName;
+    }
+    if (fields.harvestDate) {
+      assertHarvestDate(fields.harvestDate, existing.crop.stockingDate);
+    }
+
+    if (!grades && rejectedKg === undefined && rejectedReason === undefined) {
+      await this.harvestsRepository.update(id, {
+        ...fields,
+        updatedById: userId,
+      });
+      return this.findOne(id, userId);
+    }
+
+    // Replace-all grades + derived aggregate + deductions, atomically.
+    await this.dataSource.transaction(async (manager) => {
+      let lines: GradeLine[] | null = null;
+      let totals: HarvestTotals | null = null;
+      if (grades) {
+        lines = canView
+          ? this.cleanGrades(grades, true)
+          : await this.carryOverPrices(manager, id, grades);
+        // Only the caller's OWN prices are theirs to confirm.
+        if (canView) assertPriceBand(lines, confirmOutOfRange);
+        totals = harvestTotals(
+          lines,
+          await this.abwAt(
+            manager,
+            existing.cropId,
+            fields.harvestDate ?? asDateString(existing.harvestDate),
+          ),
+        );
+        Object.assign(fields, {
+          weightKg: totals.weightKg,
+          salePriceTotal: totals.salePriceTotal,
+          averageSize: totals.averageSize,
+        });
+      }
+      await manager.update(Harvest, id, { ...fields, updatedById: userId });
+      await this.writeDetails(manager, id, lines, totals, rejectedKg, rejectedReason);
+    });
     return this.findOne(id, userId);
   }
 
+  /**
+   * A member without VIEW_FINANCIALS edits weights, never prices: the owner's
+   * price rides over to the same line (by id, else by position) so a
+   * replace-all edit can't silently wipe the season's money.
+   */
+  private async carryOverPrices(
+    manager: EntityManager,
+    harvestId: string,
+    grades: GradeDto[],
+  ): Promise<GradeLine[]> {
+    const old: { id: string; price: number | null }[] = await manager.query(
+      `SELECT id, price_per_kg::float AS price FROM harvest_grades
+        WHERE harvest_id = $1 ORDER BY sort_order`,
+      [harvestId],
+    );
+    return this.cleanGrades(grades, false).map((g, i) => ({
+      ...g,
+      pricePerKg:
+        (g.id ? old.find((o) => o.id === g.id)?.price : old[i]?.price) ??
+        null,
+    }));
+  }
+
+  /**
+   * Deleting a FULL harvest undoes its close (H2): in one transaction the crop
+   * reopens and the pond points back at it — unless the pond has since
+   * started another cycle, which would leave two active cycles on one pond
+   * (409 POND_HAS_NEW_CYCLE).
+   */
   async remove(id: string, userId: string): Promise<{ message: string }> {
-    await this.assertCanRecord(id, userId);
-    await this.harvestsRepository.delete(id);
+    const harvest = await this.assertCanRecord(id, userId);
+    if (harvest.harvestType !== 'full') {
+      await this.harvestsRepository.delete(id);
+      return { message: 'Harvest deleted successfully' };
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const crop = await manager.findOne(Crop, {
+        where: { id: harvest.cropId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (crop && crop.status === 'completed') {
+        const pond = await manager.findOne(Pond, {
+          where: { id: crop.pondId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        const newer =
+          (pond?.activeCycleId && pond.activeCycleId !== crop.id) ||
+          (await manager.count(Crop, {
+            where: { pondId: crop.pondId, status: 'active', id: Not(crop.id) },
+          })) > 0;
+        if (newer) {
+          throw new ConflictException({
+            statusCode: 409,
+            code: 'POND_HAS_NEW_CYCLE',
+            message:
+              "A new cycle has started on this pond; this harvest can't be removed.",
+          });
+        }
+        await manager.update(Crop, crop.id, {
+          status: 'active',
+          actualHarvestDate: null,
+          isActive: true,
+        } as any);
+        await manager.update(Pond, crop.pondId, {
+          activeCycleId: crop.id,
+          status: 'active',
+        } as any);
+      }
+      await manager.delete(Harvest, id);
+    });
     return { message: 'Harvest deleted successfully' };
   }
 }

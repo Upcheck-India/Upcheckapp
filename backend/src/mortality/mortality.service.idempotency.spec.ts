@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { MortalityService } from './mortality.service';
 import { MortalityRecord } from './mortality-record.entity';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 const CLIENT_ID = '11111111-1111-1111-1111-111111111111';
 
@@ -19,6 +20,7 @@ describe('MortalityService — idempotent create (offline replay safety)', () =>
       providers: [
         MortalityService,
         { provide: getRepositoryToken(MortalityRecord), useValue: repo },
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn() } },
       ],
     }).compile();
     service = module.get(MortalityService);

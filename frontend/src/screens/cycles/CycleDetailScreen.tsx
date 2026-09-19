@@ -61,6 +61,31 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
     }, [fetchCycle]);
 
     const handleCloseCycle = async () => {
+        // Why (H2)? A harvested cycle closes through a Full harvest — which
+        // records the sale — never silently with ₹0 revenue.
+        const reason = await new Promise<'harvested' | 'lost' | 'other' | null>((resolve) =>
+            Alert.alert(
+                t('logs.harvest_closeWhyTitle'),
+                t('logs.harvest_closeWhyMessage'),
+                [
+                    { text: t('logs.harvest_closeWhyHarvested'), onPress: () => resolve('harvested') },
+                    { text: t('logs.harvest_closeWhyLost'), onPress: () => resolve('lost') },
+                    { text: t('logs.harvest_closeWhyOther'), onPress: () => resolve('other') },
+                ],
+                { cancelable: true, onDismiss: () => resolve(null) },
+            ),
+        );
+        if (!reason) return;
+        if (reason === 'harvested') {
+            navigation.navigate('HarvestLog', {
+                pondId: cycle!.pondId,
+                pondName: (cycle as any).pondName,
+                cropId: cycle!.id,
+                farmId: cycle!.farmId,
+                harvestType: 'full',
+            });
+            return;
+        }
         const ok = await confirm({
             title: t('cycles.closeCycleTitle'),
             message: t('cycles.closeCycleMessage'),
@@ -70,7 +95,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
         });
         if (!ok) return;
         try {
-            await cropsApi.close(cycleId);
+            await cropsApi.close(cycleId, undefined, reason);
             navigation.goBack(); // returns to pond dashboard
         } catch (error: any) {
             Alert.alert(t('common.error'), t('cycles.errorCloseCycle'));

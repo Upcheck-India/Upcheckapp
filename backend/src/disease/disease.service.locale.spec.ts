@@ -4,6 +4,7 @@ import { DiseaseService } from './disease.service';
 import { DiseaseLibrary } from './disease-library.entity';
 import { DiseaseLibraryTranslation } from './disease-library-translation.entity';
 import { DiseaseRecord } from './disease-record.entity';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 /**
  * The disease library was English-only with no schema to hold a translation
@@ -42,6 +43,7 @@ describe('DiseaseService — locale-aware library content', () => {
         { provide: getRepositoryToken(DiseaseLibrary), useValue: libraryRepo },
         { provide: getRepositoryToken(DiseaseLibraryTranslation), useValue: translationRepo },
         { provide: getRepositoryToken(DiseaseRecord), useValue: {} },
+        { provide: HealthPhotoStorageService, useValue: {} },
       ],
     }).compile();
     service = module.get(DiseaseService);

@@ -6,6 +6,7 @@ import { DiseaseLibraryTranslation } from './disease-library-translation.entity'
 import { DiseaseRecord } from './disease-record.entity';
 import { DiseaseService } from './disease.service';
 import { ComplianceModule } from '../compliance/compliance.module';
+import { HealthObservationsModule } from '../health-observations/health-observations.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ComplianceModule } from '../compliance/compliance.module';
       DiseaseRecord,
     ]),
     ComplianceModule,
+    HealthObservationsModule,
   ],
   controllers: [DiseaseController],
   providers: [DiseaseService],

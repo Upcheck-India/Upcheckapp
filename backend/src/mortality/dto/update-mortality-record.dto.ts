@@ -1,12 +1,16 @@
 import {
+  ArrayMaxSize,
   IsArray,
   IsDateString,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
 } from 'class-validator';
+import { MORTALITY_CAUSES } from '../../health-observations/health.constants';
 
 export class UpdateMortalityRecordDto {
   @IsOptional()
@@ -37,4 +41,15 @@ export class UpdateMortalityRecordDto {
   @IsArray()
   @IsString({ each: true })
   images?: string[];
+
+  @IsOptional()
+  @IsIn(MORTALITY_CAUSES)
+  suspectedCause?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @IsString({ each: true })
+  @MaxLength(200, { each: true })
+  photoUrls?: string[];
 }

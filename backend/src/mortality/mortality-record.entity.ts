@@ -41,6 +41,14 @@ export class MortalityRecord {
   @Column({ type: 'text', array: true, nullable: true, default: [] })
   images: string[];
 
+  // D6 (migration 1780701500000): unknown | low_do | disease | molt | handling | predator | other
+  @Column({ name: 'suspected_cause', type: 'text', nullable: true })
+  suspectedCause: string | null;
+
+  /** Storage paths in the private `health-photos` bucket (signed on read). */
+  @Column({ name: 'photo_urls', type: 'text', array: true, default: '{}' })
+  photoUrls: string[];
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   createdAt: Date;
 

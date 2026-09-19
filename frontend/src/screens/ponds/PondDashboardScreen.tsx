@@ -45,6 +45,7 @@ import { pnlApi, type CropPnl } from '../../api/pnl';
 import { treatmentsApi } from '../../api/treatments';
 import { useMembershipStore } from '../../store/membershipStore';
 import { usePermissions } from '../../hooks/usePermissions';
+import { prefetchDiseaseLibrary } from '../../features/diseaseLibrary';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { usePendingRecords } from '../../sync/pending';
@@ -94,6 +95,8 @@ const LOG_ACTIONS: LogAction[] = [
     { key: 'actionHarvest', icon: 'set_meal', logRoute: 'HarvestLog', historyRoute: 'HarvestHistory', core: true },
     { key: 'actionTreatment', icon: 'science', logRoute: 'TreatmentLog', historyRoute: 'TreatmentHistory' },
     { key: 'actionMortality', icon: 'warning', logRoute: 'MortalityLog', historyRoute: 'MortalityHistory' },
+    // D6 quick health check — no history list of its own yet; both modes open the check.
+    { key: 'actionHealthCheck', icon: 'visibility', logRoute: 'HealthCheck', historyRoute: 'HealthCheck' },
     { key: 'actionDisease', icon: 'science', logRoute: 'DiseaseLog', historyRoute: 'DiseaseHistory' },
     { key: 'actionChemical', icon: 'science', logRoute: 'ChemicalLog', historyRoute: 'ChemicalHistory' },
     { key: 'actionPlankton', icon: 'grass', logRoute: 'PlanktonLog', historyRoute: 'PlanktonHistory' },
@@ -284,6 +287,9 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     useFocusEffect(
         useCallback(() => {
             loadMemberships();
+            // D6/H2: warm the persisted disease library while there is signal,
+            // so a disease can be logged at the pond edge with none.
+            void prefetchDiseaseLibrary();
         }, [loadMemberships]),
     );
 

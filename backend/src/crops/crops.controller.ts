@@ -70,6 +70,12 @@ export class CropsController {
     @Body() body: CloseCycleDto,
     @CurrentUser() user,
   ) {
-    return this.cropsService.closeCycle(id, body.actualHarvestDate, user.id);
+    return this.cropsService.closeCycle(
+      id,
+      body.actualHarvestDate,
+      user.id,
+      undefined,
+      body.closeReason,
+    );
   }
 }

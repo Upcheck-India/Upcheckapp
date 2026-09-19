@@ -1,4 +1,4 @@
-import { IsDateString } from 'class-validator';
+import { IsDateString, IsIn, IsOptional } from 'class-validator';
 
 /**
  * Body for PATCH /crops/:id/close. A real DTO (not an inline type) so the
@@ -8,4 +8,12 @@ import { IsDateString } from 'class-validator';
 export class CloseCycleDto {
   @IsDateString()
   actualHarvestDate: string;
+
+  /**
+   * Why a cycle closed WITHOUT a harvest (H2): 'lost' (crop failure) or
+   * 'other'. A harvested cycle closes through a full harvest instead.
+   */
+  @IsOptional()
+  @IsIn(['lost', 'other'])
+  closeReason?: 'lost' | 'other';
 }

@@ -8,7 +8,7 @@
  * returning from "Log it" shows the item done without a manual refresh.
  */
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,7 @@ import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { queryClient } from '../../query/client';
 import { moltApi, type MoltItem, type PondMolt } from '../../api/molt';
 import { apiErrorMessage } from '../../api/errors';
+import { healthObservationsApi, type HealthLevel } from '../../api/healthObservations';
 import { useMoltWindows } from './MoltPeakBanner';
 import { addDays, istDateString, windowContaining, type MoltWindow } from '../../features/moltWindow';
 
@@ -97,7 +98,35 @@ export const MoltChecklist: React.FC<{ pondId: string; pondName?: string; cropId
     queryFn: () => moltApi.pond(pondId).then((r) => r.data),
   });
   const [saving, setSaving] = React.useState<string | null>(null);
+  const [moltDeaths, setMoltDeaths] = React.useState('');
   if (!pm) return null;
+
+  /** One tap → a soft-shell observation (offline-first); the item is then auto-done server-side. */
+  const softShellTap = async (level: HealthLevel) => {
+    setSaving('soft_shell_check');
+    try {
+      const deaths = parseInt(moltDeaths, 10);
+      await healthObservationsApi.save({
+        pondId,
+        cropId: cropId ?? undefined,
+        observedOn: istDateString(new Date()),
+        source: 'quick',
+        ...(deaths >= 0 ? { moltDeaths: deaths } : {}),
+        signs: [{ sign: 'soft_shell', level }],
+      });
+      setMoltDeaths('');
+      queryClient.setQueryData<PondMolt>(key, (old) =>
+        old && {
+          ...old,
+          items: old.items.map((i) => (i.key === 'soft_shell_check' ? { ...i, status: 'done', source: 'auto' } : i)),
+        },
+      );
+    } catch (e) {
+      Alert.alert(t('common.error'), apiErrorMessage(e, t('health.saveFailed')));
+    } finally {
+      setSaving(null);
+    }
+  };
 
   const toggle = async (item: MoltItem) => {
     if (!pm.window) return;
@@ -150,8 +179,11 @@ export const MoltChecklist: React.FC<{ pondId: string; pondName?: string; cropId
       const blocked = (item.route === 'ChemicalLog' || item.route === 'TreatmentLog') && !cropId;
       // Auto + manual items (minerals) offer both "Log it" and "Mark done".
       const canLog = item.status === 'pending' && !!item.route;
+      // M2 entry 2: "Soft shells seen?" answered in one tap; any answer is the check.
+      const quickTap = item.key === 'soft_shell_check' && live && canWrite && item.status === 'pending';
       return (
-        <View key={item.key} style={[styles.itemRow, missed && styles.itemMissed]} testID={`molt-item-${item.key}`}>
+        <View key={item.key}>
+        <View style={[styles.itemRow, missed && styles.itemMissed]} testID={`molt-item-${item.key}`}>
           <MaterialCommunityIcons name={icon.name} size={22} color={icon.color} />
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={[styles.itemText, missed && { color: c.textTertiary }]}>{t(`engines.lunar.item_${item.key}`)}</Text>
@@ -183,6 +215,34 @@ export const MoltChecklist: React.FC<{ pondId: string; pondName?: string; cropId
               <Text style={styles.itemBtnLabel}>{t('engines.lunar.logIt')}</Text>
             </TouchableOpacity>
           )}
+        </View>
+        {quickTap && (
+          <View style={styles.quickTap} testID="soft-shell-quick-tap">
+            <Text style={styles.itemMeta}>{t('health.softShellsSeen')}</Text>
+            <View style={styles.quickRow}>
+              {(['none', 'few', 'many'] as const).map((level) => (
+                <TouchableOpacity
+                  key={level}
+                  style={styles.itemBtn}
+                  onPress={() => softShellTap(level)}
+                  disabled={saving === item.key}
+                  accessibilityRole="button"
+                  testID={`soft-shell-${level}`}
+                >
+                  <Text style={styles.itemBtnLabel}>{t(`health.level.${level}`)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={styles.deathsInput}
+              value={moltDeaths}
+              onChangeText={setMoltDeaths}
+              keyboardType="number-pad"
+              placeholder={t('health.moltDeaths')}
+              accessibilityLabel={t('health.moltDeaths')}
+            />
+          </View>
+        )}
         </View>
       );
     };
@@ -283,4 +343,16 @@ const styles = StyleSheet.create({
     borderColor: c.primary,
   },
   itemBtnLabel: { ...theme.typeScale.labelMedium, color: c.primary },
+  quickTap: { paddingLeft: theme.spacing[8], paddingBottom: theme.spacing[2], gap: theme.spacing[1.5] },
+  quickRow: { flexDirection: 'row', gap: theme.spacing[2] },
+  deathsInput: {
+    ...theme.typeScale.bodySmall,
+    borderWidth: 1,
+    borderColor: c.borderDefault,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: theme.spacing[2],
+    paddingVertical: theme.spacing[1],
+    alignSelf: 'flex-start',
+    minWidth: 160,
+  },
 });

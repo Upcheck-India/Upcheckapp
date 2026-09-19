@@ -192,6 +192,8 @@ export type StoryCode =
   | 'sampling_done'
   | 'first_sampling'
   | 'treatment_given'
+  // a disease record still `ongoing` 14+ days on (D6); title = disease, count = days
+  | 'disease_ongoing'
   // carried over from before this day
   | 'carried_resolved'
   | 'carried_open'

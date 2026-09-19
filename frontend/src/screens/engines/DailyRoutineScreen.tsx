@@ -26,6 +26,10 @@ import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
 import { useFocusEffect } from '@react-navigation/native';
 import { useFlag } from '../../features/remoteFlags';
+import { healthObservationsApi } from '../../api/healthObservations';
+
+const TRAY_SIGNS = ['white_feces', 'empty_gut'] as const;
+type TraySign = (typeof TRAY_SIGNS)[number];
 
 const isToday = (iso: string | null | undefined) =>
   !!iso && new Date(iso).toDateString() === new Date().toDateString();
@@ -46,6 +50,8 @@ export const DailyRoutineScreen = ({ route, navigation }: any) => {
   const [refreshing, setRefreshing] = useState(false);
   const [tray, setTray] = useState<TrayResidue | null>(null);
   const [savingTray, setSavingTray] = useState(false);
+  // D6: optional signs seen on the tray → health observations (source 'tray').
+  const [traySigns, setTraySigns] = useState<TraySign[]>([]);
 
   const load = useCallback(async () => {
     if (!pondId) { setLoading(false); return; }
@@ -91,6 +97,17 @@ export const DailyRoutineScreen = ({ route, navigation }: any) => {
           remainingFeedStatus: tray,
         },
       });
+      // Own queue entry, idempotent on its own ids; "seen on the tray" = few.
+      if (traySigns.length && pondId) {
+        await healthObservationsApi.save({
+          pondId,
+          cropId,
+          observedOn: toLocalISODate(now),
+          source: 'tray',
+          signs: traySigns.map((sign) => ({ sign, level: 'few' as const })),
+        });
+        setTraySigns([]);
+      }
       if (res.queued) {
         // load()'s catch resets ctx to null on failure — while offline that
         // refetch would just fail and wipe the screen's current state, so
@@ -105,7 +122,7 @@ export const DailyRoutineScreen = ({ route, navigation }: any) => {
     } finally {
       setSavingTray(false);
     }
-  }, [cropId, tray, load, t]);
+  }, [cropId, tray, load, t, traySigns, pondId]);
 
   if (loading) {
     return (
@@ -203,6 +220,24 @@ export const DailyRoutineScreen = ({ route, navigation }: any) => {
                   );
                 })}
               </View>
+              <View style={styles.traySigns}>
+                {TRAY_SIGNS.map((s) => {
+                  const on = traySigns.includes(s);
+                  return (
+                    <TouchableOpacity
+                      key={s}
+                      style={[styles.segBtn, on && styles.segBtnActive]}
+                      onPress={() => setTraySigns((cur) => (on ? cur.filter((x) => x !== s) : [...cur, s]))}
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: on }}
+                      testID={`tray-sign-${s}`}
+                    >
+                      <MaterialCommunityIcons name={on ? 'checkbox-marked' : 'checkbox-blank-outline'} size={18} color={on ? theme.roles.light.primary : theme.roles.light.textSecondary} />
+                      <Text numberOfLines={1} style={[styles.segLabel, on && { color: theme.roles.light.primary }]}>{t(`health.onTray.${s}`)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
               <Button title={t('engines.routine.saveTray')} onPress={saveTray} loading={savingTray} disabled={!tray} style={styles.saveBtn} />
             </>
           ) : (
@@ -256,6 +291,7 @@ const styles = StyleSheet.create({
   cardTitle: { ...theme.typeScale.bodyLarge, color: theme.roles.light.textPrimary, fontWeight: '600' },
   cardSub: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
   segment: { flexDirection: 'row', gap: theme.spacing[2], marginTop: theme.spacing[4] },
+  traySigns: { flexDirection: 'row', gap: theme.spacing[2], marginTop: theme.spacing[2] },
   segBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: theme.spacing[1],
     paddingVertical: theme.spacing[3], borderRadius: theme.radius.sm, borderWidth: 1, borderColor: theme.roles.light.borderDefault,

@@ -5,6 +5,7 @@ import { MoltAction } from './molt-action.entity';
 import { Pond } from '../ponds/pond.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { istDayRangeUtc, toIstDateString } from '../common/ist-date';
+import { isMissingSchema } from '../health-observations/health.constants';
 import {
   MoltPhase,
   MoltWindow,
@@ -69,6 +70,8 @@ export interface MoltEvidence {
   peakFeedDaysKg: number[];
   /** Daily feed totals (kg) for each logged post day. */
   postFeedDaysKg: number[];
+  /** A soft-shell health observation (any level, any source) in post (D6 / M2). Absent = false. */
+  softShellChecked?: boolean;
 }
 
 /**
@@ -208,6 +211,9 @@ export function deriveItems(
           ev.peakFeedDaysKg.length > 0 &&
           ev.postFeedDaysKg.some((kg) => kg > Math.max(...ev.peakFeedDaysKg)),
         minerals: () => ev.minerals,
+        // M2 entry 2: any soft-shell observation in post (the quick tap,
+        // sampling, tray) is the check. Manual tick still allowed.
+        soft_shell_check: () => !!ev.softShellChecked,
       };
       if (autoDone[d.key]) {
         return !manualDone.has(d.key) && autoDone[d.key]() ? auto(true) : manual();
@@ -374,7 +380,7 @@ export class MoltService {
 
     // DATE columns compare to IST calendar strings; timestamptz columns use
     // the UTC instants bounding those IST days.
-    const [chem, treat, wq, feed, sampling, harvest, ticks] = await Promise.all([
+    const [chem, treat, wq, feed, sampling, harvest, ticks, softShell] = await Promise.all([
       q(
         `SELECT crop_id AS "cropId", bool_or(alkalinity_ppm IS NOT NULL) AS "alk"
            FROM chemical_data
@@ -434,7 +440,18 @@ export class MoltService {
         [cropIds, w.peakStart, w.peakEnd],
       ),
       this.actions.find({ where: { pondId: In(pondIds), windowKey: w.key } }),
+      // D6: before migration 1780701500000 the table is missing → no evidence.
+      q(
+        `SELECT DISTINCT pond_id AS "pondId" FROM health_observations
+          WHERE pond_id = ANY($1::uuid[]) AND sign = 'soft_shell'
+            AND observed_on BETWEEN $2 AND $3`,
+        [pondIds, postStart, w.postEnd],
+      ).catch((err) => {
+        if (isMissingSchema(err)) return [];
+        throw err;
+      }),
     ]);
+    const softShellPonds = new Set<string>(softShell.map((r: any) => r.pondId));
 
     const chemBy = new Map<string, any>(chem.map((r: any) => [r.cropId, r]));
     const treated = new Set<string>(
@@ -464,6 +481,7 @@ export class MoltService {
           : null,
         peakFeedDaysKg: peak.map((f: any) => Number(f.kg)),
         postFeedDaysKg: post.map((f: any) => Number(f.kg)),
+        softShellChecked: softShellPonds.has(r.pondId),
       });
     }
 
