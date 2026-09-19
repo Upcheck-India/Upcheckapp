@@ -271,10 +271,14 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                               type: 'success',
                           },
                 );
+                // H3: a saved full harvest closed the cycle — show its result.
+                // Queued offline, the server has nothing to report yet.
+                if (harvestType === 'full' && !res.queued && cropId) {
+                    navigation.replace('CycleResult', { cropId });
+                    return;
+                }
             }
 
-            // TODO(H3): after a FULL save, navigate to CycleResult (harvest-and-
-            // molt §H3) instead of goBack() — that screen does not exist yet.
             navigation.goBack();
         } catch (error: any) {
             const code = error?.response?.data?.code;

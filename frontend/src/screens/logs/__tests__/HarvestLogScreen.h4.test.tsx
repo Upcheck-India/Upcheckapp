@@ -34,7 +34,8 @@ const METRICS = {
     frame: { x: 0, y: 0, width: 390, height: 844 },
     insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
-const navigation = { goBack: jest.fn() };
+// H3: a saved full harvest replaces this screen with CycleResult.
+const navigation = { goBack: jest.fn(), replace: jest.fn() };
 const fromPlan = (prefill: any) => ({
     pondId: 'pond-1',
     pondName: 'Pond 1',
@@ -114,7 +115,7 @@ describe('HarvestLogScreen — H4 plan → harvest', () => {
                 ]),
             ),
         );
-        expect(navigation.goBack).toHaveBeenCalled();
+        expect(navigation.replace).toHaveBeenCalledWith('CycleResult', { cropId: 'crop-1' });
     });
 
     it('a linked save shows the plain success toast', async () => {
@@ -124,7 +125,7 @@ describe('HarvestLogScreen — H4 plan → harvest', () => {
 
         fireEvent.press(getByText('Save Harvest'));
 
-        await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+        await waitFor(() => expect(navigation.replace).toHaveBeenCalled());
         expect(useUIStore.getState().toasts.some((t) => t.type === 'warning')).toBe(false);
     });
 
