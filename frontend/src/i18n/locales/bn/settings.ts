@@ -260,6 +260,22 @@ const settings = {
       generic: "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।",
     },
   },
+  // Profile picture (machine-drafted; needs native review)
+  avatar: {
+    changePhoto: "ছবি বদলান",
+    addPhoto: "ছবি যোগ করুন",
+    removePhoto: "ছবি সরান",
+    removeConfirmTitle: "আপনার ছবি সরাবেন?",
+    removeConfirmBody: "এটি আমাদের সার্ভার থেকে মুছে ফেলা হবে।",
+    takePhoto: "ছবি তুলুন",
+    fromGallery: "গ্যালারি থেকে বাছুন",
+    uploadFailed: "আপনার ছবি আপডেট করা যায়নি। আবার চেষ্টা করুন।",
+    needsConnection: "ছবি বদলাতে ইন্টারনেট সংযোগ লাগবে।",
+    showToTeam: "আমার প্রোফাইল ছবি আমার খামারের দলকে দেখান",
+    showToTeamHint: "শুধু আপনার খামারের লোকেরা এটি দেখতে পাবেন। বন্ধ থাকলে শুধু আপনি দেখবেন।",
+    visibilityFailed: "এই সেটিং সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
+    a11yPhoto: "আপনার প্রোফাইল ছবি",
+  },
 };
 
 export default settings;
