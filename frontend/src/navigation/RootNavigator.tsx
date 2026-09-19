@@ -74,7 +74,7 @@ export type RootStackParamList = {
     CycleAnalysis: { cycleId: string; cycleName?: string };
     CycleResult: { cropId: string };
     CreateCycle: { pondId: string };
-    CycleDetail: { cycleId: string };
+    CycleDetail: { cycleId: string; focus?: 'biosecurity' };
     // Cycle history: per pond (from the dashboard) or per farm (from farm detail).
     CycleList: { pondId?: string; pondName?: string; farmId?: string; farmName?: string } | undefined;
 

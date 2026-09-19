@@ -657,7 +657,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                         testID="biosecurity-line"
                         style={[styles.complianceChip, styles.complianceRestricted]}
                         accessibilityRole="button"
-                        onPress={() => navigation.navigate('CycleDetail', { cycleId: cycle?.id })}
+                        onPress={() => navigation.navigate('CycleDetail', { cycleId: cycle?.id, focus: 'biosecurity' })}
                     >
                         <Text style={[styles.complianceText, { color: theme.roles.light.warningText }]}>
                             {t('biosecurity.progress', { done: biosecurity.done, total: biosecurity.total })}
