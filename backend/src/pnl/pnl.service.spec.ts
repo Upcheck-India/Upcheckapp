@@ -27,10 +27,19 @@ function makeService() {
     pricing as any,
     farmAccess as any,
   );
-  return { svc, cropRepo, farmAccess };
+  return { svc, cropRepo, farmAccess, harvestRepo };
 }
 
 describe('PnlService.computeCropPnl (farmer_features_spec §5)', () => {
+  // B9: a pending or discarded harvest is not revenue or harvested biomass.
+  it('reads only SOLD harvests', async () => {
+    const { svc, harvestRepo } = makeService();
+    await svc.computeCropPnl('crop-1', 'user-1');
+    expect(harvestRepo.find).toHaveBeenCalledWith({
+      where: { cropId: 'crop-1', status: 'sold' },
+    });
+  });
+
   it('aggregates the expense ledger and harvest revenue into CoP/profit', async () => {
     const { svc, farmAccess } = makeService();
     const r = await svc.computeCropPnl('crop-1', 'user-1', { areaM2: 4046.86 });
