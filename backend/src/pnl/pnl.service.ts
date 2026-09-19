@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Expense } from '../finances/expense.entity';
+import { ExpensesService } from '../finances/expenses.service';
 import { Harvest } from '../harvests/harvest.entity';
 import { Crop } from '../crops/crop.entity';
 import { EconomicsService } from '../india/economics.service';
@@ -34,8 +34,6 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 @Injectable()
 export class PnlService {
   constructor(
-    @InjectRepository(Expense)
-    private readonly expenseRepo: Repository<Expense>,
     @InjectRepository(Harvest)
     private readonly harvestRepo: Repository<Harvest>,
     @InjectRepository(Crop)
@@ -43,6 +41,7 @@ export class PnlService {
     private readonly economics: EconomicsService,
     private readonly pricing: PricingService,
     private readonly farmAccess: FarmAccessService,
+    private readonly expenses: ExpensesService,
   ) {}
 
   async computeCropPnl(
@@ -54,7 +53,10 @@ export class PnlService {
     // expenses.getCycleFinancials, so an owner OR manager who can see the
     // cycle financials can also see the P&L rollup of the same crop (was
     // owner-only, which 403'd managers on their own farm's financials).
-    const crop = await this.cropRepo.findOne({ where: { id: cropId } });
+    const crop = await this.cropRepo.findOne({
+      where: { id: cropId },
+      relations: ['pond'],
+    });
     if (!crop) {
       throw new NotFoundException(`Crop with ID ${cropId} not found`);
     }
@@ -64,32 +66,33 @@ export class PnlService {
       'VIEW_FINANCIALS',
     );
 
-    const expenses = await this.expenseRepo.find({ where: { cropId } });
-    // Only a SOLD harvest is revenue or harvested biomass — a pending or
-    // discarded one is neither.
-    const harvests = await this.harvestRepo.find({
-      where: { cropId, status: 'sold' },
-    });
-
+    // C5: ONE basis for cycle money. `getCycleFinancials` counts the expense
+    // ledger AND the pond-tagged Money-screen transactions in the cycle's
+    // window; this used to read `expenses` alone, so Crop P&L and Cycle
+    // financials printed two different profits for one cycle.
+    const fin = await this.expenses.getCycleFinancials(cropId, userId);
+    const totalCost = fin.totalExpenses;
+    const revenue = fin.totalRevenue;
+    const harvestBiomassKg = fin.totalHarvestKg;
     const costBreakdown: Record<string, number> = {};
-    let totalCost = 0;
-    for (const e of expenses) {
-      const amt = Number(e.amount) || 0;
-      totalCost += amt;
-      costBreakdown[e.category] = round2(
-        (costBreakdown[e.category] ?? 0) + amt,
-      );
+    for (const [cat, amt] of Object.entries(fin.expensesByCategory)) {
+      costBreakdown[cat] = round2(Number(amt) || 0);
     }
+    // Only a SOLD full harvest completes the cycle's numbers.
+    const hasFullHarvest =
+      (await this.harvestRepo.count({
+        where: { cropId, status: 'sold', harvestType: 'full' },
+      })) > 0;
 
-    let revenue = 0;
-    let harvestBiomassKg = 0;
-    let hasFullHarvest = false;
-    for (const h of harvests) {
-      revenue += Number(h.salePriceTotal) || 0;
-      harvestBiomassKg += Number(h.weightKg) || 0;
-      if (h.harvestType === 'full') hasFullHarvest = true;
-    }
+    // C3: no caller passed areaM2, so t/ha was always null. Default to the
+    // pond's own area (every caller gets it, none has to remember).
+    const pondArea = Number(
+      crop.pond?.overrideAreaM2 ?? crop.pond?.calculatedAreaM2,
+    );
+    const areaM2 = opts?.areaM2 ?? (pondArea > 0 ? pondArea : undefined);
 
+    // ponytail: region path left as is; H5 (price book) passes the farm's
+    // quote bands here instead.
     let priceBands;
     if (opts?.region) {
       const feed = await this.pricing.latestForRegion(opts.region);
@@ -100,7 +103,7 @@ export class PnlService {
       totalCost: round2(totalCost),
       harvestBiomassKg: round2(harvestBiomassKg),
       revenue: round2(revenue),
-      areaM2: opts?.areaM2,
+      areaM2,
       priceBands,
     });
 
@@ -112,7 +115,9 @@ export class PnlService {
       harvestBiomassKg: round2(harvestBiomassKg),
       coPerKg: round2(econ.coPerKg),
       breakEvenCount: econ.breakEvenCount,
-      profit: round2(econ.profit),
+      // The cycle-financials number itself, not a re-derivation that could
+      // round a paisa apart: one profit per cycle, everywhere.
+      profit: fin.netProfit,
       marginPct: round2(econ.marginPct),
       roiPct: round2(econ.roiPct),
       productivityTPerHa:
