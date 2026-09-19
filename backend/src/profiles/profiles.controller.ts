@@ -26,6 +26,7 @@ import { Throttle } from '@nestjs/throttler';
 import { AccountService } from '../auth/account.service';
 import { UpdateMyProfileDto } from '../auth/dto/account.dto';
 import { AUTH_THROTTLE } from '../auth/supabase-auth.controller';
+import { AvatarService } from '../avatars/avatar.service';
 
 @Controller('profiles')
 export class ProfilesController {
@@ -35,6 +36,7 @@ export class ProfilesController {
     private readonly profilesService: ProfilesService,
     private readonly emailService: EmailService,
     private readonly accountService: AccountService,
+    private readonly avatars: AvatarService,
   ) {}
 
   @Post()
@@ -73,11 +75,14 @@ export class ProfilesController {
   async findMe(@CurrentUser() user) {
     const { id, email } = user;
     this.logger.log(`GET /profiles/me — user.id: ${id}`);
-    const [profile, account] = await Promise.all([
+    const [profile, account, avatar] = await Promise.all([
       this.profilesService.upsert(id, email),
       this.accountService.getAccountInfo(id),
+      this.avatars.mine(id),
     ]);
-    return { ...profile, ...account };
+    // avatar last: its avatarUrl (uploaded, else provider) replaces the
+    // profiles row's legacy column.
+    return { ...profile, ...account, ...avatar };
   }
 
   /**

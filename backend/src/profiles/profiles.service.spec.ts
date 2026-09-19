@@ -6,6 +6,7 @@ import { Repository, DataSource } from 'typeorm';
 import { ProfilesService } from './profiles.service';
 import { Profile } from './profile.entity';
 import { SupabaseAuthService } from '../auth/supabase-auth.service';
+import { AvatarService } from '../avatars/avatar.service';
 
 // Mock repository factory
 const createMockRepository = () => ({
@@ -24,6 +25,7 @@ describe('ProfilesService', () => {
   let service: ProfilesService;
   let mockRepository: any;
   let authService: any;
+  let avatars: any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -54,6 +56,7 @@ describe('ProfilesService', () => {
             verifyPassword: jest.fn().mockResolvedValue(undefined),
           },
         },
+        { provide: AvatarService, useValue: { purgeUser: jest.fn().mockResolvedValue(undefined) } },
         ProfilesService,
         {
           provide: getRepositoryToken(Profile),
@@ -67,6 +70,7 @@ describe('ProfilesService', () => {
       getRepositoryToken(Profile),
     );
     authService = module.get(SupabaseAuthService);
+    avatars = module.get(AvatarService);
   });
 
   it('should be defined', () => {
@@ -129,6 +133,21 @@ describe('ProfilesService', () => {
   });
 
   describe('deleteAccount', () => {
+    it("purges the user's profile pictures from R2 before deleting the account", async () => {
+      const order: string[] = [];
+      avatars.purgeUser.mockImplementation(async () => { order.push('purge'); });
+      authService.deleteUser.mockImplementation(async () => { order.push('auth'); });
+      await service.deleteAccount('test-id', 'correct-password');
+      expect(avatars.purgeUser).toHaveBeenCalledWith('test-id');
+      expect(order).toEqual(['purge', 'auth']);
+    });
+
+    it('a failed purge aborts the deletion (retryable), never leaving photos behind', async () => {
+      avatars.purgeUser.mockRejectedValueOnce(new Error('R2 down'));
+      await expect(service.deleteAccount('test-id', 'correct-password')).rejects.toThrow('R2 down');
+      expect(authService.deleteUser).not.toHaveBeenCalled();
+    });
+
     it('re-authenticates a password account before deleting', async () => {
       await service.deleteAccount('test-id', 'correct-password');
 

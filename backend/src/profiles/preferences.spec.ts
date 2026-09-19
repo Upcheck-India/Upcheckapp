@@ -29,7 +29,7 @@ function makeService(stored: Record<string, unknown> = {}) {
       return [{ preferences: stored }];
     }),
   };
-  const svc = new ProfilesService({} as any, dataSource as any, {} as any);
+  const svc = new ProfilesService({} as any, dataSource as any, {} as any, {} as any);
   return { svc, calls, stored };
 }
 

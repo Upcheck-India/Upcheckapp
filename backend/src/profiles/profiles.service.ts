@@ -10,6 +10,7 @@ import { Profile } from './profile.entity';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { SupabaseAuthService } from '../auth/supabase-auth.service';
+import { AvatarService } from '../avatars/avatar.service';
 
 @Injectable()
 export class ProfilesService {
@@ -20,6 +21,7 @@ export class ProfilesService {
     private profilesRepository: Repository<Profile>,
     private dataSource: DataSource,
     private readonly supabaseAuthService: SupabaseAuthService,
+    private readonly avatars: AvatarService,
   ) {}
 
   create(createProfileDto: CreateProfileDto) {
@@ -44,8 +46,9 @@ export class ProfilesService {
     const profile = await this.profilesRepository.findOne({
       where: { username },
       // No createdAt: profiles has no such column, and selecting it made
-      // TypeORM throw on every public profile lookup.
-      select: ['id', 'username', 'fullName', 'avatarUrl', 'website'],
+      // TypeORM throw on every public profile lookup. No avatarUrl: a
+      // profile picture is never public (AvatarService decides who sees it).
+      select: ['id', 'username', 'fullName', 'website'],
     });
     return profile ?? null;
   }
@@ -158,6 +161,11 @@ export class ProfilesService {
     // on_auth_user_updated mirror trigger (supabase_setup.sql) would re-INSERT
     // a fresh public.users row — a "deleted" account that resurrects itself
     // and can still authenticate. Deleting auth first makes deletion truthful.
+    // Profile pictures go before anything else is deleted: if R2 refuses,
+    // the request fails and can be retried, rather than the account vanishing
+    // with the photos left behind.
+    await this.avatars.purgeUser(userId);
+
     await this.supabaseAuthService.deleteUser(userId);
 
     // Then remove all locally-owned data. Deleting the `users` row cascades to

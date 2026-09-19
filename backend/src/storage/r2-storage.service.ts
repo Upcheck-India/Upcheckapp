@@ -100,6 +100,10 @@ export class R2StorageService {
     }
   }
 
+  get configured(): boolean {
+    return !!this.client;
+  }
+
   /**
    * Validate, optimise and store one image under `<namespace>/<base>.*`.
    * Returns the stored path relative to the namespace (`<base>.webp`, or
