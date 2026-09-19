@@ -155,5 +155,8 @@ const farms = {
   shiftHoursLabel: "ସିଫ୍ଟ ଅବଧି (ଘଣ୍ଟା)",
   shiftHint: "ଦଳ ଜାଣିବ କେବେ ଚେକ ଆଉଟ କରିବାକୁ ହେବ। ଖାଲି ଛାଡିଲେ ଚେକ ଇନ ସମୟ ସହ ସିଫ୍ଟ ଅବଧି ଯୋଡାଯିବ।",
   shiftEndInvalid: "24 ଘଣ୍ଟା ସମୟ ଲେଖନ୍ତୁ, ଯେପରି 18:00।",
+  // D4 cycle input record (drafted, needs native review).
+  fieldCaaNo: "CAA ପଞ୍ଜୀକରଣ ନମ୍ବର",
+  caaHint: "ପ୍ରୋସେସରଙ୍କ ସହ ସେୟାର କରାଯାଉଥିବା ଚକ୍ର ଇନପୁଟ୍ ରେକର୍ଡରେ ଛପାଯାଏ।",
 };
 export default farms;

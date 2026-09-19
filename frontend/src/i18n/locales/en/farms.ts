@@ -154,5 +154,8 @@ const farms = {
   shiftHoursLabel: "Shift length (hours)",
   shiftHint: "Tells the team when a check-out is due. Leave empty to use check-in time plus the shift length.",
   shiftEndInvalid: "Use 24-hour time, like 18:00.",
+  // D4 cycle input record.
+  fieldCaaNo: "CAA registration no.",
+  caaHint: "Printed on the cycle input record you share with processors.",
 };
 export default farms;

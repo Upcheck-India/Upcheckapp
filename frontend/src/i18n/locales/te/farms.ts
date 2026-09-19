@@ -155,5 +155,8 @@ const farms = {
   shiftHoursLabel: "షిఫ్ట్ నిడివి (గంటలు)",
   shiftHint: "చెక్ అవుట్ ఎప్పుడు చేయాలో బృందానికి తెలుస్తుంది. ఖాళీగా వదిలితే చెక్ ఇన్ సమయానికి షిఫ్ట్ నిడివి కలుపుతాం.",
   shiftEndInvalid: "24 గంటల సమయం రాయండి, ఉదా. 18:00.",
+  // D4 cycle input record (drafted, needs native review).
+  fieldCaaNo: "CAA రిజిస్ట్రేషన్ నంబర్",
+  caaHint: "ప్రాసెసర్‌తో పంచుకునే సైకిల్ ఇన్‌పుట్ రికార్డుపై ముద్రించబడుతుంది.",
 };
 export default farms;
