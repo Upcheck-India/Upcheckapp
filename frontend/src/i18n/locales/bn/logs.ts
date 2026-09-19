@@ -162,6 +162,15 @@ const logs = {
   treatment_bannerRestrictedMsg:
     '{{names}} — রপ্তানিতে সীমাবদ্ধ; ফসল সংগ্রহের আগে প্রত্যাহার মেয়াদ পালন করুন।',
 
+  // ── Banned-substance list notice (spec D1) ───────────────────────────────
+  banned_disclaimer: 'এই তালিকা অসম্পূর্ণ হতে পারে। সতর্কবার্তা না আসার মানে এই নয় যে পণ্যটি অনুমোদিত।',
+  banned_listOf: '{{date}} তারিখের তালিকা',
+  banned_sourcesLink: 'উৎস',
+  banned_sourcesTitle: 'নিষিদ্ধ পদার্থের তালিকা: উৎস',
+  banned_reviewed: '{{date}} তারিখে {{name}} এই উৎসগুলির সঙ্গে মিলিয়ে দেখেছেন।',
+  banned_notReviewed: 'খসড়া: কোনো নামধারী পর্যালোচক এখনও যাচাই করেননি।',
+  banned_settingsRow: 'নিষিদ্ধ পদার্থের তালিকা',
+
   // ── Water Quality Log ─────────────────────────────────────────────────────
   waterQuality_title: 'পানির গুণগত মান',
   needsOneValue: "সংরক্ষণের আগে অন্তত একটি রিডিং দিন।",

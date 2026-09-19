@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BANNED_SUBSTANCES, type BannedSubstance } from './bannedSubstances';
+import {
+    BANNED_SUBSTANCES,
+    BANNED_LIST_VERSION,
+    BANNED_LIST_REVIEWED_ON,
+    BANNED_LIST_REVIEWED_BY,
+    type BannedSubstance,
+} from './bannedSubstances';
 import { fetchBannedSubstances } from '../api/bannedSubstances';
 
 /**
@@ -13,21 +19,47 @@ import { fetchBannedSubstances } from '../api/bannedSubstances';
  */
 interface BannedState {
     substances: BannedSubstance[];
-    version: string | null;
+    /** List date, 'YYYY-MM-DD'. */
+    version: string;
+    reviewedOn: string | null;
+    reviewedBy: string | null;
     hydrate: () => Promise<void>;
+}
+
+type Persisted = Pick<BannedState, 'substances' | 'version' | 'reviewedOn' | 'reviewedBy'>;
+
+const BUNDLED: Persisted = {
+    substances: BANNED_SUBSTANCES,
+    version: BANNED_LIST_VERSION,
+    reviewedOn: BANNED_LIST_REVIEWED_ON,
+    reviewedBy: BANNED_LIST_REVIEWED_BY || null,
+};
+
+/**
+ * A cached list older than the one bundled with this build (e.g. cached before
+ * an OTA shipped a bigger list) must not override it while offline. Versions
+ * are ISO dates, so string order is date order.
+ */
+export function pickNewer(persisted: Partial<Persisted> | undefined): Persisted {
+    if (!persisted?.substances?.length || !persisted.version) return BUNDLED;
+    if (persisted.version < BUNDLED.version) return BUNDLED;
+    return {
+        substances: persisted.substances,
+        version: persisted.version,
+        reviewedOn: persisted.reviewedOn ?? null,
+        reviewedBy: persisted.reviewedBy ?? null,
+    };
 }
 
 export const useBannedSubstancesStore = create<BannedState>()(
     persist(
         (set) => ({
-            substances: BANNED_SUBSTANCES,
-            version: null,
+            ...BUNDLED,
             hydrate: async () => {
                 try {
-                    const res = await fetchBannedSubstances();
-                    if (res?.substances?.length) {
-                        set({ substances: res.substances, version: res.version });
-                    }
+                    // pickNewer: a server still on an older list (deployed
+                    // after this OTA) must not downgrade the bundled one.
+                    set(pickNewer(await fetchBannedSubstances()));
                 } catch {
                     // Offline / server unreachable — keep the cached (or bundled) list.
                 }
@@ -36,7 +68,13 @@ export const useBannedSubstancesStore = create<BannedState>()(
         {
             name: 'banned-substances',
             storage: createJSONStorage(() => AsyncStorage),
-            partialize: (s) => ({ substances: s.substances, version: s.version }),
+            partialize: (s): Persisted => ({
+                substances: s.substances,
+                version: s.version,
+                reviewedOn: s.reviewedOn,
+                reviewedBy: s.reviewedBy,
+            }),
+            merge: (persisted, current) => ({ ...current, ...pickNewer(persisted as Partial<Persisted>) }),
         },
     ),
 );

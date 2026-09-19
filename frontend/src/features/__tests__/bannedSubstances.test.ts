@@ -9,11 +9,29 @@ describe('findBannedSubstances', () => {
     expect(hits.map((h) => h.name)).toContain('Chloramphenicol')
   })
 
-  it('detects nitrofuran metabolites (AOZ/AMOZ/SEM/AHD)', () => {
-    expect(findBannedSubstances('lab flagged AOZ residue').map((h) => h.name)).toContain(
-      'Nitrofurans',
-    )
-    expect(findBannedSubstances('SEM detected').map((h) => h.name)).toContain('Nitrofurans')
+  it('does not treat lab metabolite codes as free-text matches (spec D1)', () => {
+    // AOZ/AMOZ/SEM/AHD are lab-report terms kept in `labCodes`; "sem" is also
+    // an everyday word fragment, so free text never matches them.
+    expect(findBannedSubstances('sem sample sent to the lab')).toEqual([])
+    expect(findBannedSubstances('lab flagged AOZ residue')).toEqual([])
+  })
+
+  it('matches native-script names (hi te ta bn or)', () => {
+    for (const text of [
+      'कोलिस्टिन डाला',
+      'కొలిస్టిన్ వేశాం',
+      'கொலிஸ்டின் கொடுத்தோம்',
+      'কোলিস্টিন দিয়েছি',
+      'କୋଲିଷ୍ଟିନ ଦିଆଗଲା',
+    ]) {
+      expect(findBannedSubstances(text).map((h) => h.name)).toEqual(['Colistin'])
+    }
+  })
+
+  it('matches "sulphamethoxazole" (Latin ph→f)', () => {
+    expect(findBannedSubstances('Sulphamethoxazole 2 g').map((h) => h.name)).toEqual([
+      'Sulfamethoxazole',
+    ])
   })
 
   it('flags a restricted substance distinctly', () => {

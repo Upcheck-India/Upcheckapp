@@ -162,6 +162,15 @@ const logs = {
   treatment_bannerRestrictedMsg:
     '{{names}} — ఎగుమతి నియంత్రిత పదార్థం; పంటకు ముందు విత్‌డ్రాయల్ వ్యవధి పాటించండి.',
 
+  // ── Banned-substance list notice (spec D1) ───────────────────────────────
+  banned_disclaimer: 'ఈ జాబితా అసంపూర్ణంగా ఉండవచ్చు. హెచ్చరిక రాకపోతే ఆ ఉత్పత్తి అనుమతించబడిందని అర్థం కాదు.',
+  banned_listOf: '{{date}} నాటి జాబితా',
+  banned_sourcesLink: 'మూలాలు',
+  banned_sourcesTitle: 'నిషేధిత పదార్థాల జాబితా: మూలాలు',
+  banned_reviewed: '{{date}}న {{name}} ఈ మూలాలతో సరిచూశారు.',
+  banned_notReviewed: 'ముసాయిదా: పేరున్న సమీక్షకుడు ఇంకా సరిచూడలేదు.',
+  banned_settingsRow: 'నిషేధిత పదార్థాల జాబితా',
+
   // ── Water Quality Log ─────────────────────────────────────────────────────
   waterQuality_title: 'నీటి నాణ్యత',
   needsOneValue: "సేవ్ చేసే ముందు కనీసం ఒక రీడింగ్ నమోదు చేయండి.",

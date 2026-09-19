@@ -3,6 +3,8 @@ import { Public } from '../auth/decorators/auth.decorators';
 import {
   BANNED_SUBSTANCES,
   BANNED_LIST_VERSION,
+  BANNED_LIST_REVIEWED_BY,
+  BANNED_LIST_REVIEWED_ON,
 } from './banned-substances.data';
 
 /**
@@ -15,6 +17,13 @@ export class BannedSubstancesController {
   @Public()
   @Get()
   list() {
-    return { version: BANNED_LIST_VERSION, substances: BANNED_SUBSTANCES };
+    // Additive only: old app builds read `version` and each substance's
+    // `name` / `aliases: string[]` / `category` / `note`, and ignore the rest.
+    return {
+      version: BANNED_LIST_VERSION,
+      reviewedOn: BANNED_LIST_REVIEWED_ON,
+      reviewedBy: BANNED_LIST_REVIEWED_BY || null,
+      substances: BANNED_SUBSTANCES,
+    };
   }
 }
