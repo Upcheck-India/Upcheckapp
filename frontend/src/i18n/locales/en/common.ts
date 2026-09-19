@@ -14,6 +14,7 @@ const common = {
   share: 'Share',
   add: 'Add',
   close: 'Close',
+  viewPhoto: 'View photo',
   confirm: 'Confirm',
   back: 'Back',
   featureUnavailable: 'Not available right now',

@@ -21,6 +21,8 @@ export interface FeedbackReport {
     attachmentPaths: string[];
     /** Signed, short-lived. Empty on list reads — only the detail read signs them. */
     attachmentUrls: string[];
+    /** 400px thumbnails of `attachmentUrls`, same order (absent from older servers). */
+    attachmentThumbUrls?: string[];
     status: FeedbackStatus;
     adminResponse: string | null;
     respondedAt: string | null;

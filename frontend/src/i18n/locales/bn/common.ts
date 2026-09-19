@@ -14,6 +14,7 @@ const common = {
   share: 'শেয়ার করুন',
   add: 'যোগ করুন',
   close: 'বন্ধ করুন',
+  viewPhoto: 'ছবি দেখুন',
   confirm: 'নিশ্চিত করুন',
   back: 'পিছনে',
   featureUnavailable: 'এখন উপলব্ধ নয়',

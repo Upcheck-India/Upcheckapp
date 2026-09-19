@@ -14,6 +14,7 @@ const common = {
   share: 'பகிர்',
   add: 'சேர்',
   close: 'மூடு',
+  viewPhoto: 'புகைப்படத்தைப் பார்க்கவும்',
   confirm: 'உறுதிப்படுத்து',
   back: 'பின்செல்',
   featureUnavailable: 'இப்போது கிடைக்கவில்லை',

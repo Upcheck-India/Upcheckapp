@@ -51,6 +51,8 @@ export interface HealthObservation {
     windowKey: string | null;
     photoUrls: string[];
     photoSignedUrls?: string[];
+    /** 400px thumbnails of `photoSignedUrls`, same order. */
+    photoThumbUrls?: string[];
     createdAt: string;
 }
 
