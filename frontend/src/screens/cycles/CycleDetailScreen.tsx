@@ -259,6 +259,14 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                 )}
 
                 <View style={styles.actionContainer}>
+                    {/* H3: a closed cycle's result — READ, every role. */}
+                    {cycle.status !== 'active' && (
+                        <Button
+                            title={t('reports.openResult')}
+                            onPress={() => navigation.navigate('CycleResult', { cropId: cycle.id })}
+                            style={styles.actionBtn}
+                        />
+                    )}
                     {canViewFinancials && (
                         <Button
                             title={t('cycles.btnExpenses')}

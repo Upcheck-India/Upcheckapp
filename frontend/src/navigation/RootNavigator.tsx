@@ -72,6 +72,7 @@ export type RootStackParamList = {
     PondDashboard: { pondId: string; pondName?: string };
     PondDimensionHistory: { pondId: string; pondName?: string };
     CycleAnalysis: { cycleId: string; cycleName?: string };
+    CycleResult: { cropId: string };
     CreateCycle: { pondId: string };
     CycleDetail: { cycleId: string };
     // Cycle history: per pond (from the dashboard) or per farm (from farm detail).
@@ -408,6 +409,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="Activity" getComponent={() => require('../screens/activity/ActivityScreen').ActivityScreen} />
                     <Stack.Screen name="PondDimensionHistory" getComponent={() => require('../screens/ponds/PondDimensionHistoryScreen').PondDimensionHistoryScreen} />
                     <Stack.Screen name="CycleAnalysis" getComponent={() => withFlag('cycleAnalysis', require('../screens/reports/CycleAnalysisScreen').CycleAnalysisScreen)} />
+                    <Stack.Screen name="CycleResult" getComponent={() => require('../screens/reports/CycleResultScreen').CycleResultScreen} />
 
                     <Stack.Screen name="WaterQualityLog" getComponent={() => require('../screens/logs/WaterQualityLogScreen').WaterQualityLogScreen} />
                     <Stack.Screen name="FeedLog" getComponent={() => require('../screens/logs/FeedLogScreen').FeedLogScreen} />

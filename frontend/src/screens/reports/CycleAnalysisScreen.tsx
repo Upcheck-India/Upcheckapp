@@ -7,7 +7,7 @@ import { Card } from '../../components/ui/Card';
 import { LineChart } from '../../components/charts/LineChart';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { theme } from '../../theme';
-import { reportsApi, type CycleAnalysis } from '../../api/reports';
+import { reportsApi, type CycleResult } from '../../api/reports';
 import { useFlag } from '../../features/remoteFlags';
 
 const c = theme.roles.light;
@@ -16,23 +16,34 @@ export const CycleAnalysisScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const exportOn = useFlag('export');
     const { cycleId, cycleName } = route.params ?? {};
-    const [data, setData] = useState<CycleAnalysis | null>(null);
+    const [data, setData] = useState<CycleResult | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // The SAME metrics as the Cycle Result (H3): crop-scoped FCR, survival
+    // from harvested pieces — one formula, one answer per cycle.
     useEffect(() => {
         reportsApi
-            .getCycleAnalysis(cycleId)
+            .getCycleResult(cycleId)
             .then(({ data }) => setData(data))
             .catch(() => setData(null))
             .finally(() => setLoading(false));
     }, [cycleId]);
 
+    const notLogged = t('reports.notLogged');
+    const sr = data?.survival;
     const metrics = data
         ? [
-              { label: t('reports.fcr', 'FCR'), value: data.fcr ? data.fcr.toFixed(2) : '—' },
-              { label: t('reports.survival', 'Survival %'), value: data.survivalRate ? `${Number(data.survivalRate).toFixed(0)}%` : '—' },
-              { label: t('reports.totalFeed', 'Feed (kg)'), value: Number(data.totalFeedKg || 0).toFixed(0) },
-              { label: t('reports.totalHarvest', 'Harvest (kg)'), value: Number(data.totalHarvestKg || 0).toFixed(0) },
+              { label: t('reports.fcr'), value: data.fcr != null ? data.fcr.toFixed(2) : notLogged },
+              {
+                  label: t('reports.survival'),
+                  value: !sr
+                      ? notLogged
+                      : sr.low != null && sr.high != null
+                        ? t('reports.survivalRange', { low: sr.low, high: sr.high })
+                        : `${sr.pct}%`,
+              },
+              { label: t('reports.totalFeed'), value: Number(data.feedKg || 0).toFixed(0) },
+              { label: t('reports.totalHarvest'), value: Number(data.harvestedKg || 0).toFixed(0) },
           ]
         : [];
 
@@ -45,7 +56,7 @@ export const CycleAnalysisScreen = ({ route, navigation }: any) => {
                     <MaterialCommunityIcons name="arrow-left" size={24} color={c.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title} numberOfLines={1}>
-                    {cycleName ? t('reports.cycleAnalysisFor', { name: cycleName, defaultValue: `Analysis · ${cycleName}` }) : t('reports.cycleAnalysis', 'Cycle analysis')}
+                    {cycleName ? t('reports.cycleAnalysisFor', { name: cycleName }) : t('reports.cycleAnalysis')}
                 </Text>
                 {/* The report a farmer is looking at is the one they want to
                     send, so the export starts pre-filled with this cycle. */}
@@ -66,7 +77,7 @@ export const CycleAnalysisScreen = ({ route, navigation }: any) => {
             {loading ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={c.primary} /></View>
             ) : !data ? (
-                <EmptyState icon="chart-line" title={t('reports.noAnalysisTitle', 'No analysis yet')} subtitle={t('reports.noAnalysisSub', 'Record sampling and harvest data to see cycle metrics.')} />
+                <EmptyState icon="chart-line" title={t('reports.noAnalysisTitle')} subtitle={t('reports.noAnalysisSub')} />
             ) : (
                 <ScrollView contentContainerStyle={styles.content}>
                     <View style={styles.grid}>
@@ -78,7 +89,7 @@ export const CycleAnalysisScreen = ({ route, navigation }: any) => {
                         ))}
                     </View>
 
-                    <Text style={styles.sectionTitle}>{t('reports.growthCurve', 'Growth curve (avg body weight)')}</Text>
+                    <Text style={styles.sectionTitle}>{t('reports.growthCurve')}</Text>
                     {growth.length >= 2 ? (
                         <Card style={styles.chartCard}>
                             <LineChart
@@ -90,7 +101,7 @@ export const CycleAnalysisScreen = ({ route, navigation }: any) => {
                         </Card>
                     ) : (
                         <Card style={styles.chartCard}>
-                            <Text style={styles.hint}>{t('reports.growthNeedsData', 'Two or more samplings are needed to chart growth.')}</Text>
+                            <Text style={styles.hint}>{t('reports.growthNeedsData')}</Text>
                         </Card>
                     )}
                 </ScrollView>
