@@ -1,110 +1,41 @@
 /**
- * Banned / restricted aquaculture-substance guardrail (spec Requirement 18).
+ * Banned / restricted aquaculture-substance guardrail (spec Requirement 18,
+ * v2 spec D1).
  *
- * India's CAA/MPEDA prohibits several antimicrobials in shrimp culture; their
- * presence triggers export rejection. This module detects references to such
- * substances in free text (treatment notes, product names) so the app can warn
- * the farmer — protectively and non-directively. It NEVER suggests an
- * alternative product to use instead (spec Requirement 4.2).
- *
- * The matcher is pure and offline. The seeded list mirrors the CAA prohibited
- * list; the backend list is authoritative and server-updatable. This is a
- * decision-support warning, not professional or legal advice.
+ * The list and the matcher are GENERATED from the backend
+ * (`npm run gen:banned`), so the bundled offline copy and the server's
+ * write-time check are the same code and data. The server list is fetched on
+ * launch and cached (bannedSubstancesStore). Warn-only and non-directive: it
+ * NEVER suggests an alternative product. Not professional or legal advice.
  */
+import {
+  BANNED_SUBSTANCES,
+  BANNED_LIST_VERSION,
+  BANNED_LIST_REVIEWED_ON,
+  BANNED_LIST_REVIEWED_BY,
+  type BannedSubstance,
+  type BannedSource,
+  type SubstanceCategory,
+} from './bannedSubstances.generated'
+import { matchSubstances } from './bannedSubstanceMatcher.generated'
 
-export type SubstanceCategory = 'banned' | 'restricted'
-
-export interface BannedSubstance {
-  /** Canonical display name. */
-  name: string
-  /** Lowercase match terms (whole-word, case-insensitive). */
-  aliases: string[]
-  category: SubstanceCategory
-  /** Short, non-directive note (e.g. why restricted). */
-  note?: string
+export {
+  BANNED_SUBSTANCES,
+  BANNED_LIST_VERSION,
+  BANNED_LIST_REVIEWED_ON,
+  BANNED_LIST_REVIEWED_BY,
 }
+export type { BannedSubstance, BannedSource, SubstanceCategory }
 
 /**
- * Seeded prohibited/restricted substances. Short or ambiguous abbreviations
- * (e.g. "CAP", "OTC") are intentionally omitted to avoid false positives.
- */
-export const BANNED_SUBSTANCES: BannedSubstance[] = [
-  { name: 'Chloramphenicol', aliases: ['chloramphenicol'], category: 'banned' },
-  {
-    name: 'Nitrofurans',
-    aliases: [
-      'nitrofuran',
-      'nitrofurans',
-      'furazolidone',
-      'furaltadone',
-      'nitrofurazone',
-      'nitrofurantoin',
-      'aoz',
-      'amoz',
-      'sem',
-      'ahd',
-    ],
-    category: 'banned',
-    note: 'Includes metabolites AOZ, AMOZ, SEM, AHD.',
-  },
-  {
-    name: 'Fluoroquinolones',
-    aliases: [
-      'fluoroquinolone',
-      'fluoroquinolones',
-      'ciprofloxacin',
-      'enrofloxacin',
-      'norfloxacin',
-      'ofloxacin',
-      'pefloxacin',
-      'sarafloxacin',
-    ],
-    category: 'banned',
-  },
-  {
-    name: 'Nitroimidazoles',
-    aliases: ['nitroimidazole', 'metronidazole', 'dimetridazole', 'ronidazole', 'ipronidazole'],
-    category: 'banned',
-  },
-  { name: 'Colistin', aliases: ['colistin'], category: 'banned' },
-  { name: 'Neomycin', aliases: ['neomycin'], category: 'banned' },
-  { name: 'Nalidixic acid', aliases: ['nalidixic'], category: 'banned' },
-  { name: 'Sulfamethoxazole', aliases: ['sulfamethoxazole'], category: 'banned' },
-  { name: 'Chloroform', aliases: ['chloroform'], category: 'banned' },
-  { name: 'Aristolochia', aliases: ['aristolochia'], category: 'banned' },
-  {
-    name: 'Oxytetracycline',
-    aliases: ['oxytetracycline'],
-    category: 'restricted',
-    note: 'MRL-limited — observe the withdrawal period before harvest.',
-  },
-]
-
-/** Escape a string for safe use inside a RegExp. */
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-/**
- * Find every banned/restricted substance referenced in the given text.
- * Matching is case-insensitive and whole-word (so "neomycin" matches but a
- * substring inside an unrelated word does not). Returns each substance once.
+ * Every banned/restricted substance referenced in the text, once each.
+ * Whole-token, any of the 6 app scripts, "sulpha" = "sulfa".
  */
 export function findBannedSubstances(
   text: string | null | undefined,
   list: BannedSubstance[] = BANNED_SUBSTANCES,
 ): BannedSubstance[] {
-  if (!text) return []
-  const haystack = text.toLowerCase()
-  const found: BannedSubstance[] = []
-  for (const sub of list) {
-    const hit = sub.aliases.some((alias) => {
-      const re = new RegExp(`\\b${escapeRegExp(alias.toLowerCase())}\\b`)
-      return re.test(haystack)
-    })
-    if (hit) found.push(sub)
-  }
-  return found
+  return matchSubstances(text, list)
 }
 
 /** Convenience boolean: does the text reference any banned/restricted substance? */
@@ -113,6 +44,18 @@ export function containsBannedSubstance(
   list: BannedSubstance[] = BANNED_SUBSTANCES,
 ): boolean {
   return findBannedSubstances(text, list).length > 0
+}
+
+/** Unique source instruments across a list, for the sources sheet. */
+export function listSources(list: BannedSubstance[] = BANNED_SUBSTANCES): BannedSource[] {
+  const seen = new Map<string, BannedSource>()
+  for (const s of list) {
+    for (const src of s.sources ?? []) {
+      const id = `${src.instrument}|${src.url}`
+      if (!seen.has(id)) seen.set(id, { authority: src.authority, instrument: src.instrument, url: src.url })
+    }
+  }
+  return [...seen.values()]
 }
 
 export default { BANNED_SUBSTANCES, findBannedSubstances, containsBannedSubstance }

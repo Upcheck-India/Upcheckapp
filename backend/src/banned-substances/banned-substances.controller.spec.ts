@@ -14,4 +14,14 @@ describe('BannedSubstancesController', () => {
       ),
     ).toBe(true);
   });
+
+  it('stays readable by old app builds (name, aliases: string[], category)', () => {
+    for (const s of controller.list().substances) {
+      expect(typeof s.name).toBe('string');
+      expect(['banned', 'restricted']).toContain(s.category);
+      expect(Array.isArray(s.aliases)).toBe(true);
+      expect(s.aliases.length).toBeGreaterThan(0);
+      s.aliases.forEach((a) => expect(typeof a).toBe('string'));
+    }
+  });
 });

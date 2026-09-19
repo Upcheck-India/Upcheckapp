@@ -3,6 +3,9 @@ import type { BannedSubstance } from '../features/bannedSubstances';
 
 export interface BannedListResponse {
     version: string;
+    /** Absent from servers older than list v2. */
+    reviewedOn?: string | null;
+    reviewedBy?: string | null;
     substances: BannedSubstance[];
 }
 
