@@ -43,6 +43,7 @@ import dailyBrief from './dailyBrief';
 import alerts from './alerts';
 import compliance from './compliance';
 import health from './health';
+import reports from './reports';
 
 export default {
   common,
@@ -82,4 +83,5 @@ export default {
   alerts,
   compliance,
   health,
+  reports,
 };
