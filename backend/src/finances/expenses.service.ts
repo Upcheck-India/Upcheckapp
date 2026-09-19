@@ -466,8 +466,9 @@ export class ExpensesService {
     //
     // The date range is applied in memory: HarvestsService is another module's
     // and takes no date filter, and its read is already capped at 500 rows.
+    // Only a SOLD harvest is revenue or harvested biomass.
     const harvests = (await this.harvestsService.findAll(userId, cropId)).filter(
-      (h: any) => inDateRange(h.harvestDate, q),
+      (h: any) => h.status === 'sold' && inDateRange(h.harvestDate, q),
     );
     const totalRevenue = harvests.reduce(
       (sum, h) => sum + (Number(h.salePriceTotal) || 0),

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -13,12 +13,34 @@ import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 import { confirm } from '../../utils/confirm';
 import { saveRecord } from '../../sync/recordSync';
+import { pondsApi } from '../../api/ponds';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export const HarvestLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
     const { pondId, pondName, cropId, editRecord } = route.params;
     const isEditing = !!editRecord;
+
+    // The sale section is money: only a member with VIEW_FINANCIALS on THIS
+    // pond's farm sees it (the server masks price and buyer for everyone else).
+    // Until the pond's farm is known — or offline — this falls back to the
+    // active farm, which is where the pond almost always lives.
+    const [farmId, setFarmId] = useState<string | undefined>(route.params.farmId);
+    useEffect(() => {
+        if (farmId || !pondId) return;
+        let cancelled = false;
+        pondsApi
+            .getById(pondId)
+            .then(({ data }) => {
+                if (!cancelled) setFarmId(data.farmId);
+            })
+            .catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+    }, [pondId, farmId]);
+    const { canViewFinancials } = usePermissions(farmId);
 
     const [harvestDate, setHarvestDate] = useState(editRecord?.harvestDate ?? todayLocalISODate());
     const [weightKg, setWeightKg] = useState(editRecord?.weightKg != null ? String(editRecord.weightKg) : '');
@@ -54,8 +76,10 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                 weightKg: parseFloat(weightKg),
                 harvestType,
                 averageSize: averageSize ? parseFloat(averageSize) : undefined,
-                salePriceTotal: salePriceTotal ? parseFloat(salePriceTotal) : undefined,
-                buyerName: buyerName || undefined,
+                // Never send the (hidden, masked) sale fields for a member who
+                // cannot see them — an edit must not touch the price.
+                salePriceTotal: canViewFinancials && salePriceTotal ? parseFloat(salePriceTotal) : undefined,
+                buyerName: (canViewFinancials && buyerName) || undefined,
             };
 
             if (isEditing) {
@@ -80,7 +104,15 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
             }
 
             navigation.goBack();
-        } catch (error) {
+        } catch (error: any) {
+            // Nothing was written, and retrying can never succeed — so no
+            // "try again": say what happened and leave the form.
+            if (error?.response?.data?.code === 'CYCLE_CLOSED') {
+                Alert.alert(t('common.error'), t('logs.harvest_errorCycleClosed'), [
+                    { text: t('common.ok'), onPress: () => navigation.goBack() },
+                ]);
+                return;
+            }
             console.error('Failed to log harvest', error);
             Alert.alert(t('common.error'), t('logs.harvest_errorSave'));
         } finally {
@@ -145,6 +177,7 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                     />
                 </Card>
 
+                {canViewFinancials && (
                 <Card style={styles.card}>
                     <Text style={styles.sectionTitle}>{t('logs.harvest_sectionSales')}</Text>
 
@@ -163,6 +196,7 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                         placeholder={t('logs.harvest_placeholderSalePrice')}
                     />
                 </Card>
+                )}
 
                 <Button
                     title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.harvest_saveBtn')}

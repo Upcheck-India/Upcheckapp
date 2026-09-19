@@ -31,6 +31,7 @@ import { PondContextController } from '../pond-context/pond-context.controller';
 import { HarvestTimingController } from '../harvest-timing/harvest-timing.controller';
 import { ReportsController } from '../reports/reports.controller';
 import { HarvestsController } from '../harvests/harvests.controller';
+import { HarvestPlansController } from '../harvest-plans/harvest-plans.controller';
 import { InventoryController } from '../inventory/inventory.controller';
 import { TransactionsController } from '../transactions/transactions.controller';
 import { FarmsController } from '../farms/farms.controller';
@@ -100,8 +101,9 @@ const ROUTES: Row[] = [
   // pond-context — dashboard read.
   [PondContextController, 'get', P('READ')],
 
-  // harvest-timing — the persisted-history read.
-  [HarvestTimingController, 'recent', P('READ')],
+  // harvest-timing — the persisted history is ₹ projections, so it is a
+  // financial read, not a dashboard one.
+  [HarvestTimingController, 'recent', P('VIEW_FINANCIALS')],
 
   // harvests — a harvest closes a cycle and books revenue. It used to ride
   // WRITE_MANAGEMENT (and, on the client, WRITE_OPERATIONAL: the same key as a
@@ -174,16 +176,30 @@ const ROUTES: Row[] = [
   // crops — closing a cycle IS recording a harvest. These rode
   // WRITE_MANAGEMENT, which let a member the owner had explicitly blocked from
   // harvesting complete the cycle and write the harvest weight anyway.
-  ...(['harvest', 'closeCycle'] as const).map((handler): Row => [
+  [
     CropsController,
-    handler,
+    'closeCycle',
     {
       entityType: 'Crop',
       paramName: 'id',
       ownerPath: 'pond.farm.userId',
       capability: 'RECORD_HARVEST',
     },
-  ]),
+  ],
+
+  // harvest plans — completing a plan closes the cycle and books the sale, so
+  // it is RECORD_HARVEST. On WRITE_MANAGEMENT a manager whose RECORD_HARVEST
+  // the owner had revoked could still harvest through the plan.
+  [
+    HarvestPlansController,
+    'complete',
+    {
+      entityType: 'HarvestPlan',
+      paramName: 'id',
+      ownerPath: 'pond.farm.userId',
+      capability: 'RECORD_HARVEST',
+    },
+  ],
 ];
 
 const metaFor = (

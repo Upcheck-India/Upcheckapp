@@ -88,6 +88,7 @@ const logs = {
   harvest_saveBtn: 'ଅମଳ ସଞ୍ଚୟ',
   harvest_validationWeight: 'ଓଜନ ଆବଶ୍ୟକ',
   harvest_errorSave: 'ଅମଳ ଲଗ ବିଫଳ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
+  harvest_errorCycleClosed: 'ଏହି ଚକ୍ର ପୂର୍ବରୁ ବନ୍ଦ ହୋଇସାରିଛି। ଅମଳ ସେଭ୍ ହୋଇନାହିଁ।',
 
   // ── Microbiology Log ──────────────────────────────────────────────────────
   microbiology_title: 'ମାଇକ୍ରୋବାୟୋଲଜି ଏଣ୍ଟ୍ରି',

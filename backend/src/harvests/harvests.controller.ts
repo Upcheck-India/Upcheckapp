@@ -39,8 +39,8 @@ export class HarvestsController {
   @Get(':id')
   @UseGuards(OwnershipGuard)
   @OwnsResource('Harvest', 'id', 'crop.pond.farm.userId', 'RECORD_HARVEST')
-  findOne(@Param('id') id: string) {
-    return this.harvestsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user) {
+    return this.harvestsService.findOne(id, user.id);
   }
 
   @Patch(':id')

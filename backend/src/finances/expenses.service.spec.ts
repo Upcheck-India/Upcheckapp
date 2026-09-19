@@ -266,9 +266,9 @@ describe('ExpensesService.getCycleFinancials — date range', () => {
     const { service } = build({
       rows: [{ amount: '100', category: 'Feed', date: '2026-02-10' }],
       harvests: [
-        { harvestDate: '2026-01-15', salePriceTotal: 5000, weightKg: 10 },
-        { harvestDate: '2026-02-10', salePriceTotal: 8000, weightKg: 20 },
-        { harvestDate: '2026-03-15', salePriceTotal: 9000, weightKg: 30 },
+        { harvestDate: '2026-01-15', salePriceTotal: 5000, weightKg: 10, status: 'sold' },
+        { harvestDate: '2026-02-10', salePriceTotal: 8000, weightKg: 20, status: 'sold' },
+        { harvestDate: '2026-03-15', salePriceTotal: 9000, weightKg: 30, status: 'sold' },
       ],
     });
 
@@ -284,14 +284,30 @@ describe('ExpensesService.getCycleFinancials — date range', () => {
   it('counts every harvest when no range is given', async () => {
     const { service } = build({
       harvests: [
-        { harvestDate: '2026-01-15', salePriceTotal: 5000, weightKg: 10 },
-        { harvestDate: '2026-03-15', salePriceTotal: 9000, weightKg: 30 },
+        { harvestDate: '2026-01-15', salePriceTotal: 5000, weightKg: 10, status: 'sold' },
+        { harvestDate: '2026-03-15', salePriceTotal: 9000, weightKg: 30, status: 'sold' },
       ],
     });
 
     const out = await service.getCycleFinancials('crop-1', 'u');
 
     expect(out.totalRevenue).toBe(14000);
+  });
+
+  // B9: pending / discarded harvests are neither revenue nor harvested kg.
+  it('counts only SOLD harvests', async () => {
+    const { service } = build({
+      harvests: [
+        { harvestDate: '2026-01-15', salePriceTotal: 5000, weightKg: 10, status: 'sold' },
+        { harvestDate: '2026-01-16', salePriceTotal: 7000, weightKg: 15, status: 'discarded' },
+        { harvestDate: '2026-01-17', salePriceTotal: 9000, weightKg: 30, status: 'pending' },
+      ],
+    });
+
+    const out = await service.getCycleFinancials('crop-1', 'u');
+
+    expect(out.totalRevenue).toBe(5000);
+    expect(out.totalHarvestKg).toBe(10);
   });
 });
 

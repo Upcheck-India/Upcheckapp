@@ -65,7 +65,11 @@ export class PnlService {
     );
 
     const expenses = await this.expenseRepo.find({ where: { cropId } });
-    const harvests = await this.harvestRepo.find({ where: { cropId } });
+    // Only a SOLD harvest is revenue or harvested biomass — a pending or
+    // discarded one is neither.
+    const harvests = await this.harvestRepo.find({
+      where: { cropId, status: 'sold' },
+    });
 
     const costBreakdown: Record<string, number> = {};
     let totalCost = 0;

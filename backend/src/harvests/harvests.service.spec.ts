@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { HarvestsService } from './harvests.service';
 
 /**
@@ -23,7 +23,7 @@ function makeService(rows: any[], farmIds = ['f1']) {
   const farmAccess = {
     getFarmIdsWithCapability: jest.fn().mockResolvedValue(farmIds),
   };
-  const svc = new HarvestsService(repo as any, {} as any, farmAccess as any);
+  const svc = new HarvestsService(repo as any, {} as any, farmAccess as any, {} as any);
   return { svc, qb, farmAccess };
 }
 
@@ -133,7 +133,7 @@ function makeFindAllService(farmIds = ['f1']) {
     getAccessiblePondIds: jest.fn().mockResolvedValue(['p1', 'p2']),
     getFarmIdsWithCapability: jest.fn().mockResolvedValue(farmIds),
   };
-  const svc = new HarvestsService(repo as any, {} as any, farmAccess as any);
+  const svc = new HarvestsService(repo as any, {} as any, farmAccess as any, {} as any);
   return { svc, qb, farmAccess };
 }
 
@@ -208,11 +208,23 @@ describe('HarvestsService.findAll pond filter', () => {
  * reading — so any worker could sell the pond. RECORD_HARVEST is its own
  * capability, and the service asserts it rather than trusting the route guard.
  */
-function makeGateService(allowed: boolean) {
+function makeGateService(
+  allowed: boolean,
+  opts: { cropStatus?: string; viewFinancials?: boolean; existing?: any } = {},
+) {
   const repo = {
     create: jest.fn((v: any) => v),
     save: jest.fn(async (v: any) => ({ id: 'h1', ...v })),
-    findOne: jest.fn(async () => ({ id: 'h1', crop: { pondId: 'p1' } })),
+    findOne: jest.fn(async () =>
+      'existing' in opts
+        ? opts.existing
+        : {
+            id: 'h1',
+            salePriceTotal: 50000,
+            buyerName: 'Ravi',
+            crop: { pondId: 'p1' },
+          },
+    ),
     findOneBy: jest.fn(async () => ({ id: 'h1' })),
     update: jest.fn(),
     delete: jest.fn(),
@@ -222,18 +234,145 @@ function makeGateService(allowed: boolean) {
     closeCycle: jest.fn(),
   };
   const farmAccess = {
-    assertCanAccessPond: jest.fn(async () => {
+    assertCanAccessPond: jest.fn(async (_u: string, _p: string, cap: string) => {
       if (!allowed) throw new ForbiddenException();
+      if (cap === 'VIEW_FINANCIALS' && opts.viewFinancials === false) {
+        throw new ForbiddenException();
+      }
       return { id: 'p1' };
     }),
+  };
+  // The transaction's manager: the crop row it locks, and inserts that land in
+  // the same `repo` mock the assertions read.
+  const manager = {
+    findOne: jest.fn(async () => ({
+      id: 'c1',
+      pondId: 'p1',
+      status: opts.cropStatus ?? 'active',
+    })),
+    create: jest.fn((_e: any, v: any) => repo.create(v)),
+    save: jest.fn((v: any) => repo.save(v)),
+  };
+  const dataSource = {
+    transaction: jest.fn((cb: (m: typeof manager) => unknown) => cb(manager)),
   };
   const svc = new HarvestsService(
     repo as any,
     cropsService as any,
     farmAccess as any,
+    dataSource as any,
   );
-  return { svc, repo, farmAccess, cropsService };
+  return { svc, repo, farmAccess, cropsService, manager };
 }
+
+describe('B1 — a harvest is atomic with its cycle close', () => {
+  const full = {
+    id: '11111111-1111-1111-1111-111111111111',
+    cropId: 'c1',
+    harvestDate: '2026-02-01',
+    weightKg: 100,
+    harvestType: 'full',
+  } as any;
+
+  it('refuses a closed cycle with CYCLE_CLOSED and writes nothing', async () => {
+    const { svc, repo, cropsService } = makeGateService(true, {
+      cropStatus: 'completed',
+      existing: null,
+    });
+
+    const err = await svc.create(full, 'owner-1').catch((e) => e);
+
+    expect(err).toBeInstanceOf(ConflictException);
+    expect(err.getResponse()).toEqual(
+      expect.objectContaining({ code: 'CYCLE_CLOSED' }),
+    );
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(cropsService.closeCycle).not.toHaveBeenCalled();
+  });
+
+  it('locks the crop row before checking it', async () => {
+    const { svc, manager } = makeGateService(true, { existing: null });
+
+    await svc.create(full, 'owner-1');
+
+    expect(manager.findOne).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ lock: { mode: 'pessimistic_write' } }),
+    );
+  });
+
+  it('closes the cycle inside the same transaction', async () => {
+    const { svc, cropsService, manager } = makeGateService(true, {
+      existing: null,
+    });
+
+    await svc.create(full, 'owner-1');
+
+    expect(cropsService.closeCycle).toHaveBeenCalledWith(
+      'c1',
+      '2026-02-01',
+      'owner-1',
+      manager,
+    );
+  });
+
+  it('a replay with the same id returns the existing row and closes nothing', async () => {
+    const { svc, repo, cropsService } = makeGateService(true);
+
+    const res = await svc.create(full, 'owner-1');
+
+    expect(res).toEqual(expect.objectContaining({ id: 'h1' }));
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(cropsService.closeCycle).not.toHaveBeenCalled();
+  });
+});
+
+it('B9 — money entries list only SOLD harvests', async () => {
+  const { svc, qb } = makeService([]);
+  await svc.findMoneyEntries('owner-1');
+  expect(qb.andWhere).toHaveBeenCalledWith("harvest.status = 'sold'");
+});
+
+describe('B6 — sale price masked without VIEW_FINANCIALS', () => {
+  const dto = {
+    cropId: 'c1',
+    harvestDate: '2026-02-01',
+    weightKg: 100,
+    salePriceTotal: 50000,
+    buyerName: 'Ravi',
+    harvestType: 'partial',
+  } as any;
+
+  it('findOne', async () => {
+    const { svc } = makeGateService(true, { viewFinancials: false });
+    const h = await svc.findOne('h1', 'manager-1');
+    expect(h.salePriceTotal).toBeNull();
+    expect(h.buyerName).toBeNull();
+    expect((h as any).crop).toBeUndefined();
+  });
+
+  it('the create response', async () => {
+    const { svc } = makeGateService(true, {
+      viewFinancials: false,
+      existing: null,
+    });
+    const h = await svc.create(dto, 'manager-1');
+    expect(h.salePriceTotal).toBeNull();
+    expect(h.buyerName).toBeNull();
+  });
+
+  it('the update response', async () => {
+    const { svc } = makeGateService(true, { viewFinancials: false });
+    const h = await svc.update('h1', { weightKg: 120 } as any, 'manager-1');
+    expect(h.salePriceTotal).toBeNull();
+  });
+
+  it('an owner still sees the price', async () => {
+    const { svc } = makeGateService(true);
+    const h = await svc.findOne('h1', 'owner-1');
+    expect(h.salePriceTotal).toBe(50000);
+  });
+});
 
 describe('RECORD_HARVEST gate', () => {
   const dto = {

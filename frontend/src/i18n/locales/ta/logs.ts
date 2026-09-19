@@ -88,6 +88,7 @@ const logs = {
   harvest_saveBtn: 'அறுவடையை சேமி',
   harvest_validationWeight: 'எடை தேவை',
   harvest_errorSave: 'அறுவடை பதிவு செய்ய முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+  harvest_errorCycleClosed: 'இந்த சுழற்சி ஏற்கனவே மூடப்பட்டுவிட்டது. அறுவடை சேமிக்கப்படவில்லை.',
 
   // ── Microbiology Log ──────────────────────────────────────────────────────
   microbiology_title: 'நுண்ணுயிரியல் பதிவு',

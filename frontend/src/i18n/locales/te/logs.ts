@@ -88,6 +88,7 @@ const logs = {
   harvest_saveBtn: 'పంట సేవ్ చేయి',
   harvest_validationWeight: 'బరువు తప్పనిసరి',
   harvest_errorSave: 'పంట నమోదు విఫలమైంది. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+  harvest_errorCycleClosed: 'ఈ సైకిల్ ఇప్పటికే మూసివేయబడింది. పంట సేవ్ కాలేదు.',
 
   // ── Microbiology Log ──────────────────────────────────────────────────────
   microbiology_title: 'సూక్ష్మజీవశాస్త్ర నమోదు',
