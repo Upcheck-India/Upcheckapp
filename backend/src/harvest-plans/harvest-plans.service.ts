@@ -11,10 +11,11 @@ import { HarvestPlan } from './harvest-plan.entity';
 import { CreateHarvestPlanDto } from './dto/create-harvest-plan.dto';
 import { UpdateHarvestPlanDto } from './dto/update-harvest-plan.dto';
 import { CompletePlanDto } from './dto/complete-plan.dto';
-import { Transaction } from '../transactions/transaction.entity';
 import { Crop } from '../crops/crop.entity';
-import { Pond } from '../ponds/pond.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { HarvestsService } from '../harvests/harvests.service';
+import { CreateHarvestDto } from '../harvests/dto/create-harvest.dto';
+import { toIstDateString } from '../common/ist-date';
 
 /** Prices and revenue are financials; dates and weights are not. */
 export const maskPlanFinancials = (
@@ -36,13 +37,10 @@ export class HarvestPlansService {
   constructor(
     @InjectRepository(HarvestPlan)
     private plansRepository: Repository<HarvestPlan>,
-    @InjectRepository(Transaction)
-    private transactionsRepository: Repository<Transaction>,
     @InjectRepository(Crop)
     private cropsRepository: Repository<Crop>,
-    @InjectRepository(Pond)
-    private pondsRepository: Repository<Pond>,
     private farmAccess: FarmAccessService,
+    private harvestsService: HarvestsService,
   ) {}
 
   /**
@@ -115,9 +113,18 @@ export class HarvestPlansService {
     return this.plansRepository.delete(id);
   }
 
+  /**
+   * COMPATIBILITY SHIM for app builds older than H4. Remove next release:
+   * TODO(H4, next release): answer 410 Gone `{ code: 'USE_HARVEST_LOG' }`.
+   *
+   * It used to book a `transactions` income row and write no harvest, so the
+   * farm report and every harvest-based screen disagreed (B2). Now it logs a
+   * single-grade FULL harvest through HarvestsService.create — the one revenue
+   * path — which completes this plan in the same transaction (scoped to the
+   * crop's pond, only while still planned) and closes the cycle. No
+   * transaction row is written.
+   */
   async completePlan(id: string, payload: CompletePlanDto, userId: string) {
-    // Load with the pond relation so the farm for the money-writing Transaction
-    // below is resolved server-side — never trust a client-supplied farmId here.
     const plan = await this.plansRepository.findOne({
       where: { id },
       relations: ['pond'],
@@ -125,68 +132,32 @@ export class HarvestPlansService {
     if (!plan) {
       throw new NotFoundException('Harvest plan not found');
     }
-
-    const actualRevenue = payload.actualWeightKg * payload.actualPricePerKg;
-
-    // Idempotency: a double-tap or offline retry of complete must not book the
-    // harvest-sale income twice. A conditional update, not check-then-act: two
-    // concurrent completes both read 'planned', but only one can flip it.
-    const res = await this.plansRepository.update(
-      { id, status: 'planned' },
-      {
-        actualHarvestDate: payload.actualHarvestDate,
-        actualWeightKg: payload.actualWeightKg,
-        actualPricePerKg: payload.actualPricePerKg,
-        actualRevenue,
-        status: 'completed',
-      },
-    );
-    if (!res.affected) {
+    if (plan.status !== 'planned') {
       throw new ConflictException('Harvest plan is already completed');
     }
-
-    await this.transactionsRepository.save(
-      this.transactionsRepository.create({
-        farmId: plan.pond.farmId,
-        transactionDate: payload.actualHarvestDate,
-        type: 'income',
-        category: 'harvest_sale',
-        amount: actualRevenue,
-        description: `Harvest sale from plan ${plan.id}`,
-      }),
-    );
-
-    // Use the crop already linked to this plan — not a client-supplied cropId.
-    // `create` now checks it is this pond's cycle; the `pondId` criterion
-    // below also covers plans written before that check existed, so a stored
-    // foreign cropId matches no row instead of closing another farm's cycle.
-    if (plan.cropId) {
-      // 'completed', not 'harvested'. The crop entity documents the vocabulary
-      // as active | completed | cancelled, and every other close path writes
-      // 'completed' — this one invented a fourth word that nothing else
-      // recognises, so a plan-completed cycle stayed "not completed" to the
-      // idempotency guard, the reports and the active-cycle checks alike.
-      await this.cropsRepository.update(
-        { id: plan.cropId, pondId: plan.pondId },
-        {
-          actualHarvestDate: payload.actualHarvestDate,
-          harvestWeightKg: payload.actualWeightKg,
-          status: 'completed',
-          isActive: false,
-        },
-      );
-
-      // And FREE THE POND. This is what made the feature feel like it did
-      // nothing: the plan went green, the money was booked, and the pond still
-      // held the cycle it had just been harvested out of — still stocked, still
-      // being fed, still counted as active everywhere. Harvesting a pond is
-      // exactly the event that empties it, and the other close path
-      // (CropsService.closeCycle) has always done this.
-      await this.pondsRepository.update(
-        { id: plan.pondId, activeCycleId: plan.cropId },
-        { activeCycleId: null, status: 'fallow' } as any,
-      );
+    // A plan drawn up with no cycle: harvest the pond's running one.
+    const cropId = plan.cropId ?? plan.pond?.activeCycleId;
+    if (!cropId) {
+      throw new BadRequestException('This pond has no running cycle to harvest');
     }
+
+    await this.harvestsService.create(
+      {
+        cropId,
+        planId: id,
+        harvestType: 'full',
+        harvestDate: toIstDateString(new Date(payload.actualHarvestDate)),
+        grades: [
+          {
+            weightKg: payload.actualWeightKg,
+            pricePerKg: payload.actualPricePerKg,
+          },
+        ],
+        // An old build cannot answer the out-of-band price warning.
+        confirmOutOfRange: true,
+      } as CreateHarvestDto,
+      userId,
+    );
 
     return this.findOne(id, userId);
   }

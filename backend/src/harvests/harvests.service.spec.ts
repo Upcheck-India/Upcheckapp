@@ -1,5 +1,10 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { HarvestsService } from './harvests.service';
+import { HarvestPlan } from '../harvest-plans/harvest-plan.entity';
 
 /**
  * Harvest sales as Money-tab line items.
@@ -224,6 +229,7 @@ function makeGateService(
     otherActive?: number;
     oldGrades?: { id: string; price: number | null }[];
     details?: any[];
+    plan?: any;
   } = {},
 ) {
   const repo = {
@@ -262,7 +268,9 @@ function makeGateService(
   // the same `repo` mock the assertions read.
   const manager = {
     findOne: jest.fn(async (entity: any) =>
-      entity?.name === 'Pond'
+      entity?.name === 'HarvestPlan'
+        ? (opts.plan ?? null)
+        : entity?.name === 'Pond'
         ? (opts.pond ?? { id: 'p1', activeCycleId: null })
         : {
             id: 'c1',
@@ -281,7 +289,17 @@ function makeGateService(
       return [];
     }),
     count: jest.fn(async () => opts.otherActive ?? 0),
-    update: jest.fn(),
+    // H4: the plan's conditional update flips a still-planned plan on the
+    // named pond exactly once, like `WHERE id AND pond_id AND status='planned'`.
+    update: jest.fn(async (entity: any, where: any, _set?: any) => {
+      if (entity?.name !== 'HarvestPlan') return undefined;
+      const p = opts.plan;
+      if (!p || p.id !== where.id || p.pondId !== where.pondId || p.status !== where.status) {
+        return { affected: 0 };
+      }
+      p.status = 'completed';
+      return { affected: 1 };
+    }),
     delete: jest.fn(),
   };
   const dataSource = {
@@ -807,5 +825,111 @@ describe('H2 — delete a full harvest', () => {
     await svc.remove('h1', 'owner-1');
     expect(repo.delete).toHaveBeenCalledWith('h1');
     expect(manager.update).not.toHaveBeenCalled();
+  });
+});
+
+/* ── H4: one revenue path — a harvest completes its plan ─────────────────── */
+
+describe('H4 — plan → harvest', () => {
+  const planned = () => ({ id: 'plan-1', pondId: 'p1', status: 'planned' });
+  const fromPlan = (over: any = {}) =>
+    gradedDto({
+      planId: 'plan-1',
+      harvestType: 'full',
+      grades: [{ weightKg: 500, countPerKg: 40, pricePerKg: 400 }],
+      ...over,
+    });
+
+  it('completes the plan inside the harvest transaction, with the harvest totals', async () => {
+    const plan = planned();
+    const { svc, manager, cropsService } = makeGateService(true, { existing: null, plan });
+
+    await svc.create(fromPlan(), 'owner-1');
+
+    expect(manager.update).toHaveBeenCalledWith(
+      HarvestPlan,
+      { id: 'plan-1', pondId: 'p1', status: 'planned' },
+      expect.objectContaining({
+        status: 'completed',
+        actualHarvestDate: '2026-09-10',
+        actualWeightKg: 500,
+        actualRevenue: 200000,
+        actualPricePerKg: 400,
+      }),
+    );
+    expect(plan.status).toBe('completed');
+    // …and the harvest row is linked to it, in the same transaction.
+    expect(manager.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE harvests SET plan_id'),
+      ['22222222-2222-4222-8222-222222222222', 'plan-1'],
+    );
+    expect(cropsService.closeCycle).toHaveBeenCalledWith('c1', '2026-09-10', 'owner-1', manager);
+  });
+
+  it('a double submit (two harvest ids) completes the plan once — the second is 409 and writes nothing', async () => {
+    const plan = planned();
+    const first = makeGateService(true, { existing: null, plan });
+    await first.svc.create(fromPlan(), 'owner-1');
+
+    const second = makeGateService(true, { existing: null, plan });
+    const err = await second.svc
+      .create(fromPlan({ id: '33333333-3333-4333-8333-333333333333' }), 'owner-1')
+      .catch((e) => e);
+
+    expect(err).toBeInstanceOf(ConflictException);
+    expect(err.getResponse()).toEqual(expect.objectContaining({ code: 'PLAN_ALREADY_COMPLETED' }));
+    expect(second.repo.save).not.toHaveBeenCalled();
+  });
+
+  it("a plan on another pond is a 400 and writes nothing", async () => {
+    const { svc, repo, manager } = makeGateService(true, {
+      existing: null,
+      plan: { id: 'plan-1', pondId: 'p-other-farm', status: 'planned' },
+    });
+
+    const err = await svc.create(fromPlan(), 'owner-1').catch((e) => e);
+
+    expect(err).toBeInstanceOf(BadRequestException);
+    expect(err.getResponse()).toEqual(expect.objectContaining({ code: 'PLAN_WRONG_POND' }));
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(manager.update).not.toHaveBeenCalled();
+  });
+
+  it('an unknown plan id is a 400 too', async () => {
+    const { svc, repo } = makeGateService(true, { existing: null });
+    await expect(svc.create(fromPlan(), 'owner-1')).rejects.toBeInstanceOf(BadRequestException);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('a manager without VIEW_FINANCIALS completes the plan with no price', async () => {
+    const plan = planned();
+    const { svc, manager } = makeGateService(true, { existing: null, plan, viewFinancials: false });
+
+    await svc.create(fromPlan(), 'manager-1');
+
+    expect(manager.update.mock.calls[0][2]).toEqual(
+      expect.objectContaining({ actualWeightKg: 500, actualRevenue: null, actualPricePerKg: null }),
+    );
+  });
+
+  it('a harvest without planId touches no plan', async () => {
+    const { svc, manager } = makeGateService(true, { existing: null });
+    await svc.create(gradedDto(), 'owner-1');
+    expect(manager.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('H4 — planIncomeOverlaps', () => {
+  it('matches plan-completion income to a sold harvest on the same cycle, per farm', async () => {
+    const { svc, repo } = makeGateService(true, { details: [{ cropId: 'c1', pondId: 'p1' }] });
+
+    const out = await svc.planIncomeOverlaps('f1');
+
+    expect(out).toEqual([{ cropId: 'c1', pondId: 'p1' }]);
+    const [sql, params] = (repo.query.mock.calls as any[])[0];
+    expect(params).toEqual(['f1']);
+    expect(sql).toContain("'Harvest sale from plan ' || hp.id::text");
+    expect(sql).toContain("t.category = 'harvest_sale'");
+    expect(sql).toContain("h.status = 'sold'");
   });
 });

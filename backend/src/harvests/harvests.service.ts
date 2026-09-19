@@ -10,6 +10,7 @@ import { DataSource, EntityManager, Not, Repository } from 'typeorm';
 import { Harvest } from './harvest.entity';
 import { Crop } from '../crops/crop.entity';
 import { Pond } from '../ponds/pond.entity';
+import { HarvestPlan } from '../harvest-plans/harvest-plan.entity';
 import { CreateHarvestDto } from './dto/create-harvest.dto';
 import { UpdateHarvestDto } from './dto/update-harvest.dto';
 import { GradeDto } from './dto/grade.dto';
@@ -191,6 +192,7 @@ export class HarvestsService {
       rejectedKg,
       rejectedReason,
       confirmOutOfRange,
+      planId,
       ...fields
     } = createDto;
     // A price is money: without VIEW_FINANCIALS it is stripped, not refused —
@@ -233,10 +235,19 @@ export class HarvestsService {
         });
       }
 
+      if (planId) await this.completePlanWith(manager, planId, locked.pondId, fields);
+
       const row = await manager.save(
         manager.create(Harvest, { ...fields, createdById: userId }),
       );
       await this.writeDetails(manager, row.id, lines, totals, rejectedKg, rejectedReason);
+      if (planId) {
+        // Needs migration 1780701000000 — only clients that send planId get here.
+        await manager.query(`UPDATE harvests SET plan_id = $2 WHERE id = $1`, [
+          row.id,
+          planId,
+        ]);
+      }
       if (createDto.harvestType === 'full') {
         await this.cropsService.closeCycle(
           createDto.cropId,
@@ -249,6 +260,74 @@ export class HarvestsService {
     });
 
     return maskFinancials(await this.withDetails(saved), canView);
+  }
+
+  /**
+   * H4 — the harvest completes its plan, in the harvest's own transaction.
+   * The conditional update is scoped to the harvested crop's pond and to a
+   * still-planned plan, so a double submit (two harvest ids) completes it
+   * once: the second gets 409 and, rolled back with it, writes no harvest.
+   */
+  private async completePlanWith(
+    manager: EntityManager,
+    planId: string,
+    pondId: string,
+    fields: { harvestDate: string; weightKg?: number; salePriceTotal?: number | null },
+  ): Promise<void> {
+    const plan = await manager.findOne(HarvestPlan, {
+      where: { id: planId },
+      select: { id: true, pondId: true, status: true },
+    });
+    if (!plan || plan.pondId !== pondId) {
+      throw new BadRequestException({
+        statusCode: 400,
+        code: 'PLAN_WRONG_POND',
+        message: 'This harvest plan belongs to another pond.',
+      });
+    }
+    const revenue = fields.salePriceTotal ?? null;
+    const kg = Number(fields.weightKg) || 0;
+    const res = await manager.update(
+      HarvestPlan,
+      { id: planId, pondId, status: 'planned' },
+      {
+        status: 'completed',
+        actualHarvestDate: fields.harvestDate.slice(0, 10) as any,
+        actualWeightKg: kg,
+        actualRevenue: revenue as any,
+        actualPricePerKg: (revenue != null && kg > 0
+          ? Math.round((revenue / kg) * 100) / 100
+          : null) as any,
+      },
+    );
+    if (!res.affected) {
+      throw new ConflictException({
+        statusCode: 409,
+        code: 'PLAN_ALREADY_COMPLETED',
+        message: 'This harvest plan is already completed.',
+      });
+    }
+  }
+
+  /**
+   * Cycles of this farm that carry BOTH a plan-completion income transaction
+   * (pre-H4 `/complete`, category harvest_sale) and a sold harvest. The farm
+   * report sums both, so this is possibly the same sale counted twice. H4
+   * does not rewrite production money rows; it flags them for the farmer.
+   */
+  async planIncomeOverlaps(
+    farmId: string,
+  ): Promise<{ cropId: string; pondId: string }[]> {
+    return this.harvestsRepository.query(
+      `SELECT DISTINCT hp.crop_id AS "cropId", hp.pond_id AS "pondId"
+         FROM transactions t
+         JOIN harvest_plans hp ON t.description = 'Harvest sale from plan ' || hp.id::text
+        WHERE t.farm_id = $1 AND t.type = 'income' AND t.category = 'harvest_sale'
+          AND hp.crop_id IS NOT NULL
+          AND EXISTS (SELECT 1 FROM harvests h
+                       WHERE h.crop_id = hp.crop_id AND h.status = 'sold')`,
+      [farmId],
+    );
   }
 
   /** Normalise grade lines; drop prices the caller may not set. */
