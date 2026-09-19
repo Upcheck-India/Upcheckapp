@@ -137,6 +137,8 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
                         onChange={setQuantity}
                         min={0}
                     />
+                    {/* D5: education, not a gate. */}
+                    <Text style={styles.tip}>{t('biosecurity.carcassTip')}</Text>
                 </Card>
 
                 <Card style={styles.card}>
@@ -218,6 +220,11 @@ const styles = StyleSheet.create({
         ...theme.typeScale.bodyMedium,
         color: theme.roles.light.textSecondary,
         marginBottom: theme.spacing[4],
+    },
+    tip: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
+        marginTop: theme.spacing[2],
     },
     card: {
         marginBottom: theme.spacing[6],
