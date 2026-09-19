@@ -283,7 +283,7 @@ reads four thousand characters.
 > • Sampling for average body weight and daily growth rate
 > • Plankton and microbiology records, including Vibrio counts
 > • Disease encyclopedia and a symptom-based checker
-> • Warnings on banned substances before a treatment goes in the water
+> • Warns when a treatment is logged that names a banned substance
 >
 > DECISIONS
 > • Daily feed advice, adjusted for tray residue, water conditions and molt

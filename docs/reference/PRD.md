@@ -199,6 +199,8 @@ All write through the Measurement pipeline; validation bounds per `india` & base
   response → early disease signal + ML labels.
 - **Mortality** — event (count/multiplier) **+ daily baseline** trend.
 - **Treatment** — structured product/active-ingredient/dose/method/reason/withdrawal.
+  *(Not built: treatments are free text today; withdrawal periods do not exist — see
+  spec 2026-09-19 disease/health D2.)*
 - **Water-exchange events (NEW)** — volume/source/%.
 - **Disease** — name(enum: incl. RMS, LSS), photos(tagged), notes; reference library.
 - **Harvest** — date/type/weight/count/price/buyer; total price; ABW=1000/count.
@@ -215,6 +217,8 @@ All write through the Measurement pipeline; validation bounds per `india` & base
 - **Units & money** — acre/cent/lakh in, m²/PL internal; size as **count**; ₹.
 - **Regulatory & compliance** — CAA reg, MPEDA, pre-stocking PCR, **banned-antibiotic
   lock-list + withdrawal enforcement → export-eligible badge** (`india §2`).
+  *(Not built. Today the banned list only **warns** when a treatment is logged; there is no
+  withdrawal enforcement, PCR gate or export badge — see spec 2026-09-19 disease/health.)*
 - **Inland low-salinity mineral mgmt** — ionic targets (Na:K≈28:1, Mg:Ca≈3:1, min K),
   mineral-dose calculator with Indian-input presets (MOP/dolomite/gypsum/Epsom).
 - **Count-based pricing** — PriceFeed matrix by region & count band (crowdsourced
@@ -334,7 +338,7 @@ Detailed in `data_collection_audit.md`. Essentials:
 | Decision support (feed/harvest/disease/aeration) | weak/none | **core engines** |
 | Inland low-salinity mineral mgmt | absent | **first-class** |
 | Count-based pricing & break-even | rare | **built-in** |
-| CAA/MPEDA + antibiotic withdrawal + export badge | manual | **enforced** |
+| CAA/MPEDA + antibiotic withdrawal + export badge | manual | **not built** (banned list warns only) |
 | Lunar molt scheduling on pond data | none | **unique** |
 | Power/aeration cost optimization | hardware-only vendors | **software + IoT** |
 | Sensor-ready unified data model | bolt-on | **designed-in** |
@@ -357,8 +361,8 @@ proprietary labelled data → better models & network effects → durable lead.*
 - **Sensor cost/reliability in field** → software-first value; sensors optional &
   hybrid; edge buffering.
 - **Price-data availability** → crowdsourced primary (API deferred).
-- **Compliance liability** → enforce withdrawal/PCR gates; clear advisories, not
-  guarantees (esp. disease/lunar).
+- **Compliance liability** → enforce withdrawal/PCR gates *(not built: warn-only
+  today)*; clear advisories, not guarantees (esp. disease/lunar).
 - **Privacy/regulatory (DPDP)** → consent, anonymization, data minimization.
 
 ---
