@@ -85,8 +85,8 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
             setRecords((prev) => prev.map((r) => (r.id === item.id ? { ...r, outcome } : r)));
             const params = { pondId, pondName, cropId, farmId };
             if (outcome === 'emergency_harvest') {
-                // TODO(H1/H2 integration): HarvestLog does not read `harvestType` /
-                // `reason` yet; the harvest owners wire the Full-harvest prefill.
+                // Opens as a Full harvest (H1/H2 reads `harvestType`).
+                // TODO(M2 wave): carry `reason: 'disease'` into the close-why once it takes a prefill.
                 navigation.navigate('HarvestLog', { ...params, harvestType: 'full', reason: 'disease' });
             }
             // TODO(H2): 'crop_lost' should open the close-with-reason flow once it lands.

@@ -12,7 +12,6 @@ import {
 } from '../pond-context/pond-context.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
 import { isLowStock } from '../inventory/inventory.constants';
-import { isMissingSchema } from '../health-observations/health.constants';
 import { DayScoreInput, MinMax, TrayStatus, combineScores, combineValues, computeDayScore, isMortalitySpike } from './day-score';
 import {
   BriefTask, DailyBrief, ParamDay, PersonDay, PondDay, PondWork, ReasonCode, Severity, StalePond, StoryItem, StoryTone,
