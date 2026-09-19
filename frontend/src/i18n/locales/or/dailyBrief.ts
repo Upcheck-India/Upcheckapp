@@ -347,6 +347,7 @@ const dailyBrief = {
     first_sampling: '{{pond}}ରେ ଫସଲର ପ୍ରଥମ ନମୁନା — ହାରାହାରି {{value}} g',
     treatment_given_one: '{{pond}}ରେ ଗୋଟିଏ ଚିକିତ୍ସା ଦିଆଗଲା',
     treatment_given_other: '{{pond}}ରେ {{count}}ଟି ଚିକିତ୍ସା ଦିଆଗଲା',
+    antimicrobial_watch: '{{pond}}ରେ {{date}} ରେ ଜୀବାଣୁ ନିରୋଧକ ଲଗ୍ ହେଲା: ଅମଳ ପୂର୍ବରୁ ଆପଣଙ୍କ ପ୍ରୋସେସରଙ୍କୁ କୁହନ୍ତୁ',
     carried_resolved_task: 'ସମୟ ପାର ହୋଇଥିବା କାମ ହୋଇଗଲା: {{title}}',
     carried_resolved_alert: 'ସତର୍କତା ସମାଧାନ ହେଲା: {{title}}',
     carried_resolved_stale_pond: 'ଅଣଦେଖା ହୋଇଥିବା {{pond}}ରେ ପୁଣି ଲେଖାଗଲା',

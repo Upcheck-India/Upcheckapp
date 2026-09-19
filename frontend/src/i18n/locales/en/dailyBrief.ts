@@ -350,6 +350,7 @@ const dailyBrief = {
     first_sampling: 'First sampling of the crop in {{pond}} — average {{value}} g',
     treatment_given_one: '{{pond}} was given a treatment',
     treatment_given_other: '{{pond}} was given {{count}} treatments',
+    antimicrobial_watch: 'Antimicrobial logged in {{pond}} on {{date}}: tell your processor before harvest',
     carried_resolved_task: 'Overdue task done: {{title}}',
     carried_resolved_alert: 'Alert dealt with: {{title}}',
     carried_resolved_stale_pond: '{{pond}} was logged again after going unwatched',
