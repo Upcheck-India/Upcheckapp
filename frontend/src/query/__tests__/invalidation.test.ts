@@ -32,3 +32,26 @@ describe('cycle writes invalidate the pond caches', () => {
         expect(queryClient.getQueryState(qk.pond('p1'))?.isInvalidated).toBe(true);
     });
 });
+
+// A full harvest (or a completed plan) closes the cycle and flips the pond to
+// fallow — the pond LIST must refetch too, not just the dashboard.
+describe('harvest writes invalidate the pond list', () => {
+    afterEach(() => {
+        queryClient.clear();
+    });
+
+    it('resolves /harvest-plans to its own entity, not to harvests', () => {
+        expect(resolveEntityForUrl('/harvest-plans/abc/complete')).toBe('harvest_plan');
+        expect(resolveEntityForUrl('/harvests')).toBe('harvest');
+    });
+
+    it.each(['harvest', 'harvest_plan'])('%s marks the pond list and money stale', (entity) => {
+        queryClient.setQueryData(['ponds', 'farm-1'], []);
+        queryClient.setQueryData(['money', 'farm-1'], {});
+
+        invalidateForEntity(entity);
+
+        expect(queryClient.getQueryState(['ponds', 'farm-1'])?.isInvalidated).toBe(true);
+        expect(queryClient.getQueryState(['money', 'farm-1'])?.isInvalidated).toBe(true);
+    });
+});

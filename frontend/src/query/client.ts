@@ -195,7 +195,10 @@ const ENTITY_QUERY_KEYS: Record<string, readonly (readonly string[])[]> = {
     feed: [['pond'], ['briefing'], ['home'], ['farms'], ['farm'], ['money']],
     sampling: [['pond'], ['briefing'], ['home'], ['farms'], ['farm']],
     mortality: [['pond'], ['briefing'], ['home'], ['farms'], ['farm']],
-    harvest: [['pond'], ['briefing'], ['home'], ['farms'], ['farm'], ['money']],
+    // ['ponds']: a full harvest closes the cycle and flips the pond to fallow.
+    harvest: [['pond'], ['ponds'], ['briefing'], ['home'], ['farms'], ['farm'], ['money']],
+    // Completing a plan closes the cycle, frees the pond and books income.
+    harvest_plan: [['pond'], ['briefing'], ['home'], ['money'], ['ponds']],
     treatment: [['pond'], ['briefing'], ['home'], ['money']],
     chemical: [['pond'], ['briefing'], ['home'], ['money']],
     disease: [['pond'], ['briefing'], ['home']],
@@ -252,6 +255,7 @@ const URL_ENTITY_MAP: readonly (readonly [path: string, entity: string])[] = [
     ['/sampling', 'sampling'],
     ['/mortality', 'mortality'],
     ['/harvests', 'harvest'],
+    ['/harvest-plans', 'harvest_plan'],
     ['/treatments', 'treatment'],
     ['/chemical-data', 'chemical'],
     ['/disease', 'disease'],

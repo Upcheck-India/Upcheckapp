@@ -37,7 +37,8 @@ export const harvestPlansApi = {
     create: (data: CreateHarvestPlanDto) =>
         apiClient.post<HarvestPlan>('/harvest-plans', data),
 
-    update: (id: string, data: Partial<CreateHarvestPlanDto>) =>
+    // A plan's pond and cycle are fixed at create; the server ignores them here.
+    update: (id: string, data: Partial<Omit<CreateHarvestPlanDto, 'pondId' | 'cropId'>>) =>
         apiClient.patch<HarvestPlan>(`/harvest-plans/${id}`, data),
 
     complete: (id: string, payload: {
@@ -48,9 +49,6 @@ export const harvestPlansApi = {
         cropId?: string;
     }) =>
         apiClient.patch<HarvestPlan>(`/harvest-plans/${id}/complete`, payload),
-
-    getSummary: (pondId: string, farmId: string) =>
-        apiClient.get(`/harvest-plans/pond/${pondId}/summary`, { params: { farmId } }),
 
     delete: (id: string) =>
         apiClient.delete(`/harvest-plans/${id}`),
