@@ -173,6 +173,21 @@ describe('the FIRST log a farmer ever records', () => {
         expect(propsFor(EVENTS.LOG_RECORDED)).toEqual([{ kind: 'sampling', ok: true }]);
     });
 
+    /** The morning round saves ponds concurrently — a first round is one activation. */
+    it('fires once when several first saves land at the same time', async () => {
+        coldStart();
+        await Promise.all(
+            [1, 2, 3, 4].map(() =>
+                saveRecord({ entity: 'water_quality', endpoint: '/water-quality', payload: {} }),
+            ),
+        );
+        await flush();
+        await flush();
+
+        expect(propsFor(EVENTS.FIRST_LOG_RECORDED)).toHaveLength(1);
+        expect(propsFor(EVENTS.LOG_RECORDED)).toHaveLength(4);
+    });
+
     it('fires again for a device with no flag stored — the flag is what decides, not luck', async () => {
         coldStart();
         await saveRecord({ entity: 'feed', endpoint: '/feed-records', payload: {} });

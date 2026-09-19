@@ -9,6 +9,8 @@ function makeService() {
     null as any, // molt (unused by evaluate)
     null as any, // alertCenter
     null as any, // farmAccess (unused by evaluate)
+    null as any, // diseaseIndicators
+    null as any, // diseaseAlerts
   );
 }
 
@@ -195,14 +197,20 @@ const buildSvc = (over: any = {}) => {
   const moltSvc = {
     checklistsFor: jest.fn(async () => new Map()),
   };
+  const diseaseIndicators = {
+    assess: jest.fn(async () => over.disease ?? new Map()),
+  };
+  const diseaseAlerts = { notify: jest.fn(async () => 0) };
   const svc = new EngineAlertService(
     pondRepo as any,
     { buildContextsFor } as any,
     moltSvc as any,
     { buildBriefing: jest.fn((drafts) => drafts) } as any,
     farmAccess as any,
+    diseaseIndicators as any,
+    diseaseAlerts as any,
   );
-  return { svc, buildContextsFor, pondRepo, farmAccess, moltSvc };
+  return { svc, buildContextsFor, pondRepo, farmAccess, moltSvc, diseaseIndicators, diseaseAlerts };
 };
 
 describe('EngineAlertService.activeContexts', () => {
@@ -340,4 +348,40 @@ describe('EngineAlertService.all', () => {
     const { svc } = withSaved({ readablePonds: [], saved });
     expect(await svc.all('u')).toEqual({ live: [], saved });
   });
+});
+
+describe('EngineAlertService — disease early warning (D7)', () => {
+  const risk = (disease: string, band: string, score: number) => ({
+    disease, band, score, triggers: [], steps: ['a'],
+    coverage: { known: 9, total: 14 },
+    triggerKeys: [], stepKeys: [{ key: `engines.disease.step_${disease}_0` }],
+  });
+  const disease = new Map<string, any>([
+    ['p1', { risks: [risk('WSSV', 'Critical', 70), risk('EHP', 'Watch', 30), risk('RMS', 'Low', 10)] }],
+  ]);
+
+  it('Critical → critical item + push request; Watch → watch item only; Low → nothing', async () => {
+    const { svc, diseaseAlerts } = withSavedless({ disease, readablePonds: ['p1'] });
+    const { live } = await svc.all('u');
+    const d = live.filter((a) => a.source === 'disease');
+    expect(d.map((a) => [a.disease, a.severity])).toEqual([['WSSV', 'critical'], ['EHP', 'watch']]);
+    expect(d[0]).toMatchObject({
+      titleKey: { key: 'engines.disease.name_WSSV' },
+      bodyKey: { key: 'engines.disease.alertBody_critical', params: { known: 9, total: 14 } },
+    });
+    expect(diseaseAlerts.notify).toHaveBeenCalledWith([{ pondId: 'p1', disease: 'WSSV' }]);
+  });
+
+  it('a failing derivation never fails the read', async () => {
+    const built = withSavedless({ readablePonds: ['p1'] });
+    built.diseaseIndicators.assess.mockRejectedValueOnce(new Error('db down'));
+    const { live } = await built.svc.all('u');
+    expect(live.some((a) => a.source === 'disease')).toBe(false);
+  });
+
+  function withSavedless(over: any) {
+    const built = buildSvc(over);
+    (built.svc as any).alertCenter.savedAlerts = jest.fn(async () => []);
+    return built;
+  }
 });

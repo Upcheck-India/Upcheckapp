@@ -1,4 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { DiseaseIndicatorsService } from '../disease-warning/disease-indicators.service';
+import type { DiseaseName, DiseaseRisk } from '../disease-warning/disease-warning.service';
+import { CriticalDisease, DiseaseAlertService } from './disease-alert.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not, IsNull, In } from 'typeorm';
 import { Pond } from '../ponds/pond.entity';
@@ -52,7 +55,20 @@ export interface AlertDraft {
   titleKey?: TextKey;
   bodyKey?: TextKey;
   stepKeys?: TextKey[];
+  /** Disease alerts only (D7). */
+  disease?: DiseaseName;
 }
+
+/** English fallback titles; the app shows `engines.disease.name_*`. */
+const DISEASE_EN: Record<DiseaseName, string> = {
+  WSSV: 'White spot (WSSV)',
+  AHPND: 'Early mortality (AHPND/EMS)',
+  EHP: 'EHP (slow growth)',
+  WFD: 'White feces disease',
+  Luminous: 'Luminous vibriosis',
+  RMS: 'Running mortality (RMS)',
+  LSS: 'Loose shell (LSS)',
+};
 
 export interface LiveAlert extends AlertDraft {
   key: string;
@@ -67,6 +83,8 @@ export interface LiveAlert extends AlertDraft {
  */
 @Injectable()
 export class EngineAlertService {
+  private readonly logger = new Logger(EngineAlertService.name);
+
   constructor(
     @InjectRepository(Pond)
     private readonly pondRepo: Repository<Pond>,
@@ -74,14 +92,17 @@ export class EngineAlertService {
     private readonly molt: MoltService,
     private readonly alertCenter: AlertCenterService,
     private readonly farmAccess: FarmAccessService,
+    private readonly diseaseIndicators: DiseaseIndicatorsService,
+    private readonly diseaseAlerts: DiseaseAlertService,
   ) {}
 
   /**
    * Evaluate a pond's context into alert drafts. Pure; uses only signals
    * derivable from logged data (free-NH3, DO, running FCR) plus the pond's
-   * precomputed molt checklist (see MoltService.checklistsFor).
+   * precomputed molt checklist (see MoltService.checklistsFor) and derived
+   * disease risks (D7).
    */
-  evaluate(ctx: PondContext, moltStatus?: PondMolt): AlertDraft[] {
+  evaluate(ctx: PondContext, moltStatus?: PondMolt, risks: DiseaseRisk[] = []): AlertDraft[] {
     const drafts: AlertDraft[] = [];
     const wq = ctx.waterQuality;
     const push = (
@@ -176,7 +197,41 @@ export class EngineAlertService {
       });
     }
 
+    // Disease early warning (D7): Critical and Watch bands; Low stays quiet.
+    for (const r of risks) {
+      if (r.band === 'Low') continue;
+      const band = r.band === 'Critical' ? 'critical' : 'watch';
+      push(band, 'disease', DISEASE_EN[r.disease], `${r.band} risk · based on ${r.coverage.known} of ${r.coverage.total} signs`, r.steps);
+      Object.assign(drafts[drafts.length - 1], {
+        disease: r.disease,
+        titleKey: { key: `engines.disease.name_${r.disease}` },
+        bodyKey: { key: `engines.disease.alertBody_${band}`, params: r.coverage },
+        stepKeys: r.stepKeys,
+      });
+    }
+
     return drafts;
+  }
+
+  /**
+   * Disease risks per pond (D7), plus the Critical push (once per pond +
+   * disease per 3 days). Never fails the read: on error, no disease alerts.
+   */
+  private async diseaseFor(contexts: PondContext[]): Promise<Map<string, DiseaseRisk[]>> {
+    const out = new Map<string, DiseaseRisk[]>();
+    if (!contexts.length) return out;
+    try {
+      const assessed = await this.diseaseIndicators.assess(contexts);
+      const criticals: CriticalDisease[] = [];
+      for (const [pondId, a] of assessed) {
+        out.set(pondId, a.risks);
+        for (const r of a.risks) if (r.band === 'Critical') criticals.push({ pondId, disease: r.disease });
+      }
+      await this.diseaseAlerts.notify(criticals);
+    } catch (err: any) {
+      this.logger.warn(`Disease early warning skipped: ${err?.message ?? err}`);
+    }
+    return out;
   }
 
   /** Molt checklists for a set of contexts — a fixed number of queries. */
@@ -249,9 +304,10 @@ export class EngineAlertService {
   private briefingFrom(
     contexts: PondContext[],
     molts: Map<string, PondMolt>,
+    disease: Map<string, DiseaseRisk[]>,
   ): BriefingItem[] {
     const drafts: AlertDraft[] = contexts.flatMap((ctx) =>
-      this.evaluate(ctx, molts.get(ctx.pondId)),
+      this.evaluate(ctx, molts.get(ctx.pondId), disease.get(ctx.pondId)),
     );
     return this.alertCenter.buildBriefing(
       drafts.map((d) => ({
@@ -271,7 +327,11 @@ export class EngineAlertService {
   /** Live per-pond briefing across all of a user's active ponds. */
   async liveBriefing(userId: string): Promise<BriefingItem[]> {
     const contexts = await this.activeContexts(userId);
-    return this.briefingFrom(contexts, await this.moltFor(contexts));
+    const [molts, disease] = await Promise.all([
+      this.moltFor(contexts),
+      this.diseaseFor(contexts),
+    ]);
+    return this.briefingFrom(contexts, molts, disease);
   }
 
   /**
@@ -284,9 +344,12 @@ export class EngineAlertService {
       this.activeContexts(userId),
       this.alertCenter.savedAlerts(userId),
     ]);
-    const molts = contexts.length ? await this.moltFor(contexts) : new Map();
+    const [molts, disease] = await Promise.all([
+      contexts.length ? this.moltFor(contexts) : new Map<string, PondMolt>(),
+      this.diseaseFor(contexts),
+    ]);
     const live: LiveAlert[] = contexts.flatMap((ctx) =>
-      this.evaluate(ctx, molts.get(ctx.pondId)).map((d) => ({
+      this.evaluate(ctx, molts.get(ctx.pondId), disease.get(ctx.pondId)).map((d) => ({
         ...d,
         farmId: ctx.farmId,
         // Stable across refreshes: counts in titles ("2 actions pending") change.
@@ -317,12 +380,15 @@ export class EngineAlertService {
     moltWindow: MoltWindowSummary;
   }> {
     const contexts = await this.activeContexts(userId);
-    const molts = contexts.length ? await this.moltFor(contexts) : new Map();
+    const [molts, disease] = await Promise.all([
+      contexts.length ? this.moltFor(contexts) : new Map<string, PondMolt>(),
+      this.diseaseFor(contexts),
+    ]);
     const { window, phase, next } = currentMoltWindow(new Date());
     const all = [...molts.values()];
     return {
       contexts,
-      briefing: this.briefingFrom(contexts, molts),
+      briefing: this.briefingFrom(contexts, molts, disease),
       moltWindow: {
         window,
         phase,

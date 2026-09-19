@@ -14,6 +14,7 @@ import { useActiveFarmStore } from './activeFarmStore';
 import { useNotificationStore } from './notificationStore';
 import { useUploadStore } from './uploadStore';
 import { clearCachedReads } from '../query/client';
+import { clearAllDrafts } from '../features/roundsDraft';
 import { capture, EVENTS, type AnalyticsProps } from '../features/analytics';
 
 /**
@@ -408,6 +409,9 @@ export const useAuthStore = create<AuthState>()(
                 // the only one that survives a cold start on disk — without
                 // this, User B's first paint is A's farms, ponds and alerts.
                 clearCachedReads();
+                // Unsaved morning-rounds grids are User A's readings too. They
+                // are keyed by user already; this is the belt to that brace.
+                void clearAllDrafts();
                 set({
                     session: null,
                     // The ONLY place this is dropped. A logout is the one event
