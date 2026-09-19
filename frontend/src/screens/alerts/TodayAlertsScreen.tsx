@@ -35,6 +35,7 @@ const SOURCE_ICON: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> 
     water: 'water-alert-outline',
     feed: 'silo-outline',
     disease: 'shield-alert-outline',
+    compliance: 'alert-decagram-outline',
     lunar: 'moon-waning-crescent',
     harvest: 'calendar-clock',
     aeration: 'fan',

@@ -40,6 +40,7 @@ import { tasksApi, type Task } from '../../api/tasks';
 import { leaveRequestsApi, type LeaveRequest } from '../../api/leaveRequests';
 import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
 import { useMembershipStore } from '../../store/membershipStore';
+import { useIngredientsStore, ingredientName } from '../ingredientsStore';
 import { roleCan } from '../../permissions/capabilities';
 import { istDay, recordStatus, type RecordStatus } from '../attendance/shiftState';
 import { personName } from '../../utils/personName';
@@ -289,20 +290,40 @@ const treatmentTable = (f: Fmt, rows: Treatment[]): ReportTable => ({
         f.t('logs.description', { defaultValue: 'Description' }),
         f.t('logs.dosageKg', { defaultValue: 'Dosage (kg)' }),
         f.t('common.notes'),
+        f.t('compliance.export.flag'),
     ],
     numericColumns: [2],
     rows: byDateDesc(rows, (r) => r.treatmentDate).map((r) => [
         f.date(r.treatmentDate),
-        f.text(r.description),
-        f.num(r.dosageKg),
+        f.text(treatmentText(f, r)),
+        f.num(r.dosageKg ?? (r.doseUnit === 'kg' && r.doseValue != null ? Number(r.doseValue) : null)),
+        // Notes are kept (they used to be replaced by the flag, B7).
+        f.text(r.notes),
         // The banned-substance flag is server-evaluated and belongs in an
         // exported record: it is exactly what an auditor came to look for.
         r.bannedSubstanceFlag && r.bannedSubstanceFlag !== 'none'
             ? f.t('history.bannedFlagLabel', { names: (r.bannedSubstanceMatches ?? []).join(', ') })
-            : f.text(r.notes),
+            : '',
     ]),
 });
 
+/** "Mineral · Potassium chloride · Aqua Mix · other text" for structured rows; the old free text otherwise. */
+const treatmentText = (f: Fmt, r: Treatment): string => {
+    const catalogue = useIngredientsStore.getState().ingredients;
+    const lang = i18n.language;
+    const parts = [
+        r.category ? f.t(`compliance.category.${r.category}`) : null,
+        ...(r.ingredientKeys ?? []).map((k) => {
+            const i = catalogue.find((x) => x.key === k);
+            return i ? ingredientName(i, lang) : k;
+        }),
+        r.productName || null,
+        r.description || null,
+        r.doseValue != null && r.doseUnit && r.doseUnit !== 'kg' ? `${Number(r.doseValue)} ${f.t(`compliance.unit.${r.doseUnit}`)}` : null,
+        r.reason ? f.t(`compliance.reason.${r.reason}`) : null,
+    ].filter(Boolean);
+    return parts.join(' · ');
+};
 /** Disease records (D6): what, how bad, who confirmed it, how it ended. */
 const diseaseTable = (f: Fmt, rows: DiseaseRecord[]): ReportTable => ({
     key: 'disease',

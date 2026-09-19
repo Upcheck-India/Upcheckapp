@@ -84,4 +84,8 @@ export class InventoryItem {
    */
   @Column({ name: 'last_adjustment_reason', type: 'text', nullable: true })
   lastAdjustmentReason: string | null;
+
+  /** Active ingredients (treatment catalogue keys, D2) — the app warns when one is banned. */
+  @Column({ name: 'ingredient_keys', type: 'text', array: true, nullable: true })
+  ingredientKeys: string[] | null;
 }

@@ -347,6 +347,7 @@ const dailyBrief = {
     first_sampling: '{{pond}}లో పంట మొదటి నమూనా — సగటు {{value}} g',
     treatment_given_one: '{{pond}}కి ఒక చికిత్స ఇచ్చారు',
     treatment_given_other: '{{pond}}కి {{count}} చికిత్సలు ఇచ్చారు',
+    antimicrobial_watch: '{{pond}}లో {{date}}న సూక్ష్మజీవి నిరోధకం నమోదైంది: పట్టుబడికి ముందు మీ ప్రాసెసర్‌కు చెప్పండి',
     disease_ongoing: '{{pond}}లో {{title}} ఇంకా కొనసాగుతోందా? {{count}} రోజుల క్రితం నమోదు చేశారు.',
     carried_resolved_task: 'గడువు దాటిన పని పూర్తయింది: {{title}}',
     carried_resolved_alert: 'హెచ్చరికను చూసుకున్నారు: {{title}}',

@@ -59,6 +59,9 @@ export interface SavedAlert {
   message: string;
   steps: string[];
   createdAt: string;
+  /** Compliance alerts (D3): keys beside title / message. */
+  titleKey?: TextKey;
+  bodyKey?: TextKey;
 }
 
 /**
@@ -79,6 +82,9 @@ export const localizeLiveAlert = (a: LiveAlert): LiveAlert =>
     ? { ...a, title: tr(a.titleKey, a.title), body: tr(a.bodyKey, a.body), steps: trSteps(a.stepKeys, a.steps) }
     : a;
 
+export const localizeSavedAlert = (a: SavedAlert): SavedAlert =>
+  a.titleKey ? { ...a, title: tr(a.titleKey, a.title), message: tr(a.bodyKey, a.message) } : a;
+
 // Cached alerts were rendered in the old language: refetch them on a switch.
 i18n.on?.('languageChanged', () => {
   void queryClient.invalidateQueries({ queryKey: ['briefing'] });
@@ -90,10 +96,20 @@ export const alertCenterApi = {
   all: () =>
     apiClient
       .get<{ live: LiveAlert[]; saved: SavedAlert[] }>('/alert-center/all')
-      .then((r) => ({ ...r, data: { ...r.data, live: (r.data?.live ?? []).map(localizeLiveAlert) } })),
+      .then((r) => ({
+        ...r,
+        data: {
+          ...r.data,
+          live: (r.data?.live ?? []).map(localizeLiveAlert),
+          saved: (r.data?.saved ?? []).map(localizeSavedAlert),
+        },
+      })),
 
   /** Per-pond morning briefing (top action per pond) from unread alerts. */
-  briefing: () => apiClient.get<BriefingItem[]>('/alert-center/briefing'),
+  briefing: () =>
+    apiClient
+      .get<BriefingItem[]>('/alert-center/briefing')
+      .then((r) => ({ ...r, data: (r.data ?? []).map(localizeBriefing) })),
 
   /**
    * The home screen in ONE request: the pond snapshots AND the alerts derived

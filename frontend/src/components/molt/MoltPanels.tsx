@@ -206,7 +206,8 @@ export const MoltChecklist: React.FC<{ pondId: string; pondName?: string; cropId
           {live && canWrite && canLog && (
             <TouchableOpacity
               style={[styles.itemBtn, blocked && { opacity: 0.4 }]}
-              onPress={() => navigation.navigate(item.route!, params)}
+              // A treatment from the checklist is a mineral molt-prep dose (D2 prefill).
+              onPress={() => navigation.navigate(item.route!, item.route === 'TreatmentLog' ? { ...params, prefill: 'molt' } : params)}
               disabled={blocked}
               accessibilityRole="button"
               accessibilityState={{ disabled: blocked }}

@@ -15,6 +15,15 @@ import {
 import { TreatmentsService } from './treatments.service';
 import { CreateTreatmentDto } from './dto/create-treatment.dto';
 import { UpdateTreatmentDto } from './dto/update-treatment.dto';
+import { Public } from '../auth/decorators/auth.decorators';
+import { BANNED_LIST_VERSION } from '../banned-substances/banned-substances.data';
+import {
+  DOSE_UNITS,
+  INGREDIENTS,
+  INGREDIENTS_VERSION,
+  INGREDIENT_CATEGORIES,
+  TREATMENT_REASONS,
+} from './ingredients.data';
 
 @Controller('treatments')
 export class TreatmentsController {
@@ -30,6 +39,23 @@ export class TreatmentsController {
   @Get()
   findAll(@Query('cropId') cropId: string, @CurrentUser() user) {
     return this.treatmentsService.findAll(user.id, cropId);
+  }
+
+  /**
+   * The ingredient catalogue (D2). Public reference data, not tenant data —
+   * the app caches it offline. Declared before `:id` so it is not an id.
+   */
+  @Public()
+  @Get('ingredients')
+  ingredients() {
+    return {
+      version: INGREDIENTS_VERSION,
+      bannedListVersion: BANNED_LIST_VERSION,
+      categories: INGREDIENT_CATEGORIES,
+      reasons: TREATMENT_REASONS,
+      doseUnits: DOSE_UNITS,
+      ingredients: INGREDIENTS,
+    };
   }
 
   @Get(':id')

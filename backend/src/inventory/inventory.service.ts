@@ -47,6 +47,8 @@ export interface AdjustStockOptions {
   expectedFarmId?: string;
   /** Set by the feed pipeline so a deduction can be traced to its log. */
   feedRecordId?: string;
+  /** Set by a treatment's "use from stock" (D2). */
+  treatmentId?: string;
   /**
    * Present only when this adjustment is a purchase. Opt-in: a plain stock
    * correction must not write a money row. When set, `adjustStock` records a
@@ -659,6 +661,7 @@ export class InventoryService {
         reason: options.reason ?? null,
         createdById: userId ?? null,
         feedRecordId: options.feedRecordId ?? null,
+        ...(options.treatmentId ? { treatmentId: options.treatmentId } : {}),
       });
 
       // Opt-in money write. A purchase spends the farm's cash, so it goes

@@ -913,6 +913,17 @@ export class DailyBriefService {
       const tr = treatments.filter((t: any) => t.pond_id === id && t.day === D);
       if (tr.length) story.push({ code: 'treatment_given', tone: tr.some((t: any) => t.flag === 'banned') ? 'critical' : 'info', pondId: id, count: tr.length });
     }
+    // D3.5: the 7 days after a banned treatment carry a watch line; the day itself is critical above.
+    const bannedWeek = hasPonds
+      ? await q_('banned_week',
+        `SELECT c.pond_id, max(r.treatment_date)::text AS day
+           FROM treatments r JOIN crops c ON c.id = r.crop_id
+          WHERE c.pond_id = ANY($1::uuid[]) AND r.banned_substance_flag = 'banned'
+            AND r.treatment_date BETWEEN $2 AND $3
+          GROUP BY c.pond_id`,
+        [pondIds, addDays(D, -7), P])
+      : [];
+    for (const b of bannedWeek) story.push({ code: 'antimicrobial_watch', tone: 'watch', pondId: b.pond_id, at: b.day });
 
     // D6: a disease episode still `ongoing` 14+ days after it was logged, on a
     // running cycle. Outcome is current state, not history, so today only.

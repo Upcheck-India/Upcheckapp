@@ -642,6 +642,11 @@ describe('DailyBriefService — the day story', () => {
       expect.objectContaining({ code: 'team_in', count: 1 }),
       expect.objectContaining({ code: 'molt_phase', tone: 'info', phase: b.happening.molt!.phase }),
     ]));
+    // D3.5: a banned treatment in the last 7 days → a watch line with its date.
+    const c = await get({ ...fresh, banned_week: [{ pond_id: 'p1', day: addDays(date, -3) }] }, date);
+    expect(c.story).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'antimicrobial_watch', tone: 'watch', pondId: 'p1', at: addDays(date, -3) }),
+    ]));
   });
 
   it('coverage: all done vs behind — watch on a past day, info (so far) today', async () => {

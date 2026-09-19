@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Crop } from '../crops/crop.entity';
 import { Product } from '../products/product.entity';
+import type { FlagHistoryEntry } from '../compliance/compliance-eval';
 
 @Entity('treatments')
 export class Treatment {
@@ -46,6 +47,33 @@ export class Treatment {
 
   @Column({ type: 'text', nullable: true })
   notes: string;
+
+  // ── Structured treatment (disease spec D2, migration 1780701400000) ──
+  @Column({ type: 'text', nullable: true })
+  category: string | null;
+
+  @Column({ name: 'ingredient_keys', type: 'text', array: true, nullable: true })
+  ingredientKeys: string[] | null;
+
+  @Column({ name: 'product_name', type: 'text', nullable: true })
+  productName: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  reason: string | null;
+
+  @Column({ name: 'dose_value', type: 'numeric', nullable: true })
+  doseValue: number | null;
+
+  @Column({ name: 'dose_unit', type: 'text', nullable: true })
+  doseUnit: string | null;
+
+  @Index()
+  @Column({ name: 'disease_record_id', type: 'uuid', nullable: true })
+  diseaseRecordId: string | null;
+
+  /** Every change of the banned flag, never rewritten (D3.3). */
+  @Column({ name: 'flag_history', type: 'jsonb', default: () => "'[]'::jsonb" })
+  flagHistory: FlagHistoryEntry[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   createdAt: Date;

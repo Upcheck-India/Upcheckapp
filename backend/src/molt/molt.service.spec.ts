@@ -420,6 +420,30 @@ describe('M1 molt correctness', () => {
       expect(isMineralTreatment({ description, notes: null })).toBe(expected);
     });
 
+    it('D2: a structured row decides by category / ingredient, never by its text', () => {
+      expect(isMineralTreatment({ category: 'mineral', description: '' })).toBe(true);
+      expect(isMineralTreatment({ category: 'lime_alkalinity', description: '' })).toBe(true);
+      expect(isMineralTreatment({ category: 'other', ingredientKeys: ['potassium_chloride'] })).toBe(true);
+      // An antibiotic never ticks minerals, even with mineral words in its text.
+      expect(
+        isMineralTreatment({ category: 'antimicrobial', ingredientKeys: ['oxytetracycline'], description: 'with mineral carrier' }),
+      ).toBe(false);
+      expect(isMineralTreatment({ category: 'disinfectant', notes: 'Potash' })).toBe(false);
+    });
+
+    it('D2: a mineral-category treatment ticks the checklist; an antibiotic one does not', async () => {
+      const mineral = makeService({
+        abw: 12,
+        rows: { treatments: [{ cropId: 'c1', description: '', notes: null, category: 'mineral', ingredientKeys: null }] },
+      });
+      expect(byKey((await mineral.svc.forPond('p1', 'u1', PRE)).items).minerals.status).toBe('done');
+      const antibiotic = makeService({
+        abw: 12,
+        rows: { treatments: [{ cropId: 'c1', description: 'mineral', notes: null, category: 'antimicrobial', ingredientKeys: ['oxytetracycline'] }] },
+      });
+      expect(byKey((await antibiotic.svc.forPond('p1', 'u1', PRE)).items).minerals.status).toBe('pending');
+    });
+
     it('reads notes too (old clients put the product there)', () => {
       expect(isMineralTreatment({ description: 'Molt prep', notes: 'Product: Aqua Mineral Mix.' })).toBe(true);
     });

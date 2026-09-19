@@ -44,6 +44,7 @@ import { useAuthStore } from './src/store/authStore';
 import { useActiveFarmStore } from './src/store/activeFarmStore';
 import { useMembershipStore } from './src/store/membershipStore';
 import { useBannedSubstancesStore } from './src/features/bannedSubstancesStore';
+import { useIngredientsStore } from './src/features/ingredientsStore';
 import { pushApi } from './src/api/push';
 /*
  * PER-WEIGHT SUBPATHS, not the package barrels.
@@ -360,6 +361,7 @@ export default function App() {
   useEffect(() => {
     if (!isAuthenticated) return;
     useBannedSubstancesStore.getState().hydrate();
+    useIngredientsStore.getState().hydrate();
   }, [isAuthenticated]);
 
   // Global unhandled promise rejection handler — prevents crash on Android production

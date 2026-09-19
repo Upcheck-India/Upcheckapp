@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Crop } from '../crops/crop.entity';
 import { DiseaseLibrary } from './disease-library.entity';
+import type { FlagHistoryEntry } from '../compliance/compliance-eval';
 
 @Entity('disease_records')
 export class DiseaseRecord {
@@ -118,4 +119,8 @@ export class DiseaseRecord {
     nullable: true,
   })
   bannedSubstanceListVersion: string | null;
+
+  /** Every change of the banned flag, never rewritten (D3.3, migration 1780701400000). */
+  @Column({ name: 'flag_history', type: 'jsonb', default: () => "'[]'::jsonb" })
+  flagHistory: FlagHistoryEntry[];
 }

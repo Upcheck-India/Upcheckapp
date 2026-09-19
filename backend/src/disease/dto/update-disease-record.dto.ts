@@ -1,3 +1,4 @@
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 import { PartialWithoutScope } from '../../common/dto/omit-scope';
 import { CreateDiseaseRecordDto } from './create-disease.dto';
 
@@ -7,4 +8,10 @@ import { CreateDiseaseRecordDto } from './create-disease.dto';
  */
 export class UpdateDiseaseRecordDto extends PartialWithoutScope(
   CreateDiseaseRecordDto,
-) {}
+) {
+  /** Required when an edit lowers the banned flag (D3.3, 400 REASON_REQUIRED). */
+  @IsString()
+  @MaxLength(500)
+  @IsOptional()
+  flagChangeReason?: string;
+}

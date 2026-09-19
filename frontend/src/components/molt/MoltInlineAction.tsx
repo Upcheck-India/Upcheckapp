@@ -35,7 +35,7 @@ export const tickMoltAction = async (pondId: string, windowKey: string, actionKe
 export interface MoltInlineActionProps {
   item: BriefingItem;
   /** Open an auto item's log screen. Omit to offer ticks only. */
-  onLog?: (route: string, params: { pondId: string; cropId?: string }) => void;
+  onLog?: (route: string, params: { pondId: string; cropId?: string; prefill?: 'molt' }) => void;
   cropIdForPond?: (pondId: string) => string | null | undefined;
   style?: StyleProp<ViewStyle>;
   labelStyle?: StyleProp<TextStyle>;
@@ -72,7 +72,14 @@ export const MoltInlineAction: React.FC<MoltInlineActionProps> = ({ item, onLog,
   return (
     <TouchableOpacity
       style={style}
-      onPress={() => onLog(action.route!, cropId ? { pondId: action.pondId, cropId } : { pondId: action.pondId })}
+      onPress={() =>
+        onLog(action.route!, {
+          pondId: action.pondId,
+          ...(cropId ? { cropId } : {}),
+          // A treatment from the checklist is a mineral molt-prep dose (D2 prefill).
+          ...(action.route === 'TreatmentLog' ? { prefill: 'molt' } : {}),
+        })
+      }
       accessibilityRole="button"
     >
       <Text style={labelStyle}>{t('engines.lunar.logIt')}</Text>
