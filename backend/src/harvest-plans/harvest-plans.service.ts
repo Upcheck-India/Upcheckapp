@@ -140,6 +140,19 @@ export class HarvestPlansService {
     if (!cropId) {
       throw new BadRequestException('This pond has no running cycle to harvest');
     }
+    // HarvestsService.create no longer refuses a plan on another pond (it
+    // saves the harvest unlinked, for offline safety). Here nothing is queued
+    // and the crop comes from the plan, so a pre-B5 plan naming another
+    // pond's crop must be refused BEFORE a harvest lands on that crop.
+    if (plan.cropId) {
+      const crop = await this.cropsRepository.findOne({
+        where: { id: plan.cropId },
+        select: { id: true, pondId: true },
+      });
+      if (!crop || crop.pondId !== plan.pondId) {
+        throw new BadRequestException('cropId must be a cycle of this pond');
+      }
+    }
 
     await this.harvestsService.create(
       {

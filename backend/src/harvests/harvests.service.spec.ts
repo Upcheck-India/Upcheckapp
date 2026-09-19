@@ -234,7 +234,7 @@ function makeGateService(
 ) {
   const repo = {
     // H1 details read (grades etc.); [] = ungraded / migration not applied.
-    query: jest.fn(async () => opts.details ?? []),
+    query: jest.fn(async (_sql?: string, _params?: unknown[]): Promise<any[]> => opts.details ?? []),
     create: jest.fn((v: any) => v),
     save: jest.fn(async (v: any) => ({ id: 'h1', ...v })),
     findOne: jest.fn(async () =>
@@ -844,8 +844,9 @@ describe('H4 — plan → harvest', () => {
     const plan = planned();
     const { svc, manager, cropsService } = makeGateService(true, { existing: null, plan });
 
-    await svc.create(fromPlan(), 'owner-1');
+    const res: any = await svc.create(fromPlan(), 'owner-1');
 
+    expect(res.planLink).toBe('linked');
     expect(manager.update).toHaveBeenCalledWith(
       HarvestPlan,
       { id: 'plan-1', pondId: 'p1', status: 'planned' },
@@ -866,39 +867,51 @@ describe('H4 — plan → harvest', () => {
     expect(cropsService.closeCycle).toHaveBeenCalledWith('c1', '2026-09-10', 'owner-1', manager);
   });
 
-  it('a double submit (two harvest ids) completes the plan once — the second is 409 and writes nothing', async () => {
+  // A harvest is money and kilos that happened. Offline replay treats a 409
+  // as done and parks a 400 as failed, so refusing it would lose it.
+  it('a second harvest on an already-completed plan is SAVED unlinked and flagged — the plan completes once', async () => {
     const plan = planned();
     const first = makeGateService(true, { existing: null, plan });
     await first.svc.create(fromPlan(), 'owner-1');
 
     const second = makeGateService(true, { existing: null, plan });
-    const err = await second.svc
-      .create(fromPlan({ id: '33333333-3333-4333-8333-333333333333' }), 'owner-1')
-      .catch((e) => e);
+    const res: any = await second.svc.create(
+      fromPlan({ id: '33333333-3333-4333-8333-333333333333', harvestType: 'partial' }),
+      'owner-1',
+    );
 
-    expect(err).toBeInstanceOf(ConflictException);
-    expect(err.getResponse()).toEqual(expect.objectContaining({ code: 'PLAN_ALREADY_COMPLETED' }));
-    expect(second.repo.save).not.toHaveBeenCalled();
+    expect(res.planLink).toBe('already_completed');
+    expect(second.repo.save).toHaveBeenCalledTimes(1);
+    // Not linked…
+    expect(second.manager.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('SET plan_id'),
+      expect.anything(),
+    );
+    // …but remembered, so the Money overview can flag the cycle.
+    expect(second.manager.query).toHaveBeenCalledWith(
+      expect.stringContaining('SET plan_conflict_id'),
+      ['33333333-3333-4333-8333-333333333333', 'plan-1'],
+    );
   });
 
-  it("a plan on another pond is a 400 and writes nothing", async () => {
-    const { svc, repo, manager } = makeGateService(true, {
-      existing: null,
-      plan: { id: 'plan-1', pondId: 'p-other-farm', status: 'planned' },
-    });
+  it('a plan on another pond does not complete it, and the harvest is saved unlinked (rejected)', async () => {
+    const other = { id: 'plan-1', pondId: 'p-other-farm', status: 'planned' };
+    const { svc, repo, manager } = makeGateService(true, { existing: null, plan: other });
 
-    const err = await svc.create(fromPlan(), 'owner-1').catch((e) => e);
+    const res: any = await svc.create(fromPlan(), 'owner-1');
 
-    expect(err).toBeInstanceOf(BadRequestException);
-    expect(err.getResponse()).toEqual(expect.objectContaining({ code: 'PLAN_WRONG_POND' }));
-    expect(repo.save).not.toHaveBeenCalled();
+    expect(res.planLink).toBe('rejected');
+    expect(other.status).toBe('planned');
     expect(manager.update).not.toHaveBeenCalled();
+    expect(repo.save).toHaveBeenCalledTimes(1);
+    expect(manager.query).not.toHaveBeenCalledWith(expect.stringMatching(/plan_id|plan_conflict_id/), expect.anything());
   });
 
-  it('an unknown plan id is a 400 too', async () => {
+  it('an unknown plan id is rejected the same way', async () => {
     const { svc, repo } = makeGateService(true, { existing: null });
-    await expect(svc.create(fromPlan(), 'owner-1')).rejects.toBeInstanceOf(BadRequestException);
-    expect(repo.save).not.toHaveBeenCalled();
+    const res: any = await svc.create(fromPlan(), 'owner-1');
+    expect(res.planLink).toBe('rejected');
+    expect(repo.save).toHaveBeenCalledTimes(1);
   });
 
   it('a manager without VIEW_FINANCIALS completes the plan with no price', async () => {
@@ -912,24 +925,54 @@ describe('H4 — plan → harvest', () => {
     );
   });
 
-  it('a harvest without planId touches no plan', async () => {
+  it('a harvest without planId touches no plan and carries no planLink', async () => {
     const { svc, manager } = makeGateService(true, { existing: null });
-    await svc.create(gradedDto(), 'owner-1');
+    const res: any = await svc.create(gradedDto(), 'owner-1');
     expect(manager.update).not.toHaveBeenCalled();
+    expect(res).not.toHaveProperty('planLink');
   });
 });
 
 describe('H4 — planIncomeOverlaps', () => {
+  const svcWith = (conflicts: any[], legacy: any[]) => {
+    const built = makeGateService(true);
+    built.repo.query.mockImplementation(async (sql: string) =>
+      sql.includes('plan_conflict_id') ? conflicts : legacy,
+    );
+    return built;
+  };
+
   it('matches plan-completion income to a sold harvest on the same cycle, per farm', async () => {
-    const { svc, repo } = makeGateService(true, { details: [{ cropId: 'c1', pondId: 'p1' }] });
+    const { svc, repo } = svcWith([], [{ cropId: 'c1', pondId: 'p1' }]);
 
     const out = await svc.planIncomeOverlaps('f1');
 
     expect(out).toEqual([{ cropId: 'c1', pondId: 'p1' }]);
-    const [sql, params] = (repo.query.mock.calls as any[])[0];
-    expect(params).toEqual(['f1']);
-    expect(sql).toContain("'Harvest sale from plan ' || hp.id::text");
-    expect(sql).toContain("t.category = 'harvest_sale'");
-    expect(sql).toContain("h.status = 'sold'");
+    const legacySql = (repo.query.mock.calls as any[]).find((c) => c[0].includes('FROM transactions'));
+    expect(legacySql[1]).toEqual(['f1']);
+    expect(legacySql[0]).toContain("'Harvest sale from plan ' || hp.id::text");
+    expect(legacySql[0]).toContain("t.category = 'harvest_sale'");
+    expect(legacySql[0]).toContain("h.status = 'sold'");
+  });
+
+  it('also flags a cycle with a harvest saved against an already-completed plan, once per cycle', async () => {
+    const { svc } = svcWith(
+      [{ cropId: 'c2', pondId: 'p2' }, { cropId: 'c1', pondId: 'p1' }],
+      [{ cropId: 'c1', pondId: 'p1' }],
+    );
+
+    expect(await svc.planIncomeOverlaps('f1')).toEqual([
+      { cropId: 'c1', pondId: 'p1' },
+      { cropId: 'c2', pondId: 'p2' },
+    ]);
+  });
+
+  it('before the migration the conflict half degrades to nothing', async () => {
+    const { svc, repo } = svcWith([], [{ cropId: 'c1', pondId: 'p1' }]);
+    repo.query.mockImplementation(async (sql: string) => {
+      if (sql.includes('plan_conflict_id')) throw Object.assign(new Error('col'), { code: '42703' });
+      return [{ cropId: 'c1', pondId: 'p1' }];
+    });
+    expect(await svc.planIncomeOverlaps('f1')).toEqual([{ cropId: 'c1', pondId: 'p1' }]);
   });
 });

@@ -7,7 +7,15 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * harvests have no plan), SET NULL on plan delete (deleting a plan must never
  * take a harvest — i.e. revenue — with it). Not an entity column: the service
  * writes it with raw SQL, only when a client sends `planId`, so old builds
- * never reach it. Additive, idempotent, reversible — apply BEFORE the backend
+ * never reach it.
+ *
+ * `harvests.plan_conflict_id` records a plan the harvest was logged against
+ * but could NOT complete, because it was already completed (another device,
+ * an offline replay). The harvest is kept, unlinked; this marks the cycle
+ * as a possible duplicate for the Money overview. No FK on purpose: the flag
+ * must outlive the plan row.
+ *
+ * Additive, idempotent, reversible — apply BEFORE the backend
  * that uses it deploys.
  */
 export class HarvestPlanLink1780701000000 implements MigrationInterface {
@@ -15,7 +23,9 @@ export class HarvestPlanLink1780701000000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "harvests" ADD COLUMN IF NOT EXISTS "plan_id" uuid NULL`,
+      `ALTER TABLE "harvests"
+         ADD COLUMN IF NOT EXISTS "plan_id" uuid NULL,
+         ADD COLUMN IF NOT EXISTS "plan_conflict_id" uuid NULL`,
     );
     await queryRunner.query(
       `DO $$ BEGIN
@@ -36,7 +46,9 @@ export class HarvestPlanLink1780701000000 implements MigrationInterface {
       `ALTER TABLE "harvests" DROP CONSTRAINT IF EXISTS "FK_harvests_plan"`,
     );
     await queryRunner.query(
-      `ALTER TABLE "harvests" DROP COLUMN IF EXISTS "plan_id"`,
+      `ALTER TABLE "harvests"
+         DROP COLUMN IF EXISTS "plan_conflict_id",
+         DROP COLUMN IF EXISTS "plan_id"`,
     );
   }
 }

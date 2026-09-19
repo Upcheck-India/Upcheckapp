@@ -41,6 +41,9 @@ export interface HarvestDetails {
   piecesEstimated: boolean;
 }
 
+/** What happened to the plan a harvest was logged against (H4). */
+export type PlanLink = 'linked' | 'already_completed' | 'rejected';
+
 /** ₹/kg outside this band is a warning the client must confirm (warn, not block). */
 export const PRICE_BAND = { min: 50, max: 2000 } as const;
 
@@ -235,18 +238,27 @@ export class HarvestsService {
         });
       }
 
-      if (planId) await this.completePlanWith(manager, planId, locked.pondId, fields);
+      const planLink = planId
+        ? await this.completePlanWith(manager, planId, locked.pondId, fields)
+        : undefined;
 
       const row = await manager.save(
         manager.create(Harvest, { ...fields, createdById: userId }),
       );
       await this.writeDetails(manager, row.id, lines, totals, rejectedKg, rejectedReason);
-      if (planId) {
-        // Needs migration 1780701000000 — only clients that send planId get here.
+      // Needs migration 1780701000000 — only clients that send planId get here.
+      if (planLink === 'linked') {
         await manager.query(`UPDATE harvests SET plan_id = $2 WHERE id = $1`, [
           row.id,
           planId,
         ]);
+      } else if (planLink === 'already_completed') {
+        // Unlinked, but remembered: the Money overview flags this cycle as a
+        // possible duplicate (planIncomeOverlaps).
+        await manager.query(
+          `UPDATE harvests SET plan_conflict_id = $2 WHERE id = $1`,
+          [row.id, planId],
+        );
       }
       if (createDto.harvestType === 'full') {
         await this.cropsService.closeCycle(
@@ -256,35 +268,39 @@ export class HarvestsService {
           manager,
         );
       }
-      return row;
+      return { row, planLink };
     });
 
-    return maskFinancials(await this.withDetails(saved), canView);
+    const out = maskFinancials(await this.withDetails(saved.row), canView);
+    // Additive: only when the client sent planId.
+    return saved.planLink ? { ...out, planLink: saved.planLink } : out;
   }
 
   /**
-   * H4 — the harvest completes its plan, in the harvest's own transaction.
-   * The conditional update is scoped to the harvested crop's pond and to a
-   * still-planned plan, so a double submit (two harvest ids) completes it
-   * once: the second gets 409 and, rolled back with it, writes no harvest.
+   * H4 — the harvest completes its plan, in the harvest's own transaction,
+   * with a conditional update scoped to the harvested crop's pond and to a
+   * still-planned plan, so a plan completes exactly once.
+   *
+   * It NEVER refuses the harvest. A harvest is money and kilos that really
+   * happened, and it often arrives by offline replay, where a 409 is taken as
+   * "done" and a 400 parks the record as failed — either way the harvest
+   * would vanish. So a plan that cannot be completed is reported, not fatal:
+   * - 'already_completed': completed meanwhile (another device, a double
+   *   submit). The harvest is saved unlinked and flagged as a possible
+   *   duplicate on the Money overview.
+   * - 'rejected': unknown plan or another pond's plan. Saved unlinked.
    */
   private async completePlanWith(
     manager: EntityManager,
     planId: string,
     pondId: string,
     fields: { harvestDate: string; weightKg?: number; salePriceTotal?: number | null },
-  ): Promise<void> {
+  ): Promise<PlanLink> {
     const plan = await manager.findOne(HarvestPlan, {
       where: { id: planId },
       select: { id: true, pondId: true, status: true },
     });
-    if (!plan || plan.pondId !== pondId) {
-      throw new BadRequestException({
-        statusCode: 400,
-        code: 'PLAN_WRONG_POND',
-        message: 'This harvest plan belongs to another pond.',
-      });
-    }
+    if (!plan || plan.pondId !== pondId) return 'rejected';
     const revenue = fields.salePriceTotal ?? null;
     const kg = Number(fields.weightKg) || 0;
     const res = await manager.update(
@@ -300,25 +316,35 @@ export class HarvestsService {
           : null) as any,
       },
     );
-    if (!res.affected) {
-      throw new ConflictException({
-        statusCode: 409,
-        code: 'PLAN_ALREADY_COMPLETED',
-        message: 'This harvest plan is already completed.',
-      });
-    }
+    return res.affected ? 'linked' : 'already_completed';
   }
 
   /**
-   * Cycles of this farm that carry BOTH a plan-completion income transaction
-   * (pre-H4 `/complete`, category harvest_sale) and a sold harvest. The farm
-   * report sums both, so this is possibly the same sale counted twice. H4
-   * does not rewrite production money rows; it flags them for the farmer.
+   * Cycles of this farm whose sale may be counted twice. H4 does not rewrite
+   * production money rows; it flags them for the farmer:
+   * 1. a pre-H4 plan-completion income transaction (`/complete`, category
+   *    harvest_sale) AND a sold harvest on the same cycle;
+   * 2. a sold harvest saved for a plan that was already completed
+   *    (`plan_conflict_id`, see completePlanWith).
    */
   async planIncomeOverlaps(
     farmId: string,
   ): Promise<{ cropId: string; pondId: string }[]> {
-    return this.harvestsRepository.query(
+    let conflicts: { cropId: string; pondId: string }[] = [];
+    try {
+      conflicts = await this.harvestsRepository.query(
+        `SELECT DISTINCT h.crop_id AS "cropId", c.pond_id AS "pondId"
+           FROM harvests h
+           JOIN crops c ON c.id = h.crop_id
+           JOIN ponds p ON p.id = c.pond_id
+          WHERE p.farm_id = $1 AND h.plan_conflict_id IS NOT NULL AND h.status = 'sold'`,
+        [farmId],
+      );
+    } catch (err) {
+      // Before migration 1780701000000 there are no conflicts to find.
+      if (!isMissingSchema(err)) throw err;
+    }
+    const legacy: { cropId: string; pondId: string }[] = await this.harvestsRepository.query(
       `SELECT DISTINCT hp.crop_id AS "cropId", hp.pond_id AS "pondId"
          FROM transactions t
          JOIN harvest_plans hp ON t.description = 'Harvest sale from plan ' || hp.id::text
@@ -327,6 +353,10 @@ export class HarvestsService {
           AND EXISTS (SELECT 1 FROM harvests h
                        WHERE h.crop_id = hp.crop_id AND h.status = 'sold')`,
       [farmId],
+    );
+    const seen = new Set<string>();
+    return [...legacy, ...conflicts].filter(
+      (r) => !seen.has(r.cropId) && !!seen.add(r.cropId),
     );
   }
 

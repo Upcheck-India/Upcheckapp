@@ -90,8 +90,8 @@ const logs = {
   harvest_errorSave: 'ফসল লগ করতে ব্যর্থ। আবার চেষ্টা করুন।',
   harvest_errorCycleClosed: 'এই চক্রটি ইতিমধ্যে বন্ধ হয়ে গেছে। ফসল সংরক্ষণ করা হয়নি।',
   harvest_fromPlan: "এই ফসল সংরক্ষণ করলে {{date}} তারিখের ফসল কাটার পরিকল্পনা সম্পন্ন হবে।",
-  harvest_errorPlanPond: "এই ফসল কাটার পরিকল্পনা অন্য পুকুরের। ফসল সংরক্ষণ করা হয়নি।",
-  harvest_errorPlanDone: "এই ফসল কাটার পরিকল্পনা ইতিমধ্যে সম্পন্ন। ফসল সংরক্ষণ করা হয়নি।",
+  harvest_planAlreadyCompleted: "ফসল সংরক্ষিত হয়েছে। পরিকল্পনাটি অন্য ডিভাইসে আগেই সম্পন্ন হয়েছিল — সম্ভাব্য দ্বিগুণ আয়ের জন্য টাকা (Money) দেখুন।",
+  harvest_planNotLinked: "ফসল সংরক্ষিত হয়েছে, কিন্তু ফসল কাটার পরিকল্পনার সাথে যুক্ত করা যায়নি।",
   // Graded harvest record + harvest drives the pond (harvest-and-molt H1/H2).
   harvest_labelDate: 'ফসল তোলার তারিখ',
   harvest_gradeTitle: 'গ্রেড {{n}}',

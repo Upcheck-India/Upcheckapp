@@ -37,7 +37,8 @@ const build = (plan: any = PLAN) => {
   };
   const cropsRepository = {
     update: jest.fn().mockResolvedValue(undefined),
-    findOne: jest.fn(),
+    // The plan's own crop, on the plan's pond (the shim checks it).
+    findOne: jest.fn().mockResolvedValue({ id: 'crop-1', pondId: 'pond-1' }),
   };
   const farmAccess = {
     assertCanAccessPond: jest.fn().mockResolvedValue({ id: 'pond-1' }),
@@ -109,6 +110,18 @@ describe('H4 — the /complete shim logs a harvest, not a transaction', () => {
     await service.completePlan('plan-1', payload, 'user-1');
 
     expect(harvestsService.create.mock.calls[0][0].cropId).toBe('crop-7');
+  });
+
+  // HarvestsService.create saves a foreign-pond plan's harvest unlinked (for
+  // offline safety) — the shim must not let that land on another farm's crop.
+  it('400s a pre-B5 plan naming another pond’s crop, before any harvest', async () => {
+    const { service, harvestsService, cropsRepository } = build();
+    cropsRepository.findOne.mockResolvedValue({ id: 'crop-1', pondId: 'pond-other-farm' });
+
+    await expect(
+      service.completePlan('plan-1', payload, 'user-1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(harvestsService.create).not.toHaveBeenCalled();
   });
 
   it('400s when there is no cycle to harvest at all', async () => {

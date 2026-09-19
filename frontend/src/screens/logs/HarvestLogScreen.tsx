@@ -36,8 +36,6 @@ const fromIso = (iso: string) => {
 const ERROR_KEYS: Record<string, string> = {
     HARVEST_DATE_FUTURE: 'logs.harvest_errorDateFuture',
     HARVEST_DATE_BEFORE_STOCKING: 'logs.harvest_errorDateBeforeStocking',
-    PLAN_WRONG_POND: 'logs.harvest_errorPlanPond',
-    PLAN_ALREADY_COMPLETED: 'logs.harvest_errorPlanDone',
 };
 
 export const HarvestLogScreen = ({ route, navigation }: any) => {
@@ -251,12 +249,28 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                     endpoint: '/harvests',
                     payload: { id: harvestId.current, cropId, harvestType, ...(planId ? { planId } : {}), ...payload },
                 });
-                showToast({
-                    message: res.queued
-                        ? t('common.savedOffline', 'Saved — will sync when online')
-                        : t('common.savedSuccess'),
-                    type: 'success',
-                });
+                // H4: the server never refuses a harvest over its plan — it
+                // saves it unlinked and says so (`planLink`), so it can't be
+                // lost in the offline queue. Tell the farmer when that happened.
+                const planLink: string | undefined = res.data?.planLink;
+                showToast(
+                    planLink && planLink !== 'linked'
+                        ? {
+                              message: t(
+                                  planLink === 'already_completed'
+                                      ? 'logs.harvest_planAlreadyCompleted'
+                                      : 'logs.harvest_planNotLinked',
+                              ),
+                              type: 'warning',
+                              duration: 6000,
+                          }
+                        : {
+                              message: res.queued
+                                  ? t('common.savedOffline', 'Saved — will sync when online')
+                                  : t('common.savedSuccess'),
+                              type: 'success',
+                          },
+                );
             }
 
             // TODO(H3): after a FULL save, navigate to CycleResult (harvest-and-

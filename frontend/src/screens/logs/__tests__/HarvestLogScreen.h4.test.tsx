@@ -28,6 +28,7 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { HarvestLogScreen } from '../HarvestLogScreen';
 import { saveRecord } from '../../../sync/recordSync';
+import { useUIStore } from '../../../store/uiStore';
 
 const METRICS = {
     frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -56,6 +57,7 @@ describe('HarvestLogScreen — H4 plan → harvest', () => {
     afterEach(() => jest.restoreAllMocks());
     beforeEach(() => {
         jest.clearAllMocks();
+        useUIStore.setState({ toasts: [] });
         (saveRecord as jest.Mock).mockResolvedValue({ id: 'uuid-1', queued: false });
     });
 
@@ -89,21 +91,41 @@ describe('HarvestLogScreen — H4 plan → harvest', () => {
         expect((saveRecord as jest.Mock).mock.calls[0][0].payload.harvestDate).not.toBe('2099-01-01');
     });
 
-    it('a plan that was already completed says so, and nothing was saved', async () => {
-        (saveRecord as jest.Mock).mockRejectedValue({
-            response: { status: 409, data: { code: 'PLAN_ALREADY_COMPLETED' } },
+    // The server never refuses the harvest over its plan (offline safety): it
+    // saves it unlinked and returns planLink. The farmer is told, not blocked.
+    it('a plan completed elsewhere: harvest saved, warning toast points at Money', async () => {
+        (saveRecord as jest.Mock).mockResolvedValue({
+            id: 'uuid-1',
+            queued: false,
+            data: { id: 'uuid-1', planLink: 'already_completed' },
         });
-        const alert = confirmAll();
+        confirmAll();
         const { getByText } = renderScreen(fromPlan({ date: '2026-08-01', targetKg: 500, expectedPrice: 280 }));
 
         fireEvent.press(getByText('Save Harvest'));
 
         await waitFor(() =>
-            expect(alert).toHaveBeenCalledWith(
-                expect.any(String),
-                'This harvest plan is already completed. The harvest was not saved.',
+            expect(useUIStore.getState().toasts).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        type: 'warning',
+                        message: 'Harvest saved. The plan was already completed on another device — check Money for a possible duplicate.',
+                    }),
+                ]),
             ),
         );
+        expect(navigation.goBack).toHaveBeenCalled();
+    });
+
+    it('a linked save shows the plain success toast', async () => {
+        (saveRecord as jest.Mock).mockResolvedValue({ id: 'uuid-1', queued: false, data: { planLink: 'linked' } });
+        confirmAll();
+        const { getByText } = renderScreen(fromPlan({ date: '2026-08-01', targetKg: 500, expectedPrice: 280 }));
+
+        fireEvent.press(getByText('Save Harvest'));
+
+        await waitFor(() => expect(navigation.goBack).toHaveBeenCalled());
+        expect(useUIStore.getState().toasts.some((t) => t.type === 'warning')).toBe(false);
     });
 
     it('a plain harvest (no plan) sends no planId', async () => {
