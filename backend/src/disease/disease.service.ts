@@ -4,7 +4,10 @@ import {
   Logger,
   NotFoundException,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
+import { ComplianceService } from '../compliance/compliance.service';
+import { nextFlagHistory } from '../compliance/compliance-eval';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { DiseaseLibrary } from './disease-library.entity';
@@ -172,6 +175,8 @@ export class DiseaseService {
     private diseaseLibraryTranslationRepository: Repository<DiseaseLibraryTranslation>,
     @InjectRepository(DiseaseRecord)
     private diseaseRecordRepository: Repository<DiseaseRecord>,
+    // @Optional so the library-only specs need no stub; always present in the app.
+    @Optional() private readonly compliance?: ComplianceService,
   ) {}
 
   // --- Library Methods ---
@@ -329,6 +334,8 @@ export class DiseaseService {
     // of anything the client detected or sent, so the audit trail is
     // authoritative even against an offline-stale or bypassed client.
     const { flag, matches } = evaluateBannedSubstances(dto.notes);
+    const flagHistory =
+      nextFlagHistory({ flag: 'none' }, { flag, matches }, userId ?? 'unknown') ?? [];
 
     const record = this.diseaseRecordRepository.create({
       ...dto,
@@ -337,8 +344,16 @@ export class DiseaseService {
       bannedSubstanceFlag: flag,
       bannedSubstanceMatches: matches,
       bannedSubstanceListVersion: BANNED_LIST_VERSION,
+      flagHistory,
     });
-    return this.diseaseRecordRepository.save(record);
+    const saved = await this.diseaseRecordRepository.save(record);
+    // Never blocks (D3): escalate swallows its own errors.
+    await this.compliance?.escalate(
+      { id: saved.id, cropId: saved.cropId, date: String(dto.recordedDate).slice(0, 10), flag, matches },
+      'disease',
+      userId,
+    );
+    return saved;
   }
 
   async findRecordsByCrop(cropId: string): Promise<DiseaseRecord[]> {
@@ -364,14 +379,42 @@ export class DiseaseService {
     const { flag, matches } = reEvaluate
       ? evaluateBannedSubstances(dto.notes)
       : { flag: record.bannedSubstanceFlag, matches: record.bannedSubstanceMatches };
+    const { flagChangeReason, ...fields } = dto;
+    // Lowering the flag needs a reason; every change is kept (D3.3).
+    const flagHistory = reEvaluate
+      ? nextFlagHistory(
+          {
+            flag: record.bannedSubstanceFlag,
+            matches: record.bannedSubstanceMatches,
+            history: record.flagHistory,
+          },
+          { flag, matches },
+          userId ?? 'unknown',
+          flagChangeReason,
+        )
+      : null;
 
     await this.diseaseRecordRepository.update(id, {
-      ...dto,
+      ...fields,
       ...(userId ? { updatedById: userId } : {}),
       bannedSubstanceFlag: flag,
       bannedSubstanceMatches: matches,
       ...(reEvaluate ? { bannedSubstanceListVersion: BANNED_LIST_VERSION } : {}),
+      ...(flagHistory ? { flagHistory: flagHistory as any } : {}),
     });
+    if (flagHistory) {
+      await this.compliance?.escalate(
+        {
+          id,
+          cropId: record.cropId,
+          date: String(fields.recordedDate ?? record.recordedDate).slice(0, 10),
+          flag,
+          matches,
+        },
+        'disease',
+        userId,
+      );
+    }
     return this.diseaseRecordRepository.findOneBy({
       id,
     }) as Promise<DiseaseRecord>;
