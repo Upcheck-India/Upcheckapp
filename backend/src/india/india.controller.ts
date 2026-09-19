@@ -42,7 +42,7 @@ export class IndiaController {
     });
   }
 
-  /** ₹/kg for an achieved count in a region (nearest band, latest feed). */
+  /** ₹/kg for an achieved count in a region (interpolated, latest feed). */
   @Get('price')
   async priceForCount(
     @Query('region') region: string,
@@ -51,7 +51,7 @@ export class IndiaController {
     if (!region || !count) {
       throw new BadRequestException('region and count are required');
     }
-    const price = await this.pricing.priceForCount(region, Number(count));
+    const price = await this.pricing.priceForRegion(region, Number(count));
     return { region, count: Number(count), pricePerKg: price };
   }
 

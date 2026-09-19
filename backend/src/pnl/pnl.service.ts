@@ -47,7 +47,7 @@ export class PnlService {
   async computeCropPnl(
     cropId: string,
     userId: string,
-    opts?: { region?: string; areaM2?: number },
+    opts?: { areaM2?: number },
   ): Promise<CropPnl> {
     // Authorize via VIEW_FINANCIALS on the crop's pond — same capability as
     // expenses.getCycleFinancials, so an owner OR manager who can see the
@@ -91,13 +91,11 @@ export class PnlService {
     );
     const areaM2 = opts?.areaM2 ?? (pondArea > 0 ? pondArea : undefined);
 
-    // ponytail: region path left as is; H5 (price book) passes the farm's
-    // quote bands here instead.
-    let priceBands;
-    if (opts?.region) {
-      const feed = await this.pricing.latestForRegion(opts.region);
-      priceBands = feed ? this.pricing.bandsFromPrices(feed.prices) : undefined;
-    }
+    // H5: break-even count against the farm's own current buyer quote (≤30
+    // days old). No usable quote → null, never a regional guess.
+    const priceBands = crop.pond?.farmId
+      ? await this.pricing.usableBands(crop.pond.farmId)
+      : undefined;
 
     const econ = this.economics.compute({
       totalCost: round2(totalCost),

@@ -5,6 +5,7 @@ import { UnitsService } from './units.service';
 import { EconomicsService } from './economics.service';
 import { PricingService } from './pricing.service';
 import { IndiaController } from './india.controller';
+import { FarmPriceQuotesController } from './farm-price-quotes.controller';
 import { AdminKeyGuard } from '../feedback/admin-key.guard';
 
 /**
@@ -14,7 +15,7 @@ import { AdminKeyGuard } from '../feedback/admin-key.guard';
  */
 @Module({
   imports: [TypeOrmModule.forFeature([PriceFeed])],
-  controllers: [IndiaController],
+  controllers: [IndiaController, FarmPriceQuotesController],
   providers: [UnitsService, EconomicsService, PricingService, AdminKeyGuard],
   exports: [UnitsService, EconomicsService, PricingService],
 })

@@ -19,6 +19,7 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import { toIstDateString } from '../common/ist-date';
 import { harvestTotals, HarvestTotals } from './harvest-totals';
 import { isMissingSchema } from '../pond-context/pond-context.service';
+import { bandsFromGrades, writeHarvestQuote } from '../india/pricing.service';
 
 /** A stored grade line as the API returns it. */
 export interface HarvestGrade {
@@ -246,6 +247,18 @@ export class HarvestsService {
         manager.create(Harvest, { ...fields, createdById: userId }),
       );
       await this.writeDetails(manager, row.id, lines, totals, rejectedKg, rejectedReason);
+      // H5: priced grade lines are the farm's newest buyer quote. `lines` has
+      // no prices without VIEW_FINANCIALS (cleanGrades), so none is written.
+      if (lines) {
+        await writeHarvestQuote(manager, {
+          pondId: locked.pondId,
+          harvestId: row.id,
+          harvestDate: createDto.harvestDate,
+          buyer: fields.buyerName,
+          bands: bandsFromGrades(lines),
+          userId,
+        });
+      }
       // Needs migration 1780701000000 — only clients that send planId get here.
       if (planLink === 'linked') {
         await manager.query(`UPDATE harvests SET plan_id = $2 WHERE id = $1`, [

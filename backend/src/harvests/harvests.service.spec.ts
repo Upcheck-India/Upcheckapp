@@ -594,6 +594,36 @@ describe('H1 — graded create', () => {
     );
   });
 
+  // H5.1: the sale remembers its prices as the farm's newest buyer quote.
+  const quoteInsert = (manager: any) =>
+    manager.query.mock.calls.find((c: any[]) =>
+      String(c[0]).includes('INSERT INTO farm_price_quotes'),
+    );
+
+  it("auto-writes a source='harvest' quote from priced grades, in the same transaction", async () => {
+    const { svc, manager } = makeGateService(true, { existing: null });
+    await svc.create(gradedDto({ buyerName: 'Ravi' }), 'owner-1');
+    const [sql, params] = quoteInsert(manager);
+    expect(sql).toContain("'harvest'");
+    expect(params).toEqual([
+      'p1',
+      '2026-09-10',
+      'Ravi',
+      JSON.stringify([
+        { count: 40, price: 430 },
+        { count: 55, price: 340 },
+      ]),
+      '22222222-2222-4222-8222-222222222222',
+      'owner-1',
+    ]);
+  });
+
+  it('writes no quote without VIEW_FINANCIALS (prices were stripped)', async () => {
+    const { svc, manager } = makeGateService(true, { existing: null, viewFinancials: false });
+    await svc.create(gradedDto(), 'manager-1');
+    expect(quoteInsert(manager)).toBeUndefined();
+  });
+
   it('strips an old-path total price too', async () => {
     const { svc, repo } = makeGateService(true, { existing: null, viewFinancials: false });
     await svc.create(
