@@ -51,6 +51,28 @@ describe('true lunar phases (Meeus ch. 49)', () => {
   });
 
   /**
+   * M1.7: the full-moon series has its OWN coefficients (Meeus table 49.A),
+   * not the new-moon ones. Expected times are UT, fetched 2026-09-19 from the
+   * US Naval Observatory: https://aa.usno.navy.mil/api/moon/phases/year?year=2026
+   * (published to the minute, so ±0.5 min rounding). With the new-moon terms
+   * reused and no ΔT, full moons were off by up to 2.4 min and this failed.
+   */
+  const USNO_2026 = {
+    full: ['01-03T10:03', '02-01T22:09', '03-03T11:38', '04-02T02:12', '05-01T17:23', '05-31T08:45', '06-29T23:56',
+      '07-29T14:36', '08-28T04:18', '09-26T16:49', '10-26T04:12', '11-24T14:53', '12-24T01:28'],
+    new: ['01-18T19:52', '02-17T12:01', '03-19T01:23', '04-17T11:52', '05-16T20:01', '06-15T02:54', '07-14T09:43',
+      '08-12T17:37', '09-11T03:27', '10-10T15:50', '11-09T07:02', '12-09T00:52'],
+  };
+  it.each([
+    ...USNO_2026.full.map((s) => [s, false] as const),
+    ...USNO_2026.new.map((s) => [s, true] as const),
+  ])('matches USNO 2026-%s (new=%s) within 1.5 min', (s, isNew) => {
+    const expected = new Date(`2026-${s}:00Z`);
+    const got = nextPhase(new Date(expected.getTime() - 5 * 86_400_000), isNew);
+    expect(minutesApart(got, expected)).toBeLessThan(1.5);
+  });
+
+  /**
    * THE BUG, stated as a test.
    *
    * Compares the corrected instant against the MEAN one the app used to use —
