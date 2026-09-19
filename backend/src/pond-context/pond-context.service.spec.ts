@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { PondContextService } from './pond-context.service';
+import { PondContextService, harvestedPieces } from './pond-context.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
 
 function makeService(
@@ -494,5 +494,71 @@ describe('PondContextService.getMyContexts', () => {
 
     await expect(svc.getMyContexts('nobody')).resolves.toEqual([]);
     expect(farmAccess.getAccessiblePondIds).not.toHaveBeenCalled();
+  });
+});
+
+/* ── H2: a partial harvest reduces the live population ─────────────────── */
+
+describe('H2 — population after a partial harvest', () => {
+  const fresh = () => {
+    const now = new Date().toISOString();
+    return {
+      crop: { stockingCount: 100000, get computedDOC() { return 60; } },
+      sampling: { mbwG: 20, samplingDate: now },
+      wqRecords: [
+        { recordedAt: now, dissolvedOxygen: 5, ph: 8, temperature: 28, salinity: 15, ammonia: 0.1, alkalinity: 120 },
+      ],
+    };
+  };
+
+  it('pure helpers: subtract pieces, as of a day', () => {
+    const { svc } = makeService();
+    expect(svc.estimateLivePopulation(100000, 5000, 20000)).toBe(75000);
+    const rows = [
+      { cropId: 'c1', day: '2026-09-01', pieces: 10000, estimated: false },
+      { cropId: 'c1', day: '2026-09-10', pieces: 5000, estimated: true },
+      { cropId: 'c2', day: '2026-09-01', pieces: 999, estimated: false },
+    ];
+    expect(harvestedPieces(rows, 'c1')).toEqual({ pieces: 15000, estimated: true });
+    expect(harvestedPieces(rows, 'c1', '2026-09-05')).toEqual({ pieces: 10000, estimated: false });
+    expect(harvestedPieces(rows, 'c3')).toBeNull();
+  });
+
+  it('counted pieces: population drops, confidence unchanged', async () => {
+    const base = await makeService(fresh()).svc.getContext('p1', 'u1');
+    const { svc, samplingRepo } = makeService(fresh());
+    samplingRepo.query.mockResolvedValue([
+      { cropId: 'c1', day: '2026-09-01', pieces: 30000, estimated: false },
+    ]);
+
+    const ctx = await svc.getContext('p1', 'u1');
+
+    expect(ctx.livePopulation).toBe(70000);
+    expect(ctx.biomassKg).toBe(1400);
+    expect(ctx.populationNote).toBeNull();
+    expect(ctx.confidence).toEqual(base.confidence);
+  });
+
+  it('estimated pieces: population drops AND confidence falls one band', async () => {
+    const base = await makeService(fresh()).svc.getContext('p1', 'u1');
+    expect(base.confidence.band).toBe('high');
+    const { svc, samplingRepo } = makeService(fresh());
+    samplingRepo.query.mockResolvedValue([
+      { cropId: 'c1', day: '2026-09-01', pieces: 30000, estimated: true },
+    ]);
+
+    const ctx = await svc.getContext('p1', 'u1');
+
+    expect(ctx.livePopulation).toBe(70000);
+    expect(ctx.populationNote).toBe('after_partial_harvest_estimate');
+    expect(ctx.confidence.band).toBe('medium');
+    expect(ctx.confidence.stale).toContain('Population');
+  });
+
+  it('an unapplied migration (42703) degrades to the old population', async () => {
+    const { svc, samplingRepo } = makeService(fresh());
+    samplingRepo.query.mockRejectedValue(Object.assign(new Error('col'), { code: '42703' }));
+    const ctx = await svc.getContext('p1', 'u1');
+    expect(ctx.livePopulation).toBe(100000);
   });
 });

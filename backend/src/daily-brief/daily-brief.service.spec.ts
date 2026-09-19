@@ -205,6 +205,32 @@ describe('DailyBriefService — assembling a day', () => {
     abw: [{ pond_id: 'p1', mbw: 10 }],
   };
 
+  it('H2: partial-harvest pieces up to the day come off the live population', async () => {
+    const { svc } = build({
+      rows: {
+        ...rows,
+        harvest_pieces: [
+          { cropId: 'crop-p1', day: '2026-09-10', pieces: 9000, estimated: false },
+          { cropId: 'crop-p1', day: '2026-09-15', pieces: 5000, estimated: false }, // after D
+          { cropId: 'crop-other', day: '2026-09-10', pieces: 7777, estimated: false },
+        ],
+      },
+    });
+    const brief = await svc.get('u1', { date: D }, NOW);
+    expect(brief.ponds[0].health).toMatchObject({ livePopulation: 90000, biomassKg: 900 });
+  });
+
+  it('H2: an unapplied migration leaves the brief population as before', async () => {
+    const { svc, dataSource } = build({ rows });
+    const orig = dataSource.query.getMockImplementation()!;
+    dataSource.query.mockImplementation(async (sql: string, params: any[]) => {
+      if (sql.includes('daily-brief:harvest_pieces')) throw Object.assign(new Error('col'), { code: '42703' });
+      return orig(sql, params);
+    });
+    const brief = await svc.get('u1', { date: D }, NOW);
+    expect(brief.ponds[0].health.livePopulation).toBe(99000);
+  });
+
   it('scores the active pond, leaves the idle pond out, DATE rows at 12:00 IST allDay', async () => {
     const { svc } = build({ rows });
     const brief = await svc.get('u1', { date: D }, NOW);
