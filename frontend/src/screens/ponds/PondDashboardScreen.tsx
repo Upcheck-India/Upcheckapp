@@ -42,6 +42,7 @@ import { requiresActiveCycle } from '../../features/cycleRequirement';
 import { survivalPctFrom } from '../calculators/prefill';
 import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
 import { pnlApi, type CropPnl } from '../../api/pnl';
+import { treatmentsApi } from '../../api/treatments';
 import { useMembershipStore } from '../../store/membershipStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { qk } from '../../query/client';
@@ -253,6 +254,18 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     const offline = query.isError && !(query.error as any)?.response;
 
     const perms = usePermissions(pond?.farmId);
+
+    /**
+     * Cycle antimicrobial status (D3) — re-evaluated by the server on every
+     * read. Under the pond key, so focus refetches it and it persists offline.
+     * Safety, not money: every role sees it.
+     */
+    const complianceQuery = useAppQuery({
+        queryKey: [...qk.pond(pondId), 'compliance', cycle?.id ?? null] as const,
+        enabled: !!cycle?.id,
+        queryFn: async () => (await treatmentsApi.compliance(cycle!.id)).data,
+    });
+    const compliance = cycle ? complianceQuery.data ?? null : null;
 
     /**
      * Records this farmer saved against THIS pond that have not reached the
@@ -607,6 +620,23 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                   * So the guess is labelled rather than hidden, and answering
                   * any of it retires that label (backend `assumedFields`).
                   */}
+                {compliance && compliance.status !== 'none_logged' && (
+                    <TouchableOpacity
+                        testID="compliance-chip"
+                        style={[styles.complianceChip, compliance.status === 'banned_logged' ? styles.complianceBanned : styles.complianceRestricted]}
+                        accessibilityRole="button"
+                        onPress={() => navigation.navigate('TreatmentHistory', { pondId, pondName, cropId: cycle?.id, farmId: pond?.farmId })}
+                    >
+                        <Icon
+                            name="warning"
+                            size={16}
+                            color={compliance.status === 'banned_logged' ? theme.roles.light.dangerText : theme.roles.light.warningText}
+                        />
+                        <Text style={[styles.complianceText, { color: compliance.status === 'banned_logged' ? theme.roles.light.dangerText : theme.roles.light.warningText }]}>
+                            {t(compliance.status === 'banned_logged' ? 'compliance.chip.banned' : 'compliance.chip.restricted')}
+                        </Text>
+                    </TouchableOpacity>
+                )}
                 {(pond?.assumedFields?.length ?? 0) > 0 && (
                     <TouchableOpacity
                         testID="unconfirmed-banner"
@@ -1091,6 +1121,19 @@ const styles = StyleSheet.create({
     skeleton: { padding: theme.spacing[4] },
     mb: { marginBottom: theme.spacing[3] },
 
+    complianceChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        gap: theme.spacing[1],
+        paddingHorizontal: theme.spacing[3],
+        paddingVertical: theme.spacing[1],
+        borderRadius: theme.radius.full,
+        marginBottom: theme.spacing[3],
+    },
+    complianceBanned: { backgroundColor: theme.roles.light.dangerBg },
+    complianceRestricted: { backgroundColor: theme.roles.light.warningBg },
+    complianceText: { ...theme.typeScale.labelSmall, fontWeight: '700' },
     unconfirmed: {
         flexDirection: 'row',
         gap: theme.spacing[3],

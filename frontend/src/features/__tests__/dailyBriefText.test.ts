@@ -177,6 +177,11 @@ describe('storySentence — every StoryCode', () => {
     const past = makeBrief({ isToday: false });
     const say = (code: string, b = past) => storyItems.filter((s) => s.code === code).map((s) => storySentence(s, b, t));
 
+    it('the 7-day antimicrobial watch line names the pond and the day (D3)', () => {
+        const line = storySentence({ code: 'antimicrobial_watch', tone: 'watch', pondId: 'p1', at: '2026-09-12' }, past, t);
+        expect(line).toMatch(/^Antimicrobial logged in Pond 1 on .*12.*: tell your processor before harvest$/);
+    });
+
     it('phrases each code in English', () => {
         expect(say('issue_resolved')).toEqual(['Pond 2 at 05:10: Oxygen fell to 2.8 mg/L (should stay at 3 or above) — back to safe by 07:30']);
         expect(say('issue_open')).toEqual(['Pond 2 at 08:30: Ammonia was 1.2 mg/L (limit 0.5) — no safe reading after it']);

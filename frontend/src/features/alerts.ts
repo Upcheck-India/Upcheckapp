@@ -1,12 +1,10 @@
 /**
- * Proactive alert engine — turns the latest pond reading (plus treatment/disease
- * notes) into a prioritized, actionable alert list. Pure and unit-tested; a UI
+ * Proactive alert engine — turns the latest pond reading into a prioritized, actionable alert list. Pure and unit-tested; a UI
  * banner list or push-notification scheduler can consume the output directly.
  *
  * Composes the already-verified science modules so logic stays in one place:
  *  - per-species five-zone thresholds  → out-of-range water-quality alerts
  *  - nighttime DO alarm                → pre-dawn oxygen-crash warning
- *  - banned-substance matcher          → export-rejection guardrail
  *  - reading staleness                 → "log fresh data" nudge
  *
  * Warn-only and non-directive (no product recommendations) — decision support.
@@ -17,14 +15,13 @@ import {
   evaluateParameter,
   nighttimeDoAlarm,
 } from './waterQualityThresholds'
-import { findBannedSubstances } from './bannedSubstances'
 
 export type AlertSeverity = 'critical' | 'warning' | 'info'
 
 export interface Alert {
   id: string
   severity: AlertSeverity
-  category: 'water-quality' | 'oxygen' | 'compliance' | 'data'
+  category: 'water-quality' | 'oxygen' | 'data'
   title: string
   message: string
 }
@@ -47,8 +44,6 @@ export interface BuildAlertsInput {
   reading?: AlertReading | null
   /** Evaluation instant (e.g. now). */
   now: Date
-  /** Free-text treatment/disease notes to scan for banned substances. */
-  notes?: string | null
   /** Hours of reading-age beyond which data is considered stale. Default 24. */
   stalenessHours?: number
 }
@@ -78,23 +73,10 @@ function zoneWord(zone: string): string {
 
 /** Build a prioritized alert list (critical → warning → info) for a pond. */
 export function buildAlerts(input: BuildAlertsInput): Alert[] {
-  const { species, reading, now, notes, stalenessHours = 24 } = input
+  const { species, reading, now, stalenessHours = 24 } = input
   const alerts: Alert[] = []
 
-  // 1. Banned / restricted substances in notes (export-rejection risk).
-  for (const sub of findBannedSubstances(notes)) {
-    alerts.push({
-      id: `banned:${sub.name}`,
-      severity: 'critical',
-      category: 'compliance',
-      title: `${sub.category === 'banned' ? 'Banned' : 'Restricted'} substance: ${sub.name}`,
-      message:
-        sub.category === 'banned'
-          ? `${sub.name} is prohibited for shrimp export and can cause harvest rejection (CAA/MPEDA).`
-          : `${sub.name} is export-restricted — observe the withdrawal period before harvest.`,
-    })
-  }
-
+  // Compliance (banned substances) is server-side now: disease spec D3.
   if (reading) {
     // 2. Per-parameter five-zone evaluation.
     for (const def of PARAM_MAP) {

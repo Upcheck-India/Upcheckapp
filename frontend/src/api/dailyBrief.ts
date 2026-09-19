@@ -221,6 +221,7 @@ export type StoryCode =
     | 'sampling_done'
     | 'first_sampling'      // first sampling of the cycle
     | 'treatment_given'
+    | 'antimicrobial_watch' // a banned treatment in the last 7 days; `at` = its date (D3)
     // carried over from before this day
     | 'carried_resolved'    // something open at the start of the day that was dealt with
     | 'carried_open'        // still open at the end of the day
