@@ -28,6 +28,7 @@ import { Stepper } from '../../components/ui/Stepper';
 import { CalendarPicker } from '../../components/ui/CalendarPicker';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { IconPicker } from '../../components/inventory/IconPicker';
+import { IngredientPicker, useFlaggedSubstances, ComplianceBanner } from '../../components/treatments/IngredientPicker';
 import { theme } from '../../theme';
 import {
     inventoryApi,
@@ -110,6 +111,10 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
     const [supplier, setSupplier] = useState('');
     const [expiry, setExpiry] = useState<Date | null>(null);
     const [notes, setNotes] = useState('');
+    const [ingredientKeys, setIngredientKeys] = useState<string[]>([]);
+    // Medicine / chemical stock can carry active ingredients: a banned one warns at entry (D2).
+    const takesIngredients = category === 'medicine' || category === 'chemical';
+    const flagged = useFlaggedSubstances(takesIngredients ? ingredientKeys : [], takesIngredients ? name : '');
 
     const load = useCallback(async () => {
         setLoadError(null);
@@ -133,6 +138,7 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
                 setSupplier(data.supplier ?? '');
                 setExpiry(parseDate(data.expiryDate));
                 setNotes(data.notes ?? '');
+                setIngredientKeys(data.ingredientKeys ?? []);
             } else if (!contextFarmId && Array.isArray(farms) && farms[0]) {
                 // No farm in the params and none active — pick the first one
                 // rather than dead-ending the farmer on a form that cannot save.
@@ -199,6 +205,7 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
             supplier: supplier.trim() || undefined,
             expiryDate: expiry ? expiry.toISOString() : undefined,
             notes: notes.trim() || undefined,
+            ...(takesIngredients ? { ingredientKeys } : {}),
         };
 
         setSaving(true);
@@ -289,6 +296,18 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
                             icon: CATEGORY_ICON[c] as any,
                         }))}
                     />
+
+                    {/* D2: the only moment the app sees a product before it goes in the water. */}
+                    {takesIngredients && (
+                        <>
+                            <ComplianceBanner flagged={flagged} />
+                            <IngredientPicker
+                                label={t('compliance.form.inventoryIngredients')}
+                                value={ingredientKeys}
+                                onChange={setIngredientKeys}
+                            />
+                        </>
+                    )}
 
                     <Text style={styles.fieldLabel}>{t('inventory.fieldIcon')}</Text>
                     <TouchableOpacity

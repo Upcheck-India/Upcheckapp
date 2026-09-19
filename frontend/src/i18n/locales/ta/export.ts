@@ -37,6 +37,7 @@ const exportNs = {
   section_feed: 'தீவனம்',
   section_sampling: 'மாதிரி எடுத்தல்',
   section_mortality: 'இறப்பு',
+  section_disease: 'நோய்ப் பதிவுகள்',
   section_treatments: 'சிகிச்சைகள்',
   section_costs: 'செலவுகள்',
   section_harvest: 'அறுவடை',

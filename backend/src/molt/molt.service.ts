@@ -5,6 +5,7 @@ import { MoltAction } from './molt-action.entity';
 import { Pond } from '../ponds/pond.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { istDayRangeUtc, toIstDateString } from '../common/ist-date';
+import { isMissingSchema } from '../health-observations/health.constants';
 import {
   MoltPhase,
   MoltWindow,
@@ -12,6 +13,7 @@ import {
   currentMoltWindow,
   upcomingWindows,
 } from './molt-window';
+import { INGREDIENTS_BY_KEY } from '../treatments/ingredients.data';
 
 export type MoltPriority = 'critical' | 'important' | 'routine';
 /** `missed` = never done and its days are over (spec 2026-09-14-attendance-and-molt-fixes Q1). */
@@ -68,14 +70,17 @@ export interface MoltEvidence {
   peakFeedDaysKg: number[];
   /** Daily feed totals (kg) for each logged post day. */
   postFeedDaysKg: number[];
+  /** A soft-shell health observation (any level, any source) in post (D6 / M2). Absent = false. */
+  softShellChecked?: boolean;
 }
 
 /**
- * Does a free-text treatment look like a mineral / lime dose? (M1.1)
+ * Is this treatment a mineral / lime dose? (M1.1, superseded by disease spec D2)
  *
- * ponytail: keyword match — replace with a treatment type field when Disease (area 5) adds one.
- * Disease spec §D2 adds `treatments.category`; then `category IN ('mineral','lime_alkalinity')`
- * decides, and this stays only as the fallback for old free-text rows.
+ * A structured row decides by `category IN ('mineral','lime_alkalinity')` or a
+ * picked ingredient in those categories — so an antibiotic never ticks it,
+ * whatever its text says. Only old free-text rows (no category, no
+ * ingredients) fall back to the keyword match below.
  *
  * Symbols / formulas are case-sensitive (Ca, Mg, K, KCl, MgSO4, CaCO3 …) so
  * "can" or "calm" do not match; words are case-insensitive. Indic scripts have
@@ -95,7 +100,20 @@ const MINERAL_SCRIPT_WORDS = [
   // or
   'ଖଣିଜ', 'କ୍ୟାଲସିୟମ', 'ମ୍ୟାଗ୍ନେସିୟମ', 'ପୋଟାସିୟମ', 'ପୋଟାସ', 'ଚୂନ', 'ଡୋଲୋମାଇଟ',
 ];
-export const isMineralTreatment = (t: { description?: string | null; notes?: string | null }): boolean => {
+const MINERAL_CATEGORIES = new Set(['mineral', 'lime_alkalinity']);
+export const isMineralTreatment = (t: {
+  description?: string | null;
+  notes?: string | null;
+  category?: string | null;
+  ingredientKeys?: string[] | null;
+}): boolean => {
+  const keys = t.ingredientKeys ?? [];
+  if (t.category || keys.length) {
+    return (
+      MINERAL_CATEGORIES.has(t.category ?? '') ||
+      keys.some((k) => MINERAL_CATEGORIES.has(INGREDIENTS_BY_KEY.get(k)?.category ?? ''))
+    );
+  }
   const text = `${t.description ?? ''} ${t.notes ?? ''}`
     // Potassium permanganate is a disinfectant, not a mineral dose.
     .replace(/potassium\s+permanganate|KMnO4?/gi, '');
@@ -193,6 +211,9 @@ export function deriveItems(
           ev.peakFeedDaysKg.length > 0 &&
           ev.postFeedDaysKg.some((kg) => kg > Math.max(...ev.peakFeedDaysKg)),
         minerals: () => ev.minerals,
+        // M2 entry 2: any soft-shell observation in post (the quick tap,
+        // sampling, tray) is the check. Manual tick still allowed.
+        soft_shell_check: () => !!ev.softShellChecked,
       };
       if (autoDone[d.key]) {
         return !manualDone.has(d.key) && autoDone[d.key]() ? auto(true) : manual();
@@ -359,7 +380,7 @@ export class MoltService {
 
     // DATE columns compare to IST calendar strings; timestamptz columns use
     // the UTC instants bounding those IST days.
-    const [chem, treat, wq, feed, sampling, harvest, ticks] = await Promise.all([
+    const [chem, treat, wq, feed, sampling, harvest, ticks, softShell] = await Promise.all([
       q(
         `SELECT crop_id AS "cropId", bool_or(alkalinity_ppm IS NOT NULL) AS "alk"
            FROM chemical_data
@@ -368,10 +389,19 @@ export class MoltService {
         [cropIds, w.preStart, w.peakEnd],
       ),
       q(
-        `SELECT crop_id AS "cropId", description, notes FROM treatments
+        `SELECT crop_id AS "cropId", description, notes, category, ingredient_keys AS "ingredientKeys"
+           FROM treatments
           WHERE crop_id = ANY($1::uuid[]) AND treatment_date BETWEEN $2 AND $3`,
         [cropIds, w.preStart, w.peakEnd],
-      ),
+      ).catch((err: any) => {
+        // D2 columns not migrated yet (42703): fall back to the text-only read.
+        if ((err?.code ?? err?.driverError?.code) !== '42703') throw err;
+        return q(
+          `SELECT crop_id AS "cropId", description, notes FROM treatments
+            WHERE crop_id = ANY($1::uuid[]) AND treatment_date BETWEEN $2 AND $3`,
+          [cropIds, w.preStart, w.peakEnd],
+        );
+      }),
       q(
         `SELECT pond_id AS "pondId",
                 bool_or(alkalinity IS NOT NULL) AS "alk",
@@ -410,7 +440,18 @@ export class MoltService {
         [cropIds, w.peakStart, w.peakEnd],
       ),
       this.actions.find({ where: { pondId: In(pondIds), windowKey: w.key } }),
+      // D6: before migration 1780701500000 the table is missing → no evidence.
+      q(
+        `SELECT DISTINCT pond_id AS "pondId" FROM health_observations
+          WHERE pond_id = ANY($1::uuid[]) AND sign = 'soft_shell'
+            AND observed_on BETWEEN $2 AND $3`,
+        [pondIds, postStart, w.postEnd],
+      ).catch((err) => {
+        if (isMissingSchema(err)) return [];
+        throw err;
+      }),
     ]);
+    const softShellPonds = new Set<string>(softShell.map((r: any) => r.pondId));
 
     const chemBy = new Map<string, any>(chem.map((r: any) => [r.cropId, r]));
     const treated = new Set<string>(
@@ -440,6 +481,7 @@ export class MoltService {
           : null,
         peakFeedDaysKg: peak.map((f: any) => Number(f.kg)),
         postFeedDaysKg: post.map((f: any) => Number(f.kg)),
+        softShellChecked: softShellPonds.has(r.pondId),
       });
     }
 

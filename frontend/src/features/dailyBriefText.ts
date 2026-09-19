@@ -200,6 +200,12 @@ export const storySentence = (item: StoryItem, brief: Pick<DailyBrief, 'ponds' |
     switch (item.code) {
         case 'molt_phase':
             return t(`dailyBrief.happening.moltPhase.${item.phase ?? 'peak'}`);
+        case 'antimicrobial_watch':
+            // `at` is a calendar day here, not an instant.
+            return t('dailyBrief.story.antimicrobial_watch', {
+                pond,
+                date: item.at ? localNoon(item.at.slice(0, 10)).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '',
+            });
         case 'carried_resolved':
         case 'carried_open':
             return t(`dailyBrief.story.${item.code}_${item.carriedKind ?? 'alert'}`, opts);

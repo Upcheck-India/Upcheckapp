@@ -42,8 +42,10 @@ import { requiresActiveCycle } from '../../features/cycleRequirement';
 import { survivalPctFrom } from '../calculators/prefill';
 import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
 import { pnlApi, type CropPnl } from '../../api/pnl';
+import { treatmentsApi } from '../../api/treatments';
 import { useMembershipStore } from '../../store/membershipStore';
 import { usePermissions } from '../../hooks/usePermissions';
+import { prefetchDiseaseLibrary } from '../../features/diseaseLibrary';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { usePendingRecords } from '../../sync/pending';
@@ -93,6 +95,8 @@ const LOG_ACTIONS: LogAction[] = [
     { key: 'actionHarvest', icon: 'set_meal', logRoute: 'HarvestLog', historyRoute: 'HarvestHistory', core: true },
     { key: 'actionTreatment', icon: 'science', logRoute: 'TreatmentLog', historyRoute: 'TreatmentHistory' },
     { key: 'actionMortality', icon: 'warning', logRoute: 'MortalityLog', historyRoute: 'MortalityHistory' },
+    // D6 quick health check — no history list of its own yet; both modes open the check.
+    { key: 'actionHealthCheck', icon: 'visibility', logRoute: 'HealthCheck', historyRoute: 'HealthCheck' },
     { key: 'actionDisease', icon: 'science', logRoute: 'DiseaseLog', historyRoute: 'DiseaseHistory' },
     { key: 'actionChemical', icon: 'science', logRoute: 'ChemicalLog', historyRoute: 'ChemicalHistory' },
     { key: 'actionPlankton', icon: 'grass', logRoute: 'PlanktonLog', historyRoute: 'PlanktonHistory' },
@@ -255,6 +259,18 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     const perms = usePermissions(pond?.farmId);
 
     /**
+     * Cycle antimicrobial status (D3) — re-evaluated by the server on every
+     * read. Under the pond key, so focus refetches it and it persists offline.
+     * Safety, not money: every role sees it.
+     */
+    const complianceQuery = useAppQuery({
+        queryKey: [...qk.pond(pondId), 'compliance', cycle?.id ?? null] as const,
+        enabled: !!cycle?.id,
+        queryFn: async () => (await treatmentsApi.compliance(cycle!.id)).data,
+    });
+    const compliance = cycle ? complianceQuery.data ?? null : null;
+
+    /**
      * Records this farmer saved against THIS pond that have not reached the
      * server yet. Without this the pond looked untouched right after a log with
      * no signal — "Saved — will sync" and then nothing, which is the complaint.
@@ -271,6 +287,9 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     useFocusEffect(
         useCallback(() => {
             loadMemberships();
+            // D6/H2: warm the persisted disease library while there is signal,
+            // so a disease can be logged at the pond edge with none.
+            void prefetchDiseaseLibrary();
         }, [loadMemberships]),
     );
 
@@ -607,6 +626,23 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                   * So the guess is labelled rather than hidden, and answering
                   * any of it retires that label (backend `assumedFields`).
                   */}
+                {compliance && compliance.status !== 'none_logged' && (
+                    <TouchableOpacity
+                        testID="compliance-chip"
+                        style={[styles.complianceChip, compliance.status === 'banned_logged' ? styles.complianceBanned : styles.complianceRestricted]}
+                        accessibilityRole="button"
+                        onPress={() => navigation.navigate('TreatmentHistory', { pondId, pondName, cropId: cycle?.id, farmId: pond?.farmId })}
+                    >
+                        <Icon
+                            name="warning"
+                            size={16}
+                            color={compliance.status === 'banned_logged' ? theme.roles.light.dangerText : theme.roles.light.warningText}
+                        />
+                        <Text style={[styles.complianceText, { color: compliance.status === 'banned_logged' ? theme.roles.light.dangerText : theme.roles.light.warningText }]}>
+                            {t(compliance.status === 'banned_logged' ? 'compliance.chip.banned' : 'compliance.chip.restricted')}
+                        </Text>
+                    </TouchableOpacity>
+                )}
                 {(pond?.assumedFields?.length ?? 0) > 0 && (
                     <TouchableOpacity
                         testID="unconfirmed-banner"
@@ -1091,6 +1127,19 @@ const styles = StyleSheet.create({
     skeleton: { padding: theme.spacing[4] },
     mb: { marginBottom: theme.spacing[3] },
 
+    complianceChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        gap: theme.spacing[1],
+        paddingHorizontal: theme.spacing[3],
+        paddingVertical: theme.spacing[1],
+        borderRadius: theme.radius.full,
+        marginBottom: theme.spacing[3],
+    },
+    complianceBanned: { backgroundColor: theme.roles.light.dangerBg },
+    complianceRestricted: { backgroundColor: theme.roles.light.warningBg },
+    complianceText: { ...theme.typeScale.labelSmall, fontWeight: '700' },
     unconfirmed: {
         flexDirection: 'row',
         gap: theme.spacing[3],

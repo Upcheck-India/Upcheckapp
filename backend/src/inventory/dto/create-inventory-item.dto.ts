@@ -7,6 +7,8 @@ import {
   IsDateString,
   IsIn,
   Min,
+  ArrayMaxSize,
+  MaxLength,
 } from 'class-validator';
 import { INVENTORY_CATEGORIES, INVENTORY_UNITS } from '../inventory.constants';
 
@@ -69,4 +71,12 @@ export class CreateInventoryItemDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  /** Treatment catalogue keys (D2): stocking a banned product warns at entry. */
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  @IsOptional()
+  ingredientKeys?: string[];
 }

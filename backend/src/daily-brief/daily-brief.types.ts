@@ -182,6 +182,8 @@ export type StoryCode =
   | 'ponds_not_tested'
   | 'tasks_all_done'
   | 'tasks_left'
+  // a banned treatment in the last 7 days (`at` = its date, D3.5)
+  | 'antimicrobial_watch'
   // events that happened this day
   | 'issue_resolved'
   | 'issue_open'
@@ -190,6 +192,8 @@ export type StoryCode =
   | 'sampling_done'
   | 'first_sampling'
   | 'treatment_given'
+  // a disease record still `ongoing` 14+ days on (D6); title = disease, count = days
+  | 'disease_ongoing'
   // carried over from before this day
   | 'carried_resolved'
   | 'carried_open'

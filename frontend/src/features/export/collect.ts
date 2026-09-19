@@ -28,6 +28,8 @@ import { feedApi, type FeedRecord } from '../../api/feedRecords';
 import { samplingApi, type SamplingRecord } from '../../api/sampling';
 import { mortalityApi, type MortalityRecord } from '../../api/mortalities';
 import { treatmentsApi, type Treatment } from '../../api/treatments';
+import { diseaseApi, type DiseaseRecord } from '../../api/diseases';
+import { normaliseSeverity } from '../../api/healthObservations';
 import { harvestsApi, type Harvest } from '../../api/harvests';
 import { expensesApi, type Expense } from '../../api/expenses';
 import { transactionsApi, type Transaction } from '../../api/transactions';
@@ -38,6 +40,7 @@ import { tasksApi, type Task } from '../../api/tasks';
 import { leaveRequestsApi, type LeaveRequest } from '../../api/leaveRequests';
 import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
 import { useMembershipStore } from '../../store/membershipStore';
+import { useIngredientsStore, ingredientName } from '../ingredientsStore';
 import { roleCan } from '../../permissions/capabilities';
 import { istDay, recordStatus, type RecordStatus } from '../attendance/shiftState';
 import { personName } from '../../utils/personName';
@@ -287,18 +290,66 @@ const treatmentTable = (f: Fmt, rows: Treatment[]): ReportTable => ({
         f.t('logs.description', { defaultValue: 'Description' }),
         f.t('logs.dosageKg', { defaultValue: 'Dosage (kg)' }),
         f.t('common.notes'),
+        f.t('compliance.export.flag'),
     ],
     numericColumns: [2],
     rows: byDateDesc(rows, (r) => r.treatmentDate).map((r) => [
         f.date(r.treatmentDate),
-        f.text(r.description),
-        f.num(r.dosageKg),
+        f.text(treatmentText(f, r)),
+        f.num(r.dosageKg ?? (r.doseUnit === 'kg' && r.doseValue != null ? Number(r.doseValue) : null)),
+        // Notes are kept (they used to be replaced by the flag, B7).
+        f.text(r.notes),
         // The banned-substance flag is server-evaluated and belongs in an
         // exported record: it is exactly what an auditor came to look for.
         r.bannedSubstanceFlag && r.bannedSubstanceFlag !== 'none'
             ? f.t('history.bannedFlagLabel', { names: (r.bannedSubstanceMatches ?? []).join(', ') })
-            : f.text(r.notes),
+            : '',
     ]),
+});
+
+/** "Mineral · Potassium chloride · Aqua Mix · other text" for structured rows; the old free text otherwise. */
+const treatmentText = (f: Fmt, r: Treatment): string => {
+    const catalogue = useIngredientsStore.getState().ingredients;
+    const lang = i18n.language;
+    const parts = [
+        r.category ? f.t(`compliance.category.${r.category}`) : null,
+        ...(r.ingredientKeys ?? []).map((k) => {
+            const i = catalogue.find((x) => x.key === k);
+            return i ? ingredientName(i, lang) : k;
+        }),
+        r.productName || null,
+        r.description || null,
+        r.doseValue != null && r.doseUnit && r.doseUnit !== 'kg' ? `${Number(r.doseValue)} ${f.t(`compliance.unit.${r.doseUnit}`)}` : null,
+        r.reason ? f.t(`compliance.reason.${r.reason}`) : null,
+    ].filter(Boolean);
+    return parts.join(' · ');
+};
+/** Disease records (D6): what, how bad, who confirmed it, how it ended. */
+const diseaseTable = (f: Fmt, rows: DiseaseRecord[]): ReportTable => ({
+    key: 'disease',
+    title: f.t('history.diseaseTitle'),
+    columns: [
+        f.t('common.date'),
+        f.t('health.disease'),
+        f.t('logs.disease_labelSeverity'),
+        f.t('health.affectedPct'),
+        f.t('health.confirmedBy'),
+        f.t('health.outcomeLabel'),
+        f.t('common.notes'),
+    ],
+    numericColumns: [3],
+    rows: byDateDesc(rows, (r) => r.recordedDate).map((r) => {
+        const sev = r.severity ?? normaliseSeverity(r.severityAtDetection);
+        return [
+            f.date(r.recordedDate),
+            f.text(r.disease?.name),
+            sev ? f.t(`health.severity.${sev}`) : '',
+            f.num(r.affectedPct == null ? null : Number(r.affectedPct), 0),
+            r.confirmedBy ? `${f.t(`health.confirmed.${r.confirmedBy}`)}${r.labName ? ` (${r.labName})` : ''}` : '',
+            f.t(`health.outcome.${r.outcome ?? 'ongoing'}`),
+            f.text(r.notes),
+        ];
+    }),
 });
 
 const harvestTable = (f: Fmt, rows: Harvest[], withMoney: boolean): ReportTable => ({
@@ -308,20 +359,35 @@ const harvestTable = (f: Fmt, rows: Harvest[], withMoney: boolean): ReportTable 
         f.t('common.date'),
         f.t('logs.harvestType', { defaultValue: 'Type' }),
         f.t('history.harvestMetricBiomass'),
-        f.t('history.harvestMetricAvgSize'),
+        f.t('logs.countPerKg', { defaultValue: 'Count/kg' }),
         f.t('logs.buyer', { defaultValue: 'Buyer' }),
-        ...(withMoney ? [f.t('logs.sale', { defaultValue: 'Sale' })] : []),
+        ...(withMoney
+            ? [f.t('logs.pricePerKg', { defaultValue: '₹/kg' }), f.t('logs.sale', { defaultValue: 'Sale' })]
+            : []),
     ],
-    numericColumns: withMoney ? [2, 3, 5] : [2, 3],
-    rows: byDateDesc(rows, (r) => r.harvestDate).map((r) => [
-        f.date(r.harvestDate), f.text(r.harvestType), f.num(r.weightKg),
-        f.num(r.averageSize), f.text(r.buyerName),
-        ...(withMoney ? [f.money(r.salePriceTotal)] : []),
-    ]),
+    numericColumns: withMoney ? [2, 3, 5, 6] : [2, 3],
+    // One line per grade (H1) — the buyer's slip, as the farmer knows it. An
+    // old ungraded harvest is one line; its count is implied by g/piece.
+    rows: byDateDesc(rows, (r) => r.harvestDate).flatMap((r) => {
+        const lead = [f.date(r.harvestDate), f.text(r.harvestType)];
+        if (r.grades?.length) {
+            return r.grades.map((g) => [
+                ...lead, f.num(g.weightKg), f.num(g.countPerKg), f.text(r.buyerName),
+                ...(withMoney
+                    ? [f.money(g.pricePerKg), f.money(g.pricePerKg == null ? null : g.weightKg * g.pricePerKg)]
+                    : []),
+            ]);
+        }
+        const avg = toNumber(r.averageSize);
+        return [[
+            ...lead, f.num(r.weightKg), f.num(avg ? Math.round(1000 / avg) : null), f.text(r.buyerName),
+            ...(withMoney ? ['', f.money(r.salePriceTotal)] : []),
+        ]];
+    }),
     total: [
         f.t('common.total', { defaultValue: 'Total' }), '',
         f.num(sum(rows.map((r) => r.weightKg))), '', '',
-        ...(withMoney ? [f.money(sum(rows.map((r) => r.salePriceTotal)))] : []),
+        ...(withMoney ? ['', f.money(sum(rows.map((r) => r.salePriceTotal)))] : []),
     ],
 });
 
@@ -403,7 +469,7 @@ const collectCycle = async (config: ExportConfig, f: Fmt): Promise<Collected> =>
     const crop = (await cropsApi.getById(cropId)).data;
     const pondId = crop.pondId;
 
-    const [scope, analysis, water, feed, sampling, mortality, treatments, harvests, expenses, financials] =
+    const [scope, analysis, water, feed, sampling, mortality, treatments, harvests, expenses, financials, diseases] =
         await Promise.all([
             resolveScope(config.farmId ?? crop.farmId, pondId, crop),
             s.summary ? reportsApi.getCycleAnalysis(cropId).then((r) => r.data).catch(() => null) : null,
@@ -417,6 +483,7 @@ const collectCycle = async (config: ExportConfig, f: Fmt): Promise<Collected> =>
             s.harvest ? harvestsApi.getByCrop(cropId).then((r) => listOf<Harvest>(r.data)) : [],
             s.costs ? expensesApi.findByCycle(cropId).then((r) => listOf<Expense>(r.data)) : [],
             s.costs ? expensesApi.getCycleFinancials(cropId).then((r) => r.data).catch(() => null) : null,
+            s.disease ? diseaseApi.getByCrop(cropId).then((r) => listOf<DiseaseRecord>(r.data)) : [],
         ]);
 
     const stats: ReportStat[] = [];
@@ -463,6 +530,7 @@ const collectCycle = async (config: ExportConfig, f: Fmt): Promise<Collected> =>
             sampling.length ? samplingTable(f, sampling) : null,
             mortality.length ? mortalityTable(f, mortality) : null,
             treatments.length ? treatmentTable(f, treatments) : null,
+            diseases.length ? diseaseTable(f, diseases) : null,
             expenses.length ? expenseTable(f, expenses) : null,
             harvests.length ? harvestTable(f, harvests, s.costs) : null,
         ]),
@@ -481,7 +549,7 @@ const collectPondLogs = async (config: ExportConfig, f: Fmt): Promise<Collected>
         : await pondContextApi.get(pondId).then((r) => r.data).catch(() => null);
     const cropId = config.cropId ?? ctx?.cropId ?? undefined;
 
-    const [scope, water, feed, sampling, mortality, treatments, harvests] = await Promise.all([
+    const [scope, water, feed, sampling, mortality, treatments, harvests, diseases] = await Promise.all([
         resolveScope(config.farmId ?? ctx?.farmId, pondId, undefined),
         s.waterQuality
             ? waterQualityApi.getAll(pondId, { take: 500 }).then((r) => listOf<WaterQualityRecord>(r.data))
@@ -491,6 +559,7 @@ const collectPondLogs = async (config: ExportConfig, f: Fmt): Promise<Collected>
         s.mortality && cropId ? mortalityApi.getByCrop(cropId).then((r) => listOf<MortalityRecord>(r.data)) : [],
         s.treatments && cropId ? treatmentsApi.getByCrop(cropId).then((r) => listOf<Treatment>(r.data)) : [],
         s.harvest ? harvestsApi.getByPond(pondId).then((r) => listOf<Harvest>(r.data)) : [],
+        s.disease && cropId ? diseaseApi.getByCrop(cropId).then((r) => listOf<DiseaseRecord>(r.data)) : [],
     ]);
 
     const range = <R>(rows: R[], pick: (r: R) => string | null | undefined) =>
@@ -502,6 +571,7 @@ const collectPondLogs = async (config: ExportConfig, f: Fmt): Promise<Collected>
     const mo = range(mortality, (r) => r.recordDate);
     const tr = range(treatments, (r) => r.treatmentDate);
     const ha = range(harvests, (r) => r.harvestDate);
+    const di = range(diseases, (r) => r.recordedDate);
 
     return {
         scope,
@@ -518,6 +588,7 @@ const collectPondLogs = async (config: ExportConfig, f: Fmt): Promise<Collected>
             sa.length ? samplingTable(f, sa) : null,
             mo.length ? mortalityTable(f, mo) : null,
             tr.length ? treatmentTable(f, tr) : null,
+            di.length ? diseaseTable(f, di) : null,
             ha.length ? harvestTable(f, ha, s.costs) : null,
         ]),
     };

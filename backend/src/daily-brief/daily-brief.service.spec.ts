@@ -205,6 +205,32 @@ describe('DailyBriefService — assembling a day', () => {
     abw: [{ pond_id: 'p1', mbw: 10 }],
   };
 
+  it('H2: partial-harvest pieces up to the day come off the live population', async () => {
+    const { svc } = build({
+      rows: {
+        ...rows,
+        harvest_pieces: [
+          { cropId: 'crop-p1', day: '2026-09-10', pieces: 9000, estimated: false },
+          { cropId: 'crop-p1', day: '2026-09-15', pieces: 5000, estimated: false }, // after D
+          { cropId: 'crop-other', day: '2026-09-10', pieces: 7777, estimated: false },
+        ],
+      },
+    });
+    const brief = await svc.get('u1', { date: D }, NOW);
+    expect(brief.ponds[0].health).toMatchObject({ livePopulation: 90000, biomassKg: 900 });
+  });
+
+  it('H2: an unapplied migration leaves the brief population as before', async () => {
+    const { svc, dataSource } = build({ rows });
+    const orig = dataSource.query.getMockImplementation()!;
+    dataSource.query.mockImplementation(async (sql: string, params: any[]) => {
+      if (sql.includes('daily-brief:harvest_pieces')) throw Object.assign(new Error('col'), { code: '42703' });
+      return orig(sql, params);
+    });
+    const brief = await svc.get('u1', { date: D }, NOW);
+    expect(brief.ponds[0].health.livePopulation).toBe(99000);
+  });
+
   it('scores the active pond, leaves the idle pond out, DATE rows at 12:00 IST allDay', async () => {
     const { svc } = build({ rows });
     const brief = await svc.get('u1', { date: D }, NOW);
@@ -616,6 +642,11 @@ describe('DailyBriefService — the day story', () => {
       expect.objectContaining({ code: 'team_in', count: 1 }),
       expect.objectContaining({ code: 'molt_phase', tone: 'info', phase: b.happening.molt!.phase }),
     ]));
+    // D3.5: a banned treatment in the last 7 days → a watch line with its date.
+    const c = await get({ ...fresh, banned_week: [{ pond_id: 'p1', day: addDays(date, -3) }] }, date);
+    expect(c.story).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'antimicrobial_watch', tone: 'watch', pondId: 'p1', at: addDays(date, -3) }),
+    ]));
   });
 
   it('coverage: all done vs behind — watch on a past day, info (so far) today', async () => {
@@ -663,5 +694,34 @@ describe('DailyBriefQueryDto (controller validation)', () => {
     await expect(through({ date: '2026-9-14' })).rejects.toBeInstanceOf(BadRequestException);
     await expect(through({ date: '2026-09-14T00:00:00Z' })).rejects.toBeInstanceOf(BadRequestException);
     await expect(through({ date: '2026-09-14', farmId: 'farm-1' })).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('DailyBriefService — ongoing disease watch line (D6)', () => {
+  it('an ongoing record logged 14+ days ago on a running cycle → one watch line, today only', async () => {
+    const { svc, calls } = build({
+      rows: { ponds: [pondRow('p1')], disease_ongoing: [{ pond_id: 'p1', name: 'WFD', since: '2026-08-25' }] },
+    });
+    const brief = await svc.get('u1', { date: '2026-09-14' }, NOW);
+    const line = brief.story!.find((s) => s.code === 'disease_ongoing');
+    expect(line).toMatchObject({ tone: 'watch', pondId: 'p1', title: 'WFD', count: 20 });
+    const sql = calls.find((c) => c.tag === 'disease_ongoing')!;
+    expect(sql.params[1]).toBe('2026-08-31'); // D − 14
+    expect(sql.sql).toContain("c.status = 'active'");
+
+    const past = build({ rows: { ponds: [pondRow('p1')], disease_ongoing: [{ pond_id: 'p1', name: 'WFD', since: '2026-08-25' }] } });
+    await past.svc.get('u1', { date: '2026-09-13' }, NOW);
+    expect(past.calls.some((c) => c.tag === 'disease_ongoing')).toBe(false);
+  });
+
+  it('outcome column not migrated yet (42703) → the brief still loads, no line', async () => {
+    const b = build({ rows: { ponds: [pondRow('p1')] } });
+    const base = b.dataSource.query.getMockImplementation()!;
+    b.dataSource.query.mockImplementation(async (sql: string, params: any[]) => {
+      if (sql.includes('daily-brief:disease_ongoing')) throw Object.assign(new Error('x'), { code: '42703' });
+      return base(sql, params);
+    });
+    const brief = await b.svc.get('u1', { date: '2026-09-14' }, NOW);
+    expect(brief.story!.some((s) => s.code === 'disease_ongoing')).toBe(false);
   });
 });

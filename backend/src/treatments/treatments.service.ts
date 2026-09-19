@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -9,8 +10,16 @@ import { Treatment } from './treatment.entity';
 import { CreateTreatmentDto } from './dto/create-treatment.dto';
 import { UpdateTreatmentDto } from './dto/update-treatment.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
-import { evaluateBannedSubstances } from '../banned-substances/banned-substance-matcher';
 import { BANNED_LIST_VERSION } from '../banned-substances/banned-substances.data';
+import { evaluateRecord, nextFlagHistory } from '../compliance/compliance-eval';
+import { ComplianceService } from '../compliance/compliance.service';
+import { InventoryService } from '../inventory/inventory.service';
+
+/** Fields the banned-substance evaluation reads (D2: ingredients ∪ product ∪ text). */
+const EVALUATED = ['ingredientKeys', 'productName', 'description', 'notes'] as const;
+
+const isoDay = (v: unknown) =>
+  v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10);
 
 @Injectable()
 export class TreatmentsService {
@@ -18,13 +27,16 @@ export class TreatmentsService {
     @InjectRepository(Treatment)
     private treatmentsRepository: Repository<Treatment>,
     private readonly farmAccess: FarmAccessService,
+    private readonly compliance: ComplianceService,
+    private readonly inventory: InventoryService,
   ) {}
 
   async create(createDto: CreateTreatmentDto, userId?: string) {
     // Idempotent replay guard for offline queue drains. OwnershipGuard has already
     // verified the caller may write to dto.cropId — only short-circuit within that
     // same authorized crop, otherwise a client-supplied id colliding with another
-    // farm's record would leak it here before any access check.
+    // farm's record would leak it here before any access check. Returning here
+    // also means a replay never re-notifies and never re-deducts stock.
     if (createDto.id) {
       const existing = await this.treatmentsRepository.findOne({
         where: { id: createDto.id },
@@ -39,23 +51,88 @@ export class TreatmentsService {
       }
     }
 
-    // Server-evaluated at write time (BANNED-1) — recomputed here regardless
+    const { inventoryItemId, ...fields } = createDto;
+
+    // Server-evaluated at write time (BANNED-1, D2) — recomputed here regardless
     // of anything the client detected or sent, so the audit trail is
     // authoritative even against an offline-stale or bypassed client.
-    const { flag, matches } = evaluateBannedSubstances(
-      createDto.description,
-      createDto.notes,
-    );
+    const ev = evaluateRecord(fields);
+    const history =
+      nextFlagHistory({ flag: 'none' }, ev, userId ?? 'unknown') ?? [];
+
+    // Stock first, like the feed pipeline, so a failed deduction (not enough
+    // stock, another farm's item) fails the save before anything is written.
+    const qty = Number(createDto.doseValue);
+    if (inventoryItemId && !(createDto.id && qty > 0)) {
+      throw new BadRequestException(
+        'Using stock needs a client id and a dose greater than zero',
+      );
+    }
+    let farmId: string | undefined;
+    if (inventoryItemId) {
+      farmId = await this.farmIdOfCrop(createDto.cropId);
+      await this.inventory.adjustStock(inventoryItemId, -qty, userId!, {
+        capability: 'WRITE_OPERATIONAL',
+        expectedFarmId: farmId,
+        reason: 'Treatment log',
+        treatmentId: createDto.id,
+      });
+    }
 
     const record = this.treatmentsRepository.create({
-      ...createDto,
+      ...fields,
+      description: fields.description ?? '',
+      // Old clients read dosageKg; fill it from a kg dose (D2).
+      dosageKg:
+        fields.dosageKg ??
+        (fields.doseUnit === 'kg' ? fields.doseValue : undefined),
       createdById: userId,
       updatedById: userId,
-      bannedSubstanceFlag: flag,
-      bannedSubstanceMatches: matches,
+      bannedSubstanceFlag: ev.flag,
+      bannedSubstanceMatches: ev.matches,
       bannedSubstanceListVersion: BANNED_LIST_VERSION,
+      flagHistory: history,
     });
-    return this.treatmentsRepository.save(record);
+
+    let saved: Treatment;
+    try {
+      saved = await this.treatmentsRepository.save(record);
+    } catch (err) {
+      // Compensate the deduction so stock is never taken for a record that
+      // does not exist (same as feed-records).
+      if (inventoryItemId) {
+        await this.inventory.adjustStock(inventoryItemId, qty, userId!, {
+          capability: 'WRITE_OPERATIONAL',
+          expectedFarmId: farmId,
+          reason: 'Treatment log failed',
+          treatmentId: createDto.id,
+        });
+      }
+      throw err;
+    }
+
+    // Never blocks (DD1): escalate swallows its own errors.
+    await this.compliance.escalate(
+      {
+        id: saved.id,
+        cropId: saved.cropId,
+        date: isoDay(createDto.treatmentDate),
+        flag: ev.flag,
+        matches: ev.matches,
+      },
+      'treatment',
+      userId,
+    );
+    return saved;
+  }
+
+  private async farmIdOfCrop(cropId: string): Promise<string> {
+    const [row] = await this.treatmentsRepository.manager.query(
+      `SELECT p.farm_id AS "farmId" FROM crops c JOIN ponds p ON p.id = c.pond_id WHERE c.id = $1`,
+      [cropId],
+    );
+    if (!row) throw new NotFoundException(`Crop ${cropId} not found`);
+    return row.farmId;
   }
 
   async findAll(userId: string, cropId?: string) {
@@ -87,25 +164,59 @@ export class TreatmentsService {
     userId?: string,
   ): Promise<Treatment> {
     const existing = await this.findOne(id);
-    // Re-evaluate whenever either free-text field changes — an edit that
-    // removes the flagged text should also clear a stale flag, and one that
-    // introduces a banned reference must not slip through un-flagged.
-    const reEvaluate =
-      updateDto.description !== undefined || updateDto.notes !== undefined;
-    const { flag, matches } = reEvaluate
-      ? evaluateBannedSubstances(
-          updateDto.description ?? existing.description,
-          updateDto.notes ?? existing.notes,
+    const { flagChangeReason, ...fields } = updateDto;
+
+    // Re-evaluate whenever an evaluated field changes — an edit that removes
+    // the flagged text also clears the flag (only with a reason, and always
+    // with a history entry, D3.3), and one that introduces a banned
+    // reference must not slip through un-flagged.
+    const reEvaluate = EVALUATED.some((k) => fields[k] !== undefined);
+    const ev = reEvaluate
+      ? evaluateRecord({ ...existing, ...fields })
+      : {
+          flag: existing.bannedSubstanceFlag,
+          matches: existing.bannedSubstanceMatches,
+        };
+    const history = reEvaluate
+      ? nextFlagHistory(
+          {
+            flag: existing.bannedSubstanceFlag,
+            matches: existing.bannedSubstanceMatches,
+            history: existing.flagHistory,
+          },
+          ev,
+          userId ?? 'unknown',
+          flagChangeReason,
         )
-      : { flag: existing.bannedSubstanceFlag, matches: existing.bannedSubstanceMatches };
+      : null;
 
     await this.treatmentsRepository.update(id, {
-      ...updateDto,
+      ...fields,
+      ...(fields.doseUnit === 'kg' &&
+      fields.doseValue !== undefined &&
+      fields.dosageKg === undefined
+        ? { dosageKg: fields.doseValue }
+        : {}),
       ...(userId ? { updatedById: userId } : {}),
-      bannedSubstanceFlag: flag,
-      bannedSubstanceMatches: matches,
+      bannedSubstanceFlag: ev.flag,
+      bannedSubstanceMatches: ev.matches,
       ...(reEvaluate ? { bannedSubstanceListVersion: BANNED_LIST_VERSION } : {}),
+      ...(history ? { flagHistory: history as any } : {}),
     });
+
+    if (history) {
+      await this.compliance.escalate(
+        {
+          id,
+          cropId: existing.cropId,
+          date: isoDay(fields.treatmentDate ?? existing.treatmentDate),
+          flag: ev.flag,
+          matches: ev.matches,
+        },
+        'treatment',
+        userId,
+      );
+    }
     return this.findOne(id);
   }
 

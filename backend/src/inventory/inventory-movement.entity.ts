@@ -43,6 +43,10 @@ export class InventoryMovement {
   @Column({ name: 'feed_record_id', type: 'uuid', nullable: true })
   feedRecordId: string | null;
 
+  /** "Use from stock" on a treatment (D2). No FK, for the same reason. */
+  @Column({ name: 'treatment_id', type: 'uuid', nullable: true })
+  treatmentId: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

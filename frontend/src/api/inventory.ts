@@ -94,6 +94,8 @@ export interface InventoryItem {
     notes?: string;
     /** Reason given for the most recent adjustment (there is no movement table). */
     lastAdjustmentReason?: string | null;
+    /** Treatment catalogue keys (D2); absent before migration 1780701400000. */
+    ingredientKeys?: string[] | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -152,10 +154,12 @@ export interface CreateInventoryItemDto {
     supplier?: string;
     expiryDate?: string;
     notes?: string;
+    ingredientKeys?: string[];
 }
 
 /** `farmId` is deliberately absent — an item cannot change farms (D14). */
 export interface UpdateInventoryItemDto {
+    ingredientKeys?: string[];
     name?: string;
     category?: string;
     icon?: string;

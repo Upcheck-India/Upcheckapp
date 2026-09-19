@@ -4,6 +4,8 @@ import { TreatmentsService } from './treatments.service';
 import { Treatment } from './treatment.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { BANNED_LIST_VERSION } from '../banned-substances/banned-substances.data';
+import { ComplianceService } from '../compliance/compliance.service';
+import { InventoryService } from '../inventory/inventory.service';
 
 /**
  * BANNED-1 write-time flag — server-evaluated, independent of anything the
@@ -30,6 +32,8 @@ describe('TreatmentsService — banned-substance write-time flag (BANNED-1)', ()
         TreatmentsService,
         { provide: getRepositoryToken(Treatment), useValue: repo },
         { provide: FarmAccessService, useValue: {} },
+        { provide: ComplianceService, useValue: { escalate: jest.fn() } },
+        { provide: InventoryService, useValue: {} },
       ],
     }).compile();
     service = module.get(TreatmentsService);
@@ -117,11 +121,26 @@ describe('TreatmentsService — banned-substance write-time flag (BANNED-1)', ()
       bannedSubstanceFlag: 'banned',
       bannedSubstanceMatches: ['Colistin'],
     });
-    await service.update('t-1', { description: 'Applied probiotics instead' } as any, 'user-1');
+    // Lowering the flag needs a reason (D3.3) — and leaves a history entry.
+    await expect(
+      service.update('t-1', { description: 'Applied probiotics instead' } as any, 'user-1'),
+    ).rejects.toMatchObject({ status: 400, response: expect.objectContaining({ code: 'REASON_REQUIRED' }) });
+    expect(repo.update).not.toHaveBeenCalled();
 
+    await service.update(
+      't-1',
+      { description: 'Applied probiotics instead', flagChangeReason: 'Typing error' } as any,
+      'user-1',
+    );
     expect(repo.update).toHaveBeenCalledWith(
       't-1',
-      expect.objectContaining({ bannedSubstanceFlag: 'none', bannedSubstanceMatches: [] }),
+      expect.objectContaining({
+        bannedSubstanceFlag: 'none',
+        bannedSubstanceMatches: [],
+        flagHistory: [
+          expect.objectContaining({ by: 'user-1', from: 'banned', to: 'none', reason: 'Typing error' }),
+        ],
+      }),
     );
   });
 

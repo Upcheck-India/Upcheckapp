@@ -23,6 +23,7 @@ jest.mock('../../../api/feedRecords', () => ({ feedApi: { getAll: jest.fn(), get
 jest.mock('../../../api/sampling', () => ({ samplingApi: { getByCrop: jest.fn() } }));
 jest.mock('../../../api/mortalities', () => ({ mortalityApi: { getByCrop: jest.fn() } }));
 jest.mock('../../../api/treatments', () => ({ treatmentsApi: { getByCrop: jest.fn() } }));
+jest.mock('../../../api/diseases', () => ({ diseaseApi: { getByCrop: jest.fn() } }));
 jest.mock('../../../api/harvests', () => ({ harvestsApi: { getByCrop: jest.fn(), getByPond: jest.fn() } }));
 jest.mock('../../../api/expenses', () => ({
     expensesApi: { list: jest.fn(), findByCycle: jest.fn(), getCycleFinancials: jest.fn() },
@@ -47,6 +48,7 @@ import { feedApi } from '../../../api/feedRecords';
 import { samplingApi } from '../../../api/sampling';
 import { mortalityApi } from '../../../api/mortalities';
 import { treatmentsApi } from '../../../api/treatments';
+import { diseaseApi } from '../../../api/diseases';
 import { harvestsApi } from '../../../api/harvests';
 import { expensesApi } from '../../../api/expenses';
 import { transactionsApi } from '../../../api/transactions';
@@ -102,6 +104,9 @@ beforeEach(() => {
     (treatmentsApi.getByCrop as jest.Mock).mockReturnValue(
         ok([{ id: 't1', cropId: 'c1', treatmentDate: '2026-08-15', description: 'Probiotic', createdAt: '', updatedAt: '' }]),
     );
+    (diseaseApi.getByCrop as jest.Mock).mockReturnValue(
+        ok([{ id: 'd1', cropId: 'c1', diseaseId: 'x', recordedDate: '2026-08-16', severityAtDetection: 'high', outcome: 'recovered', disease: { id: 'x', name: 'WSSV' } }]),
+    );
     (harvestsApi.getByCrop as jest.Mock).mockReturnValue(
         ok([{ id: 'h1', cropId: 'c1', harvestDate: '2026-09-01', weightKg: 640, salePriceTotal: 500000, harvestType: 'full', status: 'sold', createdAt: '', updatedAt: '' }]),
     );
@@ -143,8 +148,12 @@ describe('collectReport — datasets', () => {
         const data = await collectReport(config({ cropId: 'c1' }));
 
         expect(keys(data.tables)).toEqual([
-            'waterQuality', 'feed', 'sampling', 'mortality', 'treatments', 'costs', 'harvest',
+            'waterQuality', 'feed', 'sampling', 'mortality', 'treatments', 'disease', 'costs', 'harvest',
         ]);
+        // D6: disease records carry the NAME, the normalised severity and the outcome.
+        const disease = data.tables.find((t) => t.key === 'disease')!;
+        expect(disease.rows[0].slice(1, 3)).toEqual(['WSSV', 'Severe']);
+        expect(disease.rows[0][5]).toBe('Recovered');
         expect(data.meta.farmName).toBe('Green Acres');
         expect(data.meta.pondName).toBe('Pond 3');
         expect(data.meta.cycleLabel).toBe('Cycle 7 (C-7)');
@@ -166,7 +175,7 @@ describe('collectReport — datasets', () => {
             config({ dataset: 'pondLogs', pondId: 'p1', startDate: '2026-08-01', endDate: '2026-08-19' }),
         );
         // The 24 Aug water reading and the 20 Aug sampling are outside it.
-        expect(keys(data.tables)).toEqual(['mortality', 'treatments']);
+        expect(keys(data.tables)).toEqual(['mortality', 'treatments', 'disease']);
     });
 
     it('collects money from the server-filtered endpoints', async () => {
@@ -308,6 +317,24 @@ describe('collectReport — excluded sections', () => {
         const harvest = data.tables.find((t) => t.key === 'harvest')!;
         expect(harvest.columns).not.toContain('Sale');
         expect(JSON.stringify(data)).not.toContain('500,000');
+    });
+
+    it('expands a graded harvest into one line per grade (H1)', async () => {
+        (harvestsApi.getByCrop as jest.Mock).mockReturnValue(
+            ok([{
+                id: 'h1', cropId: 'c1', harvestDate: '2026-09-01', weightKg: 980, salePriceTotal: 407000,
+                harvestType: 'full', status: 'sold', createdAt: '', updatedAt: '',
+                grades: [
+                    { id: 'g1', weightKg: 820, countPerKg: 40, pricePerKg: 430 },
+                    { id: 'g2', weightKg: 160, countPerKg: 55, pricePerKg: 340 },
+                ],
+            }]),
+        );
+        const data = await collectReport(config({ cropId: 'c1' }));
+        const harvest = data.tables.find((t) => t.key === 'harvest')!;
+        expect(harvest.rows).toHaveLength(2);
+        expect(harvest.rows[0][3]).toBe('40');
+        expect(harvest.rows[1][2]).toBe('160');
     });
 
     it('does not request income when the money report excludes it', async () => {

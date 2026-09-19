@@ -59,7 +59,7 @@ export type RootStackParamList = {
     // Asked once, after the account exists and before farm setup (W8).
     AnalyticsConsent: undefined;
     QuickLog: undefined;
-    HarvestLog: { pondId: string; pondName: string; cropId?: string };
+    HarvestLog: { pondId: string; pondName: string; cropId?: string; farmId?: string; harvestType?: 'partial' | 'full'; editRecord?: any };
 
     // Phase 2
     CreateFarm: { editFarmId?: string } | undefined;
@@ -90,7 +90,8 @@ export type RootStackParamList = {
     ChemicalLog: { pondId: string; pondName?: string; cropId?: string };
     PlanktonLog: { pondId: string; pondName?: string; cropId?: string };
     MicrobiologyLog: { pondId: string; pondName?: string; cropId?: string };
-    DiseaseLog: { pondId: string; pondName?: string; cropId?: string };
+    DiseaseLog: { pondId: string; pondName?: string; cropId?: string; diseaseId?: string; signs?: string[] };
+    HealthCheck: { pondId: string; pondName?: string; cropId?: string; reason?: 'spike' };
 
     // Phase 4
     CalculatorHub: undefined;
@@ -419,6 +420,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="PlanktonLog" getComponent={() => require('../screens/logs/PlanktonLogScreen').PlanktonLogScreen} />
                     <Stack.Screen name="MicrobiologyLog" getComponent={() => require('../screens/logs/MicrobiologyLogScreen').MicrobiologyLogScreen} />
                     <Stack.Screen name="DiseaseLog" getComponent={() => require('../screens/logs/DiseaseLogScreen').DiseaseLogScreen} />
+                    <Stack.Screen name="HealthCheck" getComponent={() => require('../screens/logs/HealthCheckScreen').HealthCheckScreen} />
 
                     {/* Phase 4 */}
                     <Stack.Screen name="CalculatorHub" getComponent={() => withFlag('calculators', require('../screens/calculators/CalculatorHubScreen').CalculatorHubScreen)} />

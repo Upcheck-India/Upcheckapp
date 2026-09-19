@@ -67,6 +67,9 @@ export const PERSISTED_ROOTS = new Set([
     // of small rows, far smaller than the pond contexts already persisted.
     'team',
     'money',
+    // The disease picker must work with no signal (D6 / H2): a disease is
+    // often logged at the pond edge. A few KB of library rows per language.
+    'diseaseLibrary',
 ]);
 
 /**
@@ -99,6 +102,8 @@ export const qk = {
     money: (scope?: string) => ['money', scope ?? 'all'] as const,
     /** Team tab, scoped to one farm or all of them. */
     team: (scope?: string) => ['team', scope ?? 'all'] as const,
+    /** The shared disease library in one language (persisted for offline logging). */
+    diseaseLibrary: (lang: string) => ['diseaseLibrary', lang] as const,
 };
 
 export const queryClient = new QueryClient({
@@ -229,6 +234,8 @@ const ENTITY_QUERY_KEYS: Record<string, readonly (readonly string[])[]> = {
     // A molt tick moves the pond checklist (['pond','molt',id]), the pond list
     // and every briefing/home alert built from it (['briefing',...]).
     molt: [['pond'], ['briefing'], ['home']],
+    // A soft-shell observation can tick the molt checklist (['pond','molt',id]).
+    health_observation: [['pond'], ['briefing'], ['home']],
 };
 
 /** Anything not in the table above still moves the pond and the dashboard. */
@@ -269,6 +276,7 @@ const URL_ENTITY_MAP: readonly (readonly [path: string, entity: string])[] = [
     ['/ponds', 'pond'],
     ['/farms', 'farm'],
     ['/molt', 'molt'],
+    ['/health-observations', 'health_observation'],
 ];
 
 /** The entity a write to `path` could have changed, or `undefined` for "none". */

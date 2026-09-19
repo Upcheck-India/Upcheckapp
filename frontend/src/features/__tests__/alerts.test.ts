@@ -52,18 +52,6 @@ describe('buildAlerts', () => {
     expect(none.map((a) => a.id)).toContain('data:none')
   })
 
-  it('flags banned substances from notes as compliance-critical', () => {
-    const alerts = buildAlerts({
-      species: 'vannamei',
-      now,
-      reading: { ph: 8, recordedAt: localIso(2024, 6, 1, 14) },
-      notes: 'treated with chloramphenicol',
-    })
-    const banned = alerts.find((a) => a.category === 'compliance')
-    expect(banned).toBeTruthy()
-    expect(banned?.severity).toBe('critical')
-  })
-
   it('sorts critical before warning before info', () => {
     const alerts = buildAlerts({
       species: 'vannamei',

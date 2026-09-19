@@ -40,6 +40,9 @@ export interface SavedAlert {
   message: string;
   steps: string[];
   createdAt: Date;
+  /** Compliance alerts (D3): i18n keys + params beside the English title/message. */
+  titleKey?: TextKey;
+  bodyKey?: TextKey;
 }
 
 /** Higher severity sorts first. */
@@ -130,6 +133,9 @@ export class AlertCenterService {
       message: a.message,
       steps: a.data?.steps ?? [],
       createdAt: a.createdAt,
+      ...(a.data?.titleKey
+        ? { titleKey: a.data.titleKey, bodyKey: a.data.bodyKey }
+        : {}),
     }));
   }
 

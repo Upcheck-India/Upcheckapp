@@ -276,10 +276,42 @@ describe('MoltService', () => {
     });
     const pm = await svc.forPond('p1', 'u1', POST);
     expect(byKey(pm.items).restore_feed).toMatchObject({ status: 'done', source: 'auto' });
-    expect(query).toHaveBeenCalledTimes(7); // ABW + 6 set-based evidence queries
+    expect(query).toHaveBeenCalledTimes(8); // ABW + 7 set-based evidence queries
     const feedSql = query.mock.calls.find((c: any[]) => String(c[0]).includes('feed_records'))! as any[];
     // Feed range runs through post end (IST 14 Sep ends 18:29:59.999Z).
     expect((feedSql[1] as any[])[2].toISOString()).toBe('2026-09-14T18:29:59.999Z');
+  });
+
+  describe('soft_shell_check (D6 / M2 entry 2)', () => {
+    it('auto-done from a soft-shell observation in post', async () => {
+      const { svc, query } = makeService({
+        abw: 12,
+        rows: { health_observations: [{ pondId: 'p1' }] },
+      });
+      const pm = await svc.forPond('p1', 'u1', POST);
+      expect(byKey(pm.items).soft_shell_check).toMatchObject({ status: 'done', source: 'auto' });
+      const sql = query.mock.calls.find((c: any[]) => String(c[0]).includes('health_observations'))! as any[];
+      expect(String(sql[0])).toContain("sign = 'soft_shell'");
+      // post only: 13..14 Sep
+      expect((sql[1] as any[]).slice(1)).toEqual(['2026-09-13', '2026-09-14']);
+    });
+
+    it('no observation → still a manual item', async () => {
+      const { svc } = makeService({ abw: 12 });
+      const pm = await svc.forPond('p1', 'u1', POST);
+      expect(byKey(pm.items).soft_shell_check).toMatchObject({ status: 'pending', source: 'manual' });
+    });
+
+    it('table not migrated yet (42P01) → checklist still loads, item manual', async () => {
+      const { svc, query } = makeService({ abw: 12 });
+      const base = query.getMockImplementation()!;
+      query.mockImplementation(async (sql: string, ...rest: any[]) => {
+        if (sql.includes('health_observations')) throw Object.assign(new Error('x'), { code: '42P01' });
+        return (base as any)(sql, ...rest);
+      });
+      const pm = await svc.forPond('p1', 'u1', POST);
+      expect(byKey(pm.items).soft_shell_check.status).toBe('pending');
+    });
   });
 
   it('checks READ on the pond through FarmAccessService', async () => {
@@ -386,6 +418,30 @@ describe('M1 molt correctness', () => {
       ['KMnO4', false],
     ])('%s → %s', (description, expected) => {
       expect(isMineralTreatment({ description, notes: null })).toBe(expected);
+    });
+
+    it('D2: a structured row decides by category / ingredient, never by its text', () => {
+      expect(isMineralTreatment({ category: 'mineral', description: '' })).toBe(true);
+      expect(isMineralTreatment({ category: 'lime_alkalinity', description: '' })).toBe(true);
+      expect(isMineralTreatment({ category: 'other', ingredientKeys: ['potassium_chloride'] })).toBe(true);
+      // An antibiotic never ticks minerals, even with mineral words in its text.
+      expect(
+        isMineralTreatment({ category: 'antimicrobial', ingredientKeys: ['oxytetracycline'], description: 'with mineral carrier' }),
+      ).toBe(false);
+      expect(isMineralTreatment({ category: 'disinfectant', notes: 'Potash' })).toBe(false);
+    });
+
+    it('D2: a mineral-category treatment ticks the checklist; an antibiotic one does not', async () => {
+      const mineral = makeService({
+        abw: 12,
+        rows: { treatments: [{ cropId: 'c1', description: '', notes: null, category: 'mineral', ingredientKeys: null }] },
+      });
+      expect(byKey((await mineral.svc.forPond('p1', 'u1', PRE)).items).minerals.status).toBe('done');
+      const antibiotic = makeService({
+        abw: 12,
+        rows: { treatments: [{ cropId: 'c1', description: 'mineral', notes: null, category: 'antimicrobial', ingredientKeys: ['oxytetracycline'] }] },
+      });
+      expect(byKey((await antibiotic.svc.forPond('p1', 'u1', PRE)).items).minerals.status).toBe('pending');
     });
 
     it('reads notes too (old clients put the product there)', () => {

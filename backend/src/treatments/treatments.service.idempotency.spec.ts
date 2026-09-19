@@ -4,6 +4,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { TreatmentsService } from './treatments.service';
 import { Treatment } from './treatment.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { ComplianceService } from '../compliance/compliance.service';
+import { InventoryService } from '../inventory/inventory.service';
 
 const CLIENT_ID = '11111111-1111-1111-1111-111111111111';
 
@@ -22,6 +24,8 @@ describe('TreatmentsService — idempotent create (SYNC-2 offline replay)', () =
         TreatmentsService,
         { provide: getRepositoryToken(Treatment), useValue: repo },
         { provide: FarmAccessService, useValue: {} },
+        { provide: ComplianceService, useValue: { escalate: jest.fn() } },
+        { provide: InventoryService, useValue: {} },
       ],
     }).compile();
     service = module.get(TreatmentsService);

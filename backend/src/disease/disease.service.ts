@@ -4,7 +4,10 @@ import {
   Logger,
   NotFoundException,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
+import { ComplianceService } from '../compliance/compliance.service';
+import { nextFlagHistory } from '../compliance/compliance-eval';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { DiseaseLibrary } from './disease-library.entity';
@@ -30,6 +33,12 @@ import { UpdateDiseaseLibraryDto } from './dto/update-disease-library.dto';
 import { UpdateDiseaseRecordDto } from './dto/update-disease-record.dto';
 import { evaluateBannedSubstances } from '../banned-substances/banned-substance-matcher';
 import { BANNED_LIST_VERSION } from '../banned-substances/banned-substances.data';
+import { normaliseSeverity } from '../health-observations/health.constants';
+import {
+  HealthPhotoStorageService,
+  farmIdOfCrop,
+} from '../health-observations/health-photo-storage.service';
+import { toIstDateString } from '../common/ist-date';
 
 // Library text must never recommend antibiotics (spec 2026-09-19 D0/S3) —
 // `disease-library.safety.spec.ts` enforces it.
@@ -172,6 +181,9 @@ export class DiseaseService {
     private diseaseLibraryTranslationRepository: Repository<DiseaseLibraryTranslation>,
     @InjectRepository(DiseaseRecord)
     private diseaseRecordRepository: Repository<DiseaseRecord>,
+    private readonly photos: HealthPhotoStorageService,
+    // @Optional so the library-only specs need no stub; always present in the app.
+    @Optional() private readonly compliance?: ComplianceService,
   ) {}
 
   // --- Library Methods ---
@@ -329,24 +341,47 @@ export class DiseaseService {
     // of anything the client detected or sent, so the audit trail is
     // authoritative even against an offline-stale or bypassed client.
     const { flag, matches } = evaluateBannedSubstances(dto.notes);
+    const flagHistory =
+      nextFlagHistory({ flag: 'none' }, { flag, matches }, userId ?? 'unknown') ?? [];
+    await this.assertPhotos(dto.cropId, dto.photoUrls);
 
     const record = this.diseaseRecordRepository.create({
       ...dto,
+      // Old clients send free-text severityAtDetection only (D6).
+      severity: dto.severity ?? normaliseSeverity(dto.severityAtDetection),
       createdById: userId,
       updatedById: userId,
       bannedSubstanceFlag: flag,
       bannedSubstanceMatches: matches,
       bannedSubstanceListVersion: BANNED_LIST_VERSION,
+      flagHistory,
     });
-    return this.diseaseRecordRepository.save(record);
+    const saved = await this.diseaseRecordRepository.save(record);
+    // Never blocks (D3): escalate swallows its own errors.
+    await this.compliance?.escalate(
+      { id: saved.id, cropId: saved.cropId, date: String(dto.recordedDate).slice(0, 10), flag, matches },
+      'disease',
+      userId,
+    );
+    return saved;
   }
 
-  async findRecordsByCrop(cropId: string): Promise<DiseaseRecord[]> {
-    return this.diseaseRecordRepository.find({
+  async findRecordsByCrop(cropId: string) {
+    const rows = await this.diseaseRecordRepository.find({
       where: { cropId },
       relations: ['disease'],
       order: { recordedDate: 'DESC' },
     });
+    if (!rows.some((r) => r.photoUrls?.length)) return rows;
+    const farmId = await farmIdOfCrop(this.diseaseRecordRepository.manager, cropId);
+    return farmId ? this.photos.withSigned(farmId, rows) : rows;
+  }
+
+  /** A photo path must be one of this crop's farm's uploads (D6). */
+  private async assertPhotos(cropId: string, paths?: string[]) {
+    if (!paths?.length) return;
+    const farmId = await farmIdOfCrop(this.diseaseRecordRepository.manager, cropId);
+    this.photos.assertFarmPaths(farmId ?? '', paths);
   }
 
   async updateRecord(
@@ -364,14 +399,59 @@ export class DiseaseService {
     const { flag, matches } = reEvaluate
       ? evaluateBannedSubstances(dto.notes)
       : { flag: record.bannedSubstanceFlag, matches: record.bannedSubstanceMatches };
+    const { flagChangeReason, ...fields } = dto;
+    // Lowering the flag needs a reason; every change is kept (D3.3).
+    const flagHistory = reEvaluate
+      ? nextFlagHistory(
+          {
+            flag: record.bannedSubstanceFlag,
+            matches: record.bannedSubstanceMatches,
+            history: record.flagHistory,
+          },
+          { flag, matches },
+          userId ?? 'unknown',
+          flagChangeReason,
+        )
+      : null;
+
+    await this.assertPhotos(record.cropId, dto.photoUrls);
+
+    const severity =
+      dto.severity ??
+      (dto.severityAtDetection !== undefined
+        ? normaliseSeverity(dto.severityAtDetection)
+        : undefined);
+    // Closing an episode stamps the day unless given; reopening clears it.
+    const resolvedOn =
+      dto.outcome === undefined
+        ? dto.resolvedOn
+        : dto.outcome === 'ongoing'
+          ? null
+          : (dto.resolvedOn ?? toIstDateString(new Date()));
 
     await this.diseaseRecordRepository.update(id, {
-      ...dto,
+      ...fields,
+      ...(severity !== undefined ? { severity } : {}),
+      ...(resolvedOn !== undefined ? { resolvedOn } : {}),
       ...(userId ? { updatedById: userId } : {}),
       bannedSubstanceFlag: flag,
       bannedSubstanceMatches: matches,
       ...(reEvaluate ? { bannedSubstanceListVersion: BANNED_LIST_VERSION } : {}),
+      ...(flagHistory ? { flagHistory: flagHistory as any } : {}),
     });
+    if (flagHistory) {
+      await this.compliance?.escalate(
+        {
+          id,
+          cropId: record.cropId,
+          date: String(fields.recordedDate ?? record.recordedDate).slice(0, 10),
+          flag,
+          matches,
+        },
+        'disease',
+        userId,
+      );
+    }
     return this.diseaseRecordRepository.findOneBy({
       id,
     }) as Promise<DiseaseRecord>;

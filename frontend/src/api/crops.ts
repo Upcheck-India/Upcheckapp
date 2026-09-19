@@ -95,6 +95,13 @@ export const cropsApi = {
 
     delete: (id: string) => apiClient.delete(`/crops/${id}`),
 
-    close: (id: string, actualHarvestDate?: string) =>
-        apiClient.patch(`/crops/${id}/close`, { actualHarvestDate: actualHarvestDate || new Date().toISOString() }),
+    /**
+     * Close WITHOUT a harvest (H2): crop lost or another reason. A harvested
+     * cycle closes through a Full harvest instead, which records the sale.
+     */
+    close: (id: string, actualHarvestDate?: string, closeReason?: 'lost' | 'other') =>
+        apiClient.patch(`/crops/${id}/close`, {
+            actualHarvestDate: actualHarvestDate || new Date().toISOString(),
+            ...(closeReason ? { closeReason } : {}),
+        }),
 };

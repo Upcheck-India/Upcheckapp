@@ -13,6 +13,10 @@ import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 import { mortalityApi } from '../../api/mortalities';
 import { apiErrorMessage } from '../../api/errors';
+import { ChoiceChips } from '../../components/health/ChoiceChips';
+import { HealthPhotoPicker } from '../../components/health/HealthPhotoPicker';
+import { MORTALITY_CAUSES } from '../../api/healthObservations';
+import { afterMortalitySave, mortality7DayAvg } from '../../features/mortalitySpike';
 
 export const MortalityLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -24,8 +28,44 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
     const [quantity, setQuantity] = useState(editRecord?.quantity ?? 0);
     const [estimatedWeightKg, setEstimatedWeightKg] = useState(editRecord?.estimatedWeightKg != null ? String(editRecord.estimatedWeightKg) : '');
     const [note, setNote] = useState(editRecord?.note ?? '');
+    const [cause, setCause] = useState<string | null>(editRecord?.suspectedCause ?? null);
+    const [photos, setPhotos] = useState<string[]>(editRecord?.photoUrls ?? []);
 
     const [isLoading, setIsLoading] = useState(false);
+
+    /**
+     * After a save (D6): a spike asks "Do a health check?"; cause `disease`
+     * offers a disease record. The 7-day baseline comes from the crop's
+     * mortality list (HTTP-cached offline); without it, no prompt.
+     */
+    const promptNext = async (savedId: string) => {
+        let avg7: number | null = null;
+        try {
+            const { data } = await mortalityApi.getByCrop(cropId);
+            avg7 = mortality7DayAvg(Array.isArray(data) ? data : [], date, savedId);
+        } catch {
+            /* no baseline → the spike rule sees avg 0, as the brief does */
+        }
+        const next = afterMortalitySave({ quantity, avg7, cause });
+        const params = { pondId, pondName, cropId };
+        if (next?.kind === 'health_check') {
+            Alert.alert(
+                t('health.spikeTitle'),
+                next.times ? t('health.spikeBody', { times: next.times }) : t('health.spikeBodyNoBaseline'),
+                [
+                    { text: t('health.later'), style: 'cancel', onPress: () => navigation.goBack() },
+                    { text: t('health.doCheck'), onPress: () => navigation.replace('HealthCheck', { ...params, reason: 'spike' }) },
+                ],
+            );
+        } else if (next?.kind === 'disease') {
+            Alert.alert(t('health.logDiseaseTitle'), t('health.logDiseaseBody'), [
+                { text: t('health.later'), style: 'cancel', onPress: () => navigation.goBack() },
+                { text: t('health.logDisease'), onPress: () => navigation.replace('DiseaseLog', params) },
+            ]);
+        } else {
+            navigation.goBack();
+        }
+    };
 
     const handleSave = async () => {
         if (quantity < 0) {
@@ -41,9 +81,12 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
             quantity,
             estimatedWeightKg: estimatedWeightKg ? parseFloat(estimatedWeightKg) : undefined,
             note: note.trim() || undefined,
+            ...(cause ? { suspectedCause: cause } : {}),
+            photoUrls: photos,
         };
 
         try {
+            let savedId: string = editRecord?.id;
             if (isEditing) {
                 // Editing a specific past record is not a field-logging action,
                 // so it goes straight to the API rather than through the
@@ -57,6 +100,7 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
                     endpoint: '/mortality',
                     payload,
                 });
+                savedId = res.id;
                 showToast({
                     message: res.queued
                         ? t('common.savedOffline', 'Saved — will sync when online')
@@ -64,7 +108,7 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
                     type: 'success',
                 });
             }
-            navigation.goBack();
+            await promptNext(savedId);
         } catch (error: any) {
             Alert.alert(t('common.error'), apiErrorMessage(error, t('logs.mortality_errorSave')));
         } finally {
@@ -93,6 +137,26 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
                         onChange={setQuantity}
                         min={0}
                     />
+                </Card>
+
+                <Card style={styles.card}>
+                    <Text style={styles.sectionTitle}>{t('health.suspectedCause')}</Text>
+                    <ChoiceChips
+                        options={MORTALITY_CAUSES.map((k) => ({ key: k, label: t(`health.cause.${k}`) }))}
+                        value={cause}
+                        onChange={setCause}
+                        testIDPrefix="cause"
+                    />
+                    {!!pondId && (
+                        <View style={{ marginTop: theme.spacing[4] }}>
+                            <HealthPhotoPicker
+                                pondId={pondId}
+                                value={photos}
+                                onChange={setPhotos}
+                                existingUrls={editRecord?.photoSignedUrls}
+                            />
+                        </View>
+                    )}
                 </Card>
 
                 <Card style={styles.card}>
