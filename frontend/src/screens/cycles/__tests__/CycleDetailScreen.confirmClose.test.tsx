@@ -58,25 +58,48 @@ describe('CycleDetailScreen — confirm before closing a cycle', () => {
         (cropsApi.getById as jest.Mock).mockResolvedValue({ data: CYCLE });
     });
 
+    /**
+     * H2: the first dialog asks WHY (Harvested / Crop lost / Other); the
+     * second is the existing confirm. `answers` picks a button label per call.
+     */
+    const answerBy = (...answers: string[]) =>
+        jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+            const label = answers.shift();
+            buttons?.find((b) => b.text === label)?.onPress?.();
+        });
+
     it('does not close the cycle when the confirmation is cancelled', async () => {
-        const alert = jest
-            .spyOn(Alert, 'alert')
-            .mockImplementation((_t, _m, buttons) => buttons?.[0].onPress?.());
+        const alert = answerBy('Crop lost', 'Cancel');
 
         const { findByText } = renderScreen();
         fireEvent.press(await findByText('Close Cycle'));
 
-        await waitFor(() => expect(alert).toHaveBeenCalled());
+        await waitFor(() => expect(alert).toHaveBeenCalledTimes(2));
         expect(cropsApi.close).not.toHaveBeenCalled();
     });
 
-    it('closes once confirmed', async () => {
+    it('"Crop lost" closes once confirmed, with the reason', async () => {
         (cropsApi.close as jest.Mock).mockResolvedValue({ data: {} });
-        jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => buttons?.[1].onPress?.());
+        answerBy('Crop lost', 'Confirm');
 
         const { findByText } = renderScreen();
         fireEvent.press(await findByText('Close Cycle'));
 
-        await waitFor(() => expect(cropsApi.close).toHaveBeenCalledWith('crop-1'));
+        await waitFor(() => expect(cropsApi.close).toHaveBeenCalledWith('crop-1', undefined, 'lost'));
+    });
+
+    it('"Harvested" opens a Full harvest instead of closing silently', async () => {
+        answerBy('Harvested');
+
+        const { findByText } = renderScreen();
+        fireEvent.press(await findByText('Close Cycle'));
+
+        await waitFor(() =>
+            expect(navigation.navigate).toHaveBeenCalledWith(
+                'HarvestLog',
+                expect.objectContaining({ cropId: 'crop-1', harvestType: 'full' }),
+            ),
+        );
+        expect(cropsApi.close).not.toHaveBeenCalled();
     });
 });

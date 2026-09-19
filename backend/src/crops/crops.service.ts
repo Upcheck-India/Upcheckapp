@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
@@ -14,6 +15,8 @@ import type { FarmCapability } from '../farm-access/farm-capability';
 
 @Injectable()
 export class CropsService {
+  private readonly logger = new Logger(CropsService.name);
+
   constructor(
     @InjectRepository(Crop)
     private cropsRepository: Repository<Crop>,
@@ -270,6 +273,7 @@ export class CropsService {
     actualHarvestDate: string,
     userId: string,
     manager?: EntityManager,
+    closeReason?: 'lost' | 'other',
   ) {
     // RECORD_HARVEST, not VIEW_FINANCIALS: this runs inside `harvests.create`
     // for a full harvest, and gating it on the books 403'd the granted worker.
@@ -307,6 +311,24 @@ export class CropsService {
       { id: crop.pondId, activeCycleId: id },
       { activeCycleId: null, status: 'fallow' } as any,
     );
+
+    // Why it closed without a harvest (H2). Raw SQL, not an entity column, so
+    // crop reads never depend on migration 1780700900000; before it is applied
+    // the close still lands and only the reason is dropped (logged).
+    if (closeReason) {
+      try {
+        await m.query(`UPDATE crops SET close_reason = $2 WHERE id = $1`, [
+          id,
+          closeReason,
+        ]);
+      } catch (err: any) {
+        const code = err?.code ?? err?.driverError?.code;
+        if (code !== '42703') throw err;
+        this.logger.warn(
+          `crops.close_reason missing (migration 1780700900000 not applied); reason for ${id} dropped`,
+        );
+      }
+    }
 
     return this.findOneAccessible(id, userId, 'RECORD_HARVEST');
   }

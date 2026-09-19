@@ -126,7 +126,11 @@ function makeFindAllService(farmIds = ['f1']) {
     getMany: jest.fn().mockResolvedValue([]),
     getRawAndEntities: jest.fn().mockResolvedValue({ entities: [], raw: [] }),
   };
-  const repo = { createQueryBuilder: jest.fn(() => qb) };
+  const repo = {
+    createQueryBuilder: jest.fn(() => qb),
+    // H1 details (grades etc.), one query for the whole page.
+    query: jest.fn().mockResolvedValue([]),
+  };
   const farmAccess = {
     getAccessibleFarmIds: jest.fn().mockResolvedValue(farmIds),
     // Unrestricted member: every pond on each accessible farm.
@@ -134,7 +138,7 @@ function makeFindAllService(farmIds = ['f1']) {
     getFarmIdsWithCapability: jest.fn().mockResolvedValue(farmIds),
   };
   const svc = new HarvestsService(repo as any, {} as any, farmAccess as any, {} as any);
-  return { svc, qb, farmAccess };
+  return { svc, qb, farmAccess, repo };
 }
 
 describe('HarvestsService.findAll pond filter', () => {
@@ -210,9 +214,21 @@ describe('HarvestsService.findAll pond filter', () => {
  */
 function makeGateService(
   allowed: boolean,
-  opts: { cropStatus?: string; viewFinancials?: boolean; existing?: any } = {},
+  opts: {
+    cropStatus?: string;
+    viewFinancials?: boolean;
+    existing?: any;
+    stockingDate?: string;
+    abw?: number | null;
+    pond?: any;
+    otherActive?: number;
+    oldGrades?: { id: string; price: number | null }[];
+    details?: any[];
+  } = {},
 ) {
   const repo = {
+    // H1 details read (grades etc.); [] = ungraded / migration not applied.
+    query: jest.fn(async () => opts.details ?? []),
     create: jest.fn((v: any) => v),
     save: jest.fn(async (v: any) => ({ id: 'h1', ...v })),
     findOne: jest.fn(async () =>
@@ -245,13 +261,28 @@ function makeGateService(
   // The transaction's manager: the crop row it locks, and inserts that land in
   // the same `repo` mock the assertions read.
   const manager = {
-    findOne: jest.fn(async () => ({
-      id: 'c1',
-      pondId: 'p1',
-      status: opts.cropStatus ?? 'active',
-    })),
+    findOne: jest.fn(async (entity: any) =>
+      entity?.name === 'Pond'
+        ? (opts.pond ?? { id: 'p1', activeCycleId: null })
+        : {
+            id: 'c1',
+            pondId: 'p1',
+            status: opts.cropStatus ?? 'active',
+            stockingDate: opts.stockingDate,
+          },
+    ),
     create: jest.fn((_e: any, v: any) => repo.create(v)),
     save: jest.fn((v: any) => repo.save(v)),
+    query: jest.fn(async (sql: string) => {
+      if (sql.includes('FROM sampling_data')) {
+        return opts.abw != null ? [{ mbw: opts.abw }] : [];
+      }
+      if (sql.includes('SELECT id, price_per_kg')) return opts.oldGrades ?? [];
+      return [];
+    }),
+    count: jest.fn(async () => opts.otherActive ?? 0),
+    update: jest.fn(),
+    delete: jest.fn(),
   };
   const dataSource = {
     transaction: jest.fn((cb: (m: typeof manager) => unknown) => cb(manager)),
@@ -483,5 +514,298 @@ describe('HarvestsService.findMoneyEntries — filters in the query', () => {
     const [entry] = await svc.findMoneyEntries('u');
 
     expect(entry.archived).toBe(true);
+  });
+});
+
+/* ── H1: graded harvest record ─────────────────────────────────────────── */
+
+const gradedDto = (over: any = {}) =>
+  ({
+    id: '22222222-2222-4222-8222-222222222222',
+    cropId: 'c1',
+    harvestDate: '2026-09-10',
+    harvestType: 'partial',
+    // A stale client total must be IGNORED when grades are present.
+    weightKg: 1,
+    salePriceTotal: 1,
+    grades: [
+      { weightKg: 820, countPerKg: 40, pricePerKg: 430 },
+      { weightKg: 160, countPerKg: 55, pricePerKg: 340 },
+    ],
+    ...over,
+  }) as any;
+
+const gradeInsert = (manager: any) =>
+  manager.query.mock.calls.find((c: any[]) =>
+    String(c[0]).includes('INSERT INTO harvest_grades'),
+  );
+
+describe('H1 — graded create', () => {
+  it('derives the aggregate from the grades and writes them in the same transaction', async () => {
+    const { svc, repo, manager } = makeGateService(true, { existing: null });
+
+    await svc.create(gradedDto(), 'owner-1');
+
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ weightKg: 980, salePriceTotal: 407000, averageSize: 23.56 }),
+    );
+    const [, params] = gradeInsert(manager);
+    // [harvestId, id, count, kg, price, sort] × 2
+    // The saved row keeps the client-minted id (offline idempotency).
+    const HID = '22222222-2222-4222-8222-222222222222';
+    expect(params).toEqual([HID, null, 40, 820, 430, 0, null, 55, 160, 340, 1]);
+    expect(manager.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE harvests SET pieces = $2, pieces_estimated = $3'),
+      [HID, 41600, false],
+    );
+  });
+
+  it('strips prices server-side without VIEW_FINANCIALS (grade saved, price null)', async () => {
+    const { svc, repo, manager } = makeGateService(true, {
+      existing: null,
+      viewFinancials: false,
+    });
+
+    await svc.create(gradedDto(), 'manager-1');
+
+    const [, params] = gradeInsert(manager);
+    expect(params[4]).toBeNull();
+    expect(params[9]).toBeNull();
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ weightKg: 980, salePriceTotal: null }),
+    );
+  });
+
+  it('strips an old-path total price too', async () => {
+    const { svc, repo } = makeGateService(true, { existing: null, viewFinancials: false });
+    await svc.create(
+      { cropId: 'c1', harvestDate: '2026-09-10', weightKg: 100, salePriceTotal: 9000, harvestType: 'partial' } as any,
+      'manager-1',
+    );
+    expect(repo.create.mock.calls[0][0].salePriceTotal).toBeUndefined();
+  });
+
+  it('a price outside ₹50–2000/kg is a 400 OUT_OF_RANGE unless confirmed', async () => {
+    const dto = gradedDto({ grades: [{ weightKg: 100, countPerKg: 40, pricePerKg: 4300 }] });
+    const { svc, repo } = makeGateService(true, { existing: null });
+
+    const err = await svc.create(dto, 'owner-1').catch((e) => e);
+    expect(err.getResponse()).toEqual(expect.objectContaining({ code: 'OUT_OF_RANGE' }));
+    expect(repo.save).not.toHaveBeenCalled();
+
+    await expect(
+      svc.create({ ...dto, confirmOutOfRange: true }, 'owner-1'),
+    ).resolves.toBeDefined();
+  });
+
+  it('estimates pieces from the ABW at the harvest date when a line has no count', async () => {
+    const { svc, manager } = makeGateService(true, { existing: null, abw: 20 });
+
+    await svc.create(
+      gradedDto({ grades: [{ weightKg: 500, pricePerKg: 400 }] }),
+      'owner-1',
+    );
+
+    expect(manager.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE harvests SET pieces'),
+      ['22222222-2222-4222-8222-222222222222', 25000, true],
+    );
+  });
+
+  it('old clients (no grades) keep the single-total path and touch no H1 columns', async () => {
+    const { svc, repo, manager } = makeGateService(true, { existing: null });
+
+    await svc.create(
+      { cropId: 'c1', harvestDate: '2026-09-10', weightKg: 500, salePriceTotal: 200000, harvestType: 'partial' } as any,
+      'owner-1',
+    );
+
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ weightKg: 500, salePriceTotal: 200000 }),
+    );
+    // No grade insert, no UPDATE of pieces/rejected — works before the migration.
+    expect(manager.query).not.toHaveBeenCalled();
+  });
+
+  it('an offline replay of a graded harvest returns the stored row and writes nothing', async () => {
+    const { svc, repo, manager } = makeGateService(true, {
+      details: [{ id: 'h1', grades: [{ id: 'g1', countPerKg: 40, weightKg: 820, pricePerKg: 430 }], pieces: 32800 }],
+    });
+
+    const res: any = await svc.create(gradedDto(), 'owner-1');
+
+    expect(res.grades).toHaveLength(1);
+    expect(repo.save).not.toHaveBeenCalled();
+    expect(manager.query).not.toHaveBeenCalled();
+  });
+
+  it('refuses a future date and a date before stocking', async () => {
+    const { svc, repo } = makeGateService(true, { existing: null, stockingDate: '2026-06-03' });
+
+    const future = await svc.create(gradedDto({ harvestDate: '2099-01-01' }), 'owner-1').catch((e) => e);
+    expect(future.getResponse()).toEqual(expect.objectContaining({ code: 'HARVEST_DATE_FUTURE' }));
+
+    const early = await svc.create(gradedDto({ harvestDate: '2026-06-02' }), 'owner-1').catch((e) => e);
+    expect(early.getResponse()).toEqual(expect.objectContaining({ code: 'HARVEST_DATE_BEFORE_STOCKING' }));
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+});
+
+describe('H1 — reads', () => {
+  it('attaches grades and masks grade prices without VIEW_FINANCIALS', async () => {
+    const { svc } = makeGateService(true, {
+      viewFinancials: false,
+      details: [{ id: 'h1', grades: [{ id: 'g1', countPerKg: 40, weightKg: 820, pricePerKg: 430 }] }],
+    });
+
+    const h: any = await svc.findOne('h1', 'manager-1');
+
+    expect(h.grades).toEqual([{ id: 'g1', countPerKg: 40, weightKg: 820, pricePerKg: null }]);
+  });
+
+  it('degrades to "ungraded" when the H1 migration is not applied (42703)', async () => {
+    const { svc, repo } = makeGateService(true);
+    repo.query.mockRejectedValueOnce(Object.assign(new Error('column'), { code: '42703' }));
+
+    const h: any = await svc.findOne('h1', 'owner-1');
+
+    expect(h.grades).toEqual([]);
+    expect(h.salePriceTotal).toBe(50000);
+  });
+
+  it('does not swallow other database errors', async () => {
+    const { svc, repo } = makeGateService(true);
+    repo.query.mockRejectedValueOnce(Object.assign(new Error('boom'), { code: '08006' }));
+    await expect(svc.findOne('h1', 'owner-1')).rejects.toThrow('boom');
+  });
+});
+
+describe('H1 — edit', () => {
+  const existing = (over: any = {}) => ({
+    id: 'h1',
+    cropId: 'c1',
+    harvestType: 'partial',
+    harvestDate: '2026-09-10',
+    salePriceTotal: 50000,
+    buyerName: 'Ravi',
+    crop: { pondId: 'p1', stockingDate: '2026-06-03' },
+    ...over,
+  });
+
+  it('the harvest type is immutable', async () => {
+    const { svc, repo } = makeGateService(true, { existing: existing() });
+
+    const err = await svc.update('h1', { harvestType: 'full' } as any, 'owner-1').catch((e) => e);
+    expect(err.getResponse()).toEqual(expect.objectContaining({ code: 'HARVEST_TYPE_IMMUTABLE' }));
+    expect(repo.update).not.toHaveBeenCalled();
+
+    // Old builds resend the SAME type on every edit — accepted, not written.
+    await svc.update('h1', { harvestType: 'partial', weightKg: 5 } as any, 'owner-1');
+    expect(repo.update).toHaveBeenCalledWith('h1', { weightKg: 5, updatedById: 'owner-1' });
+  });
+
+  it('replaces all grades in one transaction and re-derives the aggregate', async () => {
+    const { svc, manager } = makeGateService(true, { existing: existing() });
+
+    await svc.update('h1', { grades: [{ weightKg: 100, countPerKg: 50, pricePerKg: 400 }] } as any, 'owner-1');
+
+    expect(manager.query).toHaveBeenCalledWith('DELETE FROM harvest_grades WHERE harvest_id = $1', ['h1']);
+    expect(manager.update).toHaveBeenCalledWith(
+      expect.anything(),
+      'h1',
+      expect.objectContaining({ weightKg: 100, salePriceTotal: 40000 }),
+    );
+  });
+
+  it('a member without VIEW_FINANCIALS edits weights but keeps the owner price', async () => {
+    const { svc, manager } = makeGateService(true, {
+      existing: existing(),
+      viewFinancials: false,
+      oldGrades: [{ id: 'g1', price: 430 }],
+    });
+
+    await svc.update(
+      'h1',
+      { grades: [{ id: 'g1', weightKg: 800, countPerKg: 40, pricePerKg: 1 }], salePriceTotal: 1, buyerName: 'X' } as any,
+      'manager-1',
+    );
+
+    const [, params] = gradeInsert(manager);
+    expect(params[4]).toBe(430);
+    const written = manager.update.mock.calls[0][2];
+    expect(written.buyerName).toBeUndefined();
+    expect(written.salePriceTotal).toBe(800 * 430);
+  });
+
+  it('an explicit null clears the price and buyer', async () => {
+    const { svc, repo } = makeGateService(true, { existing: existing() });
+    await svc.update('h1', { salePriceTotal: null, buyerName: null } as any, 'owner-1');
+    expect(repo.update).toHaveBeenCalledWith('h1', {
+      salePriceTotal: null,
+      buyerName: null,
+      updatedById: 'owner-1',
+    });
+  });
+});
+
+/* ── H2: deleting a full harvest reopens its cycle ─────────────────────── */
+
+describe('H2 — delete a full harvest', () => {
+  const full = {
+    id: 'h1',
+    cropId: 'c1',
+    harvestType: 'full',
+    crop: { pondId: 'p1' },
+  };
+
+  it('reopens the cycle and relinks the pond in the same transaction', async () => {
+    const { svc, manager } = makeGateService(true, { existing: full, cropStatus: 'completed' });
+
+    await svc.remove('h1', 'owner-1');
+
+    expect(manager.update).toHaveBeenCalledWith(expect.anything(), 'c1', {
+      status: 'active',
+      actualHarvestDate: null,
+      isActive: true,
+    });
+    expect(manager.update).toHaveBeenCalledWith(expect.anything(), 'p1', {
+      activeCycleId: 'c1',
+      status: 'active',
+    });
+    expect(manager.delete).toHaveBeenCalledWith(expect.anything(), 'h1');
+  });
+
+  it('409 POND_HAS_NEW_CYCLE when the pond has started another cycle', async () => {
+    const { svc, manager } = makeGateService(true, {
+      existing: full,
+      cropStatus: 'completed',
+      pond: { id: 'p1', activeCycleId: 'c2' },
+    });
+
+    const err = await svc.remove('h1', 'owner-1').catch((e) => e);
+
+    expect(err).toBeInstanceOf(ConflictException);
+    expect(err.getResponse()).toEqual(expect.objectContaining({ code: 'POND_HAS_NEW_CYCLE' }));
+    expect(manager.delete).not.toHaveBeenCalled();
+    expect(manager.update).not.toHaveBeenCalled();
+  });
+
+  it('409 too when another ACTIVE crop exists even if the pond link is stale', async () => {
+    const { svc, manager } = makeGateService(true, {
+      existing: full,
+      cropStatus: 'completed',
+      otherActive: 1,
+    });
+    await expect(svc.remove('h1', 'owner-1')).rejects.toBeInstanceOf(ConflictException);
+    expect(manager.delete).not.toHaveBeenCalled();
+  });
+
+  it('a partial harvest deletes plainly — no reopen', async () => {
+    const { svc, repo, manager } = makeGateService(true, {
+      existing: { ...full, harvestType: 'partial' },
+    });
+    await svc.remove('h1', 'owner-1');
+    expect(repo.delete).toHaveBeenCalledWith('h1');
+    expect(manager.update).not.toHaveBeenCalled();
   });
 });

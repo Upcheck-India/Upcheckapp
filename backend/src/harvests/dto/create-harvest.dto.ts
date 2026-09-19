@@ -7,7 +7,15 @@ import {
   IsString,
   IsIn,
   Min,
+  IsArray,
+  ArrayMinSize,
+  ArrayMaxSize,
+  ValidateNested,
+  IsBoolean,
+  ValidateIf,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { GradeDto, REJECTED_REASONS, RejectedReason } from './grade.dto';
 
 export class CreateHarvestDto {
   // Optional client-minted id for offline-queue idempotency (see feed-records/
@@ -23,6 +31,35 @@ export class CreateHarvestDto {
   @IsDateString()
   harvestDate: string;
 
+  /**
+   * Graded lines (H1). When present the server derives weightKg /
+   * salePriceTotal / averageSize / pieces from them and ignores the client's.
+   * When absent the old single-total path runs, so old app builds keep working.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(6)
+  @ValidateNested({ each: true })
+  @Type(() => GradeDto)
+  grades?: GradeDto[];
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  rejectedKg?: number | null;
+
+  @IsIn(REJECTED_REASONS as unknown as string[])
+  @IsOptional()
+  rejectedReason?: RejectedReason | null;
+
+  /** The farmer saw the out-of-band price warning and kept the value. */
+  @IsBoolean()
+  @IsOptional()
+  confirmOutOfRange?: boolean;
+
+  // Required on the old (ungraded) path only.
+  @ValidateIf((o) => !o.grades)
   @IsNumber()
   @Min(0.01)
   weightKg: number;
@@ -33,6 +70,7 @@ export class CreateHarvestDto {
   @Min(0)
   count?: number;
 
+  /** g/piece (not count/kg — the entity comment used to say otherwise). */
   @IsNumber()
   @IsOptional()
   @Min(0)
@@ -41,11 +79,11 @@ export class CreateHarvestDto {
   @IsNumber()
   @IsOptional()
   @Min(0)
-  salePriceTotal?: number;
+  salePriceTotal?: number | null;
 
   @IsString()
   @IsOptional()
-  buyerName?: string;
+  buyerName?: string | null;
 
   @IsIn(['partial', 'full'])
   harvestType: 'partial' | 'full';

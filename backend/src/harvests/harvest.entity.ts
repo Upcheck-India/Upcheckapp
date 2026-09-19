@@ -33,7 +33,15 @@ export class Harvest {
   count: number | null;
 
   @Column({ type: 'float', name: 'average_size', nullable: true })
-  averageSize: number | null; // ABW/Size count per kg
+  // Mean body weight in g/PIECE (not count/kg). For a graded harvest it is
+  // derived as 1000 / weighted count (harvest-and-molt H1).
+  averageSize: number | null;
+
+  // H1 also added harvest_grades + rejected_kg / rejected_reason / pieces /
+  // pieces_estimated (migration 1780700900000). They are deliberately NOT
+  // entity columns: HarvestsService reads/writes them with raw SQL behind the
+  // 42P01/42703 fail-safe, so an unapplied migration never 500s every
+  // harvest read.
 
   @Column({
     type: 'decimal',

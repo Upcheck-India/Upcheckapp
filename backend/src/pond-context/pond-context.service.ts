@@ -76,8 +76,13 @@ export interface PondContext {
   freeAmmoniaMgL: number | null;
   /** Latest sampled average body weight (g). */
   abwG: number | null;
-  /** Mortality-adjusted live population estimate. */
+  /** Mortality- and partial-harvest-adjusted live population estimate. */
   livePopulation: number | null;
+  /**
+   * Set when a partial harvest subtracted from the population without a real
+   * piece count (estimated from ABW, or unknown). Confidence drops one band.
+   */
+  populationNote: 'after_partial_harvest_estimate' | null;
   /** Standing biomass estimate (kg). */
   biomassKg: number | null;
   /** Crop targets the engines consume. */
@@ -134,6 +139,61 @@ interface ConfidenceFactor {
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** 42P01 undefined_table / 42703 undefined_column — an unapplied migration. */
+export const isMissingSchema = (err: any): boolean => {
+  const code = err?.code ?? err?.driverError?.code;
+  return code === '42P01' || code === '42703';
+};
+
+/** One partial harvest's contribution to "pieces that left the pond". */
+export interface PartialHarvestRow {
+  cropId: string;
+  day: string;
+  /** Null only when there is neither a count nor an ABW to estimate from. */
+  pieces: number | null;
+  estimated: boolean;
+}
+
+/**
+ * Pieces removed by each PARTIAL harvest (a full harvest ends the cycle, so it
+ * never reduces a live population). A null `pieces` (old rows, pre-H1) falls
+ * back to weight × 1000 / the ABW weighed on or before the harvest day, and is
+ * flagged estimated. Shared by pond-context and the daily brief so the two
+ * never disagree. Needs migration 1780700900000 — callers catch isMissingSchema.
+ */
+export const partialHarvestSql = (by: 'crop' | 'pond') =>
+  `SELECT h.crop_id AS "cropId", h.harvest_date::text AS day,
+          COALESCE(h.pieces::float, h.weight_kg * 1000 / NULLIF(s.mbw_g, 0)) AS pieces,
+          (h.pieces IS NULL OR h.pieces_estimated) AS estimated
+     FROM harvests h
+     LEFT JOIN LATERAL (
+          SELECT sd.mbw_g::float AS mbw_g FROM sampling_data sd
+           WHERE sd.crop_id = h.crop_id AND sd.mbw_g IS NOT NULL
+             AND sd.sampling_date <= h.harvest_date
+           ORDER BY sd.sampling_date DESC LIMIT 1
+     ) s ON true
+    WHERE h.harvest_type = 'partial' AND ${
+      by === 'crop'
+        ? 'h.crop_id = ANY($1::uuid[])'
+        : 'h.crop_id IN (SELECT c.id FROM crops c WHERE c.pond_id = ANY($1::uuid[]))'
+    }`;
+
+/** Σ pieces a crop's partial harvests removed, up to and including `asOfDay`. */
+export function harvestedPieces(
+  rows: PartialHarvestRow[],
+  cropId: string | null | undefined,
+  asOfDay?: string,
+): { pieces: number; estimated: boolean } | null {
+  const mine = rows.filter(
+    (r) => r.cropId === cropId && (!asOfDay || r.day <= asOfDay),
+  );
+  if (!mine.length) return null;
+  return {
+    pieces: mine.reduce((s, r) => s + (Number(r.pieces) || 0), 0),
+    estimated: mine.some((r) => r.estimated || r.pieces == null),
+  };
+}
 
 /**
  * Single source of the farmer's latest inputs for a pond (PRD "capture once,
@@ -220,7 +280,7 @@ export class PondContextService {
       .filter((p) => !p.activeCycleId)
       .map((p) => p.id);
 
-    const [crops, wqRows, samplingByCrop, samplingByPond, mortality, feed, trays] =
+    const [crops, wqRows, samplingByCrop, samplingByPond, mortality, feed, trays, harvested] =
       await Promise.all([
         cropIds.length
           ? this.cropRepo.find({
@@ -257,6 +317,7 @@ export class PondContextService {
         cropIds.length
           ? this.latestTrayByCrop(cropIds)
           : Promise.resolve([]),
+        this.partialHarvestRows(cropIds),
       ]);
 
     const cropById = new Map(crops.map((c) => [c.id, c]));
@@ -284,8 +345,20 @@ export class PondContextService {
         mortalityAgg: cropId ? (mortalityByCrop.get(cropId) ?? null) : null,
         feedAgg: cropId ? (feedByCrop.get(cropId) ?? null) : null,
         tray: cropId ? (trayByCrop.get(cropId) ?? null) : null,
+        harvested: harvestedPieces(harvested, cropId),
       });
     });
+  }
+
+  /** Partial-harvest rows for these crops; [] until the H1 migration is applied. */
+  async partialHarvestRows(cropIds: string[]): Promise<PartialHarvestRow[]> {
+    if (!cropIds.length) return [];
+    try {
+      return await this.samplingRepo.query(partialHarvestSql('crop'), [cropIds]);
+    } catch (err) {
+      if (!isMissingSchema(err)) throw err;
+      return [];
+    }
   }
 
   /**
@@ -423,13 +496,20 @@ export class PondContextService {
     };
   }
 
-  /** Live population = stocking count − cumulative (estimated) mortality, ≥ 0. */
+  /**
+   * Live population = stocking − cumulative (estimated) mortality − pieces
+   * removed by partial harvests, ≥ 0. The daily brief calls this too.
+   */
   estimateLivePopulation(
     stockingCount: number | null | undefined,
     cumulativeMortality: number,
+    harvestedPieces = 0,
   ): number | null {
     if (stockingCount == null) return null;
-    return Math.max(0, Math.round(stockingCount - cumulativeMortality));
+    return Math.max(
+      0,
+      Math.round(stockingCount - cumulativeMortality - harvestedPieces),
+    );
   }
 
   /** Standing biomass (kg) = population × ABW / 1000. */
@@ -486,7 +566,7 @@ export class PondContextService {
     // Everything below only depends on pondId/cropId (known once the pond is
     // fetched), not on each other — fan out instead of awaiting one-by-one.
     // Mortality and feed use a SQL SUM instead of loading every row into JS.
-    const [crop, wqRecords, sampling, mortalityAgg, feedAgg, tray] =
+    const [crop, wqRecords, sampling, mortalityAgg, feedAgg, tray, harvested] =
       await Promise.all([
         cropId
           // Member-aware crop read: this is a dashboard path and must NOT go
@@ -527,6 +607,7 @@ export class PondContextService {
               order: { checkDate: 'DESC' },
             })
           : Promise.resolve(null),
+        this.partialHarvestRows(cropId ? [cropId] : []),
       ]);
 
     return this.buildContext(pond, {
@@ -536,6 +617,7 @@ export class PondContextService {
       mortalityAgg,
       feedAgg,
       tray,
+      harvested: harvestedPieces(harvested, cropId),
     });
   }
 
@@ -562,9 +644,10 @@ export class PondContextService {
         lastFeedAt?: Date | string | null;
       } | null;
       tray: FeedingTrayCheck | null;
+      harvested?: { pieces: number; estimated: boolean } | null;
     },
   ): PondContext {
-    const { crop, wqRecords, sampling, mortalityAgg, feedAgg, tray } = deps;
+    const { crop, wqRecords, sampling, mortalityAgg, feedAgg, tray, harvested } = deps;
     const pondId = pond.id;
     const farmId = pond.farmId;
     const cropId = pond.activeCycleId ?? null;
@@ -583,7 +666,12 @@ export class PondContextService {
     const livePopulation = this.estimateLivePopulation(
       crop?.stockingCount,
       cumulativeMortality,
+      harvested?.pieces ?? 0,
     );
+    const populationNote =
+      livePopulation != null && harvested?.estimated
+        ? ('after_partial_harvest_estimate' as const)
+        : null;
 
     const freeAmmoniaMgL =
       wq?.ammonia != null && wq?.ph != null && wq?.temperature != null
@@ -630,7 +718,7 @@ export class PondContextService {
     const now = Date.now();
     const ageDays = (iso: string | null) =>
       iso ? (now - new Date(iso).getTime()) / 86400000 : null;
-    const confidence = this.computeConfidence([
+    const baseConfidence = this.computeConfidence([
       {
         key: 'DO',
         present: wq?.dissolvedOxygen != null,
@@ -688,6 +776,23 @@ export class PondContextService {
         freshWindowDays: 9999,
       },
     ]);
+    // A partial harvest with no buyer count leaves the population a guess:
+    // drop one band (score capped just below the band floor, so score and band
+    // stay consistent for every consumer of confidenceBand).
+    const confidence: DataConfidence = populationNote
+      ? (() => {
+          const score =
+            baseConfidence.band === 'high'
+              ? Math.min(baseConfidence.score, 74)
+              : Math.min(baseConfidence.score, 49);
+          return {
+            ...baseConfidence,
+            score,
+            band: confidenceBand(score),
+            stale: [...baseConfidence.stale, 'Population'],
+          };
+        })()
+      : baseConfidence;
 
     return {
       pondId,
@@ -701,6 +806,7 @@ export class PondContextService {
       freeAmmoniaMgL,
       abwG,
       livePopulation,
+      populationNote,
       biomassKg,
       crop: crop
         ? {
