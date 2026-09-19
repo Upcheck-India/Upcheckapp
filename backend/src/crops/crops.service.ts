@@ -4,11 +4,10 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Not, Repository } from 'typeorm';
+import { DataSource, EntityManager, Not, Repository } from 'typeorm';
 import { Crop, computeDoc } from './crop.entity';
 import { CreateCropDto } from './dto/create-crop.dto';
 import { UpdateCropDto } from './dto/update-crop.dto';
-import { HarvestCropDto } from './dto/harvest-crop.dto';
 import { Pond } from '../ponds/pond.entity';
 import { PondsService } from '../ponds/ponds.service';
 import type { FarmCapability } from '../farm-access/farm-capability';
@@ -261,78 +260,53 @@ export class CropsService {
     return this.cropsRepository.delete(id);
   }
 
-  async harvest(id: string, harvestData: HarvestCropDto, userId: string) {
-    // Completing a cycle IS recording a harvest — gate it on the capability
-    // that says so, not on VIEW_FINANCIALS (which 403s a granted worker) and
-    // not on the general WRITE_MANAGEMENT key (which would let a member the
-    // owner explicitly blocked from harvesting close the cycle anyway).
+  /**
+   * `manager` lets `HarvestsService.create` close the cycle inside the same
+   * transaction that inserted the full harvest, so the two land or fail
+   * together. Without it the writes go through the default manager.
+   */
+  async closeCycle(
+    id: string,
+    actualHarvestDate: string,
+    userId: string,
+    manager?: EntityManager,
+  ) {
+    // RECORD_HARVEST, not VIEW_FINANCIALS: this runs inside `harvests.create`
+    // for a full harvest, and gating it on the books 403'd the granted worker.
     const crop = await this.findOneAccessible(id, userId, 'RECORD_HARVEST');
-
-    // Assign only the two whitelisted fields — never spread the raw body, which
-    // would let a caller overwrite arbitrary crop columns. Terminal status is
-    // 'completed' (matching closeCycle and the entity's documented states) so
-    // the same real event never lands in two different states.
-    await this.cropsRepository.update(id, {
-      actualHarvestDate: new Date(harvestData.actualHarvestDate),
-      harvestWeightKg: harvestData.harvestWeightKg,
-      status: 'completed',
-    });
-
-    // Unlink from ponds activeCycleId. Harvesting is RECORD_HARVEST.
-    const pond = await this.pondsService.findOneAccessible(
+    await this.pondsService.findOneAccessible(
       crop.pondId,
       userId,
       'RECORD_HARVEST',
     );
-    if (pond.activeCycleId === id) {
-      await this.pondsService.update(
-        pond.id,
-        { activeCycleId: null, status: 'fallow' } as any,
-        userId,
-      );
-    }
-
-    return this.findOneAccessible(id, userId, 'RECORD_HARVEST');
-  }
-
-  async closeCycle(id: string, actualHarvestDate: string, userId: string) {
-    // RECORD_HARVEST, not VIEW_FINANCIALS: this runs inside `harvests.create`
-    // for a full harvest, and gating it on the books 403'd the granted worker
-    // AFTER the harvest row was already committed — leaving an orphan harvest
-    // on a cycle that never closed.
-    const crop = await this.findOneAccessible(id, userId, 'RECORD_HARVEST');
+    const m = manager ?? this.dataSource.manager;
 
     // Idempotent close: the guard `status <> 'completed'` means a
     // double-submitted or concurrently-replayed full harvest closes the cycle
     // exactly once. The second call affects 0 rows and is rejected, so yield /
     // revenue can't be double-counted in reports and P&L.
-    const res = await this.cropsRepository.update(
+    const res = await m.update(
+      Crop,
       { id, status: Not('completed') },
-      { actualHarvestDate, status: 'completed' },
+      { actualHarvestDate, status: 'completed', isActive: false },
     );
     if (!res.affected) {
-      throw new ConflictException('Cycle is already closed.');
+      throw new ConflictException({
+        statusCode: 409,
+        code: 'CYCLE_CLOSED',
+        message: 'This cycle is already closed.',
+      });
     }
 
-    // Unlink from ponds activeCycleId
-    // We can't just set to null blindly, we should check if THIS crop is the active one.
-    // But findOne verified ownership via pond.
-    // Let's get the pond first to be safe?
-    // findOne already calls pondService.findOne(crop.pondId), but doesn't return pond.
-
-    // Closing a cycle is RECORD_HARVEST.
-    const pond = await this.pondsService.findOneAccessible(
-      crop.pondId,
-      userId,
-      'RECORD_HARVEST',
+    // Free the pond — only if THIS crop is still its active cycle, so a newer
+    // cycle started meanwhile is never unlinked. A direct conditional update
+    // rather than `pondsService.update`, which demands WRITE_MANAGEMENT and
+    // would 403 a member who holds only RECORD_HARVEST after the crop closed.
+    await m.update(
+      Pond,
+      { id: crop.pondId, activeCycleId: id },
+      { activeCycleId: null, status: 'fallow' } as any,
     );
-    if (pond.activeCycleId === id) {
-      await this.pondsService.update(
-        pond.id,
-        { activeCycleId: null, status: 'fallow' } as any,
-        userId,
-      );
-    }
 
     return this.findOneAccessible(id, userId, 'RECORD_HARVEST');
   }
