@@ -18,8 +18,13 @@ jest.mock('../../../api/crops', () => ({ cropsApi: { getAll: jest.fn() } }));
 
 // `mock`-prefixed so babel-plugin-jest-hoist lets the factories close over them.
 let mockCanViewFinancials = true;
+let mockRole: string | null = null;
 jest.mock('../../../hooks/usePermissions', () => ({
-    usePermissions: () => ({ canViewFinancials: mockCanViewFinancials }),
+    usePermissions: () => ({
+        canViewFinancials: mockCanViewFinancials,
+        isOwner: mockRole === 'owner',
+        isManager: mockRole === 'manager',
+    }),
 }));
 
 import React from 'react';
@@ -62,6 +67,7 @@ const sectionsWith = (...on: (keyof ExportSections)[]): ExportSections => {
 beforeEach(() => {
     jest.clearAllMocks();
     mockCanViewFinancials = true;
+    mockRole = null;
     useSyncStore.setState({ isConnected: true });
     runExport.mockResolvedValue({ uri: 'file:///r.pdf', filename: 'r.pdf', mimeType: 'application/pdf', format: 'pdf' });
     (farmsApi.getAll as jest.Mock).mockResolvedValue({ data: [{ id: 'f1', name: 'Farm one' }] });
@@ -214,5 +220,49 @@ describe('section toggles', () => {
 
         await waitFor(() => expect(runExport).toHaveBeenCalledTimes(1));
         expect(runExport.mock.calls[0][0].sections).toEqual(sectionsWith('summary'));
+    });
+});
+
+describe('cycle input record (D4)', () => {
+    it.each(['worker', 'viewer'])('is not offered to a %s', (role) => {
+        mockRole = role;
+        const { queryByTestId } = renderScreen({ dataset: 'inputRecord', farmId: 'f1', cropId: 'c1' });
+        expect(queryByTestId('export-dataset-inputRecord')).toBeNull();
+    });
+
+    it.each(['owner', 'manager'])('is offered to the %s: viewer locale, PDF/XLSX only, no period or sections', async (role) => {
+        mockRole = role;
+        const i18n = require('../../../i18n').default;
+        await i18n.changeLanguage('hi');
+        try {
+            const { getByTestId, queryByTestId } = renderScreen({ dataset: 'inputRecord', farmId: 'f1', pondId: 'p1', cropId: 'c1' });
+            expect(getByTestId('export-dataset-inputRecord')).toBeTruthy();
+            expect(queryByTestId('export-format-csv')).toBeNull();
+            expect(queryByTestId('export-period-week')).toBeNull();
+            expect(queryByTestId('export-section-costs')).toBeNull();
+            expect(queryByTestId('export-language-ta')).toBeNull();
+
+            fireEvent.press(getByTestId('export-submit'));
+            await waitFor(() => expect(runExport).toHaveBeenCalledTimes(1));
+            expect(runExport.mock.calls[0][0]).toMatchObject({ dataset: 'inputRecord', cropId: 'c1', format: 'pdf', language: 'hi' });
+        } finally {
+            await i18n.changeLanguage('en');
+        }
+    });
+
+    it('the English-copy toggle renders it in English', async () => {
+        mockRole = 'owner';
+        const i18n = require('../../../i18n').default;
+        await i18n.changeLanguage('ta');
+        try {
+            const { getByTestId } = renderScreen({ dataset: 'inputRecord', farmId: 'f1', pondId: 'p1', cropId: 'c1' });
+            fireEvent(getByTestId('export-english-copy'), 'valueChange', true);
+            fireEvent.press(getByTestId('export-format-xlsx'));
+            fireEvent.press(getByTestId('export-submit'));
+            await waitFor(() => expect(runExport).toHaveBeenCalledTimes(1));
+            expect(runExport.mock.calls[0][0]).toMatchObject({ format: 'xlsx', language: 'en' });
+        } finally {
+            await i18n.changeLanguage('en');
+        }
     });
 });
