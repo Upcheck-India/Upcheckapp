@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   BadRequestException,
+  ForbiddenException,
   UseGuards,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -33,26 +34,39 @@ export class HarvestTimingController {
   ) {}
 
   /**
-   * Compute the projection + verdict. Resolves price bands from `region` when
-   * `priceBands` is omitted; optionally persists when `persist` + `pondId`.
+   * Compute the projection + verdict. Price bands: the body's, else the
+   * farm's current buyer quote (H5, when `pondId` is sent), else a `region`
+   * feed (old builds). Optionally persists when `persist` + `pondId`.
    *
    * No route-level OwnershipGuard: `pondId` is optional here (a pure preview
    * carries none), and the guard 404s when it cannot resolve a resource id.
-   * The persist branch asserts WRITE_MANAGEMENT on the pond before writing,
-   * which is the enforcement point for the only part of this route that
-   * touches farm data.
+   * With a `pondId` the answer is that pond's money, so VIEW_FINANCIALS is
+   * asserted first (B6). Persisting additionally needs WRITE_MANAGEMENT; a
+   * caller without it still gets the answer, just not a stored record.
    */
   @Post('optimize')
   async optimize(@Body() body: OptimizeHarvestTimingDto, @CurrentUser() user) {
     let priceBands = body.priceBands;
+    if (body.pondId) {
+      const pond = await this.pondsService.findOneAccessible(
+        body.pondId,
+        user.id,
+        'VIEW_FINANCIALS',
+      );
+      if (!priceBands?.length) {
+        priceBands = await this.pricing.usableBands(pond.farmId);
+      }
+    }
     if ((!priceBands || !priceBands.length) && body.region) {
       const feed = await this.pricing.latestForRegion(body.region);
       priceBands = feed ? this.pricing.bandsFromPrices(feed.prices) : [];
     }
     if (!priceBands || !priceBands.length) {
-      throw new BadRequestException(
-        'priceBands or a region with a feed is required',
-      );
+      throw new BadRequestException({
+        statusCode: 400,
+        code: 'NO_PRICE_QUOTE',
+        message: "Add today's buyer quote first",
+      });
     }
 
     const input: HarvestTimingInput = {
@@ -73,7 +87,13 @@ export class HarvestTimingController {
 
     if (body.persist && body.pondId) {
       // Persisting an optimisation result is planning — WRITE_MANAGEMENT.
-      await this.pondsService.verifyAccess(body.pondId, user.id, 'WRITE_MANAGEMENT');
+      // Without it the farmer still gets the advice; only the record is skipped.
+      try {
+        await this.pondsService.verifyAccess(body.pondId, user.id, 'WRITE_MANAGEMENT');
+      } catch (err) {
+        if (err instanceof ForbiddenException) return result;
+        throw err;
+      }
       const saved = await this.repo.save(
         this.repo.create({
           pondId: body.pondId,

@@ -16,12 +16,12 @@ export interface CropPnl {
 }
 
 export const pnlApi = {
-  /** Crop P&L: CoP/kg, break-even count, profit/margin/ROI, t/ha. */
-  cropPnl: (cropId: string, opts?: { region?: string; areaM2?: number }) =>
+  /**
+   * Crop P&L: CoP/kg, break-even count, profit/margin/ROI, t/ha. Break-even
+   * is priced from the farm's own buyer quote on the server (H5).
+   */
+  cropPnl: (cropId: string, opts?: { areaM2?: number }) =>
     apiClient.get<CropPnl>(`/pnl/crop/${cropId}`, {
-      params: {
-        ...(opts?.region ? { region: opts.region } : {}),
-        ...(opts?.areaM2 ? { areaM2: opts.areaM2 } : {}),
-      },
+      params: opts?.areaM2 ? { areaM2: opts.areaM2 } : {},
     }),
 };

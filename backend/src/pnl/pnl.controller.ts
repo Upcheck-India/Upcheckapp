@@ -7,16 +7,17 @@ import { PnlService } from './pnl.service';
 export class PnlController {
   constructor(private readonly service: PnlService) {}
 
-  /** Roll up a crop's P&L: CoP/kg, break-even count, profit/margin/ROI, t/ha. */
+  /**
+   * Roll up a crop's P&L: CoP/kg, break-even count, profit/margin/ROI, t/ha.
+   * Break-even prices come from the farm's own quote (H5); `region` is gone.
+   */
   @Get('crop/:cropId')
   cropPnl(
     @Param('cropId') cropId: string,
     @CurrentUser() user,
-    @Query('region') region?: string,
     @Query('areaM2') areaM2?: string,
   ) {
     return this.service.computeCropPnl(cropId, user.id, {
-      region,
       areaM2: areaM2 ? Number(areaM2) : undefined,
     });
   }

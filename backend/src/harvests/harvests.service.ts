@@ -19,6 +19,7 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import { toIstDateString } from '../common/ist-date';
 import { harvestTotals, HarvestTotals } from './harvest-totals';
 import { isMissingSchema } from '../pond-context/pond-context.service';
+import { bandsFromGrades, writeHarvestQuote } from '../india/pricing.service';
 import { currentMoltWindow } from '../molt/molt-window';
 
 /** A stored grade line as the API returns it. */
@@ -247,6 +248,18 @@ export class HarvestsService {
         manager.create(Harvest, { ...fields, createdById: userId }),
       );
       await this.writeDetails(manager, row.id, lines, totals, rejectedKg, rejectedReason);
+      // H5: priced grade lines are the farm's newest buyer quote. `lines` has
+      // no prices without VIEW_FINANCIALS (cleanGrades), so none is written.
+      if (lines) {
+        await writeHarvestQuote(manager, {
+          pondId: locked.pondId,
+          harvestId: row.id,
+          harvestDate: createDto.harvestDate,
+          buyer: fields.buyerName,
+          bands: bandsFromGrades(lines),
+          userId,
+        });
+      }
       if (rejectedReason === 'soft_shell') {
         await this.recordSoftShell(manager, row.id, locked, createDto.harvestDate, userId);
       }
