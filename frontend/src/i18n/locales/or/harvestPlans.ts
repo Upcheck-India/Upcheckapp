@@ -47,4 +47,6 @@ export default {
   createFailed: 'ଅମଳ ଯୋଜନା ସୃଷ୍ଟି କରିବାରେ ବିଫଳ',
   moltWindowTitle: 'ମୋଲ୍ଟ ୱିଣ୍ଡୋ',
   moltWindowWarning: 'ଏହି ତାରିଖ ମୋଲ୍ଟ ୱିଣ୍ଡୋରେ ଅଛି ({{start}} – {{end}}): ନରମ ଖୋଳ ଓ କମ ଦାମର ସମ୍ଭାବନା।',
+  moltDayPeak: '{{date}} ମୋଲ୍ଟ ପିକ୍ ଦିନ ({{start}} – {{end}}): ନରମ ଖୋଳ ଓ କମ ଦାମର ସମ୍ଭାବନା।',
+  moltDayPost: '{{date}} ମୋଲ୍ଟ ପିକ୍ ପରେ ({{start}} – {{end}}): ଖୋଳ ଏବେ ବି ନରମ ଥାଇପାରେ।',
 };
