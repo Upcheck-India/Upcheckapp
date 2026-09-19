@@ -10,6 +10,7 @@ import { computeDoc } from '../crops/crop.entity';
 import { PondContextService } from '../pond-context/pond-context.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
 import { isLowStock } from '../inventory/inventory.constants';
+import { isMissingSchema } from '../health-observations/health.constants';
 import { DayScoreInput, MinMax, TrayStatus, combineScores, combineValues, computeDayScore, isMortalitySpike } from './day-score';
 import {
   BriefTask, DailyBrief, ParamDay, PersonDay, PondDay, PondWork, ReasonCode, Severity, StalePond, StoryItem, StoryTone,
@@ -21,6 +22,8 @@ export const MIN_DATE = '2020-01-01';
 const FEED_LOOKBACK_DAYS = 30;
 /** How far back "last logged" looks. Past this a stocked pond counts from stocking. */
 const LAST_LOG_LOOKBACK_DAYS = 60;
+/** An `ongoing` disease record older than this gets a watch line (spec D6). */
+const DISEASE_WATCH_DAYS = 14;
 const DONE = ['done', 'verified'];
 const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400_000);
 const TZ = `'Asia/Kolkata'`;
@@ -896,6 +899,29 @@ export class DailyBriefService {
       }
       const tr = treatments.filter((t: any) => t.pond_id === id && t.day === D);
       if (tr.length) story.push({ code: 'treatment_given', tone: tr.some((t: any) => t.flag === 'banned') ? 'critical' : 'info', pondId: id, count: tr.length });
+    }
+
+    // D6: a disease episode still `ongoing` 14+ days after it was logged, on a
+    // running cycle. Outcome is current state, not history, so today only.
+    // Before migration 1780701500000 the column is missing → no line.
+    if (isToday && hasPonds) {
+      const open = await q_('disease_ongoing',
+        `SELECT c.pond_id, d.name, min(r.recorded_date)::text AS since
+           FROM disease_records r
+           JOIN crops c ON c.id = r.crop_id
+           JOIN disease_library d ON d.id = r.disease_id
+          WHERE c.pond_id = ANY($1::uuid[]) AND c.status = 'active'
+            AND r.outcome = 'ongoing' AND r.recorded_date <= $2
+          GROUP BY 1, 2
+          ORDER BY 3
+          LIMIT 20`,
+        [pondIds, addDays(D, -DISEASE_WATCH_DAYS)]).catch((err) => {
+        if (isMissingSchema(err)) return [] as any[];
+        throw err;
+      });
+      for (const o of open) {
+        story.push({ code: 'disease_ongoing', tone: 'watch', pondId: o.pond_id, title: o.name, count: daysBetween(o.since, D) });
+      }
     }
 
     // Coverage of stocked ponds and the day's tasks. Today these read "so far", so they don't warn yet.

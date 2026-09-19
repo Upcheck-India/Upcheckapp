@@ -2,6 +2,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsDateString,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -10,6 +11,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { MORTALITY_CAUSES } from '../../health-observations/health.constants';
 
 export class CreateMortalityRecordDto {
   // Client-minted idempotency key — lets offline replays be safe (insert-or-return).
@@ -48,4 +50,16 @@ export class CreateMortalityRecordDto {
   @IsString({ each: true })
   @MaxLength(2048, { each: true })
   images?: string[];
+
+  @IsOptional()
+  @IsIn(MORTALITY_CAUSES)
+  suspectedCause?: string;
+
+  /** `health-photos` paths from POST /health-observations/photos/:pondId. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(6)
+  @IsString({ each: true })
+  @MaxLength(200, { each: true })
+  photoUrls?: string[];
 }

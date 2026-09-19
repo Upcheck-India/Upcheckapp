@@ -11,6 +11,7 @@ import {
   CreateDiseaseRecordDto,
 } from './dto/create-disease.dto';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 describe('DiseaseService', () => {
   let service: DiseaseService;
@@ -61,7 +62,7 @@ describe('DiseaseService', () => {
 
   type MockRepository<T = any> = Partial<Record<string, jest.Mock>>;
 
-  const createMockRepository = (): MockRepository<any> => ({
+  const createMockRepository = (): any => ({
     create: jest.fn(),
     save: jest.fn(),
     find: jest.fn(),
@@ -71,6 +72,7 @@ describe('DiseaseService', () => {
     delete: jest.fn(),
     count: jest.fn(),
     remove: jest.fn(),
+    manager: { query: jest.fn().mockResolvedValue([]) },
   });
 
   beforeEach(async () => {
@@ -81,6 +83,7 @@ describe('DiseaseService', () => {
           useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
         },
         DiseaseService,
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn() } },
         {
           provide: getRepositoryToken(DiseaseLibrary),
           useValue: createMockRepository(),
