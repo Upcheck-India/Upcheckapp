@@ -15,6 +15,9 @@ import { pondsApi, type Pond } from '../../api/ponds';
 import { apiErrorMessage } from '../../api/errors';
 import { toLocalISODate } from '../../utils/localDate';
 import { capture, EVENTS } from '../../features/analytics';
+import { confirm } from '../../utils/confirm';
+import { biosecurityApi, seedWarning, type SeedHealth } from '../../api/biosecurity';
+import { EMPTY_SEED, SeedHealthFields } from '../../components/biosecurity/SeedHealthFields';
 
 /** Parse a non-empty numeric string, else undefined (so the column default applies). */
 const num = (s: string) => (s.trim() ? Number(s) : undefined);
@@ -64,6 +67,9 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
     const [targetDays, setTargetDays] = useState('120');
     const [targetSize, setTargetSize] = useState('');
     const [targetSr, setTargetSr] = useState('75');
+
+    const [seed, setSeed] = useState<SeedHealth>(EMPTY_SEED);
+    const [seedOpen, setSeedOpen] = useState(false);
 
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<{ name?: string; stockingCount?: string; seedType?: string }>({});
@@ -144,10 +150,25 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
         }
 
         setErrors({});
+
+        // D5: warn only — a positive PCR asks once, it never blocks.
+        if (
+            seedWarning(seed.plPcrResults) === 'positive' &&
+            !(await confirm({
+                title: t('biosecurity.positiveTitle'),
+                message: t('biosecurity.warnPositive'),
+                confirmLabel: t('biosecurity.stockAnyway'),
+                cancelLabel: t('common.cancel'),
+                destructive: true,
+            }))
+        ) {
+            return;
+        }
+
         setIsLoading(true);
 
         try {
-            await cropsApi.create({
+            const { data: crop } = await cropsApi.create({
                 pondId,
                 name: name.trim(),
                 stockingDate: toLocalISODate(stockingDate),
@@ -161,6 +182,11 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
                 targetSize: num(targetSize),
                 targetSrPercent: num(targetSr),
             });
+            // Seed health is optional and editable later from CycleDetail, so a
+            // failure here (e.g. backend not migrated yet) never fails the cycle.
+            if (crop?.id && JSON.stringify(seed) !== JSON.stringify(EMPTY_SEED)) {
+                await biosecurityApi.setSeed(crop.id, seed).catch(() => undefined);
+            }
             // Activation. The stocking count, seed and prices above are farm
             // records and stay here — only the fact of a cycle starting goes.
             capture(EVENTS.CYCLE_STARTED, { ok: true });
@@ -305,6 +331,22 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
                     <View style={styles.halfCol} />
                 </View>
 
+                <TouchableOpacity
+                    testID="seed-health-toggle"
+                    style={styles.collapseHeader}
+                    onPress={() => setSeedOpen((o) => !o)}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: seedOpen }}
+                >
+                    <Text style={styles.sectionLabel}>{t('biosecurity.seedTitle')}</Text>
+                    <MaterialCommunityIcons
+                        name={seedOpen ? 'chevron-up' : 'chevron-down'}
+                        size={22}
+                        color={theme.roles.light.textSecondary}
+                    />
+                </TouchableOpacity>
+                {seedOpen && <SeedHealthFields value={seed} onChange={setSeed} />}
+
                 <Button
                     title={t('cycles.startCycle')}
                     onPress={handleSave}
@@ -375,5 +417,10 @@ const styles = StyleSheet.create({
     },
     saveBtn: {
         marginTop: theme.spacing[6],
+    },
+    collapseHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
     },
 });

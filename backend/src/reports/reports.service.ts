@@ -15,6 +15,7 @@ import { computeDoc } from '../crops/crop.entity';
 import { FREE_NH3, isCritical } from '../common/wq-thresholds';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
 import { isMissingSchema } from '../pond-context/pond-context.service';
+import { BIOSECURITY_ITEMS } from '../crops/biosecurity.service';
 import {
   DEFAULT_PL_ABW_G,
   ResultHarvest,
@@ -380,9 +381,8 @@ export class ReportsService {
           ? [...handlingDays].filter((d) => inPeak(windows, d)).length
           : null,
         diseases: diseases as { recordedDate: string; name: string | null; outcome: string | null }[] | null,
-        // ponytail: 9 = D5's prep+culture items (disease spec §D5); read D5's
-        // constant once it merges.
-        biosecurity: bioDone > 0 ? { done: bioDone, total: 9 } : null,
+        biosecurity:
+          bioDone > 0 ? { done: bioDone, total: BIOSECURITY_ITEMS.length } : null,
         seedPcr: seedRow?.results
           ? { results: seedRow.results, date: seedRow.date ?? null, spf: seedRow.spf ?? null }
           : null,

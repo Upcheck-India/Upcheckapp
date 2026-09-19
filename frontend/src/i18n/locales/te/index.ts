@@ -42,6 +42,7 @@ import alerts from './alerts';
 import compliance from './compliance';
 import health from './health';
 import reports from './reports';
+import biosecurity from './biosecurity';
 
 export default {
   common,
@@ -82,4 +83,5 @@ export default {
   compliance,
   health,
   reports,
+  biosecurity,
 };
