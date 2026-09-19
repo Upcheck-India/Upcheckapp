@@ -19,8 +19,9 @@ import { theme } from '../../theme';
 import { feedAdvisorApi, type RationResult, type TrayResidue } from '../../api/feedAdvisor';
 import { apiErrorMessage } from '../../api/errors';
 import { usePondContext } from '../../hooks/usePondContext';
-import { useMoltWindows } from '../../components/molt/MoltPeakBanner';
-import { istDateString, windowContaining } from '../../features/moltWindow';
+import { useAppQuery } from '../../query/hooks';
+import { moltApi, type PondMolt } from '../../api/molt';
+import { isMoltPeakFor } from '../../features/moltWindow';
 import { MissingInputs } from '../../components/ui/MissingInputs';
 import { EngineUnavailable } from '../../components/ui/EngineUnavailable';
 import {
@@ -64,10 +65,16 @@ export const FeedAdvisorScreen = ({ route }: any) => {
   const [molt, setMolt] = useState(false);
   const [fasting, setFasting] = useState(false);
 
-  // Default the molt-peak cut from the SAME window the alerts and checklist use
-  // (server true phase, IST). Still a toggle: the farmer can override it.
-  const { data: moltWindows } = useMoltWindows();
-  const inPeak = windowContaining(moltWindows, istDateString(new Date()))?.phase === 'peak';
+  // Default the molt-peak cut from THIS pond's checklist (M1.4): peak AND the
+  // shrimp are big enough to molt with the moon. Same query key as the Lunar
+  // checklist, so the two never disagree. Still a toggle the farmer can
+  // override; with no pond there is nothing to judge, so it stays off.
+  const { data: pondMolt } = useAppQuery<PondMolt>({
+    queryKey: ['pond', 'molt', pondId],
+    queryFn: () => moltApi.pond(pondId).then((r) => r.data),
+    enabled: !!pondId,
+  });
+  const inPeak = isMoltPeakFor(pondMolt);
   useEffect(() => {
     if (inPeak) setMolt(true);
   }, [inPeak]);

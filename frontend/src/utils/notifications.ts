@@ -341,7 +341,18 @@ export async function syncReminders(
     }
 }
 
-const MOLT_REMINDER_TAG = 'molt-reminder';
+export const MOLT_REMINDER_TAG = 'molt-reminder';
+
+/**
+ * Which windows get an evening-before reminder: the current and next, but
+ * only when ≥ 1 pond is molt-eligible (M1.4). `eligiblePonds` is absent on a
+ * backend older than the molt-window deploy → none.
+ */
+export const moltReminderWindows = <W>(mw: {
+    window: W | null;
+    next: W;
+    eligiblePonds?: number;
+}): W[] => ((mw.eligiblePonds ?? 0) > 0 ? [mw.window, mw.next].filter((w): w is W => !!w) : []);
 
 /**
  * One local notification at 18:00 on the evening before each upcoming molt
@@ -359,14 +370,17 @@ export async function syncMoltReminders(
     if (Platform.OS === 'web') return;
     try {
         const { status } = await Notifications.getPermissionsAsync();
-        if (status !== 'granted' || windows.length === 0) return;
-        await ensureNotificationChannel();
+        if (status !== 'granted') return;
+        // Cancel first even with no windows: a farm whose last eligible pond
+        // was harvested must not still get "molt window starts tomorrow".
         const scheduled = await Notifications.getAllScheduledNotificationsAsync();
         await Promise.all(
             scheduled
                 .filter((n: any) => n?.content?.data?.tag === MOLT_REMINDER_TAG)
                 .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
         );
+        if (windows.length === 0) return;
+        await ensureNotificationChannel();
         for (const w of windows) {
             const [y, m, d] = w.preStart.split('-').map(Number);
             // Local 18:00 on the day before preStart.

@@ -10,6 +10,7 @@ import {
   MoltService,
   PondMolt,
   MoltAlertActions,
+  TextKey,
   moltAlertFor,
 } from '../molt/molt.service';
 import {
@@ -47,6 +48,10 @@ export interface AlertDraft {
   steps: string[];
   /** Lunar only: what the client can tick or route (spec A.5). */
   actions?: MoltAlertActions;
+  /** Lunar only: i18n keys beside the English (M1.6). */
+  titleKey?: TextKey;
+  bodyKey?: TextKey;
+  stepKeys?: TextKey[];
 }
 
 export interface LiveAlert extends AlertDraft {
@@ -163,7 +168,12 @@ export class EngineAlertService {
     const a = moltStatus ? moltAlertFor(moltStatus) : null;
     if (a) {
       push(a.severity, 'lunar', a.title, a.body, a.steps);
-      drafts[drafts.length - 1].actions = a.actions;
+      Object.assign(drafts[drafts.length - 1], {
+        actions: a.actions,
+        titleKey: a.titleKey,
+        bodyKey: a.bodyKey,
+        stepKeys: a.stepKeys,
+      });
     }
 
     return drafts;
@@ -248,7 +258,12 @@ export class EngineAlertService {
         pondId: d.pondId,
         severity: d.severity,
         title: d.title,
-        data: { source: d.source, steps: d.steps, ...(d.actions ? { actions: d.actions } : {}) },
+        data: {
+          source: d.source,
+          steps: d.steps,
+          ...(d.actions ? { actions: d.actions } : {}),
+          ...(d.titleKey ? { titleKey: d.titleKey, stepKeys: d.stepKeys } : {}),
+        },
       })),
     );
   }

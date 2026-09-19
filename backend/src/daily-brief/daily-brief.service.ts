@@ -4,7 +4,7 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import { roleSatisfies } from '../farm-access/farm-capability';
 import { istDayRangeUtc, toIstDateString } from '../common/ist-date';
 import { FREE_NH3, Zone, classify, thresholdFor } from '../common/wq-thresholds';
-import { MoltItemStatus, MoltService, PondMolt, moltAlertFor } from '../molt/molt.service';
+import { MOLT_MIN_ABW_G, MoltItemStatus, MoltService, PondMolt, moltAlertFor } from '../molt/molt.service';
 import { addDays, currentMoltWindow } from '../molt/molt-window';
 import { computeDoc } from '../crops/crop.entity';
 import { PondContextService } from '../pond-context/pond-context.service';
@@ -521,8 +521,12 @@ export class DailyBriefService {
       // A score rates a crop. A pond with no cycle that day (empty, drying,
       // being prepared) still shows its readings, but one water test there
       // scored 100 and lifted the farm score in production data.
-      const score = active ? scoreFor(dd, D, moltD.phase, dR.end) : null;
-      const prevScore = cycleOn(p, P) ? scoreFor(pd, P, moltP.phase, pR.end) : null;
+      // The peak exemptions (feed cut, handling) apply only to a pond whose
+      // shrimp molt with the moon (M1.4): same ABW gate as the checklist.
+      const moltEligible = (abwByPond.get(p.id) ?? -1) >= MOLT_MIN_ABW_G;
+      const moltPhaseOf = (ph: string) => (moltEligible ? ph : 'inter');
+      const score = active ? scoreFor(dd, D, moltPhaseOf(moltD.phase), dR.end) : null;
+      const prevScore = cycleOn(p, P) ? scoreFor(pd, P, moltPhaseOf(moltP.phase), pR.end) : null;
       if (prevScore && prevScore.reasons.length && prevScore.value < worstPrevValue) {
         worstPrevValue = prevScore.value;
         worstPrevious = { pondId: p.id, reason: prevScore.reasons[0] };

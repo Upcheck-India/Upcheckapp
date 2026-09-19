@@ -55,6 +55,9 @@ export interface PlaybookStep {
   priority: StepPriority;
   text: string;
   trigger?: string;
+  /** i18n key + params (M1.6); absent on an older backend → render `text`. */
+  key?: string;
+  params?: Record<string, string | number>;
 }
 
 export interface LunarPlaybook {
@@ -63,6 +66,12 @@ export interface LunarPlaybook {
   headline: string;
   note: string;
   steps: PlaybookStep[];
+  /** i18n keys beside the English (M1.6); absent on an older backend. */
+  phaseLabelKey?: string;
+  headlineKey?: string;
+  headlineParams?: Record<string, string | number>;
+  headlineCritical?: boolean;
+  noteKey?: string;
 }
 
 export const lunarApi = {

@@ -137,9 +137,16 @@ describe('EngineAlertService.evaluate — molt checklist', () => {
     });
   });
 
-  it('critical at peak when handling was logged (violated)', () => {
-    const [a] = lunar(molt({ phase: 'peak', ev: { handlingInPeak: true } }));
-    expect(a.severity).toBe('critical');
+  // M1.3: handling logged in peak is history the farmer cannot undo — it no
+  // longer holds a critical alert open once everything else is done.
+  it('handling logged in peak alone raises no alert', () => {
+    expect(lunar(molt({ phase: 'peak', manual: ['aerator_service'], ev: { handlingInPeak: true } }))).toEqual([]);
+  });
+
+  it('carries i18n keys beside the English', () => {
+    const [a] = lunar(molt({ phase: 'peak', ev: { peakDo: false } }));
+    expect(a.titleKey).toEqual({ key: 'engines.lunar.alertTitle_peak', params: { count: 1 } });
+    expect(a.stepKeys).toEqual([{ key: 'engines.lunar.item_night_do_check' }]);
   });
 
   it('watch in pre with a pending important item', () => {

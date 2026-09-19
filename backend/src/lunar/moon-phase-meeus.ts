@@ -25,8 +25,9 @@
  * over the air like any other change.
  *
  * ── Accuracy ──────────────────────────────────────────────────────────────
- * The periodic terms below are Meeus's, truncated to the largest ones. That
- * is good to roughly a minute, which is far inside what a calendar date needs
+ * The periodic terms below are Meeus's full new-moon and full-moon series, plus
+ * ΔT to convert to UT. Checked against every USNO 2026 phase: within a minute
+ * (moon-phase-meeus.spec.ts), which is far inside what a calendar date needs
  * and vastly better than the ±14 hours it replaces. It is deliberately NOT a
  * full ephemeris: we need the right DAY, not the right second.
  */
@@ -56,10 +57,24 @@ const meanPhaseJde = (k: number): number => {
 };
 
 /**
- * Apply the periodic corrections to a mean phase.
- *
- * `isNew` selects Meeus's new-moon series or his full-moon series; the two
- * differ only in the leading coefficient of the first term.
+ * Meeus ch. 49 leading periodic terms: [new moon, full moon] coefficients.
+ * The two series differ in these seven; everything after them is shared.
+ */
+const LEAD = {
+  new: [-0.4072, 0.17241, 0.01608, 0.01039, 0.00739, -0.00514, 0.00208],
+  full: [-0.40614, 0.17302, 0.01614, 0.01043, 0.00734, -0.00515, 0.00209],
+};
+
+/**
+ * ΔT = TT − UT, in days. Meeus's instants are Dynamical Time; USNO publishes
+ * UT. ~69 s for 2024–2028 (IERS Bulletin A).
+ * ponytail: constant ΔT; drifts ~1 s/yr — swap for a table if this is used past ~2035.
+ */
+const DELTA_T_DAYS = 69 / 86_400;
+
+/**
+ * Apply the periodic corrections to a mean phase, using Meeus's new-moon or
+ * full-moon series.
  */
 const correction = (k: number, isNew: boolean): number => {
   const t = k / 1236.85;
@@ -74,16 +89,16 @@ const correction = (k: number, isNew: boolean): number => {
   // Eccentricity of Earth's orbit (47.6) — scales the solar-anomaly terms.
   const E = 1 - 0.002516 * t - 0.0000074 * t * t;
 
-  const lead = isNew ? -0.40720 : -0.40614;
+  const [c1, c2, c3, c4, c5, c6, c7] = isNew ? LEAD.new : LEAD.full;
 
   let c =
-    lead * Math.sin(Mp) +
-    0.17241 * E * Math.sin(M) +
-    0.01608 * Math.sin(2 * Mp) +
-    0.01039 * Math.sin(2 * F) +
-    0.00739 * E * Math.sin(Mp - M) -
-    0.00514 * E * Math.sin(Mp + M) +
-    0.00208 * E * E * Math.sin(2 * M) -
+    c1 * Math.sin(Mp) +
+    c2 * E * Math.sin(M) +
+    c3 * Math.sin(2 * Mp) +
+    c4 * Math.sin(2 * F) +
+    c5 * E * Math.sin(Mp - M) +
+    c6 * E * Math.sin(Mp + M) +
+    c7 * E * E * Math.sin(2 * M) -
     0.00111 * Math.sin(Mp - 2 * F) -
     0.00057 * Math.sin(Mp + 2 * F) +
     0.00056 * E * Math.sin(2 * Mp + M) -
@@ -92,7 +107,16 @@ const correction = (k: number, isNew: boolean): number => {
     0.00038 * E * Math.sin(M - 2 * F) -
     0.00024 * E * Math.sin(2 * Mp - M) -
     0.00017 * Math.sin(Om) -
-    0.00007 * Math.sin(Mp + 2 * M);
+    0.00007 * Math.sin(Mp + 2 * M) +
+    0.00004 * Math.sin(2 * Mp - 2 * F) +
+    0.00004 * Math.sin(3 * M) +
+    0.00003 * Math.sin(Mp + M - 2 * F) +
+    0.00003 * Math.sin(2 * Mp + 2 * F) -
+    0.00003 * Math.sin(Mp + M + 2 * F) +
+    0.00003 * Math.sin(Mp - M + 2 * F) -
+    0.00002 * Math.sin(Mp - M - 2 * F) -
+    0.00002 * Math.sin(3 * Mp + M) +
+    0.00002 * Math.sin(4 * Mp);
 
   // Additional planetary corrections (Meeus, "Additional corrections"). Small,
   // but they are the difference between ~1 minute and ~5 minutes of error.
@@ -112,9 +136,9 @@ const correction = (k: number, isNew: boolean): number => {
   return c;
 };
 
-/** The true instant of the k-th new (or full) moon, as a Julian Day. */
+/** The true instant of the k-th new (or full) moon, as a UT Julian Day. */
 export const truePhaseJde = (k: number, isNew: boolean): number =>
-  meanPhaseJde(isNew ? k : k + 0.5) + correction(isNew ? k : k + 0.5, isNew);
+  meanPhaseJde(isNew ? k : k + 0.5) + correction(isNew ? k : k + 0.5, isNew) - DELTA_T_DAYS;
 
 /** Approximate lunation number for a date — the search seed. */
 const approxK = (d: Date): number => {

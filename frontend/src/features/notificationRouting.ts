@@ -39,6 +39,11 @@ export type NotificationRoute =
     | {
           screen: 'DailyBrief';
           params: { date: string };
+      }
+    | {
+          // The evening-before molt reminder opens the Lunar pond list (M1.4).
+          screen: 'Lunar';
+          params: Record<string, never>;
       };
 
 export function routeForNotification(data: unknown, now: Date = new Date()): NotificationRoute | null {
@@ -52,6 +57,10 @@ export function routeForNotification(data: unknown, now: Date = new Date()): Not
 
     if (tag === 'brief-reminder') {
         return { screen: 'DailyBrief', params: { date: istDate(now) } };
+    }
+
+    if (tag === 'molt-reminder') {
+        return { screen: 'Lunar', params: {} };
     }
 
     if (type === 'feedback_reply' && typeof reportId === 'string' && reportId.length > 0) {

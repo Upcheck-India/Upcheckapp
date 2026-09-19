@@ -1,6 +1,6 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
-import { deriveItems, MoltEvidence, MoltItem, MoltService, MOLT_ITEMS, moltAlertFor, PondMolt } from './molt.service';
+import { deriveItems, HANDLED_WATCH_TEXT, isMineralTreatment, MoltEvidence, MoltItem, MoltService, MOLT_ITEMS, moltAlertFor, PondMolt } from './molt.service';
 import { windowForPeak } from './molt-window';
 import { MoltActionDto, MoltController } from './molt.controller';
 
@@ -37,7 +37,7 @@ describe('deriveItems', () => {
     const on = byKey(
       dv('post', { ...none, minerals: true, alkalinity: true, peakDo: true, postSampling: true }, new Set()),
     );
-    expect(on.minerals).toMatchObject({ status: 'done', source: 'auto', route: 'ChemicalLog' });
+    expect(on.minerals).toMatchObject({ status: 'done', source: 'auto', route: 'TreatmentLog' });
     expect(on.alkalinity_check.status).toBe('done');
     expect(on.night_do_check.status).toBe('done');
     expect(on.post_sampling.status).toBe('done');
@@ -143,7 +143,7 @@ describe('molt alert — only what can still be done today', () => {
       items: [
         { key: 'feed_cut', source: 'manual', route: 'FeedLog' },
         { key: 'night_do_check', source: 'auto', route: 'WaterQualityLog' },
-        { key: 'minerals', source: 'auto', route: 'ChemicalLog' },
+        { key: 'minerals', source: 'manual', route: 'TreatmentLog' },
         { key: 'alkalinity_check', source: 'auto', route: 'WaterQualityLog' },
       ],
     });
@@ -182,10 +182,15 @@ describe('molt alert — only what can still be done today', () => {
  * Service with a fake database: every set-based evidence query returns rows
  * from `rows` by table name; the sampling "latest ABW" query returns `abw`.
  */
-const makeService = (opts: { abw?: number | null; rows?: Record<string, any[]>; ticks?: any[] } = {}) => {
+const makeService = (
+  opts: { abw?: number | null; samplings?: (number | null)[]; rows?: Record<string, any[]>; ticks?: any[] } = {},
+) => {
   const query = jest.fn(async (sql: string) => {
     if (sql.includes('DISTINCT ON (crop_id)')) {
-      return opts.abw === undefined ? [] : [{ cropId: 'c1', mbwG: opts.abw }];
+      // samplings: MBW per row, newest first; the SQL's own filter decides.
+      const rows = opts.samplings ?? (opts.abw === undefined ? [] : [opts.abw]);
+      const eligible = sql.includes('mbw_g IS NOT NULL') ? rows.filter((m) => m != null) : rows;
+      return eligible.length ? [{ cropId: 'c1', mbwG: eligible[0] }] : [];
     }
     const table = sql.match(/FROM (\w+)/)![1];
     return opts.rows?.[table] ?? [];
@@ -255,7 +260,8 @@ describe('MoltService', () => {
     expect(items.minerals.status).toBe('pending');
     expect(items.feed_cut).toMatchObject({ status: 'done', source: 'auto' });
     expect(items.aerator_service.status).toBe('done');
-    expect((await svc.forPond('p1', 'u1', PEAK)).pendingCritical).toBe(2);
+    // no_handling violated is history, not an open action (M1.3): night DO only.
+    expect((await svc.forPond('p1', 'u1', PEAK)).pendingCritical).toBe(1);
   });
 
   it('restore_feed auto-done from post feed in the same feed query (no extra queries)', async () => {
@@ -284,18 +290,18 @@ describe('MoltService', () => {
 });
 
 describe('MoltController POST /molt/ponds/:pondId/actions', () => {
-  it('rejects a windowKey that is not the current window', async () => {
+  it('rejects a windowKey that is not the current window with 409 (stale replay = done)', async () => {
     const { svc, actions } = makeService({ abw: 12 });
     await expect(
       svc.setAction('p1', 'u1', { windowKey: '2026-08-28-full', actionKey: 'aerator_service', done: true }, PRE),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toBeInstanceOf(ConflictException);
     expect(actions.createQueryBuilder).not.toHaveBeenCalled();
   });
 
   it('rejects an auto actionKey', async () => {
     const { svc, actions } = makeService({ abw: 12 });
     await expect(
-      svc.setAction('p1', 'u1', { windowKey: '2026-09-11-new', actionKey: 'minerals', done: true }, PRE),
+      svc.setAction('p1', 'u1', { windowKey: '2026-09-11-new', actionKey: 'alkalinity_check', done: true }, PRE),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(actions.createQueryBuilder).not.toHaveBeenCalled();
   });
@@ -314,11 +320,11 @@ describe('MoltController POST /molt/ponds/:pondId/actions', () => {
     });
   });
 
-  it('rejects ticking a missed item (its days are over) with 400', async () => {
+  it('rejects ticking a missed item (its days are over) with 409', async () => {
     const { svc, actions } = makeService({ abw: 12 });
     await expect(
       svc.setAction('p1', 'u1', { windowKey: '2026-09-11-new', actionKey: 'aerator_service', done: true }, POST),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toBeInstanceOf(ConflictException);
     expect(actions.createQueryBuilder).not.toHaveBeenCalled();
   });
 
@@ -351,5 +357,146 @@ describe('MoltController POST /molt/ponds/:pondId/actions', () => {
     await expect(
       pipe.transform({ windowKey: '2026-09-11-new', actionKey: 'aerator_service', done: 'yes' }, meta),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('M1 molt correctness', () => {
+  const W = windowForPeak(new Date('2026-09-11T03:28:07Z'), 'new');
+  const pmOf = (phase: 'pre' | 'peak' | 'post', items: MoltItem[]): PondMolt => ({
+    pondId: 'p1', window: W, phase, eligible: true, sizeUnknown: false, abwG: 12, items, pendingCritical: 0,
+  });
+
+  describe('M1.1 minerals evidence', () => {
+    it.each([
+      ['MOP 25 kg', true],
+      ['KCl', true],
+      ['MgSO4 and CaCl2', true],
+      ['Agricultural lime', true],
+      ['Dolomite', true],
+      ['mineral mix', true],
+      ['पोटाश 10 किलो', true],
+      ['ডলোমাইট', true],
+      ['சுண்ணாம்பு', true],
+      ['సున్నం', true],
+      ['ଖଣିଜ ମିଶ୍ରଣ', true],
+      ['Oxytetracycline 2 g/kg feed', false],
+      ['Can of probiotic', false],
+      ['BKC 1 L', false],
+      ['Potassium permanganate 2 ppm', false],
+      ['KMnO4', false],
+    ])('%s → %s', (description, expected) => {
+      expect(isMineralTreatment({ description, notes: null })).toBe(expected);
+    });
+
+    it('reads notes too (old clients put the product there)', () => {
+      expect(isMineralTreatment({ description: 'Molt prep', notes: 'Product: Aqua Mineral Mix.' })).toBe(true);
+    });
+
+    it('an NH3 test in pre does NOT tick minerals', async () => {
+      const { svc } = makeService({
+        abw: 12,
+        rows: { chemical_data: [{ cropId: 'c1', alk: false }] },
+      });
+      expect(byKey((await svc.forPond('p1', 'u1', PRE)).items).minerals).toMatchObject({
+        status: 'pending',
+        source: 'manual',
+      });
+    });
+
+    it('a mineral treatment does; an antibiotic does not', async () => {
+      const mineral = makeService({
+        abw: 12,
+        rows: { treatments: [{ cropId: 'c1', description: 'Dolomite 50 kg', notes: null }] },
+      });
+      expect(byKey((await mineral.svc.forPond('p1', 'u1', PRE)).items).minerals).toMatchObject({
+        status: 'done',
+        source: 'auto',
+      });
+      const antibiotic = makeService({
+        abw: 12,
+        rows: { treatments: [{ cropId: 'c1', description: 'Oxytetracycline', notes: null }] },
+      });
+      expect(byKey((await antibiotic.svc.forPond('p1', 'u1', PRE)).items).minerals.status).toBe('pending');
+    });
+
+    it('minerals is auto + manual: a farmer who dosed without logging can tick it', async () => {
+      const { svc, actions } = makeService({ abw: 12 });
+      const pm = await svc.setAction('p1', 'u1', { windowKey: '2026-09-11-new', actionKey: 'minerals', done: true }, PRE);
+      expect(actions.createQueryBuilder).toHaveBeenCalled();
+      expect(byKey(pm.items).minerals).toMatchObject({ status: 'done', source: 'manual' });
+    });
+  });
+
+  it('M1.2 a newer sampling without MBW does not make the pond sizeUnknown', async () => {
+    const { svc } = makeService({ samplings: [null, 12] });
+    const pm = await svc.forPond('p1', 'u1', PEAK);
+    expect(pm).toMatchObject({ sizeUnknown: false, eligible: true, abwG: 12 });
+  });
+
+  describe('M1.3 violated handling', () => {
+    const ev = { ...none, handlingInPeak: true, peakDo: true, minerals: true, alkalinity: true };
+
+    it('stays violated but the alert clears once the other items are done', () => {
+      const items = deriveItems('peak', ev, new Set(['feed_cut']), '2026-09-11', W);
+      expect(byKey(items).no_handling.status).toBe('violated');
+      expect(moltAlertFor(pmOf('peak', items))).toBeNull();
+    });
+
+    it('while others are open: not counted, not critical on its own, plus one watch step', () => {
+      // Only minerals open (important) + violated handling → a watch alert, not critical.
+      const items = deriveItems('peak', { ...ev, minerals: false }, new Set(['feed_cut']), '2026-09-11', W);
+      const a = moltAlertFor(pmOf('peak', items))!;
+      expect(a.severity).toBe('watch');
+      expect(a.title).toBe('Molt peak — 1 action pending');
+      expect(a.steps).toEqual([MOLT_ITEMS.find((d) => d.key === 'minerals')!.text, HANDLED_WATCH_TEXT]);
+      expect(a.stepKeys).toEqual([{ key: 'engines.lunar.item_minerals' }, { key: 'engines.lunar.handledWatch' }]);
+      expect(a.actions.items.map((i) => i.key)).toEqual(['minerals']);
+    });
+  });
+
+  it('M1.6 alert carries i18n keys beside the English', () => {
+    const a = moltAlertFor(pmOf('peak', deriveItems('peak', none, new Set(), '2026-09-11', W)))!;
+    expect(a.titleKey).toEqual({ key: 'engines.lunar.alertTitle_peak', params: { count: 4 } });
+    expect(a.bodyKey).toEqual({ key: 'engines.lunar.windowNew', params: { date: '2026-09-11' } });
+    expect(a.stepKeys.map((k) => k.key)).toEqual(
+      ['feed_cut', 'night_do_check', 'minerals', 'alkalinity_check'].map((k) => `engines.lunar.item_${k}`),
+    );
+    expect(a.title).toBe('Molt peak — 4 actions pending');
+  });
+
+  describe('M1.5 offline tick', () => {
+    const ID = '2f1c6b8e-6d1a-4a53-9a57-2b0f5c1e9a10';
+
+    it('stores the client id and inserts with ON CONFLICT DO NOTHING, so a replay lands once', async () => {
+      const { svc, actions } = makeService({ abw: 12 });
+      const body = { id: ID, windowKey: '2026-09-11-new', actionKey: 'aerator_service', done: true };
+      await svc.setAction('p1', 'u1', body, PRE);
+      await svc.setAction('p1', 'u1', body, PRE); // the replay
+      const qbs = actions.createQueryBuilder.mock.results.map((r: any) => r.value);
+      expect(qbs).toHaveLength(2);
+      for (const qb of qbs) {
+        expect(qb.values).toHaveBeenCalledWith(expect.objectContaining({ id: ID, pondId: 'p1', actionKey: 'aerator_service' }));
+      }
+      expect(actions.delete).not.toHaveBeenCalled();
+    });
+
+    it('a tick replayed after its window closed is 409 (the client treats it as done)', async () => {
+      const { svc, actions } = makeService({ abw: 12 });
+      await expect(
+        svc.setAction('p1', 'u1', { id: ID, windowKey: '2026-09-11-new', actionKey: 'aerator_service', done: true },
+          new Date('2026-09-20T06:00:00Z')),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(actions.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('DTO keeps the client id through whitelist and rejects a non-UUID', async () => {
+      const pipe = new ValidationPipe({ whitelist: true, transform: true });
+      const meta = { type: 'body' as const, metatype: MoltActionDto };
+      const out = await pipe.transform({ id: ID, windowKey: '2026-09-11-new', actionKey: 'aerator_service', done: true }, meta);
+      expect(out.id).toBe(ID);
+      await expect(
+        pipe.transform({ id: 'nope', windowKey: '2026-09-11-new', actionKey: 'aerator_service', done: true }, meta),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
   });
 });

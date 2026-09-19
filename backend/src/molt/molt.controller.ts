@@ -8,13 +8,18 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { IsBoolean, IsString, Matches, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { OwnershipGuard } from '../common/guards/ownership.guard';
 import { OwnsResource } from '../common/decorators/owns-resource.decorator';
 import { MoltService } from './molt.service';
 
 export class MoltActionDto {
+  /** Client-minted id (saveRecord); declared so whitelist does not strip it. */
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
   @IsString()
   @Matches(/^\d{4}-\d{2}-\d{2}-(new|full)$/)
   windowKey: string;

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, IsNull, Not, Repository } from 'typeorm';
 import { MoltAction } from './molt-action.entity';
@@ -16,7 +16,7 @@ import {
 export type MoltPriority = 'critical' | 'important' | 'routine';
 /** `missed` = never done and its days are over (spec 2026-09-14-attendance-and-molt-fixes Q1). */
 export type MoltItemStatus = 'done' | 'pending' | 'violated' | 'missed';
-export type MoltRoute = 'ChemicalLog' | 'WaterQualityLog' | 'FeedLog' | 'SamplingLog';
+export type MoltRoute = 'TreatmentLog' | 'WaterQualityLog' | 'FeedLog' | 'SamplingLog';
 
 export interface MoltItem {
   key: string;
@@ -52,7 +52,7 @@ export interface PondMolt {
 
 /** What the logs say for one pond in one window. */
 export interface MoltEvidence {
-  /** chemical_data or treatment logged pre..peak end. */
+  /** A mineral treatment logged pre..peak end (tests do not count). */
   minerals: boolean;
   /** alkalinity logged (water quality or chemistry) pre..peak end. */
   alkalinity: boolean;
@@ -69,6 +69,42 @@ export interface MoltEvidence {
   /** Daily feed totals (kg) for each logged post day. */
   postFeedDaysKg: number[];
 }
+
+/**
+ * Does a free-text treatment look like a mineral / lime dose? (M1.1)
+ *
+ * ponytail: keyword match — replace with a treatment type field when Disease (area 5) adds one.
+ * Disease spec §D2 adds `treatments.category`; then `category IN ('mineral','lime_alkalinity')`
+ * decides, and this stays only as the fallback for old free-text rows.
+ *
+ * Symbols / formulas are case-sensitive (Ca, Mg, K, KCl, MgSO4, CaCO3 …) so
+ * "can" or "calm" do not match; words are case-insensitive. Indic scripts have
+ * no \b in JS regex, so those are plain substrings.
+ */
+const MINERAL_SYMBOLS = /\b(?:Ca|Mg|K)(?:[A-Z][a-z]?\d*)*\b/;
+const MINERAL_WORDS = /\b(?:mineral|calcium|magnesium|potassium|potash|mop|muriate|dolomite|lime|chuna)/i;
+const MINERAL_SCRIPT_WORDS = [
+  // hi: mineral, calcium, magnesium, potassium/potash, lime, dolomite
+  'खनिज', 'कैल्शियम', 'मैग्नीशियम', 'मैग्नेशियम', 'पोटेशियम', 'पोटैशियम', 'पोटाश', 'चूना', 'डोलोमाइट',
+  // bn
+  'খনিজ', 'ক্যালসিয়াম', 'ম্যাগনেসিয়াম', 'পটাশিয়াম', 'পটাশ', 'চুন', 'ডলোমাইট',
+  // ta
+  'தாது', 'கனிம', 'கால்சியம்', 'மெக்னீசியம்', 'பொட்டாசியம்', 'சுண்ணாம்பு', 'டோலமைட்',
+  // te
+  'ఖనిజ', 'కాల్షియం', 'మెగ్నీషియం', 'పొటాషియం', 'పొటాష్', 'సున్నం', 'డోలమైట్',
+  // or
+  'ଖଣିଜ', 'କ୍ୟାଲସିୟମ', 'ମ୍ୟାଗ୍ନେସିୟମ', 'ପୋଟାସିୟମ', 'ପୋଟାସ', 'ଚୂନ', 'ଡୋଲୋମାଇଟ',
+];
+export const isMineralTreatment = (t: { description?: string | null; notes?: string | null }): boolean => {
+  const text = `${t.description ?? ''} ${t.notes ?? ''}`
+    // Potassium permanganate is a disinfectant, not a mineral dose.
+    .replace(/potassium\s+permanganate|KMnO4?/gi, '');
+  return (
+    MINERAL_SYMBOLS.test(text) ||
+    MINERAL_WORDS.test(text) ||
+    MINERAL_SCRIPT_WORDS.some((w) => text.includes(w))
+  );
+};
 
 /** Below this ABW molting is not lunar-locked, so no window checklist. */
 export const MOLT_MIN_ABW_G = 5;
@@ -87,7 +123,8 @@ interface ItemDef {
 }
 
 export const MOLT_ITEMS: ItemDef[] = [
-  { key: 'minerals', phase: 'pre', priority: 'important', route: 'ChemicalLog', untilPeakEnd: true, text: 'Dose minerals (Ca/Mg/K) and log it' },
+  // Auto from a mineral treatment log; manual tick also allowed (M1.1).
+  { key: 'minerals', phase: 'pre', priority: 'important', manual: true, route: 'TreatmentLog', untilPeakEnd: true, text: 'Dose minerals (Ca/Mg/K) and log it' },
   { key: 'alkalinity_check', phase: 'pre', priority: 'important', route: 'WaterQualityLog', untilPeakEnd: true, text: 'Check and log alkalinity (target ≥120 ppm)' },
   { key: 'aerator_service', phase: 'pre', priority: 'routine', manual: true, text: 'Service aerators before the peak' },
   { key: 'feed_cut', phase: 'peak', priority: 'critical', route: 'FeedLog', text: 'Cut feed 15–30% today (molt peak)' },
@@ -110,9 +147,15 @@ const actionableRange = (d: ItemDef, w: MoltWindow): [string, string] => {
   return [addDays(w.peakEnd, 1), until ?? w.postEnd];
 };
 
-/** Items counted by the alert: can still be acted on today and are not done. */
-const isOpen = (i: MoltItem) =>
-  i.actionable && (i.status === 'pending' || i.status === 'violated');
+/**
+ * Items counted by the alert: can still be acted on today and are not done.
+ * `violated` is history, not an action (M1.3): it stays violated but never
+ * keeps an alert open — the farmer cannot un-handle a pond.
+ */
+const isOpen = (i: MoltItem) => i.actionable && i.status === 'pending';
+
+/** English watch step added while handling was logged in the peak (M1.3). */
+export const HANDLED_WATCH_TEXT = 'Handled during peak: check for soft-shell deaths for 2 days';
 
 /**
  * Checklist for the current phase and earlier phases of the same window.
@@ -142,20 +185,20 @@ export function deriveItems(
       const manual = () => item(manualDone.has(d.key) ? 'done' : 'pending', 'manual');
       const auto = (ok: boolean) => item(ok ? 'done' : 'pending', 'auto');
 
-      if (d.key === 'restore_feed') {
-        // Done when any post day's feed beats the busiest peak day; without a
-        // peak feed log there is nothing to compare, so manual only.
-        const peakMax = Math.max(...ev.peakFeedDaysKg);
-        return !manualDone.has(d.key) &&
+      // Auto + manual items: auto-done from logs, otherwise a manual tick.
+      const autoDone: Record<string, () => boolean> = {
+        // Any post day's feed beats the busiest peak day; without a peak feed
+        // log there is nothing to compare, so manual only.
+        restore_feed: () =>
           ev.peakFeedDaysKg.length > 0 &&
-          ev.postFeedDaysKg.some((kg) => kg > peakMax)
-          ? auto(true)
-          : manual();
+          ev.postFeedDaysKg.some((kg) => kg > Math.max(...ev.peakFeedDaysKg)),
+        minerals: () => ev.minerals,
+      };
+      if (autoDone[d.key]) {
+        return !manualDone.has(d.key) && autoDone[d.key]() ? auto(true) : manual();
       }
       if (d.manual) return manual();
       switch (d.key) {
-        case 'minerals':
-          return auto(ev.minerals);
         case 'alkalinity_check':
           return auto(ev.alkalinity);
         case 'night_do_check':
@@ -179,7 +222,18 @@ export function deriveItems(
   );
 }
 
-/** The one alert a pond's molt checklist produces, or null. */
+/** An i18n key + params for the client (M1.6); keys live in the app's engines.ts. */
+export interface TextKey {
+  key: string;
+  params?: Record<string, string | number>;
+}
+
+/**
+ * The one alert a pond's molt checklist produces, or null.
+ *
+ * `title`/`body`/`steps` stay English for old clients; `titleKey`/`bodyKey`/
+ * `stepKeys` let a current client render them in the farmer's language.
+ */
 export function moltAlertFor(
   pm: PondMolt,
 ): {
@@ -187,6 +241,9 @@ export function moltAlertFor(
   title: string;
   body: string;
   steps: string[];
+  titleKey: TextKey;
+  bodyKey: TextKey;
+  stepKeys: TextKey[];
   actions: MoltAlertActions;
 } | null {
   if (!pm.eligible || !pm.window) return null;
@@ -199,11 +256,23 @@ export function moltAlertFor(
   const critical = pm.phase === 'peak' && open.some((i) => i.priority === 'critical');
   const label =
     pm.phase === 'peak' ? 'Molt peak' : pm.phase === 'pre' ? 'Molt window opening' : 'Post-molt';
+  const handled = pm.items.some((i) => i.key === 'no_handling' && i.status === 'violated');
+  const stepKeys: TextKey[] = open.map((i) => ({ key: `engines.lunar.item_${i.key}` }));
+  if (handled) stepKeys.push({ key: 'engines.lunar.handledWatch' });
   return {
     severity: critical ? 'critical' : 'watch',
     title: `${label} — ${pending}`,
     body: `${pm.window.kind === 'new' ? 'New' : 'Full'} moon ${pm.window.peakDate}`,
-    steps: open.map((i) => MOLT_ITEMS.find((d) => d.key === i.key)!.text),
+    steps: [
+      ...open.map((i) => MOLT_ITEMS.find((d) => d.key === i.key)!.text),
+      ...(handled ? [HANDLED_WATCH_TEXT] : []),
+    ],
+    titleKey: { key: `engines.lunar.alertTitle_${pm.phase}`, params: { count: n } },
+    bodyKey: {
+      key: pm.window.kind === 'new' ? 'engines.lunar.windowNew' : 'engines.lunar.windowFull',
+      params: { date: pm.window.peakDate },
+    },
+    stepKeys,
     actions: {
       pondId: pm.pondId,
       windowKey: pm.window.key,
@@ -299,7 +368,7 @@ export class MoltService {
         [cropIds, w.preStart, w.peakEnd],
       ),
       q(
-        `SELECT DISTINCT crop_id AS "cropId" FROM treatments
+        `SELECT crop_id AS "cropId", description, notes FROM treatments
           WHERE crop_id = ANY($1::uuid[]) AND treatment_date BETWEEN $2 AND $3`,
         [cropIds, w.preStart, w.peakEnd],
       ),
@@ -344,7 +413,9 @@ export class MoltService {
     ]);
 
     const chemBy = new Map<string, any>(chem.map((r: any) => [r.cropId, r]));
-    const treated = new Set<string>(treat.map((r: any) => r.cropId));
+    const treated = new Set<string>(
+      treat.filter((r: any) => isMineralTreatment(r)).map((r: any) => r.cropId),
+    );
     const wqBy = new Map<string, any>(wq.map((r: any) => [r.pondId, r]));
     const sampBy = new Map<string, any>(sampling.map((r: any) => [r.pondId, r]));
     const harvested = new Set<string>(harvest.map((r: any) => r.cropId));
@@ -357,7 +428,7 @@ export class MoltService {
       const peak = days.filter((f: any) => f.day >= w.peakStart && f.day <= w.peakEnd);
       const post = days.filter((f: any) => f.day >= postStart && f.day <= w.postEnd);
       evidence.set(r.pondId, {
-        minerals: chemBy.has(cid) || treated.has(cid),
+        minerals: treated.has(cid),
         alkalinity: !!chemBy.get(cid)?.alk || !!wqBy.get(r.pondId)?.alk,
         peakDo: !!wqBy.get(r.pondId)?.peakDo,
         handlingInPeak: !!sampBy.get(r.pondId)?.inPeak || harvested.has(cid),
@@ -380,13 +451,17 @@ export class MoltService {
     return { evidence, manual };
   }
 
-  /** Latest sampled ABW per crop (same rule as pond-context: newest sampling). */
+  /**
+   * Latest sampled ABW per crop — newest sampling WITH a weight (M1.2), the
+   * same rule as pond-context and the daily brief. A count-only sampling must
+   * not flip an eligible pond to `sizeUnknown`.
+   */
   private async latestAbw(cropIds: string[]): Promise<Map<string, number | null>> {
     if (cropIds.length === 0) return new Map();
     const rows = await this.dataSource.query(
       `SELECT DISTINCT ON (crop_id) crop_id AS "cropId", mbw_g AS "mbwG"
          FROM sampling_data
-        WHERE crop_id = ANY($1::uuid[])
+        WHERE crop_id = ANY($1::uuid[]) AND mbw_g IS NOT NULL
         ORDER BY crop_id, sampling_date DESC`,
       [cropIds],
     );
@@ -449,13 +524,15 @@ export class MoltService {
   async setAction(
     pondId: string,
     userId: string,
-    body: { windowKey: string; actionKey: string; done: boolean },
+    body: { id?: string; windowKey: string; actionKey: string; done: boolean },
     now = new Date(),
   ): Promise<PondMolt> {
     const pond = await this.farmAccess.assertCanAccessPond(userId, pondId, 'WRITE_OPERATIONAL');
     const pm = await this.checklistForPond(pond, now);
+    // 409, not 400: an offline tick replayed after its window closed is
+    // stale, not malformed, and the client's queue treats 409 as done (M1.5).
     if (!pm.window || pm.window.key !== body.windowKey) {
-      throw new BadRequestException('windowKey is not the current molt window');
+      throw new ConflictException('windowKey is not the current molt window');
     }
     const item = pm.items.find((i) => i.key === body.actionKey);
     const def = MOLT_ITEMS.find((d) => d.key === body.actionKey);
@@ -464,13 +541,21 @@ export class MoltService {
       throw new BadRequestException('actionKey is not a manual item for this pond');
     }
     if (!item.actionable) {
-      throw new BadRequestException('actionKey can no longer be acted on in this window');
+      throw new ConflictException('actionKey can no longer be acted on in this window');
     }
     if (body.done) {
+      // Idempotent: a replay hits the (pond, window, action) unique key — or
+      // the same client id — and is ignored.
       await this.actions
         .createQueryBuilder()
         .insert()
-        .values({ pondId, windowKey: body.windowKey, actionKey: body.actionKey, doneBy: userId })
+        .values({
+          ...(body.id ? { id: body.id } : {}),
+          pondId,
+          windowKey: body.windowKey,
+          actionKey: body.actionKey,
+          doneBy: userId,
+        })
         .orIgnore()
         .execute();
     } else {
