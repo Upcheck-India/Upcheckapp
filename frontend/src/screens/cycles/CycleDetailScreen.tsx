@@ -139,6 +139,16 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
         );
     }
 
+    const bioFirst = route.params.focus === 'biosecurity';
+    const biosecurityPanel = (
+        <BiosecurityPanel
+            cropId={cycle.id}
+            active={cycle.status === 'active'}
+            canTick={canRecordData}
+            canEditSeed={canManageOperations}
+        />
+    );
+
     return (
         <ScreenWrapper>
             <View style={styles.header}>
@@ -161,6 +171,9 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
+                {/* Opened from the pond's biosecurity badge: the checklist the
+                    farmer tapped comes first, not below the stocking info. */}
+                {bioFirst && biosecurityPanel}
                 <View style={styles.statusRow}>
                     <Text style={styles.label}>{t('common.status')}:</Text>
                     <StatusBadge
@@ -193,12 +206,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                     </View>
                 </Card>
 
-                <BiosecurityPanel
-                    cropId={cycle.id}
-                    active={cycle.status === 'active'}
-                    canTick={canRecordData}
-                    canEditSeed={canManageOperations}
-                />
+                {!bioFirst && biosecurityPanel}
 
                 <Text style={styles.sectionHeading}>{t('cycles.sectionTargets')}</Text>
                 <View style={styles.metricsGrid}>

@@ -126,6 +126,8 @@ const logs = {
   harvest_fullConfirmMessageShort: 'ଏହା {{pond}}ର ଚକ୍ର ବନ୍ଦ କରିବ। ଏହା ପରେ ଏହି ଚକ୍ର ପାଇଁ ଖାଦ୍ୟ କିମ୍ବା ପାଣି ଲଗ୍ କରିପାରିବେ ନାହିଁ।',
   harvest_fullConfirmBtn: 'ଚକ୍ର ବନ୍ଦ କରି ସେଭ୍ କରନ୍ତୁ',
   harvest_typeLocked: 'ପ୍ରକାର ଭୁଲ? ଏହି ଅମଳ ବିଲୋପ କରି ପୁଣି ଲଗ୍ କରନ୍ତୁ।',
+  harvest_typeRequired: 'ସଞ୍ଚୟ କରିବା ପୂର୍ବରୁ ଆଂଶିକ ବା ସମ୍ପୂର୍ଣ୍ଣ ବାଛନ୍ତୁ।',
+  harvest_typeHint: 'ଆଂଶିକ: କିଛି ଚିଙ୍ଗୁଡ଼ି ଧରାଗଲା, ଚକ୍ର ଖୋଲା ରହିବ। ସମ୍ପୂର୍ଣ୍ଣ: ସବୁ ଚିଙ୍ଗୁଡ଼ି ଧରାଗଲା, ଚକ୍ର ବନ୍ଦ ହେବ ଓ ଏହାର ଫଳାଫଳ ଦେଖାଯିବ।',
   harvest_deleteBtn: 'ଅମଳ ବିଲୋପ କରନ୍ତୁ',
   harvest_deleteTitle: 'ଏହି ଅମଳ ବିଲୋପ କରିବେ?',
   harvest_deleteMessage: 'ଏହା ଅମଳ ଓ ଏହାର ବିକ୍ରି ହଟାଇବ।',
