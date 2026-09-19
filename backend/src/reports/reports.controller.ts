@@ -9,6 +9,7 @@ import {
   Delete,
   UseGuards,
   Query,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { OwnershipGuard } from '../common/guards/ownership.guard';
 import { OwnsResource } from '../common/decorators/owns-resource.decorator';
@@ -43,5 +44,22 @@ export class ReportsController {
       user.id,
       q,
     );
+  }
+}
+
+/**
+ * Cycle Result (harvest-and-molt H3). READ: every member of the pond sees the
+ * season's kg, FCR and welfare; the `money` block is null without
+ * VIEW_FINANCIALS (the service asks `getCycleFinancials`, which enforces it).
+ */
+@Controller('crops')
+export class CycleResultController {
+  constructor(private readonly reportsService: ReportsService) {}
+
+  @Get(':id/result')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Crop', 'id', 'pond.farm.userId', 'READ')
+  getResult(@CurrentUser() user, @Param('id', ParseUUIDPipe) id: string) {
+    return this.reportsService.getCycleResult(id, user.id);
   }
 }

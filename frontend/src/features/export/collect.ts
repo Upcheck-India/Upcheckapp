@@ -499,7 +499,8 @@ const collectCycle = async (config: ExportConfig, f: Fmt): Promise<Collected> =>
                 { label: f.t('engines.fcr', { defaultValue: 'FCR' }), value: f.num(analysis.fcr) },
                 {
                     label: f.t('engines.survivalRate', { defaultValue: 'Survival' }),
-                    value: `${f.num(analysis.survivalRate, 1)}%`,
+                    // Null = not known (H3: harvested ÷ stocked), shown as a dash, not "—%".
+                    value: analysis.survivalRate == null ? f.num(null) : `${f.num(analysis.survivalRate, 1)}%`,
                 },
                 {
                     label: f.t('history.harvestMetricBiomass'),
