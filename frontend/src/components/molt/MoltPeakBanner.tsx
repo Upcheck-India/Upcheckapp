@@ -20,22 +20,24 @@ export const useMoltWindows = () =>
  *
  * `peak` shows it only during the molt peak (Sampling / Harvest / Treatment
  * logs). `date` checks an arbitrary day against every window instead
- * (Harvest plans: a planned date inside a window means soft shells and a
- * lower price).
+ * (Harvest plans: a planned peak/post day means soft shells and a lower
+ * price; pre-molt shells are still hard, so pre days don't warn).
  */
 export const MoltPeakBanner: React.FC<{ messageKey: string; date?: string | null }> = ({ messageKey, date }) => {
   const { t } = useTranslation();
   const { data: windows } = useMoltWindows();
   const hit = windowContaining(windows, date ?? istDateString(new Date()));
-  if (!hit || (!date && hit.phase !== 'peak')) return null;
+  if (!hit || hit.phase === 'pre' || (!date && hit.phase !== 'peak')) return null;
   const fmt = (d: string) => formatDate(`${d}T12:00:00`);
+  // A planned date reads its phase (M2): "29 Sep is a molt peak day".
+  const key = date ? (hit.phase === 'peak' ? 'harvestPlans.moltDayPeak' : 'harvestPlans.moltDayPost') : messageKey;
   return (
     <AlertBanner
       type="warning"
       icon="moon-waning-crescent"
       title={t(date ? 'harvestPlans.moltWindowTitle' : 'logs.moltPeakTitle')}
-      message={t(messageKey, {
-        date: fmt(addDays(hit.window.peakEnd, 1)),
+      message={t(key, {
+        date: fmt(date ?? addDays(hit.window.peakEnd, 1)),
         start: fmt(hit.window.preStart),
         end: fmt(hit.window.postEnd),
       })}

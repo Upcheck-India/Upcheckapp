@@ -19,6 +19,7 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import { toIstDateString } from '../common/ist-date';
 import { harvestTotals, HarvestTotals } from './harvest-totals';
 import { isMissingSchema } from '../pond-context/pond-context.service';
+import { currentMoltWindow } from '../molt/molt-window';
 
 /** A stored grade line as the API returns it. */
 export interface HarvestGrade {
@@ -246,6 +247,9 @@ export class HarvestsService {
         manager.create(Harvest, { ...fields, createdById: userId }),
       );
       await this.writeDetails(manager, row.id, lines, totals, rejectedKg, rejectedReason);
+      if (rejectedReason === 'soft_shell') {
+        await this.recordSoftShell(manager, row.id, locked, createDto.harvestDate, userId);
+      }
       // Needs migration 1780701000000 — only clients that send planId get here.
       if (planLink === 'linked') {
         await manager.query(`UPDATE harvests SET plan_id = $2 WHERE id = $1`, [
@@ -357,6 +361,37 @@ export class HarvestsService {
     const seen = new Set<string>();
     return [...legacy, ...conflicts].filter(
       (r) => !seen.has(r.cropId) && !!seen.add(r.cropId),
+    );
+  }
+
+  /**
+   * M2 entry 3: a soft-shell rejection is a soft-shell observation
+   * (`source='harvest'`, `level='many'`), in the harvest's own transaction.
+   * Its id IS the harvest id, so it exists exactly when the harvest does and
+   * a replay (which returns early above) can't add a second one.
+   * Before migration 1780701500000 it is skipped, checked up front — a failed
+   * INSERT would abort the whole harvest transaction.
+   */
+  private async recordSoftShell(
+    manager: EntityManager,
+    harvestId: string,
+    crop: Crop,
+    harvestDate: string,
+    userId: string,
+  ): Promise<void> {
+    const [table] = await manager.query(
+      `SELECT to_regclass('public.health_observations') IS NOT NULL AS ok`,
+    );
+    if (!table?.ok) return;
+    const day = harvestDate.slice(0, 10);
+    const windowKey =
+      currentMoltWindow(new Date(`${day}T06:30:00.000Z`)).window?.key ?? null;
+    await manager.query(
+      `INSERT INTO health_observations
+         (id, pond_id, crop_id, observed_on, sign, level, source, window_key, created_by)
+       VALUES ($1, $2, $3, $4, 'soft_shell', 'many', 'harvest', $5, $6)
+       ON CONFLICT (id) DO NOTHING`,
+      [harvestId, crop.pondId, crop.id, day, windowKey, userId],
     );
   }
 

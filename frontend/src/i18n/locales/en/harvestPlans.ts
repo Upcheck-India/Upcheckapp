@@ -47,4 +47,6 @@ export default {
   createFailed: 'Failed to create harvest plan',
   moltWindowTitle: 'Molt window',
   moltWindowWarning: 'This date is in a molt window ({{start}} – {{end}}): expect soft shells and a lower price.',
+  moltDayPeak: '{{date}} is a molt peak day ({{start}} – {{end}}): expect soft shells and a lower price.',
+  moltDayPost: '{{date}} is just after a molt peak ({{start}} – {{end}}): shells may still be soft.',
 };
