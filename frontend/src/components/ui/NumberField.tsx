@@ -9,6 +9,8 @@ interface NumberFieldProps {
   unit?: string;
   placeholder?: string;
   keyboardType?: 'numeric' | 'decimal-pad';
+  onFocus?: () => void;
+  testID?: string;
 }
 
 /** Compact labeled numeric input used across the decision-engine screens. */
@@ -19,6 +21,8 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   unit,
   placeholder,
   keyboardType = 'decimal-pad',
+  onFocus,
+  testID,
 }) => (
   <View style={styles.field}>
     <Text style={styles.label} numberOfLines={2}>{label}</Text>
@@ -27,6 +31,8 @@ export const NumberField: React.FC<NumberFieldProps> = ({
         style={styles.input}
         value={value}
         onChangeText={onChangeText}
+        onFocus={onFocus}
+        testID={testID}
         keyboardType={keyboardType}
         placeholder={placeholder}
         placeholderTextColor={theme.roles.light.textTertiary}

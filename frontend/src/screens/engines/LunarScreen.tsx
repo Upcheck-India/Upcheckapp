@@ -3,9 +3,10 @@
  * phase as a vector diagram, the molt window, and (with the pond's latest ABW)
  * the molt-risk band with steps.
  */
-import { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { useEffect, useState, useCallback, useContext, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, Alert, Keyboard, KeyboardAvoidingView, Platform, type EmitterSubscription } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { HeaderHeightContext } from '@react-navigation/elements';
 
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -28,6 +29,11 @@ import { missingInputs, type RequiredInput } from '../../features/engineInputs';
 import { localizePhaseName } from '../../features/lunarPhaseI18n';
 import { apiErrorMessage } from '../../api/errors';
 import { MoltTimeline, MoltChecklist, MoltPondList } from '../../components/molt/MoltPanels';
+import { ChipGroup } from '../../components/ui/ChipGroup';
+import { pondsApi } from '../../api/ponds';
+import { pondLabel } from '../../utils/pondHealth';
+import { qk } from '../../query/client';
+import { useAppQuery } from '../../query/hooks';
 
 const bandSeverity = (b: string): Severity =>
   b === 'Critical' ? 'critical' : b === 'Watch' ? 'watch' : 'low';
@@ -82,11 +88,38 @@ export const LunarScreen = ({ route }: any) => {
   const [risk, setRisk] = useState<MoltRisk | null>(null);
   const [playbook, setPlaybook] = useState<LunarPlaybook | null>(null);
   const [loading, setLoading] = useState(false);
+
+  /**
+   * Opened from Home / EnginesHub there is no pondId, so the pond context
+   * never loaded and the chip said "No pond data" forever. Let the farmer pick
+   * one of their stocked ponds (same cached query Home warms).
+   */
+  const [selectedPondId, setSelectedPondId] = useState<string | undefined>(pondId);
+  const pondsQuery = useAppQuery({
+    queryKey: qk.ponds(),
+    queryFn: async () => (await pondsApi.getMine()).data,
+    enabled: !pondId,
+  });
+  const activePonds = (pondsQuery.data ?? []).filter((p) => !!p.activeCycleId);
+  const autoPicked = useRef(false);
+  useEffect(() => {
+    if (pondId || autoPicked.current || activePonds.length !== 1) return;
+    autoPicked.current = true;
+    setSelectedPondId(activePonds[0].id);
+  }, [pondId, activePonds]);
+  const selectPond = (id: string | null) => {
+    autoPicked.current = true;
+    setSelectedPondId(id ?? undefined);
+    // Another pond's ABW and score are not this pond's.
+    setAbw('');
+    setRisk(null);
+  };
+
   /**
    * Through the shared hook (E1): a failure is a state this screen renders,
    * not a swallowed catch that leaves a seeded ABW standing in for a sampling.
    */
-  const { ctx, error: ctxError, refetch } = usePondContext(pondId);
+  const { ctx, error: ctxError, refetch } = usePondContext(selectedPondId);
 
   useEffect(() => {
     lunarApi.phase().then(({ data }) => setPhase(data)).catch(() => undefined);
@@ -96,6 +129,28 @@ export const LunarScreen = ({ route }: any) => {
   useEffect(() => {
     if (ctx?.abwG != null) setAbw(String(ctx.abwG));
   }, [ctx]);
+
+  /**
+   * Keyboard (founder report): the ABW field sits low on a long page, and the
+   * app is edge-to-edge on Android, so the keyboard covered it. One ScrollView
+   * inside a KeyboardAvoidingView, and on focus scroll the assessment card up
+   * once the keyboard is actually open.
+   */
+  const headerHeight = useContext(HeaderHeightContext) ?? 0;
+  const scrollRef = useRef<ScrollView>(null);
+  const assessY = useRef(0);
+  const kbSub = useRef<EmitterSubscription | null>(null);
+  const scrollToAssessment = () => scrollRef.current?.scrollTo({ y: assessY.current, animated: true });
+  const onAbwFocus = () => {
+    scrollToAssessment();
+    kbSub.current?.remove();
+    kbSub.current = Keyboard.addListener('keyboardDidShow', () => {
+      scrollToAssessment();
+      kbSub.current?.remove();
+      kbSub.current = null;
+    });
+  };
+  useEffect(() => () => kbSub.current?.remove(), []);
 
   /** Molt vulnerability scales with size; without ABW it is not this pond's. */
   const required: RequiredInput[] = [
@@ -126,14 +181,29 @@ export const LunarScreen = ({ route }: any) => {
   // Auto-assess once the pond snapshot lands — but only when there is
   // actually an ABW to assess. It used to fire regardless and fall back to a
   // 20 g default, so the screen showed a molt risk for an invented shrimp.
+  // Keyed on the prefilled ABW too: the prefill lands one render after ctx,
+  // so an effect on [ctx] alone saw the empty field and never assessed.
+  const autoAssessed = useRef<unknown>(null);
   useEffect(() => {
-    if (missing.length === 0) assess();
+    if (!ctx || ctx.abwG == null || abw !== String(ctx.abwG) || autoAssessed.current === ctx) return;
+    autoAssessed.current = ctx;
+    assess();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx]);
+  }, [ctx, abw]);
 
   return (
-    <ScreenWrapper>
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <ScreenWrapper scroll={false} keyboardAvoiding={false}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={headerHeight}
+      >
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
         <View style={styles.head}>
           <MaterialCommunityIcons name="moon-waning-crescent" size={26} color={theme.roles.light.primary} />
           <View style={{ flex: 1 }}>
@@ -186,10 +256,26 @@ export const LunarScreen = ({ route }: any) => {
         {ctxError ? <EngineUnavailable onRetry={refetch} /> : null}
         {ctx && ctx.abwG != null && <PrefilledBanner doc={ctx.doc} />}
 
+        <View onLayout={(e) => { assessY.current = e.nativeEvent.layout.y; }}>
         <Card style={styles.card}>
           <Text style={styles.sectionLabel}>{t('engines.lunar.assessment')}</Text>
+          {!pondId && activePonds.length > 0 ? (
+            <ChipGroup
+              label={t('engines.lunar.choosePond')}
+              options={activePonds.map((p) => ({ value: p.id, label: pondLabel(p) }))}
+              value={selectedPondId ?? null}
+              onChange={selectPond}
+            />
+          ) : null}
           <View style={styles.row}>
-            <NumberField label={t('engines.lunar.abw')} value={abw} onChangeText={setAbw} unit="g" />
+            <NumberField
+              label={t('engines.lunar.abw')}
+              value={abw}
+              onChangeText={setAbw}
+              unit="g"
+              onFocus={onAbwFocus}
+              testID="lunar-abw"
+            />
             <Button
               title={t('engines.lunar.assess')}
               onPress={assess}
@@ -210,7 +296,17 @@ export const LunarScreen = ({ route }: any) => {
               <Text style={styles.riskMeta}>
                 {t('engines.lunar.moltPressure', { pressure: Math.round(risk.moltPressure * 100), vuln: Math.round(risk.vulnerability * 100) })}
               </Text>
-              <ConfidenceChip confidence={ctx?.confidence} />
+              {risk.vulnerabilityTotal != null ? (
+                <Text style={styles.riskMeta}>
+                  {t('engines.lunar.coverage', { known: risk.vulnerabilityKnown ?? 0, total: risk.vulnerabilityTotal })}
+                </Text>
+              ) : null}
+              {/* No pond chosen is a manual estimate, not missing pond data. */}
+              {selectedPondId ? (
+                <ConfidenceChip confidence={ctx?.confidence} />
+              ) : (
+                <Text style={styles.riskMeta}>{t('engines.lunar.manualEstimate')}</Text>
+              )}
               {/* E4: molt likelihood is a prediction, not a measurement. */}
               <FirstUseHint
                 flagKey="lunar-heuristic"
@@ -219,6 +315,7 @@ export const LunarScreen = ({ route }: any) => {
             </View>
           )}
         </Card>
+        </View>
 
         {playbook && (
           <Card style={styles.card}>
@@ -246,6 +343,7 @@ export const LunarScreen = ({ route }: any) => {
           </Card>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </ScreenWrapper>
   );
 };
@@ -282,6 +380,7 @@ const PlaybookRow = ({ step, text, priorityLabel }: { step: PlaybookStep; text: 
 };
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   head: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3], marginBottom: theme.spacing[4] },
   title: { ...theme.typeScale.h1, color: theme.roles.light.textPrimary },
   subtitle: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
