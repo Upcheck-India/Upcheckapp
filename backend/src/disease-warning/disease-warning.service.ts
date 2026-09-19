@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DiseaseRiskSnapshot } from './disease-risk-snapshot.entity';
@@ -206,7 +210,16 @@ export class DiseaseWarningService {
     cropId?: string,
   ): Promise<DiseaseRiskSnapshot> {
     // Persisting a risk snapshot is field-level output — WRITE_OPERATIONAL.
-    await this.pondsService.verifyAccess(pondId, userId, 'WRITE_OPERATIONAL');
+    const pond = await this.pondsService.findOneAccessible(
+      pondId,
+      userId,
+      'WRITE_OPERATIONAL',
+    );
+    // The access check covers the pond only; a cropId must be that pond's
+    // active cycle or the snapshot could land on another farm's crop (S4).
+    if (cropId && cropId !== pond.activeCycleId) {
+      throw new BadRequestException("cropId is not this pond's active crop");
+    }
     const risks = this.computeRisks(indicators);
     const snap = this.repo.create({
       pondId,
