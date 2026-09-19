@@ -26,6 +26,7 @@ const content = {
     sectionSymptoms: 'ଲକ୍ଷଣ',
     sectionPrevention: 'ପ୍ରତିଷେଧ',
     sectionTreatment: 'ଚିକିତ୍ସା',
+    noAntibioticsNote: 'ଆଣ୍ଟିବାୟୋଟିକ୍ ନୁହେଁ। ଭାରତରେ ଚିଙ୍ଗୁଡ଼ି ଚାଷରେ ଅନେକ ନିଷିଦ୍ଧ।',
     logButton: 'ଏହି ରୋଗ ଲଗ୍ କରନ୍ତୁ',
     // Severity badge labels
     severityLow: 'ନିମ୍ନ',

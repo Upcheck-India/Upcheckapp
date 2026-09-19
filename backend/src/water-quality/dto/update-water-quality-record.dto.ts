@@ -1,6 +1,6 @@
-import { PartialType } from '@nestjs/mapped-types';
+import { PartialWithoutScope } from '../../common/dto/omit-scope';
 import { CreateWaterQualityRecordDto } from './create-water-quality-record.dto';
 
-export class UpdateWaterQualityRecordDto extends PartialType(
+export class UpdateWaterQualityRecordDto extends PartialWithoutScope(
   CreateWaterQualityRecordDto,
 ) {}

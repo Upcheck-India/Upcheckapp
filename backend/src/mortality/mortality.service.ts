@@ -79,8 +79,16 @@ export class MortalityService {
     userId?: string,
   ): Promise<MortalityRecord> {
     await this.findOne(id);
+    // estimatedTotal feeds live population (pond-context SUMs it), so a count
+    // edit must move it too — otherwise it stays at the old count × 3 (H6).
+    const estimatedTotal =
+      dto.estimatedTotal ??
+      (dto.quantity !== undefined
+        ? dto.quantity * DEFAULT_MORTALITY_MULTIPLIER
+        : undefined);
     await this.mortalityRepository.update(id, {
       ...dto,
+      ...(estimatedTotal !== undefined ? { estimatedTotal } : {}),
       ...(userId ? { updatedById: userId } : {}),
     });
     return this.findOne(id);

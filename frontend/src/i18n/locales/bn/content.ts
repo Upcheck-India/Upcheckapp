@@ -26,6 +26,7 @@ const content = {
     sectionSymptoms: 'লক্ষণ',
     sectionPrevention: 'প্রতিরোধ',
     sectionTreatment: 'চিকিৎসা',
+    noAntibioticsNote: 'অ্যান্টিবায়োটিক নয়। ভারতে চিংড়ি চাষে অনেক অ্যান্টিবায়োটিক নিষিদ্ধ।',
     logButton: 'এই রোগটি লগ করুন',
     // Severity badge labels
     severityLow: 'কম',

@@ -26,6 +26,7 @@ const content = {
     sectionSymptoms: 'Symptoms',
     sectionPrevention: 'Prevention',
     sectionTreatment: 'Treatment',
+    noAntibioticsNote: 'No antibiotics. Many are banned in shrimp farming in India.',
     logButton: 'Log This Disease',
     // Severity badge labels
     severityLow: 'Low',
