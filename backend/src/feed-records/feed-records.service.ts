@@ -228,14 +228,9 @@ export class FeedRecordsService {
       );
     }
 
-    // isFasting / id are not persisted columns — strip them before the update
-    // (id would otherwise reassign the primary key).
-    const {
-      isFasting: _isFasting,
-      id: _id,
-      recordedAt,
-      ...columns
-    } = updateDto;
+    // isFasting is not a persisted column — strip it before the update. (`id`
+    // and pondId are not on UpdateFeedRecordDto at all: S1.)
+    const { isFasting: _isFasting, recordedAt, ...columns } = updateDto;
     await this.recordsRepository.update(id, {
       ...columns,
       ...(recordedAt ? { recordedAt: new Date(recordedAt) } : {}),

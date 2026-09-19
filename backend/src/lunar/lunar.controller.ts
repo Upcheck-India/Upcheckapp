@@ -6,13 +6,48 @@ import {
   Query,
   BadRequestException,
 } from '@nestjs/common';
+import { Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsDateString,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 import { Public } from '../auth/decorators/auth.decorators';
 import { LunarService, MoltVulnerabilityInput } from './lunar.service';
 
-interface ComputeRiskBody {
+/** Numbers only (no NaN / strings); ranges are the engine's business. */
+export class MoltVulnerabilityDto implements MoltVulnerabilityInput {
+  @IsOptional() @IsNumber() do?: number;
+  @IsOptional() @IsNumber() temp?: number;
+  @IsOptional() @IsNumber() freeNh3?: number;
+  @IsOptional() @IsNumber() phSwing?: number;
+  @IsOptional() @IsNumber() mineralDeficitFrac?: number;
+  @IsOptional() @IsBoolean() diseaseHigh?: boolean;
+  @IsOptional() @IsNumber() densityRatio?: number;
+  @IsOptional() @IsIn(['empty', 'few_left', 'a_lot_left']) tray?: 'empty' | 'few_left' | 'a_lot_left' | null;
+  @IsOptional() @IsNumber() salinity?: number;
+}
+
+/** M1.7: without a DTO a missing abwG produced a NaN score. */
+export class ComputeRiskDto {
+  @IsOptional()
+  @IsDateString()
   date?: string;
+
+  @IsNumber()
+  @Min(0)
+  @Max(200)
   abwG: number;
-  vulnerability?: MoltVulnerabilityInput;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MoltVulnerabilityDto)
+  vulnerability?: MoltVulnerabilityDto;
 }
 
 /**
@@ -36,7 +71,7 @@ export class LunarController {
 
   /** Molt Risk Score for a pond, given its latest data. */
   @Post('risk')
-  risk(@Body() body: ComputeRiskBody) {
+  risk(@Body() body: ComputeRiskDto) {
     const d = body.date ? new Date(body.date) : new Date();
     if (Number.isNaN(d.getTime()))
       throw new BadRequestException('invalid date');

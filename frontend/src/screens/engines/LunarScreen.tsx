@@ -8,6 +8,7 @@ import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -43,6 +44,17 @@ const CATEGORY_ICON: Record<StepCategory, keyof typeof MaterialCommunityIcons.gl
 };
 
 const PRIORITY_RANK: Record<StepPriority, number> = { critical: 0, important: 1, routine: 2 };
+
+/** A backend string by its i18n key (M1.6), or its English on an older backend / unknown key. */
+const tk = (t: TFunction, key: string | undefined, english: string, params?: Record<string, string | number>) =>
+  key ? t(key, { ...params, defaultValue: english }) : english;
+
+/** The playbook headline in the farmer's language, with the CRITICAL suffix. */
+export const playbookHeadline = (t: TFunction, pb: LunarPlaybook): string =>
+  pb.headlineKey
+    ? tk(t, pb.headlineKey, pb.headline, pb.headlineParams) +
+      (pb.headlineCritical ? ` ${t('engines.lunar.pb_headlineCritical')}` : '')
+    : pb.headline;
 
 // Map the pond's latest snapshot into the molt-vulnerability factors so the
 // playbook steps are driven by real data, not just the moon phase.
@@ -211,20 +223,25 @@ export const LunarScreen = ({ route }: any) => {
         {playbook && (
           <Card style={styles.card}>
             <View style={styles.playbookHead}>
-              <Text style={styles.phaseLabel}>{playbook.phaseLabel}</Text>
-              <Text style={styles.headline}>{playbook.headline}</Text>
+              <Text style={styles.phaseLabel}>{tk(t, playbook.phaseLabelKey, playbook.phaseLabel)}</Text>
+              <Text style={styles.headline}>{playbookHeadline(t, playbook)}</Text>
             </View>
 
             <Text style={styles.sectionLabel}>{t('engines.lunar.management')}</Text>
             {[...playbook.steps]
               .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority])
               .map((step, i) => (
-                <PlaybookRow key={i} step={step} priorityLabel={t(`engines.lunar.priority_${step.priority}`)} />
+                <PlaybookRow
+                  key={i}
+                  step={step}
+                  text={tk(t, step.key, step.text, step.params)}
+                  priorityLabel={t(`engines.lunar.priority_${step.priority}`)}
+                />
               ))}
 
             <View style={styles.noteBox}>
               <MaterialCommunityIcons name="information-outline" size={14} color={theme.roles.light.textTertiary} />
-              <Text style={styles.noteText}>{playbook.note}</Text>
+              <Text style={styles.noteText}>{tk(t, playbook.noteKey, playbook.note)}</Text>
             </View>
           </Card>
         )}
@@ -239,7 +256,7 @@ const PRIORITY_STYLE: Record<StepPriority, { bg: string; fg: string }> = {
   routine: { bg: theme.roles.light.surfaceVariant, fg: theme.roles.light.textSecondary },
 };
 
-const PlaybookRow = ({ step, priorityLabel }: { step: PlaybookStep; priorityLabel: string }) => {
+const PlaybookRow = ({ step, text, priorityLabel }: { step: PlaybookStep; text: string; priorityLabel: string }) => {
   const ps = PRIORITY_STYLE[step.priority];
   return (
     <View style={styles.pbRow}>
@@ -247,7 +264,7 @@ const PlaybookRow = ({ step, priorityLabel }: { step: PlaybookStep; priorityLabe
         <MaterialCommunityIcons name={CATEGORY_ICON[step.category]} size={18} color={ps.fg} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.pbText}>{step.text}</Text>
+        <Text style={styles.pbText}>{text}</Text>
         {step.priority !== 'routine' && (
           <Text style={[styles.pbPriority, { color: ps.fg }]}>{priorityLabel}</Text>
         )}

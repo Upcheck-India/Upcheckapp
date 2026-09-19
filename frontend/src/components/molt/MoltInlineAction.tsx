@@ -22,7 +22,7 @@ export const singleMoltAction = (item: BriefingItem) => {
   return { pondId: a.pondId, windowKey: a.windowKey, ...a.items[0] };
 };
 
-/** Tick a manual molt item, then drop every read it moves. */
+/** Tick a manual molt item (queued when offline), then drop every read it moves. */
 export const tickMoltAction = async (pondId: string, windowKey: string, actionKey: string) => {
   await moltApi.setAction(pondId, { windowKey, actionKey, done: true });
   await Promise.all(
@@ -66,8 +66,9 @@ export const MoltInlineAction: React.FC<MoltInlineActionProps> = ({ item, onLog,
   }
 
   const cropId = cropIdForPond?.(action.pondId) ?? undefined;
-  // A chemical log saved without the cycle never satisfies the item.
-  if (!onLog || !action.route || (action.route === 'ChemicalLog' && !cropId)) return null;
+  // A chemical/treatment log saved without the cycle never satisfies the item.
+  const needsCrop = action.route === 'ChemicalLog' || action.route === 'TreatmentLog';
+  if (!onLog || !action.route || (needsCrop && !cropId)) return null;
   return (
     <TouchableOpacity
       style={style}

@@ -65,7 +65,7 @@ The master feature reference for the Upcheck monorepo (shrimp-farming operations
 
 | Feature | Backend | Frontend | Entity | Notes |
 |---|---|---|---|---|
-| Crop/cycle lifecycle | `crops` → `POST`, `GET`, `GET :id`, `PATCH :id`, `PATCH :id/harvest`, `PATCH :id/close`, `DELETE` | `cycles/CreateCycleScreen`, `cycles/CycleDetailScreen` | `crops` | A crop = one culture cycle (stocking → harvest → close). CycleDetail links to Cycle Analysis (**gated** by `cycleAnalysisReport`, ON). |
+| Crop/cycle lifecycle | `crops` → `POST`, `GET`, `GET :id`, `PATCH :id`, `PATCH :id/close`, `DELETE` | `cycles/CreateCycleScreen`, `cycles/CycleDetailScreen` | `crops` | A crop = one culture cycle (stocking → harvest → close). CycleDetail links to Cycle Analysis (**gated** by `cycleAnalysisReport`, ON). |
 
 ## 4. Water quality & chemistry
 
@@ -99,16 +99,16 @@ The master feature reference for the Upcheck monorepo (shrimp-farming operations
 |---|---|---|---|---|
 | Mortality records | `mortality` → `POST`, `GET crop/:cropId`, `GET :id`, `PATCH :id`, `DELETE` | `logs/MortalityLogScreen`, `logs/History/MortalityHistoryScreen` | `mortality_records` | Live population = stocking − Σmortality. |
 | Disease library (encyclopedia) | `disease` → `POST/GET/GET :id/PUT/DELETE library`, `GET library/search`, `POST library/seed` | `diseases/DiseaseListScreen`, `diseases/DiseaseDetailScreen` | `disease_library` | Searchable encyclopedia w/ severity badges. |
-| Disease occurrence log | `disease` → `POST record`, `GET record/crop/:cropId`, `PATCH record/:id`, `DELETE record/:id` | `logs/DiseaseLogScreen`, `logs/History/DiseaseHistoryScreen` | `disease_records` | Warns on banned substances. |
+| Disease occurrence log | `disease` → `POST record`, `GET record/crop/:cropId`, `PATCH record/:id`, `DELETE record/:id` | `logs/DiseaseLogScreen`, `logs/History/DiseaseHistoryScreen` | `disease_records` | Warns when a record is logged that names a banned substance (warn-only; the list may be incomplete). |
 | Symptom-based diagnosis | *(client-side rule matcher)* | `diseases/DiagnoseScreen` | — | Pick physical/behavioral/environmental symptoms → ranked matches. **Gated** by `diseaseDiagnosis` (ON). |
-| Treatments / dosing | `treatments` → `POST/GET/GET :id/PATCH/DELETE` | `logs/TreatmentLogScreen`, `logs/History/TreatmentHistoryScreen` | `treatments` | Warns on banned substances. |
+| Treatments / dosing | `treatments` → `POST/GET/GET :id/PATCH/DELETE` | `logs/TreatmentLogScreen`, `logs/History/TreatmentHistoryScreen` | `treatments` | Warns when a treatment is logged that names a banned substance (warn-only; the list may be incomplete). |
 
 ## 8. Harvest & harvest planning
 
 | Feature | Backend | Frontend | Entity | Notes |
 |---|---|---|---|---|
-| Harvest records | `harvests` → `POST/GET/GET :id/PATCH/DELETE` | `logs/HarvestLogScreen`, `logs/History/HarvestHistoryScreen` | `harvests`, `harvest_records` | Partial + full harvest events. |
-| Harvest plans | `harvest-plans` → `POST`, `GET`, `GET :id`, `PATCH :id`, `PATCH :id/complete`, `GET pond/:pondId/summary`, `DELETE` | `harvest/HarvestPlansScreen` | `harvest_plans` | Plan → mark complete / cancel. |
+| Harvest records | `harvests` → `POST/GET/GET :id/PATCH/DELETE` | `logs/HarvestLogScreen`, `logs/History/HarvestHistoryScreen` | `harvests` | Partial + full harvest events. A harvest on a closed cycle is refused (409 `CYCLE_CLOSED`) before anything is written; a full harvest closes the cycle in the same transaction. Sale price + buyer are masked without VIEW_FINANCIALS. Only `status='sold'` harvests count as revenue. The legacy `harvest_records` table has no entity any more (drop it in a later cleanup migration). `pond.status='harvesting'` exists in the enum but is deliberately never set — a pond goes `active` → `fallow` on close. |
+| Harvest plans | `harvest-plans` → `POST`, `GET`, `GET :id`, `PATCH :id`, `PATCH :id/complete`, `DELETE` | `harvest/HarvestPlansScreen` | `harvest_plans` | Plan → mark complete. A plan's `cropId` must be its pond's active cycle; PATCH cannot change pond or crop. Complete is RECORD_HARVEST and books once. Prices/revenue masked without VIEW_FINANCIALS. |
 
 ## 9. Inventory, feed products & credit
 
@@ -144,7 +144,7 @@ All engines are **pure/request-driven** (no persisted cron). Each is a per-pond 
 |---|---|---|---|---|
 | **Feed advisor** | `feed-advisor` → `POST compute`, `POST`, `GET pond/:pondId`, `PATCH :id/actual` | `engines/FeedAdvisorScreen` | `feed_plans` | Daily ration: `biomass×FR%` × tray-residue × molt-peak (×0.75) × env factors (low-DO, ammonia, temp), zeroed on fasting; split per-meal. `nh3` input is **free/un-ionised ammonia**, not TAN. |
 | **Harvest timing** | `harvest-timing` → `POST optimize`, `GET pond/:pondId` | `engines/HarvestTimingScreen` | `harvest_recommendations` | 30-day day-by-day projection maximizing `net = gross − feedCost − riskLoss`; also a partial-harvest (10–90% thinning) optimizer when overstocked. Many tunable constants (ADG decay ×0.97/day, density taper). |
-| **Disease early-warning** | `disease-risk` → `POST compute`, `POST`, `GET pond/:pondId`, `GET pond/:pondId/latest` | `engines/DiseaseRiskScreen` | `disease_risk_snapshots` | Maps boolean indicators → 7 diseases (WSSV/AHPND/EHP/WFD/Luminous/RMS/LSS) via weighted signatures; `score=100×Σweights`, bands Low/Watch/Critical (30/60). Indicator derivation happens upstream. |
+| **Disease early-warning** | `disease-risk` → `POST compute`, `POST`, `GET pond/:pondId`, `GET pond/:pondId/latest` | `engines/DiseaseRiskScreen` | `disease_risk_snapshots` | Maps boolean indicators → 7 diseases (WSSV/AHPND/EHP/WFD/Luminous/RMS/LSS) via weighted signatures; `score=100×Σweights`, bands Low/Watch/Critical (30/60). Indicators are a manual checklist today (only DO < 4 is auto-filled); automatic derivation from pond data is not built yet (spec 2026-09-19 disease/health D7). |
 | **Aeration & power** | `aeration` → `POST adequacy`, `POST night-do`, `POST power-cost` | `engines/AerationScreen` | *(stateless)* | `requiredHp = biomassKg/500` (~2 HP/t); overnight DO budget predicts night-DO minimum and back-solves aerator run-hours; grid/diesel cost. **All coefficients are uncalibrated heuristics** — and as of 2026-09-07 they say so at their own definitions in `aeration.service.ts` (provenance comments) and once in the UI, so the caveat no longer lives only in this file. |
 | **Lunar molt** | `lunar` → `GET phase`, `POST risk` | `engines/LunarScreen` | *(stateless)* | Deterministic synodic moon-phase math (29.53d, no external API); molt-likelihood peaks at new/full, `moltRisk` from pond stressors. Explicitly a heuristic. |
 | **Pond context** | `pond-context` → `GET :pondId` | *(consumed by engines/dashboards)* | *(aggregate)* | One snapshot: latest WQ, free-NH3, live population, biomass, running FCR, cumulative feed, DOC, targets + a completeness/freshness confidence score. |

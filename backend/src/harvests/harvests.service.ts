@@ -1,7 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Harvest } from './harvest.entity';
+import { Crop } from '../crops/crop.entity';
 import { CreateHarvestDto } from './dto/create-harvest.dto';
 import { UpdateHarvestDto } from './dto/update-harvest.dto';
 import { CropsService } from '../crops/crops.service';
@@ -35,6 +41,16 @@ export interface HarvestMoneyEntry {
 const asDateString = (d: unknown): string =>
   typeof d === 'string' ? d.slice(0, 10) : toIstDateString(new Date(d as any));
 
+/**
+ * A sale price and buyer are financials. Every harvest read that can reach a
+ * member without VIEW_FINANCIALS goes through this — masked, not dropped, so
+ * the member still gets the weights.
+ */
+export const maskFinancials = <T extends Pick<Harvest, 'salePriceTotal' | 'buyerName'>>(
+  row: T,
+  canView: boolean,
+): T => (canView ? row : { ...row, salePriceTotal: null, buyerName: null });
+
 @Injectable()
 export class HarvestsService {
   constructor(
@@ -42,6 +58,7 @@ export class HarvestsService {
     private harvestsRepository: Repository<Harvest>,
     private cropsService: CropsService,
     private readonly farmAccess: FarmAccessService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(createDto: CreateHarvestDto, userId: string) {
@@ -60,7 +77,10 @@ export class HarvestsService {
           existing.crop.pondId,
           'RECORD_HARVEST',
         );
-        return existing;
+        return maskFinancials(
+          existing,
+          await this.canViewFinancials(userId, existing.crop.pondId),
+        );
       }
     }
 
@@ -77,21 +97,59 @@ export class HarvestsService {
       'RECORD_HARVEST',
     );
 
-    const harvest = this.harvestsRepository.create({
-      ...createDto,
-      createdById: userId,
-    });
-    const savedHarvest = await this.harvestsRepository.save(harvest);
+    // One transaction: lock the crop, refuse a closed cycle BEFORE inserting,
+    // insert, and (for a full harvest) close the cycle. It used to save the row
+    // and THEN let closeCycle 409 — an orphan harvest the user retried into a
+    // duplicate (saveRecord mints a new id per attempt).
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const locked = await manager.findOne(Crop, {
+        where: { id: createDto.cropId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked || locked.status !== 'active') {
+        throw new ConflictException({
+          statusCode: 409,
+          code: 'CYCLE_CLOSED',
+          message: 'This cycle is already closed.',
+        });
+      }
 
-    if (createDto.harvestType === 'full') {
-      await this.cropsService.closeCycle(
-        createDto.cropId,
-        createDto.harvestDate,
-        userId,
+      const row = await manager.save(
+        manager.create(Harvest, { ...createDto, createdById: userId }),
       );
-    }
+      if (createDto.harvestType === 'full') {
+        await this.cropsService.closeCycle(
+          createDto.cropId,
+          createDto.harvestDate,
+          userId,
+          manager,
+        );
+      }
+      return row;
+    });
 
-    return savedHarvest;
+    return maskFinancials(
+      saved,
+      await this.canViewFinancials(userId, crop.pondId),
+    );
+  }
+
+  /** Does the caller hold VIEW_FINANCIALS on this pond's farm? */
+  private async canViewFinancials(
+    userId: string,
+    pondId: string,
+  ): Promise<boolean> {
+    try {
+      await this.farmAccess.assertCanAccessPond(
+        userId,
+        pondId,
+        'VIEW_FINANCIALS',
+      );
+      return true;
+    } catch (err) {
+      if (err instanceof ForbiddenException) return false;
+      throw err;
+    }
   }
 
   /**
@@ -142,9 +200,7 @@ export class HarvestsService {
       await this.farmAccess.getFarmIdsWithCapability(userId, 'VIEW_FINANCIALS'),
     );
     return entities.map((h, i) =>
-      financialFarmIds.has(raw[i]?.row_farm_id)
-        ? h
-        : ({ ...h, salePriceTotal: null, buyerName: null } as Harvest),
+      maskFinancials(h, financialFarmIds.has(raw[i]?.row_farm_id)),
     );
   }
 
@@ -218,6 +274,8 @@ export class HarvestsService {
       // total above it does not contain. Same for a zero.
       .andWhere('harvest.salePriceTotal IS NOT NULL')
       .andWhere('harvest.salePriceTotal > 0')
+      // Pending / discarded harvests are not income (B9).
+      .andWhere("harvest.status = 'sold'")
       .select('harvest.id', 'id')
       .addSelect('harvest.harvestDate', 'harvestDate')
       .addSelect('harvest.salePriceTotal', 'salePriceTotal')
@@ -252,12 +310,20 @@ export class HarvestsService {
     }));
   }
 
-  async findOne(id: string): Promise<Harvest> {
-    const harvest = await this.harvestsRepository.findOneBy({ id });
+  async findOne(id: string, userId: string): Promise<Harvest> {
+    const harvest = await this.harvestsRepository.findOne({
+      where: { id },
+      relations: ['crop'],
+    });
     if (!harvest) {
       throw new NotFoundException(`Harvest with ID ${id} not found`);
     }
-    return harvest;
+    // The crop was loaded only to find the pond — keep the response shape.
+    const { crop, ...row } = harvest;
+    return maskFinancials(
+      row as Harvest,
+      await this.canViewFinancials(userId, crop.pondId),
+    );
   }
 
   /**
@@ -290,7 +356,7 @@ export class HarvestsService {
   ): Promise<Harvest> {
     await this.assertCanRecord(id, userId);
     await this.harvestsRepository.update(id, { ...dto, updatedById: userId });
-    return this.findOne(id);
+    return this.findOne(id, userId);
   }
 
   async remove(id: string, userId: string): Promise<{ message: string }> {

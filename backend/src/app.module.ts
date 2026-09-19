@@ -1,4 +1,5 @@
 import { join } from 'path';
+import './common/pg-numeric'; // NUMERIC → number, before any connection opens
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';

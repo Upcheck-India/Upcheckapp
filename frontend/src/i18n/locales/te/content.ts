@@ -26,6 +26,7 @@ const content = {
     sectionSymptoms: 'లక్షణాలు',
     sectionPrevention: 'నివారణ',
     sectionTreatment: 'చికిత్స',
+    noAntibioticsNote: 'యాంటీబయాటిక్స్ వద్దు. భారతదేశంలో రొయ్యల సాగులో చాలా వాటిపై నిషేధం ఉంది.',
     logButton: 'ఈ వ్యాధిని నమోదు చేయి',
     // Severity badge labels
     severityLow: 'తక్కువ',

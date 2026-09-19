@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AlertsService } from '../alerts/alerts.service';
-import type { MoltAlertActions } from '../molt/molt.service';
+import type { MoltAlertActions, TextKey } from '../molt/molt.service';
 
 export type AlertSeverity = 'info' | 'watch' | 'critical';
 
@@ -24,6 +24,9 @@ export interface BriefingItem {
   alertCount: number;
   /** Lunar molt alerts: items the client can tick or route. */
   actions?: MoltAlertActions;
+  /** Lunar molt alerts: i18n keys beside topTitle / steps (M1.6). */
+  titleKey?: TextKey;
+  stepKeys?: TextKey[];
 }
 
 /** One unread persisted alert, uncollapsed (GET /alert-center/all). */
@@ -103,6 +106,7 @@ export class AlertCenterService {
         alertCount: list.length,
         // The top alert's own actions only — never another alert's.
         ...(data.actions ? { actions: data.actions } : {}),
+        ...(data.titleKey ? { titleKey: data.titleKey, stepKeys: data.stepKeys } : {}),
       });
     }
     return items.sort((a, b) => rank(b.topSeverity) - rank(a.topSeverity));

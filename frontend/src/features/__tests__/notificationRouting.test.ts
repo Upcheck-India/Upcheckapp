@@ -47,3 +47,12 @@ describe('routeForNotification', () => {
         expect(routeForNotification({ type: 'leave_request' })).toBeNull();
     });
 });
+
+describe('molt reminder routing (M1.4)', () => {
+    it('opens the Lunar pond list', () => {
+        expect(routeForNotification({ tag: 'molt-reminder', windowKey: '2026-09-26-full' })).toEqual({
+            screen: 'Lunar',
+            params: {},
+        });
+    });
+});

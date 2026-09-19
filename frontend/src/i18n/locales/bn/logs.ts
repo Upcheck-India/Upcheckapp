@@ -88,6 +88,7 @@ const logs = {
   harvest_saveBtn: 'ফসল সংরক্ষণ করুন',
   harvest_validationWeight: 'ওজন আবশ্যক',
   harvest_errorSave: 'ফসল লগ করতে ব্যর্থ। আবার চেষ্টা করুন।',
+  harvest_errorCycleClosed: 'এই চক্রটি ইতিমধ্যে বন্ধ হয়ে গেছে। ফসল সংরক্ষণ করা হয়নি।',
 
   // ── Microbiology Log ──────────────────────────────────────────────────────
   microbiology_title: 'মাইক্রোবায়োলজি এন্ট্রি',

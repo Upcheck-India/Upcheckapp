@@ -103,12 +103,18 @@ export const MoltChecklist: React.FC<{ pondId: string; pondName?: string; cropId
     if (!pm.window) return;
     setSaving(item.key);
     try {
-      const { data } = await moltApi.setAction(pondId, {
-        windowKey: pm.window.key,
-        actionKey: item.key,
-        done: item.status !== 'done',
-      });
-      queryClient.setQueryData(key, data);
+      const done = item.status !== 'done';
+      const res = await moltApi.setAction(pondId, { windowKey: pm.window.key, actionKey: item.key, done });
+      // Queued offline: show the tick now; it syncs on reconnect.
+      queryClient.setQueryData<PondMolt>(key, (old) =>
+        res.data ??
+        (old && {
+          ...old,
+          items: old.items.map((i) =>
+            i.key === item.key ? { ...i, status: done ? 'done' : 'pending', source: 'manual' } : i,
+          ),
+        }),
+      );
       void queryClient.invalidateQueries({ queryKey: ['briefing'] });
     } catch (e) {
       Alert.alert(t('engines.common.couldNotCompute'), apiErrorMessage(e, t('engines.common.tryAgain')));
@@ -139,9 +145,11 @@ export const MoltChecklist: React.FC<{ pondId: string; pondName?: string; cropId
       const icon = STATUS_ICON[item.status];
       const live = item.actionable !== false;
       const missed = item.status === 'missed';
-      // A chemical log needs the cycle; opened before the pond context loads
-      // it would save against no crop and never satisfy the item.
-      const blocked = item.route === 'ChemicalLog' && !cropId;
+      // A chemical/treatment log needs the cycle; opened before the pond
+      // context loads it would save against no crop and never satisfy the item.
+      const blocked = (item.route === 'ChemicalLog' || item.route === 'TreatmentLog') && !cropId;
+      // Auto + manual items (minerals) offer both "Log it" and "Mark done".
+      const canLog = item.status === 'pending' && !!item.route;
       return (
         <View key={item.key} style={[styles.itemRow, missed && styles.itemMissed]} testID={`molt-item-${item.key}`}>
           <MaterialCommunityIcons name={icon.name} size={22} color={icon.color} />
@@ -163,10 +171,10 @@ export const MoltChecklist: React.FC<{ pondId: string; pondName?: string; cropId
               </Text>
             </TouchableOpacity>
           )}
-          {live && canWrite && item.source === 'auto' && item.status === 'pending' && item.route && (
+          {live && canWrite && canLog && (
             <TouchableOpacity
               style={[styles.itemBtn, blocked && { opacity: 0.4 }]}
-              onPress={() => navigation.navigate(item.route, params)}
+              onPress={() => navigation.navigate(item.route!, params)}
               disabled={blocked}
               accessibilityRole="button"
               accessibilityState={{ disabled: blocked }}

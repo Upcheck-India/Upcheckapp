@@ -19,6 +19,7 @@ import {
   registerForPushNotificationsAsync,
   syncReminders,
   syncMoltReminders,
+  moltReminderWindows,
   syncBriefReminders,
   loadBriefRemindersPref,
 } from './src/utils/notifications';
@@ -119,6 +120,9 @@ function navigateForNotification(data: unknown): void {
       break;
     case 'DailyBrief':
       navigationRef.navigate('DailyBrief', route.params);
+      break;
+    case 'Lunar':
+      navigationRef.navigate('Lunar', route.params);
       break;
   }
 }
@@ -325,10 +329,11 @@ export default function App() {
       // text follows the current language; cleared when the kill switch or the
       // Settings toggle is off.
       await syncBriefReminders(isRemoteFlagOn('dailyBrief') && (await loadBriefRemindersPref()));
-      // Evening-before molt reminder, only for accounts with a running cycle.
+      // Evening-before molt reminder, only while at least one pond is big
+      // enough to molt with the moon (M1.4). None eligible → clears any armed.
       const mw = ctxRes?.data?.moltWindow;
-      if (mw && contexts.length > 0) {
-        await syncMoltReminders([mw.window, mw.next].filter((w): w is NonNullable<typeof w> => !!w));
+      if (mw) {
+        await syncMoltReminders(moltReminderWindows(mw));
       }
     };
     const arm = () =>

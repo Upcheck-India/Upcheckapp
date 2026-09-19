@@ -11,6 +11,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PondsService } from '../ponds/ponds.service';
+import { Pond } from '../ponds/pond.entity';
 
 describe('CropsService', () => {
   let service: CropsService;
@@ -68,12 +69,16 @@ describe('CropsService', () => {
     delete: jest.fn(),
   });
 
+  // dataSource.manager — closeCycle's writes when no transaction is passed in.
+  let defaultManager: { update: jest.Mock };
+
   beforeEach(async () => {
     manager = {
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
     };
+    defaultManager = { update: jest.fn() };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CropsService,
@@ -99,6 +104,9 @@ describe('CropsService', () => {
             transaction: jest.fn((cb: (m: typeof manager) => unknown) =>
               cb(manager),
             ),
+            get manager() {
+              return defaultManager;
+            },
           },
         },
       ],
@@ -261,63 +269,32 @@ describe('CropsService', () => {
     });
   });
 
-  describe('harvest', () => {
-    it('should record harvest data', async () => {
-      const cropId = 'crop-1';
-      const userId = 'user-1';
-      const harvestData = {
-        actualHarvestDate: '2024-06-01',
-        harvestWeightKg: 2500,
-      };
-
-      pondsService.findOneAccessible.mockResolvedValue(mockPond as any);
-      (repository.update as jest.Mock).mockResolvedValue(undefined);
-      jest.spyOn(service, 'findOneAccessible').mockResolvedValue(
-        Object.assign(new Crop(), mockCrop, {
-          status: 'completed',
-          actualHarvestDate: harvestData.actualHarvestDate,
-          harvestWeightKg: harvestData.harvestWeightKg,
-        }),
-      );
-
-      const result = await service.harvest(cropId, harvestData, userId);
-
-      // Completing a cycle is RECORD_HARVEST end to end — crop read AND pond.
-      expect(service.findOneAccessible).toHaveBeenCalledWith(
-        cropId,
-        userId,
-        'RECORD_HARVEST',
-      );
-      expect(pondsService.findOneAccessible).toHaveBeenCalledWith(
-        'pond-1',
-        userId,
-        'RECORD_HARVEST',
-      );
-      expect(repository.update).toHaveBeenCalledWith(cropId, {
-        actualHarvestDate: new Date(harvestData.actualHarvestDate),
-        harvestWeightKg: harvestData.harvestWeightKg,
-        status: 'completed',
-      });
-      expect(result.status).toBe('completed');
-    });
-  });
-
   describe('closeCycle', () => {
     it('rejects a second close (idempotent) with ConflictException', async () => {
       jest.spyOn(service, 'findOneAccessible').mockResolvedValue(mockCrop);
       pondsService.findOneAccessible.mockResolvedValue(mockPond as any);
       // Guarded UPDATE matched no open row → already closed.
-      (repository.update as jest.Mock).mockResolvedValue({ affected: 0 });
+      defaultManager.update.mockResolvedValue({ affected: 0 });
 
       await expect(
         service.closeCycle('crop-1', '2024-06-01', 'user-1'),
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
+    it('writes through the caller’s transaction manager when given one', async () => {
+      jest.spyOn(service, 'findOneAccessible').mockResolvedValue(mockCrop);
+      const txManager = { update: jest.fn().mockResolvedValue({ affected: 1 }) };
+
+      await service.closeCycle('crop-1', '2024-06-01', 'user-1', txManager as any);
+
+      expect(txManager.update).toHaveBeenCalledTimes(2);
+      expect(defaultManager.update).not.toHaveBeenCalled();
+    });
+
     it('closes an open cycle and unlinks it from the pond', async () => {
       jest.spyOn(service, 'findOneAccessible').mockResolvedValue(mockCrop);
       pondsService.findOneAccessible.mockResolvedValue(mockPond as any);
-      (repository.update as jest.Mock).mockResolvedValue({ affected: 1 });
+      defaultManager.update.mockResolvedValue({ affected: 1 });
 
       await service.closeCycle('crop-1', '2024-06-01', 'user-1');
 
@@ -334,16 +311,18 @@ describe('CropsService', () => {
         'user-1',
         'RECORD_HARVEST',
       );
-      expect(repository.update).toHaveBeenCalled();
-      // The pond returns to 'fallow' as well as losing its cycle link. These
-      // two fields describe the same fact and were previously allowed to
-      // disagree — a pond could report status 'active' with no cycle, or
-      // 'fallow' with one, and every screen that asked "is this stocked?" via
-      // status then got the wrong answer.
-      expect(pondsService.update).toHaveBeenCalledWith(
-        'pond-1',
+      // The close also clears isActive — it used to stay true forever.
+      expect(defaultManager.update).toHaveBeenCalledWith(
+        Crop,
+        expect.objectContaining({ id: 'crop-1' }),
+        expect.objectContaining({ status: 'completed', isActive: false }),
+      );
+      // The pond returns to 'fallow' as well as losing its cycle link — and
+      // only while THIS crop is still its active cycle.
+      expect(defaultManager.update).toHaveBeenCalledWith(
+        Pond,
+        { id: 'pond-1', activeCycleId: 'crop-1' },
         { activeCycleId: null, status: 'fallow' },
-        'user-1',
       );
     });
   });

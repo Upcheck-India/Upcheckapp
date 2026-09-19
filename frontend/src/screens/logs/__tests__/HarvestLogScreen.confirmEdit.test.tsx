@@ -4,6 +4,9 @@
 jest.mock('../../../api/harvests', () => ({
     harvestsApi: { update: jest.fn(), create: jest.fn() },
 }));
+jest.mock('../../../api/ponds', () => ({
+    pondsApi: { getById: jest.fn().mockResolvedValue({ data: { id: 'pond-1', farmId: 'farm-1' } }) },
+}));
 jest.mock('../../../sync/recordSync', () => ({
     saveRecord: jest.fn(),
     drainRecordQueue: jest.fn().mockResolvedValue(undefined),

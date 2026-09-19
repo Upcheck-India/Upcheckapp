@@ -255,20 +255,26 @@ export class TransactionsService {
   async update(id: string, updateDto: UpdateTransactionDto, userId: string) {
     // Rewriting money is a write, not a view — gated on WRITE_MANAGEMENT, not
     // VIEW_FINANCIALS (which anyone with read access to financials also has).
-    await this.findWithCapability(id, userId, 'WRITE_MANAGEMENT');
-    // Never allow re-pointing a transaction at a farm the caller can't manage financially.
-    if (updateDto.farmId) {
-      await this.farmAccess.assertCanAccessFarm(
-        userId,
-        updateDto.farmId,
-        'WRITE_MANAGEMENT',
-      );
+    const existing = await this.findWithCapability(
+      id,
+      userId,
+      'WRITE_MANAGEMENT',
+    );
+    // farmId/id are not on UpdateTransactionDto (S1): a transaction stays on
+    // its farm. Re-tagging the pond is the one allowed move, and only to a
+    // pond on that SAME farm — same rule as create().
+    if (updateDto.pondId) {
+      const pond = await this.pondsRepository.findOne({
+        where: { id: updateDto.pondId },
+      });
+      if (!pond || pond.farmId !== existing.farmId) {
+        throw new BadRequestException(
+          'pondId does not belong to the transaction farm',
+        );
+      }
     }
-    // `id` rides on the DTO for create-time idempotency only — spreading it
-    // into an UPDATE would reassign the primary key.
-    const { id: _id, ...columns } = updateDto;
     await this.transactionsRepository.update(id, {
-      ...columns,
+      ...updateDto,
       updatedById: userId,
     });
     return this.transactionsRepository.findOneBy({ id });

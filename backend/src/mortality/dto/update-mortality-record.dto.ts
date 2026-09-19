@@ -18,6 +18,12 @@ export class UpdateMortalityRecordDto {
   @Min(0)
   quantity?: number;
 
+  // Omitted with a new `quantity` → the service recomputes it (H6).
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  estimatedTotal?: number;
+
   @IsOptional()
   @IsNumber()
   @Min(0)

@@ -91,11 +91,12 @@ export class HarvestTimingController {
     return result;
   }
 
+  /** Saved results carry ₹ projections (netNow, netOptimal) — VIEW_FINANCIALS. */
   @Get('pond/:pondId')
   @UseGuards(OwnershipGuard)
-  @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
+  @OwnsResource('Pond', 'pondId', 'farm.userId', 'VIEW_FINANCIALS')
   async recent(@Param('pondId') pondId: string, @CurrentUser() user) {
-    await this.pondsService.verifyAccess(pondId, user.id, 'READ');
+    await this.pondsService.verifyAccess(pondId, user.id, 'VIEW_FINANCIALS');
     return this.repo.find({
       where: { pondId },
       order: { createdAt: 'DESC' },
