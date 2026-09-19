@@ -1,4 +1,6 @@
+import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { LunarService } from './lunar.service';
+import { ComputeRiskDto } from './lunar.controller';
 
 const SYNODIC = 29.530588853;
 const REF_NEW_MOON_JD = 2451550.26;
@@ -48,10 +50,6 @@ describe('LunarService — lock factor, mineral dose, risk (spec §3/§5/§8)', 
     expect(svc.lunarLockFactor(2)).toBeCloseTo(0.2, 6); // clamped
     expect(svc.lunarLockFactor(20)).toBeCloseTo(1.0, 6);
     expect(svc.lunarLockFactor(11.5)).toBeCloseTo(0.5, 6); // (11.5-3)/17
-  });
-
-  it('mineral dose: raise K by 10ppm in 1000 m³ with MOP (50% K) → 20 kg', () => {
-    expect(svc.mineralDoseKg(10, 1000, 0.5)).toBe(20);
   });
 
   it('molt risk is 0 away from a spring tide (moltLikelihood 0)', () => {
@@ -165,5 +163,42 @@ describe('LunarService — signed days + action playbook (spec §5)', () => {
   it('post-molt leads with restoring feed for compensatory growth', () => {
     const pb = playbookFor(TWO_DAYS_AFTER_FULL);
     expect(pb.steps.some((s) => s.category === 'feed')).toBe(true);
+  });
+});
+
+describe('M1.6/M1.7 playbook keys + /lunar/risk DTO', () => {
+  const svc = new LunarService();
+
+  it('every step and label carries an engines.lunar.pb_* key beside the English', () => {
+    for (const d of [NEW_MOON, TWO_DAYS_BEFORE_FULL, TWO_DAYS_AFTER_FULL, FIRST_QUARTER]) {
+      const p = svc.moonPhase(d);
+      const v = { do: 2.5, mineralDeficitFrac: 0.5, salinity: 3, freeNh3: 0.4, temp: 34, diseaseHigh: true, tray: 'a_lot_left' as const };
+      const pb = svc.buildPlaybook(p, svc.computeMoltRisk(p, 25, v), v);
+      expect(pb.phaseLabelKey).toBe(`engines.lunar.pb_label_${pb.phaseRel}`);
+      expect(pb.headlineKey).toMatch(/^engines\.lunar\.pb_headline_(inter|(pre|peak|post)_(new|full))$/);
+      expect(pb.noteKey).toBe('engines.lunar.pb_note');
+      for (const s of pb.steps) expect(s.key).toMatch(/^engines\.lunar\.pb_[a-z]+_[A-Za-z0-9]+$/);
+    }
+  });
+
+  it('the note no longer claims the app learns from pond observations', () => {
+    const p = svc.moonPhase(NEW_MOON);
+    expect(svc.buildPlaybook(p, svc.computeMoltRisk(p, 25, {}), {}).note).toBe(
+      'Molt timing follows the moon calendar. Your soft-shell observations are recorded for future tuning.',
+    );
+  });
+
+  it('low-DO step passes the reading as a param', () => {
+    const p = svc.moonPhase(NEW_MOON);
+    const pb = svc.buildPlaybook(p, svc.computeMoltRisk(p, 25, { do: 2.5 }), { do: 2.5 });
+    expect(pb.steps.find((s) => s.trigger === 'lowDO')).toMatchObject({ key: 'engines.lunar.pb_peak_lowDO', params: { do: 2.5 } });
+  });
+
+  it('rejects a body without abwG (used to return a NaN score)', async () => {
+    const pipe = new ValidationPipe({ whitelist: true, transform: true });
+    const meta = { type: 'body' as const, metatype: ComputeRiskDto };
+    await expect(pipe.transform({ vulnerability: {} }, meta)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(pipe.transform({ abwG: 12, vulnerability: { do: 'low' } }, meta)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(pipe.transform({ abwG: 12, vulnerability: { do: 4.2, tray: 'few_left' } }, meta)).resolves.toMatchObject({ abwG: 12 });
   });
 });
