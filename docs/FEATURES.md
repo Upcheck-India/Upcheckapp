@@ -65,7 +65,7 @@ The master feature reference for the Upcheck monorepo (shrimp-farming operations
 
 | Feature | Backend | Frontend | Entity | Notes |
 |---|---|---|---|---|
-| Crop/cycle lifecycle | `crops` → `POST`, `GET`, `GET :id`, `PATCH :id`, `PATCH :id/harvest`, `PATCH :id/close`, `DELETE` | `cycles/CreateCycleScreen`, `cycles/CycleDetailScreen` | `crops` | A crop = one culture cycle (stocking → harvest → close). CycleDetail links to Cycle Analysis (**gated** by `cycleAnalysisReport`, ON). |
+| Crop/cycle lifecycle | `crops` → `POST`, `GET`, `GET :id`, `PATCH :id`, `PATCH :id/close`, `DELETE` | `cycles/CreateCycleScreen`, `cycles/CycleDetailScreen` | `crops` | A crop = one culture cycle (stocking → harvest → close). CycleDetail links to Cycle Analysis (**gated** by `cycleAnalysisReport`, ON). |
 
 ## 4. Water quality & chemistry
 
@@ -107,8 +107,8 @@ The master feature reference for the Upcheck monorepo (shrimp-farming operations
 
 | Feature | Backend | Frontend | Entity | Notes |
 |---|---|---|---|---|
-| Harvest records | `harvests` → `POST/GET/GET :id/PATCH/DELETE` | `logs/HarvestLogScreen`, `logs/History/HarvestHistoryScreen` | `harvests`, `harvest_records` | Partial + full harvest events. |
-| Harvest plans | `harvest-plans` → `POST`, `GET`, `GET :id`, `PATCH :id`, `PATCH :id/complete`, `GET pond/:pondId/summary`, `DELETE` | `harvest/HarvestPlansScreen` | `harvest_plans` | Plan → mark complete / cancel. |
+| Harvest records | `harvests` → `POST/GET/GET :id/PATCH/DELETE` | `logs/HarvestLogScreen`, `logs/History/HarvestHistoryScreen` | `harvests` | Partial + full harvest events. A harvest on a closed cycle is refused (409 `CYCLE_CLOSED`) before anything is written; a full harvest closes the cycle in the same transaction. Sale price + buyer are masked without VIEW_FINANCIALS. Only `status='sold'` harvests count as revenue. The legacy `harvest_records` table has no entity any more (drop it in a later cleanup migration). `pond.status='harvesting'` exists in the enum but is deliberately never set — a pond goes `active` → `fallow` on close. |
+| Harvest plans | `harvest-plans` → `POST`, `GET`, `GET :id`, `PATCH :id`, `PATCH :id/complete`, `DELETE` | `harvest/HarvestPlansScreen` | `harvest_plans` | Plan → mark complete. A plan's `cropId` must be its pond's active cycle; PATCH cannot change pond or crop. Complete is RECORD_HARVEST and books once. Prices/revenue masked without VIEW_FINANCIALS. |
 
 ## 9. Inventory, feed products & credit
 
