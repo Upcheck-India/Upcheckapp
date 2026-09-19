@@ -13,6 +13,8 @@ interface CalendarPickerProps {
     helperText?: string;
     /** Replace the labelled field with your own trigger (e.g. a date in a header). */
     renderTrigger?: (open: () => void) => React.ReactNode;
+    /** Shade a day: 'strong' / 'light' background, e.g. molt peak / post days. */
+    shade?: (d: Date) => 'strong' | 'light' | null;
 }
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -40,6 +42,7 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
     required = false,
     helperText,
     renderTrigger,
+    shade,
 }) => {
     const [open, setOpen] = useState(false);
     const [viewMonth, setViewMonth] = useState(new Date(value.getFullYear(), value.getMonth(), 1));
@@ -135,10 +138,12 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
                                 if (!d) return <View key={i} style={styles.cell} />;
                                 const disabled = isDisabled(d);
                                 const selected = sameDay(d, value);
+                                const tone = shade?.(d);
                                 return (
                                     <TouchableOpacity
                                         key={i}
-                                        style={styles.cell}
+                                        style={[styles.cell, tone === 'strong' && styles.shadeStrong, tone === 'light' && styles.shadeLight]}
+                                        testID={tone ? `day-${d.getDate()}-${tone}` : undefined}
                                         disabled={!!disabled}
                                         activeOpacity={0.7}
                                         onPress={() => {
@@ -212,6 +217,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
+    shadeStrong: { backgroundColor: theme.roles.light.warningBorder },
+    shadeLight: { backgroundColor: theme.roles.light.warningBg },
     dayCircle: {
         width: 36,
         height: 36,

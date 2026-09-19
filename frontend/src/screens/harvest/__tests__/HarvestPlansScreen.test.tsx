@@ -20,11 +20,18 @@ jest.mock('../../../api/harvestPlans', () => ({
 }));
 const permissions = { canRecordHarvest: true };
 jest.mock('../../../hooks/usePermissions', () => ({ usePermissions: () => permissions }));
+jest.mock('../../../api/molt', () => ({ moltApi: { windows: jest.fn().mockResolvedValue({ data: [] }) } }));
+jest.mock('../../../components/harvest/PreHarvestCheck', () => ({
+    PreHarvestCheck: ({ date }: { date: string }) => {
+        const { Text } = require('react-native');
+        return <Text>{`CHECK ${date}`}</Text>;
+    },
+}));
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { HarvestPlansScreen } from '../HarvestPlansScreen';
+import { HarvestPlansScreen, showsPreHarvestCheck } from '../HarvestPlansScreen';
 import { harvestPlansApi } from '../../../api/harvestPlans';
 
 const mockedGetAll = harvestPlansApi.getAll as jest.Mock;
@@ -109,5 +116,25 @@ describe('HarvestPlansScreen — H4', () => {
                 expect.objectContaining({ targetWeightKg: 500, expectedPricePerKg: 280, expectedRevenue: 140000 }),
             ),
         );
+    });
+});
+
+describe('HarvestPlansScreen — M2 pre-harvest check on the plan card', () => {
+    const plan = (over: any = {}) => ({ ...PLANNED_PLAN, ...over }) as any;
+
+    it('appears from 2 days before the planned date, only on planned plans', () => {
+        expect(showsPreHarvestCheck(plan({ plannedHarvestDate: '2026-10-05' }), '2026-10-02')).toBe(false);
+        expect(showsPreHarvestCheck(plan({ plannedHarvestDate: '2026-10-05' }), '2026-10-03')).toBe(true);
+        expect(showsPreHarvestCheck(plan({ plannedHarvestDate: '2026-10-05T00:00:00.000Z' }), '2026-10-05')).toBe(true);
+        expect(showsPreHarvestCheck(plan({ plannedHarvestDate: '2026-10-05', status: 'completed' }), '2026-10-04')).toBe(false);
+    });
+
+    it('renders on a due card and not on a far-off one', async () => {
+        mockedGetAll.mockResolvedValue({
+            data: [PLANNED_PLAN, plan({ id: 'plan-2', plannedHarvestDate: '2099-01-01' })],
+        });
+        const { findByText, queryByText } = renderScreen();
+        expect(await findByText('CHECK 2026-08-01')).toBeTruthy();
+        expect(queryByText('CHECK 2099-01-01')).toBeNull();
     });
 });

@@ -90,6 +90,21 @@ const health = {
   },
   pickPond: 'कौन सा तालाब?',
   noActivePonds: 'किसी तालाब में चालू चक्र नहीं है।',
+  // Pre-harvest check (harvest spec M2).
+  check: {
+    title: 'हार्वेस्ट से पहले',
+    moltPeak: '{{date}} को मोल्ट पीक: नरम खोल की संभावना',
+    moltPost: '{{date}} मोल्ट पीक के ठीक बाद है: खोल अभी नरम हो सकते हैं',
+    softMany: '{{date}} को नरम खोल दिखे ({{of}} में से {{count}}): खरीदार दाम काट सकता है',
+    softManyNoCount: '{{date}} को नरम खोल दिखे: खरीदार दाम काट सकता है',
+    softFirm: 'खोल जाँचे गए: सख्त',
+    softPrompt: 'पहले कास्ट-नेट जाँच करें: 50 में से कितने नरम?',
+    of: 'में से',
+    banned: '{{date}} को एक प्रतिबंधित पदार्थ ({{substances}}) दर्ज हुआ: निर्यात खरीदार अवशेषों की जाँच करते हैं',
+    restricted: '{{date}} को {{substances}} दर्ज हुआ। हार्वेस्ट से पहले अपने प्रोसेसर से विदड्रॉल अवधि की पुष्टि करें',
+    withdrawal: '{{date}} को {{substance}}; विदड्रॉल अवधि {{until}} तक ({{source}})',
+    ready: 'हार्वेस्ट के लिए तैयार',
+  },
 };
 
 export default health;
