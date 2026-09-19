@@ -278,7 +278,9 @@ export const CycleResultScreen = ({ route, navigation }: any) => {
                 {canStartCycle && data.status !== 'active' && (
                     <Button
                         title={t('reports.startNext')}
-                        onPress={() => navigation.navigate('CreateCycle', { pondId: data.pondId })}
+                        // replace, not navigate: CreateCycle goBack()s on success, which
+                        // otherwise lands the farmer back on this old cycle's report.
+                        onPress={() => navigation.replace('CreateCycle', { pondId: data.pondId })}
                         style={styles.action}
                     />
                 )}
