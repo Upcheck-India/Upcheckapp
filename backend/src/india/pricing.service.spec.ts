@@ -108,6 +108,7 @@ describe('PricingService', () => {
           { countPerKg: 30, pricePerKg: 520 },
           { countPerKg: 40, pricePerKg: 999 },
           { countPerKg: 60, pricePerKg: null },
+          { countPerKg: 70, pricePerKg: 0 },
           { countPerKg: null, pricePerKg: 300 },
         ]),
       ).toEqual([
