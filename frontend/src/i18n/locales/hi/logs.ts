@@ -162,6 +162,15 @@ const logs = {
   treatment_bannerRestrictedMsg:
     '{{names}} — निर्यात-नियंत्रित; कटाई से पहले निकासी अवधि का पालन करें।',
 
+  // ── Banned-substance list notice (spec D1) ───────────────────────────────
+  banned_disclaimer: 'यह सूची अधूरी हो सकती है। चेतावनी न आने का मतलब यह नहीं कि उत्पाद की अनुमति है।',
+  banned_listOf: '{{date}} की सूची',
+  banned_sourcesLink: 'स्रोत',
+  banned_sourcesTitle: 'प्रतिबंधित पदार्थ सूची: स्रोत',
+  banned_reviewed: '{{date}} को {{name}} ने इन स्रोतों से जाँची।',
+  banned_notReviewed: 'मसौदा: अभी किसी नामित समीक्षक ने नहीं जाँचा।',
+  banned_settingsRow: 'प्रतिबंधित पदार्थ सूची',
+
   // ── Water Quality Log ─────────────────────────────────────────────────────
   waterQuality_title: 'जल गुणवत्ता',
   needsOneValue: "सहेजने से पहले कम से कम एक रीडिंग भरें।",

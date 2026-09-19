@@ -28,6 +28,7 @@ import { SectionHeader } from '../../components/ui/SectionHeader';
 import { Button } from '../../components/ui/Button';
 import { Icon, type IconName } from '../../components/ui/Icon';
 import { UpdateStatus } from '../../components/ui/UpdateStatus';
+import { BannedSourcesSheet, useBannedListLabel } from '../../components/compliance/BannedListNotice';
 import { theme } from '../../theme';
 import { appVersion } from '../../utils/appVersion';
 import {
@@ -86,6 +87,8 @@ export const SettingsScreen = ({ navigation }: any) => {
     // offline queueing always runs via saveRecord, and there is no weekly-email
     // feature to switch). pushNotifications is the one toggle with a real effect.
     const [pushNotifications, setPushNotifications] = useState(true);
+    const [bannedSourcesOpen, setBannedSourcesOpen] = useState(false);
+    const bannedListLabel = useBannedListLabel();
     const [togglingPush, setTogglingPush] = useState(false);
     // Re-render on language change; i18n.language is read, not stored in state.
     const [, setLanguageTick] = useState(0);
@@ -542,6 +545,16 @@ export const SettingsScreen = ({ navigation }: any) => {
                     <Text style={[styles.rowLabel, { flex: 1 }]}>{t('common.version')}</Text>
                     <Text style={styles.version}>v{appVersion()}</Text>
                 </View>
+                {/* Which banned-substance list this install checks against (spec D1). */}
+                <TouchableOpacity
+                    style={styles.row}
+                    onPress={() => setBannedSourcesOpen(true)}
+                    accessibilityRole="button"
+                >
+                    <Text style={[styles.rowLabel, { flex: 1 }]}>{t('logs.banned_settingsRow')}</Text>
+                    <Text style={styles.version}>{bannedListLabel}</Text>
+                </TouchableOpacity>
+                <BannedSourcesSheet visible={bannedSourcesOpen} onClose={() => setBannedSourcesOpen(false)} />
                 {/* Directly under the version, because "which version am I on"
                     and "did my last launch actually pick up the fix" are the
                     same question to a farmer — and EAS Update applies on the

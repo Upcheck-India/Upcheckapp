@@ -13,6 +13,7 @@ import { treatmentsApi } from '../../api/treatments';
 import { apiErrorMessage } from '../../api/errors';
 import { findBannedSubstances } from '../../features/bannedSubstances';
 import { useBannedSubstancesStore } from '../../features/bannedSubstancesStore';
+import { BannedListNotice, BannedSourcesSheet, useBannedListLabel } from '../../components/compliance/BannedListNotice';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 import { saveRecord } from '../../sync/recordSync';
@@ -37,6 +38,8 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
     const bannedList = useBannedSubstancesStore((s) => s.substances);
     const flagged = findBannedSubstances(`${description} ${productName} ${notes}`, bannedList);
     const hasBanned = flagged.some((s) => s.category === 'banned');
+    const bannedListLabel = useBannedListLabel();
+    const [sourcesOpen, setSourcesOpen] = useState(false);
 
     const performSave = async () => {
         setIsLoading(true);
@@ -88,11 +91,13 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
             const names = flagged.map((s) => s.name).join(', ');
             Alert.alert(
                 hasBanned ? t('logs.treatment_bannedTitle') : t('logs.treatment_restrictedTitle'),
-                hasBanned
+                (hasBanned
                     ? t('logs.treatment_bannedBody', { names })
-                    : t('logs.treatment_restrictedBody', { names }),
+                    : t('logs.treatment_restrictedBody', { names })) +
+                    `\n\n${t('logs.banned_disclaimer')}\n${bannedListLabel}`,
                 [
                     { text: t('common.cancel'), style: 'cancel' },
+                    { text: t('logs.banned_sourcesLink'), onPress: () => setSourcesOpen(true) },
                     { text: t('logs.treatment_saveAnyway'), style: 'destructive', onPress: () => void performSave() },
                 ],
             );
@@ -127,6 +132,8 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
                         }
                     />
                 ) : null}
+                {flagged.length > 0 ? <BannedListNotice /> : null}
+                <BannedSourcesSheet visible={sourcesOpen} onClose={() => setSourcesOpen(false)} />
 
                 <Card style={styles.card}>
                     <Input label={t('common.date')} value={date} onChangeText={setDate} placeholder={t('logs.datePlaceholder')} required />

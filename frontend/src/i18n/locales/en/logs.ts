@@ -162,6 +162,15 @@ const logs = {
   treatment_bannerRestrictedMsg:
     '{{names}} — export-restricted; observe the withdrawal period before harvest.',
 
+  // ── Banned-substance list notice (spec D1) ───────────────────────────────
+  banned_disclaimer: 'This list may be incomplete. No warning does not mean a product is allowed.',
+  banned_listOf: 'List of {{date}}',
+  banned_sourcesLink: 'Sources',
+  banned_sourcesTitle: 'Banned-substance list: sources',
+  banned_reviewed: 'Checked against these sources on {{date}} by {{name}}.',
+  banned_notReviewed: 'Draft: not yet checked by a named reviewer.',
+  banned_settingsRow: 'Banned-substance list',
+
   // ── Water Quality Log ─────────────────────────────────────────────────────
   waterQuality_title: 'Water Quality',
   needsOneValue: "Enter at least one reading before saving.",

@@ -162,6 +162,15 @@ const logs = {
   treatment_bannerRestrictedMsg:
     '{{names}} — ରପ୍ତାନି-ସୀମିତ; ଅମଳ ପୂର୍ବରୁ ପ୍ରତ୍ୟାହାର ଅବଧି ଅନୁସରଣ କରନ୍ତୁ।',
 
+  // ── Banned-substance list notice (spec D1) ───────────────────────────────
+  banned_disclaimer: 'ଏହି ତାଲିକା ଅସମ୍ପୂର୍ଣ୍ଣ ହୋଇପାରେ। ଚେତାବନୀ ନ ଆସିବାର ଅର୍ଥ ନୁହେଁ ଯେ ଉତ୍ପାଦଟି ଅନୁମୋଦିତ।',
+  banned_listOf: '{{date}} ର ତାଲିକା',
+  banned_sourcesLink: 'ଉତ୍ସ',
+  banned_sourcesTitle: 'ନିଷିଦ୍ଧ ପଦାର୍ଥ ତାଲିକା: ଉତ୍ସ',
+  banned_reviewed: '{{date}} ରେ {{name}} ଏହି ଉତ୍ସଗୁଡ଼ିକ ସହ ଯାଞ୍ଚ କରିଛନ୍ତି।',
+  banned_notReviewed: 'ଡ୍ରାଫ୍ଟ: ନାମିତ ସମୀକ୍ଷକ ଏପର୍ଯ୍ୟନ୍ତ ଯାଞ୍ଚ କରିନାହାଁନ୍ତି।',
+  banned_settingsRow: 'ନିଷିଦ୍ଧ ପଦାର୍ଥ ତାଲିକା',
+
   // ── Water Quality Log ─────────────────────────────────────────────────────
   waterQuality_title: 'ଜଳ ଗୁଣ',
   needsOneValue: "ସେଭ୍ କରିବା ପୂର୍ବରୁ ଅନ୍ତତଃ ଗୋଟିଏ ରିଡିଂ ଦିଅନ୍ତୁ।",
