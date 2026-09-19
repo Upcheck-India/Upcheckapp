@@ -90,6 +90,21 @@ const health = {
   },
   pickPond: 'Which pond?',
   noActivePonds: 'No pond has a running cycle.',
+  // Pre-harvest check (harvest spec M2).
+  check: {
+    title: 'Before you harvest',
+    moltPeak: 'Molt peak on {{date}}: expect soft shells',
+    moltPost: '{{date}} is just after the molt peak: shells may still be soft',
+    softMany: 'Soft shells seen on {{date}} ({{count}} of {{of}}): buyer may deduct',
+    softManyNoCount: 'Soft shells seen on {{date}}: buyer may deduct',
+    softFirm: 'Shells checked: firm',
+    softPrompt: 'Do a cast-net check first: how many soft of 50?',
+    of: 'of',
+    banned: 'A banned substance ({{substances}}) was logged on {{date}}: export buyers test for residues',
+    restricted: '{{substances}} logged on {{date}}. Confirm the withdrawal period with your processor before harvest',
+    withdrawal: '{{substance}} on {{date}}; withdrawal period until {{until}} ({{source}})',
+    ready: 'Ready to harvest',
+  },
 };
 
 export default health;

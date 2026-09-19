@@ -10,6 +10,7 @@ import { Button } from '../../components/ui/Button';
 import { CalendarPicker } from '../../components/ui/CalendarPicker';
 import { ChipGroup } from '../../components/ui/ChipGroup';
 import { MoltPeakBanner } from '../../components/molt/MoltPeakBanner';
+import { PreHarvestCheck } from '../../components/harvest/PreHarvestCheck';
 import { theme } from '../../theme';
 import { harvestsApi, RejectedReason } from '../../api/harvests';
 import { cropsApi, computeDoc } from '../../api/crops';
@@ -357,6 +358,8 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                         required
                     />
                 </Card>
+
+                {!isEditing && pondId && <PreHarvestCheck pondId={pondId} cropId={cropId} date={harvestDate} />}
 
                 <Card style={styles.card}>
                     {grades.map((g, i) => {
