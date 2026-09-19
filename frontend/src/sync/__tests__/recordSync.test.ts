@@ -1,7 +1,7 @@
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'fixed-uuid' }));
 jest.mock('../../api/client', () => ({
     __esModule: true,
-    default: { get: jest.fn(), post: jest.fn(), request: jest.fn() },
+    default: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), request: jest.fn() },
 }));
 jest.mock('../../utils/notifications', () => ({ syncReminders: jest.fn().mockResolvedValue(undefined) }));
 // The re-arm reads the farmer's own reminder times before scheduling, so a
@@ -58,6 +58,19 @@ describe('recordSync.saveRecord', () => {
         expect(mockedPost).not.toHaveBeenCalled();
         expect(useSyncStore.getState().queue).toHaveLength(1);
         expect(useSyncStore.getState().queue[0].payload).toMatchObject({ id: 'fixed-uuid', ph: 7.8 });
+    });
+
+    it('an edit (PATCH) sends online and queues as an UPDATE offline (D2)', async () => {
+        const mockedPatch = (apiClient as any).patch as jest.Mock;
+        mockedPatch.mockResolvedValue({ data: {} });
+        await saveRecord({ entity: 'treatment', endpoint: '/treatments/t1', method: 'PATCH', payload: { id: 't1', notes: 'x' } });
+        expect(mockedPatch).toHaveBeenCalledWith('/treatments/t1', { id: 't1', notes: 'x' });
+        expect(mockedPost).not.toHaveBeenCalled();
+
+        useSyncStore.getState().setConnected(false);
+        const r = await saveRecord({ entity: 'treatment', endpoint: '/treatments/t1', method: 'PATCH', payload: { id: 't1', notes: 'y' } });
+        expect(r.queued).toBe(true);
+        expect(useSyncStore.getState().queue[0]).toMatchObject({ type: 'UPDATE', method: 'PATCH', endpoint: '/treatments/t1' });
     });
 
     it('queues on a network error (no response)', async () => {

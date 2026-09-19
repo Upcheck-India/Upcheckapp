@@ -125,6 +125,12 @@ export interface SaveRecordArgs {
     entity: string; // e.g. 'water_quality', 'feed', 'sampling', 'mortality'
     endpoint: string; // e.g. '/water-quality'
     payload: Record<string, unknown>; // record fields (id is added if absent)
+    /**
+     * 'PATCH' edits an existing record (`endpoint` = `/x/:id`, `payload.id` =
+     * that id). It queues offline like a create; the server strips the id
+     * from the body.
+     */
+    method?: 'POST' | 'PATCH';
 }
 
 export interface SaveRecordResult {
@@ -138,7 +144,7 @@ function isNetworkError(err: any): boolean {
     return !err?.response;
 }
 
-export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs): Promise<SaveRecordResult> {
+export async function saveRecord({ entity, endpoint, payload, method = 'POST' }: SaveRecordArgs): Promise<SaveRecordResult> {
     const id = (payload.id as string) || Crypto.randomUUID();
     const body = { ...payload, id };
     const sync = useSyncStore.getState();
@@ -147,7 +153,7 @@ export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs):
     const userId = useAuthStore.getState().user?.id;
 
     const queue = () =>
-        sync.enqueue({ type: 'CREATE', entity, endpoint, method: 'POST', payload: body, localId: id, userId });
+        sync.enqueue({ type: method === 'PATCH' ? 'UPDATE' : 'CREATE', entity, endpoint, method, payload: body, localId: id, userId });
 
     if (!sync.isConnected) {
         queue();
@@ -155,7 +161,7 @@ export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs):
     }
 
     try {
-        const { data } = await apiClient.post(endpoint, body);
+        const { data } = method === 'PATCH' ? await apiClient.patch(endpoint, body) : await apiClient.post(endpoint, body);
         // The server now has it. The response interceptor (api/client.ts) has
         // already invalidated every cached read this record moves — do not
         // call invalidateForEntity() here too, see the comment above.
