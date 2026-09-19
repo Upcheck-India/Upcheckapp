@@ -47,9 +47,17 @@ const FIRST_LOG_KEY = 'upcheck-first-log-recorded';
 /** In-memory short-circuit so the steady state is a boolean, not a disk read. */
 let hasLoggedBefore = false;
 
+/**
+ * The one first-log check in flight. The multi-pond round saves several ponds
+ * CONCURRENTLY, so a farmer's very first round would otherwise run this
+ * read-then-write several times at once and fire FIRST_LOG_RECORDED per pond.
+ */
+let firstLogInFlight: Promise<void> | null = null;
+
 /** Test seam only — the module cache above would otherwise leak between tests. */
 export const __resetFirstLogCache = (): void => {
     hasLoggedBefore = false;
+    firstLogInFlight = null;
 };
 
 /**
@@ -59,17 +67,20 @@ export const __resetFirstLogCache = (): void => {
  * syncs and a record that never syncs is never counted.
  *
  * Never awaited by the save path and never able to throw: `capture` swallows
- * its own errors and the storage read is wrapped.
- *
- * ponytail: no lock around the read-then-write. Screen saves are serial and the
- * drain is a sequential loop, so the only way to double-fire FIRST_LOG_RECORDED
- * is two truly concurrent first-ever logs. Add a promise latch if that ever
- * shows up as a duplicate in the funnel.
+ * its own errors and the storage read is wrapped. Concurrent callers share one
+ * check (see firstLogInFlight).
  */
 async function noteLogRecorded(entity: string): Promise<void> {
     if (!LOG_ENTITIES.has(entity)) return;
     capture(EVENTS.LOG_RECORDED, { kind: entity, ok: true });
     if (hasLoggedBefore) return;
+    firstLogInFlight ??= markFirstLog(entity).finally(() => {
+        firstLogInFlight = null;
+    });
+    return firstLogInFlight;
+}
+
+async function markFirstLog(entity: string): Promise<void> {
     try {
         const raw = await AsyncStorage.getItem(FIRST_LOG_KEY);
         if (raw && JSON.parse(raw)?.recorded === true) {
