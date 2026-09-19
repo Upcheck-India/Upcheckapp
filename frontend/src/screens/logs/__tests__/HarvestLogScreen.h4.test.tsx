@@ -134,6 +134,7 @@ describe('HarvestLogScreen — H4 plan → harvest', () => {
         const { getByText, getByPlaceholderText } = renderScreen({ pondId: 'pond-1', pondName: 'Pond 1', cropId: 'crop-1' });
 
         fireEvent.changeText(getByPlaceholderText('e.g. 1500'), '900');
+        fireEvent.press(getByText('Partial')); // no type is pre-selected any more
         fireEvent.press(getByText('Save Harvest'));
 
         await waitFor(() => expect(saveRecord).toHaveBeenCalled());

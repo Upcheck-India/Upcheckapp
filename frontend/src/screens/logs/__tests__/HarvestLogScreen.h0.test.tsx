@@ -53,6 +53,7 @@ describe('HarvestLogScreen — H0', () => {
 
         const { getByText, getByPlaceholderText } = renderScreen();
         fireEvent.changeText(getByPlaceholderText('e.g. 1500'), '900');
+        fireEvent.press(getByText('Partial')); // no type is pre-selected any more
         fireEvent.press(getByText('Save Harvest'));
 
         await waitFor(() => expect(alert).toHaveBeenCalled());
@@ -69,6 +70,7 @@ describe('HarvestLogScreen — H0', () => {
         expect(queryByText('Sales Information (Optional)')).toBeNull();
 
         fireEvent.changeText(getByPlaceholderText('e.g. 1500'), '900');
+        fireEvent.press(getByText('Partial')); // no type is pre-selected any more
         fireEvent.press(getByText('Save Harvest'));
         await waitFor(() => expect(saveRecord).toHaveBeenCalled());
         const { payload } = (saveRecord as jest.Mock).mock.calls[0][0];

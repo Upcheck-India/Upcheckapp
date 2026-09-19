@@ -126,6 +126,8 @@ const logs = {
   harvest_fullConfirmMessageShort: 'এতে {{pond}}-এর চক্র বন্ধ হবে। এরপর এই চক্রের জন্য খাবার বা জল লগ করা যাবে না।',
   harvest_fullConfirmBtn: 'চক্র বন্ধ করে সংরক্ষণ',
   harvest_typeLocked: 'ধরন ভুল? এই ফসলটি মুছে আবার লগ করুন।',
+  harvest_typeRequired: 'সংরক্ষণের আগে আংশিক বা সম্পূর্ণ বেছে নিন।',
+  harvest_typeHint: 'আংশিক: কিছু চিংড়ি ধরা হয়েছে, চক্র চালু থাকবে। সম্পূর্ণ: সব চিংড়ি ধরা হয়েছে, চক্র বন্ধ হবে ও তার ফলাফল দেখাবে।',
   harvest_deleteBtn: 'ফসল মুছুন',
   harvest_deleteTitle: 'এই ফসলটি মুছবেন?',
   harvest_deleteMessage: 'এতে ফসল ও তার বিক্রি মুছে যাবে।',

@@ -79,9 +79,12 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
               : todayLocalISODate(),
     );
     // `harvestType` param: CycleDetail's "Close → Harvested" opens this as Full.
-    const [harvestType, setHarvestType] = useState<'partial' | 'full'>(
-        editRecord?.harvestType ?? route.params.harvestType ?? 'partial',
+    // A fresh form starts with NO type: defaulting to Partial silently saved a
+    // farmer's full harvest as partial, so the cycle never closed.
+    const [harvestType, setHarvestType] = useState<'partial' | 'full' | null>(
+        editRecord?.harvestType ?? route.params.harvestType ?? null,
     );
+    const [typeMissing, setTypeMissing] = useState(false);
     const [grades, setGrades] = useState<GradeDraft[]>(() =>
         editRecord
             ? draftsFor(editRecord)
@@ -166,6 +169,10 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
     };
 
     const handleSave = async () => {
+        if (!harvestType) {
+            setTypeMissing(true);
+            return;
+        }
         if (parsed.error) {
             const key = { weight: 'logs.harvest_errorWeight', count: 'logs.harvest_errorCount', price: 'logs.harvest_errorPrice' }[parsed.error.field];
             Alert.alert(t('common.error'), t(key, { n: parsed.error.index + 1 }));
@@ -333,10 +340,15 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                         {(['partial', 'full'] as const).map((type) => (
                             <TouchableOpacity
                                 key={type}
-                                style={[styles.typeBtn, harvestType === type && styles.typeBtnActive]}
+                                style={[styles.typeBtn, typeMissing && styles.typeBtnMissing, harvestType === type && styles.typeBtnActive]}
                                 // Immutable after create (H2): a full harvest closed the cycle.
                                 disabled={isEditing}
-                                onPress={() => setHarvestType(type)}
+                                onPress={() => {
+                                    setHarvestType(type);
+                                    setTypeMissing(false);
+                                }}
+                                accessibilityRole="radio"
+                                accessibilityState={{ selected: harvestType === type, disabled: isEditing }}
                             >
                                 <Text style={[styles.typeText, harvestType === type && styles.typeTextActive]}>
                                     {t(type === 'partial' ? 'logs.harvest_typePartial' : 'logs.harvest_typeFull')}
@@ -344,7 +356,10 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                             </TouchableOpacity>
                         ))}
                     </View>
-                    {isEditing && <Text style={styles.hint}>{t('logs.harvest_typeLocked')}</Text>}
+                    {typeMissing && (
+                        <Text testID="harvest-type-required" style={styles.error}>{t('logs.harvest_typeRequired')}</Text>
+                    )}
+                    <Text style={styles.hint}>{t(isEditing ? 'logs.harvest_typeLocked' : 'logs.harvest_typeHint')}</Text>
                     {planId && prefill?.date && (
                         <Text style={styles.hint}>{t('logs.harvest_fromPlan', { date: formatDate(fromIso(prefill.date)) })}</Text>
                     )}
@@ -560,6 +575,7 @@ const styles = StyleSheet.create({
         backgroundColor: theme.roles.light.primary,
         borderColor: theme.roles.light.primary,
     },
+    typeBtnMissing: { borderColor: theme.roles.light.dangerText },
     typeText: {
         ...theme.typeScale.labelLarge,
         color: theme.roles.light.textSecondary,
@@ -567,6 +583,7 @@ const styles = StyleSheet.create({
     typeTextActive: {
         color: theme.roles.light.surface,
     },
+    error: { ...theme.typeScale.bodySmall, color: theme.roles.light.dangerText, marginBottom: theme.spacing[2] },
     hint: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[3] },
     warn: { ...theme.typeScale.bodySmall, color: theme.roles.light.warningText, marginTop: theme.spacing[1] },
     gradeBlock: { marginBottom: theme.spacing[4] },

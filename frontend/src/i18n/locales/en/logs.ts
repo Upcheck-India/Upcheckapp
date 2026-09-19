@@ -126,6 +126,8 @@ const logs = {
   harvest_fullConfirmMessageShort: 'This closes the cycle for {{pond}}. You can\'t log feed or water for this cycle after this.',
   harvest_fullConfirmBtn: 'Close cycle & save',
   harvest_typeLocked: 'Wrong type? Delete this harvest and log it again.',
+  harvest_typeRequired: 'Choose Partial or Full before saving.',
+  harvest_typeHint: 'Partial: some shrimp harvested, the cycle stays open. Full: all shrimp harvested, the cycle closes and you see its result.',
   harvest_deleteBtn: 'Delete harvest',
   harvest_deleteTitle: 'Delete this harvest?',
   harvest_deleteMessage: 'This removes the harvest and its sale.',
