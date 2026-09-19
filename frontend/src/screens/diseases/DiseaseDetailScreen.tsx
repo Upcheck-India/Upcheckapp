@@ -79,6 +79,7 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
         title: string,
         icon: string,
         items: string[] | undefined,
+        note?: string,
     ) => {
         if (!items || items.length === 0) return null;
         return (
@@ -91,6 +92,7 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
                     />
                     <Text style={styles.sectionTitle}>{title}</Text>
                 </View>
+                {note ? <Text style={styles.sectionNote}>{note}</Text> : null}
                 {items.map((item, index) => (
                     <View key={index} style={styles.bulletItem}>
                         <View style={styles.bulletDot} />
@@ -265,7 +267,13 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
                 {renderSection(t('content.diseases.sectionPrevention'), 'shield-check', disease.preventionMeasures)}
 
                 {/* Treatment Recommendations */}
-                {renderSection(t('content.diseases.sectionTreatment'), 'medical-bag', disease.treatmentRecommendations)}
+                {/* Fixed caution above treatments (spec 2026-09-19 D0/S3). */}
+                {renderSection(
+                    t('content.diseases.sectionTreatment'),
+                    'medical-bag',
+                    disease.treatmentRecommendations,
+                    t('content.diseases.noAntibioticsNote'),
+                )}
 
                 {/* Log Disease Button */}
                 <Button
@@ -404,6 +412,15 @@ const styles = StyleSheet.create({
     sectionTitle: {
         ...theme.typeScale.h4,
         color: theme.roles.light.textPrimary,
+    },
+    sectionNote: {
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.dangerText,
+        backgroundColor: theme.roles.light.dangerBg,
+        borderRadius: theme.radius.sm,
+        padding: theme.spacing[2],
+        marginBottom: theme.spacing[3],
+        fontWeight: '600',
     },
     bulletItem: {
         flexDirection: 'row',

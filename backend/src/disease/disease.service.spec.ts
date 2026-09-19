@@ -10,7 +10,7 @@ import {
   CreateDiseaseDto,
   CreateDiseaseRecordDto,
 } from './dto/create-disease.dto';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 
 describe('DiseaseService', () => {
   let service: DiseaseService;
@@ -69,6 +69,8 @@ describe('DiseaseService', () => {
     findOneBy: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    count: jest.fn(),
+    remove: jest.fn(),
   });
 
   beforeEach(async () => {
@@ -101,6 +103,39 @@ describe('DiseaseService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  // H5: disease_records.disease_id is ON DELETE RESTRICT — say "in use" (409).
+  describe('removeLibrary', () => {
+    beforeEach(() => {
+      (diseaseLibraryRepository.findOne as jest.Mock).mockResolvedValue(
+        mockDisease,
+      );
+    });
+
+    it('refuses with 409 when records use the disease, and deletes nothing', async () => {
+      (diseaseRecordRepository.count as jest.Mock).mockResolvedValue(2);
+      await expect(service.removeLibrary('disease-1')).rejects.toThrow(
+        ConflictException,
+      );
+      expect(diseaseLibraryRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('maps a racing FK violation (23503) to 409', async () => {
+      (diseaseRecordRepository.count as jest.Mock).mockResolvedValue(0);
+      (diseaseLibraryRepository.remove as jest.Mock).mockRejectedValue({
+        code: '23503',
+      });
+      await expect(service.removeLibrary('disease-1')).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('deletes an unused disease', async () => {
+      (diseaseRecordRepository.count as jest.Mock).mockResolvedValue(0);
+      await service.removeLibrary('disease-1');
+      expect(diseaseLibraryRepository.remove).toHaveBeenCalledWith(mockDisease);
+    });
   });
 
   describe('createDisease', () => {

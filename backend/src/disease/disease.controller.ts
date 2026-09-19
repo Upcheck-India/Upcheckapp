@@ -16,6 +16,7 @@ import {
   CreateDiseaseRecordDto,
 } from './dto/create-disease.dto';
 import { UpdateDiseaseLibraryDto } from './dto/update-disease-library.dto';
+import { UpdateDiseaseRecordDto } from './dto/update-disease-record.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { OwnershipGuard } from '../common/guards/ownership.guard';
 import { OwnsResource } from '../common/decorators/owns-resource.decorator';
@@ -102,7 +103,7 @@ export class DiseaseController {
   )
   updateRecord(
     @Param('id') id: string,
-    @Body() dto: Partial<CreateDiseaseRecordDto>,
+    @Body() dto: UpdateDiseaseRecordDto,
     @CurrentUser() user,
   ) {
     return this.diseaseService.updateRecord(id, dto, user.id);

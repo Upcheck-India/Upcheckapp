@@ -28,7 +28,8 @@ export class DiseaseRecord {
   @Column({ name: 'disease_id', type: 'uuid' })
   diseaseId: string;
 
-  @ManyToOne(() => DiseaseLibrary, { onDelete: 'SET NULL' })
+  // RESTRICT, not SET NULL: disease_id is NOT NULL (H5, migration 1780701300000).
+  @ManyToOne(() => DiseaseLibrary, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'disease_id' })
   disease: DiseaseLibrary;
 

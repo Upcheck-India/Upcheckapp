@@ -26,6 +26,7 @@ const content = {
     sectionSymptoms: 'அறிகுறிகள்',
     sectionPrevention: 'தடுப்பு',
     sectionTreatment: 'சிகிச்சை',
+    noAntibioticsNote: 'நுண்ணுயிர் எதிர்ப்பிகள் வேண்டாம். இந்தியாவில் இறால் வளர்ப்பில் பல தடைசெய்யப்பட்டுள்ளன.',
     logButton: 'இந்த நோயை பதிவு செய்',
     // Severity badge labels
     severityLow: 'குறைவான',

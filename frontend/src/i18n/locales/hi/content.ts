@@ -26,6 +26,7 @@ const content = {
     sectionSymptoms: 'लक्षण',
     sectionPrevention: 'रोकथाम',
     sectionTreatment: 'उपचार',
+    noAntibioticsNote: 'एंटीबायोटिक न दें। भारत में झींगा पालन में कई एंटीबायोटिक प्रतिबंधित हैं।',
     logButton: 'यह रोग दर्ज करें',
     // Severity badge labels
     severityLow: 'कम',

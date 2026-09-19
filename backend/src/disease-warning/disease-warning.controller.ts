@@ -10,14 +10,10 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { OwnershipGuard } from '../common/guards/ownership.guard';
 import { OwnsResource } from '../common/decorators/owns-resource.decorator';
 import { DiseaseWarningService } from './disease-warning.service';
-import type { DiseaseIndicators } from './disease-warning.service';
-
-interface SnapshotBody {
-  pondId: string;
-  cropId?: string;
-  date: string;
-  indicators: DiseaseIndicators;
-}
+import {
+  DiseaseIndicatorsDto,
+  DiseaseRiskSnapshotDto,
+} from './dto/disease-risk.dto';
 
 /** Disease Early-Warning (farmer_features_spec.md §2). */
 @Controller('disease-risk')
@@ -26,7 +22,7 @@ export class DiseaseWarningController {
 
   /** Pure scoring preview from an indicator set. */
   @Post('compute')
-  compute(@Body() indicators: DiseaseIndicators) {
+  compute(@Body() indicators: DiseaseIndicatorsDto) {
     return this.service.computeRisks(indicators);
   }
 
@@ -34,7 +30,7 @@ export class DiseaseWarningController {
   @Post()
   @UseGuards(OwnershipGuard)
   @OwnsResource('Pond', 'pondId', 'farm.userId', 'WRITE_OPERATIONAL')
-  snapshot(@Body() body: SnapshotBody, @CurrentUser() user) {
+  snapshot(@Body() body: DiseaseRiskSnapshotDto, @CurrentUser() user) {
     return this.service.snapshot(
       body.pondId,
       body.date,

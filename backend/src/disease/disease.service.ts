@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -26,10 +27,13 @@ import {
   CreateDiseaseRecordDto,
 } from './dto/create-disease.dto';
 import { UpdateDiseaseLibraryDto } from './dto/update-disease-library.dto';
+import { UpdateDiseaseRecordDto } from './dto/update-disease-record.dto';
 import { evaluateBannedSubstances } from '../banned-substances/banned-substance-matcher';
 import { BANNED_LIST_VERSION } from '../banned-substances/banned-substances.data';
 
-const DISEASE_SEED_DATA: CreateDiseaseDto[] = [
+// Library text must never recommend antibiotics (spec 2026-09-19 D0/S3) —
+// `disease-library.safety.spec.ts` enforces it.
+export const DISEASE_SEED_DATA: CreateDiseaseDto[] = [
   {
     name: 'AHPND/EMS',
     scientificName: 'Acute Hepatopancreatic Necrosis Disease',
@@ -92,7 +96,11 @@ const DISEASE_SEED_DATA: CreateDiseaseDto[] = [
     commonNames: ['Luminescent Vibriosis', 'Shell disease'],
     symptoms: ['Luminescence', 'Necrotic lesions', 'Red discoloration'],
     preventionMeasures: ['Probiotics', 'Good water quality'],
-    treatmentRecommendations: ['Antibiotics', 'Probiotics', 'Water exchange'],
+    treatmentRecommendations: [
+      'Consult a fisheries officer or aquatic animal health lab',
+      'Probiotics',
+      'Water exchange',
+    ],
     imageUrls: [],
     severityLevel: 'medium',
   },
@@ -242,7 +250,25 @@ export class DiseaseService {
 
   async removeLibrary(id: string): Promise<void> {
     const disease = await this.findDiseaseById(id);
-    await this.diseaseLibraryRepository.remove(disease);
+    // disease_records.disease_id is NOT NULL + ON DELETE RESTRICT (H5): a
+    // library row that farms have logged can't go. Say so instead of a 500.
+    const inUse = await this.diseaseRecordRepository.count({
+      where: { diseaseId: id },
+    });
+    if (inUse > 0) {
+      throw new ConflictException(
+        `Disease is in use by ${inUse} record(s) and cannot be deleted`,
+      );
+    }
+    try {
+      await this.diseaseLibraryRepository.remove(disease);
+    } catch (err: any) {
+      // A record logged between the count and the delete (FK violation).
+      if ((err?.code ?? err?.driverError?.code) === '23503') {
+        throw new ConflictException('Disease is in use and cannot be deleted');
+      }
+      throw err;
+    }
   }
 
   async searchLibrary(query: string, locale?: string): Promise<DiseaseLibrary[]> {
@@ -325,7 +351,7 @@ export class DiseaseService {
 
   async updateRecord(
     id: string,
-    dto: Partial<CreateDiseaseRecordDto>,
+    dto: UpdateDiseaseRecordDto,
     userId?: string,
   ): Promise<DiseaseRecord> {
     const record = await this.diseaseRecordRepository.findOneBy({ id });

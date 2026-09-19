@@ -78,9 +78,9 @@ export class CropsController {
   @OwnsResource('Crop', 'id', 'pond.farm.userId', 'RECORD_HARVEST')
   closeCycle(
     @Param('id') id: string,
-    @Body() body: { actualHarvestDate: string },
+    @Body('actualHarvestDate') actualHarvestDate: string,
     @CurrentUser() user,
   ) {
-    return this.cropsService.closeCycle(id, body.actualHarvestDate, user.id);
+    return this.cropsService.closeCycle(id, actualHarvestDate, user.id);
   }
 }
