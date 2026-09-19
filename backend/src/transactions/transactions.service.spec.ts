@@ -1,13 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  ValidationPipe,
+} from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
+import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { Transaction } from './transaction.entity';
 import { Pond } from '../ponds/pond.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 
 const USER_ID = 'user-1';
+const OTHER_UUID = '22222222-2222-4222-8222-222222222222';
 
 // Mock repository factory
 const createMockRepository = () => ({
@@ -485,22 +491,46 @@ describe('TransactionsService', () => {
       expect(result).toEqual(updatedTransaction);
     });
 
-    it('never lets a client-supplied id reassign the primary key', async () => {
+    it('never lets a client-supplied id or farmId through (stripped by the DTO, S1)', async () => {
+      // The guarantee moved from the service to UpdateTransactionDto: the
+      // global whitelist pipe drops keys the DTO doesn't declare.
+      const pipe = new ValidationPipe({ whitelist: true, transform: true });
+      const body = await pipe.transform(
+        { id: OTHER_UUID, farmId: OTHER_UUID, amount: 5 },
+        { type: 'body', metatype: UpdateTransactionDto },
+      );
+      expect({ ...body }).toEqual({ amount: 5 });
+    });
+
+    it('re-tags the pond only to a pond on the SAME farm', async () => {
       mockRepository.findOneBy.mockResolvedValue({
         id: 'trans-1',
         farmId: 'farm-1',
       });
-
-      await service.update(
-        'trans-1',
-        { id: 'other-id', amount: 5 } as any,
-        USER_ID,
-      );
-
+      mockPondsRepository.findOne.mockResolvedValue({
+        id: 'pond-2',
+        farmId: 'farm-1',
+      });
+      await service.update('trans-1', { pondId: 'pond-2' }, USER_ID);
       expect(mockRepository.update).toHaveBeenCalledWith('trans-1', {
-        amount: 5,
+        pondId: 'pond-2',
         updatedById: USER_ID,
       });
+    });
+
+    it("refuses to re-tag onto another farm's pond, even one the caller manages", async () => {
+      mockRepository.findOneBy.mockResolvedValue({
+        id: 'trans-1',
+        farmId: 'farm-1',
+      });
+      mockPondsRepository.findOne.mockResolvedValue({
+        id: 'foreign-pond',
+        farmId: 'farm-2',
+      });
+      await expect(
+        service.update('trans-1', { pondId: 'foreign-pond' }, USER_ID),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockRepository.update).not.toHaveBeenCalled();
     });
   });
 
