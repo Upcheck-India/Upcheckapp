@@ -39,6 +39,21 @@ const KOVALAM = { id: 'farm-1', name: 'Kovalam East' };
 const PULICAT = { id: 'farm-2', name: 'Pulicat' };
 const navigation = { navigate: jest.fn() };
 
+// Frozen mid-morning IST instant (10:30 IST) so `minsAgo` fixtures and
+// TeamScreen's own `now` never straddle the IST day boundary — running this
+// suite right after IST midnight used to flip "N minutes ago" to yesterday
+// and drop every shift card. `advanceTimers: true` keeps RTL's findBy/waitFor
+// polling working under fake timers.
+const FROZEN_NOW = new Date('2026-09-15T05:00:00.000Z');
+
+beforeAll(() => {
+    jest.useFakeTimers({ advanceTimers: true, now: FROZEN_NOW });
+});
+
+afterAll(() => {
+    jest.useRealTimers();
+});
+
 const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
 const rec = (over: any) => ({ userId: 'me', checkOutAt: null, createdAt: '', ...over });
 const person = (userId: string, firstName: string, farmId: string, role = 'worker') => ({

@@ -55,7 +55,7 @@ import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { capture, EVENTS } from '../../features/analytics';
 import { useFlag } from '../../features/remoteFlags';
 import { roleCan } from '../../permissions/capabilities';
-import { formatTime } from '../../utils/formatDate';
+import { formatDate, formatTime } from '../../utils/formatDate';
 import { ShiftBadge, ShiftCard, useShiftLine } from '../../components/attendance/ShiftCard';
 import { CheckOutSheet } from '../../components/attendance/CheckOutSheet';
 import { formatDuration, type TFn } from '../../features/attendance/shiftState';
@@ -71,7 +71,7 @@ const ATTENDANCE_TONE: Record<Exclude<AttendanceState, 'unknown'>, StatusType> =
 };
 
 const shortDate = (iso: string) =>
-    new Date(iso).toLocaleDateString([], { day: '2-digit', month: 'short' });
+    formatDate(iso, { day: '2-digit', month: 'short' });
 
 export const AllWorkersScreen = ({ navigation }: any) => {
     const { t } = useTranslation();

@@ -9,6 +9,7 @@ import { ErrorState } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
 import { theme } from '../../../theme';
 import { feedApi, FeedRecord } from '../../../api/feedRecords';
+import { formatDate } from '../../../utils/formatDate';
 
 export const FeedHistoryScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -59,7 +60,7 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
         <Card style={styles.card}>
             <View style={styles.rowBetween}>
                 <Text style={styles.dateText}>
-                    {new Date(item.recordedAt || '').toLocaleDateString()}
+                    {formatDate(item.recordedAt, { day: 'numeric', month: 'short', year: 'numeric' })}
                 </Text>
                 <View style={styles.cardActions}>
                     <Text style={styles.amountText}>{item.quantityKg} kg</Text>

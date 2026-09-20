@@ -10,6 +10,7 @@ import { ErrorState, NetworkError } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
 import { theme } from '../../../theme';
 import { mortalityApi, MortalityRecord } from '../../../api/mortalities';
+import { formatDate } from '../../../utils/formatDate';
 
 export const MortalityHistoryScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -93,7 +94,7 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
     const handleDelete = useCallback((item: MortalityRecord) => {
         Alert.alert(
             t('common.delete') + ' ' + t('common.date'),
-            t('history.mortalityDeleteMsg', { date: new Date(item.recordDate).toLocaleDateString() }),
+            t('history.mortalityDeleteMsg', { date: formatDate(item.recordDate, { day: 'numeric', month: 'short', year: 'numeric' }) }),
             [
                 { text: t('common.cancel'), style: 'cancel' },
                 {
@@ -132,7 +133,7 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
                 <Card style={styles.card}>
                     <View style={styles.headerRow}>
                         <Text style={styles.dateText}>
-                            {new Date(item.recordDate).toLocaleDateString()}
+                            {formatDate(item.recordDate, { day: 'numeric', month: 'short', year: 'numeric' })}
                         </Text>
                         <View style={styles.headerRow}>
                             <View style={styles.countChip}>

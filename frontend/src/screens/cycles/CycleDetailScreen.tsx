@@ -19,6 +19,7 @@ import { confirm } from '../../utils/confirm';
 import { usePermissions } from '../../hooks/usePermissions';
 import { EditCycleForm } from './EditCycleForm';
 import { BiosecurityPanel } from '../../components/biosecurity/BiosecurityPanel';
+import { formatDate } from '../../utils/formatDate';
 
 export const CycleDetailScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -187,7 +188,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                     <View style={styles.row}>
                         <View style={styles.col}>
                             <Text style={styles.infoLabel}>{t('cycles.infoStockingDate')}</Text>
-                            <Text style={styles.infoValue}>{cycle.stockingDate ? new Date(cycle.stockingDate).toLocaleDateString() : 'N/A'}</Text>
+                            <Text style={styles.infoValue}>{cycle.stockingDate ? formatDate(cycle.stockingDate, { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}</Text>
                         </View>
                         <View style={styles.col}>
                             <Text style={styles.infoLabel}>{t('cycles.infoDoc')}</Text>

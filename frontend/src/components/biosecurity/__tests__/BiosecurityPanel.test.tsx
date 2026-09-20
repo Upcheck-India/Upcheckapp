@@ -86,6 +86,20 @@ it('a failed fetch shows an error with retry instead of nothing', async () => {
     expect(await s.findByText('Biosecurity 5 of 9')).toBeTruthy();
 });
 
+it('a failed load for a DIFFERENT crop never shows the previous crop\'s checklist', async () => {
+    // CycleDetail is reused for another cycle: keeping the old data on a failed
+    // refetch is right for the same crop, and wrong for a new one — it showed
+    // cycle A's ticks and score as if they were cycle B's.
+    const s = renderPanel();
+    await s.findByText('Biosecurity 5 of 9');
+
+    get.mockRejectedValueOnce(new Error('offline'));
+    s.rerender(<BiosecurityPanel cropId="c2" active canTick canEditSeed={false} />);
+
+    expect(await s.findByTestId('bio-error')).toBeTruthy();
+    expect(s.queryByText('Biosecurity 5 of 9')).toBeNull();
+});
+
 it('each item says what it is and why, and the score is marked self-reported', async () => {
     const s = renderPanel();
     await s.findByText('Biosecurity 5 of 9');

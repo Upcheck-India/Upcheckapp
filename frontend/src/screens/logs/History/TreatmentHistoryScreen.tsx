@@ -10,6 +10,7 @@ import { FAB } from '../../../components/ui/FAB';
 import { theme } from '../../../theme';
 import { treatmentsApi, TreatmentRecord } from '../../../api/treatments';
 import { useIngredientsStore, ingredientName } from '../../../features/ingredientsStore';
+import { formatDate } from '../../../utils/formatDate';
 
 export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
     const { t, i18n } = useTranslation();
@@ -73,7 +74,7 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
         <Card style={styles.card}>
             <View style={styles.headerRow}>
                 <Text style={styles.dateText}>
-                    {new Date(item.treatmentDate).toLocaleDateString()}
+                    {formatDate(item.treatmentDate, { day: 'numeric', month: 'short', year: 'numeric' })}
                 </Text>
                 <View style={styles.cardActions}>
                     {item.basedOn && (
@@ -120,7 +121,7 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
                     {(item.flagHistory ?? []).map((h, i) => (
                         <Text key={i} style={styles.notesText}>
                             {t('compliance.history.entry', {
-                                date: new Date(h.at).toLocaleDateString(),
+                                date: formatDate(h.at, { day: 'numeric', month: 'short', year: 'numeric' }),
                                 from: t(`compliance.flag.${h.from}`),
                                 to: t(`compliance.flag.${h.to}`),
                                 who: h.by === 'system' ? t('compliance.history.system') : t('compliance.history.member'),

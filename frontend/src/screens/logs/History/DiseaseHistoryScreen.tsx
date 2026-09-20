@@ -13,6 +13,7 @@ import { apiErrorMessage } from '../../../api/errors';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { normaliseSeverity } from '../../../api/healthObservations';
 import { PhotoStrip } from '../../../components/ui/PhotoStrip';
+import { formatDate } from '../../../utils/formatDate';
 
 const c = theme.roles.light;
 const severityColors: Record<string, { bg: string; text: string }> = {
@@ -61,7 +62,7 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
     const handleDelete = useCallback((item: DiseaseRecord) => {
         Alert.alert(
             t('common.delete'),
-            t('history.diseaseDeleteMsg', { date: new Date(item.recordedDate).toLocaleDateString() }),
+            t('history.diseaseDeleteMsg', { date: formatDate(item.recordedDate, { day: 'numeric', month: 'short', year: 'numeric' }) }),
             [
                 { text: t('common.cancel'), style: 'cancel' },
                 {
@@ -105,7 +106,7 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
         return (
             <Card style={styles.card}>
                 <View style={styles.headerRow}>
-                    <Text style={styles.dateText}>{new Date(item.recordedDate).toLocaleDateString()}</Text>
+                    <Text style={styles.dateText}>{formatDate(item.recordedDate, { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
                     <View style={styles.headerActions}>
                         {sev && (
                             <View style={[styles.chip, { backgroundColor: sev.bg }]}>

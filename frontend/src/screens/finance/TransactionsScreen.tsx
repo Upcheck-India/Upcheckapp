@@ -28,6 +28,7 @@ import {
 } from '../../api/transactions';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { apiErrorMessage } from '../../api/errors';
+import { formatDate } from '../../utils/formatDate';
 
 type FilterKey = 'all' | 'income' | 'expense';
 
@@ -261,7 +262,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
 
     const renderTransactionItem = ({ item }: { item: Transaction }) => {
         const isIncome = item.type === 'income';
-        const dateStr = new Date(item.transactionDate).toLocaleDateString('en-IN', {
+        const dateStr = formatDate(item.transactionDate, {
             day: '2-digit',
             month: 'short',
             year: 'numeric',
