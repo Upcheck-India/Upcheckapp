@@ -50,3 +50,20 @@ describe('call-log permissions are gone (C0.1)', () => {
         expect(pluginCode).toContain('android.permission.READ_PHONE_STATE');
     });
 });
+
+/**
+ * C0.2: precise location was declared and never read. The district picker (LGD
+ * codes) needs no permission, and the optional "detect my district" shortcut
+ * asks for Accuracy.Low — which COARSE serves. Declaring FINE again would put
+ * a precise-location answer back on the Data Safety form for a feature that
+ * does not exist.
+ */
+describe('precise location is gone (C0.2)', () => {
+    it('the manifest does not declare ACCESS_FINE_LOCATION', () => {
+        expect(manifest).not.toContain('ACCESS_FINE_LOCATION');
+    });
+
+    it('keeps ACCESS_COARSE_LOCATION for the optional district shortcut', () => {
+        expect(manifest).toContain('android.permission.ACCESS_COARSE_LOCATION');
+    });
+});
