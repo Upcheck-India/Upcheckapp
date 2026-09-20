@@ -8,8 +8,9 @@
  *   server-to-server exchange and returns a Supabase session.
  *
  * Fallback path: users WITHOUT the Truecaller app (or who tap "use another
- * number") are routed to {@link TruecallerPhoneScreen} for missed-call / OTP
- * verification.
+ * number") are routed to {@link TruecallerPhoneScreen}, which offers email OTP
+ * or Google. The missed-call route it used to offer was removed with the
+ * call-log permissions (spec C0.1).
  *
  * Trust boundary: nothing here authorizes the user — the backend is the only
  * component that verifies the Truecaller identity.
@@ -57,7 +58,7 @@ export interface TruecallerLoginScreenProps {
 function messageForError(error: TruecallerErrorCode): string {
     switch (error) {
         case 'ERROR_TC_NOT_USABLE':
-            return 'Truecaller is not available on this device. Make sure the Truecaller app is installed and signed in, or verify with a missed call.';
+            return 'Truecaller is not available on this device. Make sure the Truecaller app is installed and signed in, or sign in with email or Google.';
         case 'ERROR_PLATFORM_UNSUPPORTED':
             return 'Truecaller sign-in is only available on Android. Please continue with email.';
         case 'ERROR_NETWORK':
@@ -155,7 +156,7 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                 }
                 case 'verificationRequired':
                 case 'unavailable':
-                    // No usable Truecaller profile → verify via missed call.
+                    // No usable Truecaller profile → email OTP or Google.
                     goToPhoneFallback();
                     return;
                 case 'cancelled':
@@ -252,7 +253,8 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                 <View style={styles.section}>
                     <TruecallerLoginButton onPress={handleStartAuth} loading={false} />
 
-                    {/* Direct path for users who don't have the Truecaller app. */}
+                    {/* Off-ramp for users without a usable Truecaller profile:
+                        email OTP or Google. Never a dead end. */}
                     <TouchableOpacity
                         onPress={goToPhoneFallback}
                         accessibilityRole="button"
@@ -261,7 +263,7 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                         activeOpacity={0.7}
                     >
                         <MaterialCommunityIcons
-                            name="phone-outgoing-outline"
+                            name="login-variant"
                             size={18}
                             color={theme.roles.light.textSecondary}
                         />

@@ -46,8 +46,10 @@ export class FarmsController {
   @Get(':id')
   @UseGuards(OwnershipGuard)
   @OwnsResource('Farm', 'id', 'userId', 'READ')
-  findOne(@Param('id') id: string) {
-    return this.farmsService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user) {
+    // callerId: findOne strips latitude/longitude for worker and viewer
+    // roles (spec 2026-09-20 compliance C0.2) — district is enough for them.
+    return this.farmsService.findOne(id, user.id);
   }
 
   @Patch(':id')

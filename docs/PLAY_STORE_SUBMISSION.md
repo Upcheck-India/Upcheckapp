@@ -166,25 +166,22 @@ policy is the source of truth because it is published.
 
 ### Permissions declared in the manifest
 
-Current (`master`, verified 20 Sep 2026): `INTERNET` · `CAMERA` ·
-`ACCESS_FINE_LOCATION` · `ACCESS_COARSE_LOCATION` · `READ_PHONE_STATE` ·
-`READ_CALL_LOG` · `ANSWER_PHONE_CALLS` · `READ_EXTERNAL_STORAGE` ·
+Current (`development`, verified 20 Sep 2026): `INTERNET` · `CAMERA` ·
+`ACCESS_COARSE_LOCATION` · `READ_PHONE_STATE` · `READ_EXTERNAL_STORAGE` ·
 `WRITE_EXTERNAL_STORAGE` · `VIBRATE`. `RECORD_AUDIO` and `READ_CONTACTS` are
-stripped (`tools:node="remove"`) — **done**, matches the Data Safety rows below.
+stripped (`tools:node="remove"`).
 
-**Pending, not yet merged** — design decided in
-`docs/superpowers/specs/2026-09-20-compliance-privacy-and-store-readiness-design.md`
-§C0.1/§C0.2, being implemented by other agents against `development`, no PR open
-as of 20 Sep 2026:
-- `READ_CALL_LOG` and `ANSWER_PHONE_CALLS` are to be **removed** (missed-call
-  verification path is being dropped; Truecaller one-tap, email OTP and Google
-  remain). Do not submit to Play until this lands — see
-  `docs/PLAY_REVIEW_BLOCKERS.md`.
-- `ACCESS_FINE_LOCATION` is to be **removed**; `ACCESS_COARSE_LOCATION` stays
-  only if the optional "detect my district" shortcut ships with it.
+**Done and merged (PRs #169, #170, #171):**
+- `READ_CALL_LOG` and `ANSWER_PHONE_CALLS` **removed** — from the manifest and
+  from `frontend/plugins/withTruecaller.js`, which re-injects them at prebuild.
+  Missed-call verification is gone; Truecaller one-tap, email OTP and Google
+  remain. A jest test asserts both files stay clean.
+- `ACCESS_FINE_LOCATION` **removed**; `ACCESS_COARSE_LOCATION` stays for the
+  optional "detect my district" shortcut (Accuracy.Low).
 
-The table below already reflects the target (post-merge) state, each row
-marked where it depends on one of those pending changes.
+**These take effect in the next native build (versionCode 14), not over the
+air.** Until that build is submitted and rolled out, the Play Store still holds
+build 13, which declares all three — see `docs/PLAY_REVIEW_BLOCKERS.md`.
 
 ### What to declare as collected
 
@@ -243,11 +240,10 @@ Today: `ACCESS_FINE_LOCATION` is declared, `CreateFarmScreen.tsx` reads with
 `Location.Accuracy.Balanced` (~100 m) and stores unrounded
 `farms.latitude`/`longitude`, read by nothing. §C0.2 of the compliance spec
 removes precise location and adds a district picker
-(`docs/strategy/farm-location-strategy.md` Option B) — **pending, being
-implemented by another agent against `development`, no PR open as of 20 Sep
-2026.**
+(`docs/strategy/farm-location-strategy.md` Option B) — **done, merged 20 Sep
+2026 as PRs #170 and #171; reaches Play in build 14.**
 
-- If that PR lands as designed (district picker, optional "detect my district"
+- As merged (district picker, optional "detect my district"
   at `Accuracy.Low`, coordinates rounded to ~1 km if captured at all,
   `ACCESS_FINE_LOCATION` removed): declare **Location, not collected** (or
   **Approximate, collected, optional** only if the coarse "detect my district"
@@ -315,11 +311,13 @@ call log is being removed entirely (Play's [July 2026
 policy](https://support.google.com/googleplay/android-developer/answer/17134731)
 made `READ_CALL_LOG` for phone verification non-compliant as of 14 August 2026,
 and this app's build 13 still declares it). Once that PR lands: **Not
-collected.** No SMS permission exists and none is planned. **Pending — no PR
-open as of 20 Sep 2026, do not submit to Play until this and the manifest
-change land together.**
+collected.** No SMS permission exists and none is planned. **Merged 20 Sep 2026
+(PR #169): the manifest and the prebuild plugin no longer declare either
+permission. It reaches Play only in the next native build (versionCode 14) —
+do not submit build 13.**
 
 > ### ⚠️ Data deletion — answer is currently BLOCKED, not Yes
+
 >
 > A Play Console draft on 12 September had
 > `PSL_SUPPORT_DATA_DELETION_BY_USER → DATA_DELETION_NO`, which was wrong at the
@@ -347,10 +345,11 @@ change land together.**
 > entirely**, because Play's July 2026 policy update made phone verification a
 > non-compliant use of `READ_CALL_LOG` as of 14 August 2026 — writing a
 > justification for it now does not fix the underlying non-compliance. See
-> `docs/PLAY_REVIEW_BLOCKERS.md`. **Pending — implemented by another agent
-> against `development`, no PR open as of 20 Sep 2026.** Do not submit to Play
-> with these permissions declared once that PR exists; verify the manifest at
-> submission time.
+> `docs/PLAY_REVIEW_BLOCKERS.md`. **Done — merged 20 Sep 2026 as PRs #169, #170
+> and #171.** In App content the declaration must be **removed**, not rewritten:
+> a bundle with no sensitive permission but a live declaration can still be put
+> through the extended review that Play applies to the declaration form. Verify
+> the manifest of the submitted bundle at submission time.
 
 Play will ask you to justify sensitive permissions in the **App content →
 Sensitive app permissions** section. Once the pending removal above lands,
@@ -372,6 +371,7 @@ should be needed at all. The sign-in story after C0.1: Truecaller one-tap when
 the app is installed, otherwise email OTP or Google — no phone-number field
 that cannot complete. See the design spec §C0.1 for the accepted loss (a
 phone-only user with neither Truecaller nor Google cannot self-register).
+
 
 ---
 

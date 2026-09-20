@@ -9,8 +9,12 @@ export interface Farm {
     address?: string;
     waterSourceType?: string;
     plannedPondCount?: number;
+    /** Absent (not merely null) from a worker's or viewer's payload — server-enforced, spec C0.2. */
     latitude?: number;
     longitude?: number;
+    /** LGD-style codes (docs/strategy/farm-location-strategy.md Option B). Absent from older backends. */
+    stateCode?: string | null;
+    districtCode?: string | null;
     qrCodeUrl?: string;
     privacySetting: string;
     boundary?: { latitude: number; longitude: number }[];
@@ -54,8 +58,12 @@ export interface CreateFarmDto {
     address?: string;
     waterSourceType?: string;
     plannedPondCount?: number;
-    latitude?: number;
-    longitude?: number;
+    /** Rounded to ~1km on-device before this is sent, if captured at all. */
+    latitude?: number | null;
+    longitude?: number | null;
+    /** LGD-style codes. `null` explicitly clears — see UpdateFarmDto. */
+    stateCode?: string | null;
+    districtCode?: string | null;
     privacySetting?: string;
     boundary?: { latitude: number; longitude: number }[];
 }

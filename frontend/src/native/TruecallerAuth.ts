@@ -13,13 +13,17 @@
  *      (`POST /auth/supabase/oauth/truecaller/exchange`) which completes the
  *      server-to-server token exchange and mints the session.
  *
- *   2. Missed-call / OTP verification (users WITHOUT the Truecaller app; India +
- *      Android only) — `requestVerification(phone)` triggers a silent drop-call
- *      (or Truecaller-IM OTP); progress arrives as `TruecallerVerification`
- *      events. Once the call is auto-detected (or the OTP is entered) the app
- *      calls `verifyMissedCall()` / `verifyOtp()` and receives an `accessToken`
- *      which the backend validates (`POST /auth/supabase/oauth/truecaller` with
- *      `{ accessToken, phoneNumber, firstName, lastName }`).
+ *   2. Non-Truecaller-user verification — `requestVerification(phone)` plus
+ *      `verifyMissedCall()` / `verifyOtp()`. **No longer driven by any screen.**
+ *      Its missed-call half needed READ_CALL_LOG / ANSWER_PHONE_CALLS, which
+ *      C0.1 removed (Play's July 2026 policy update dropped verification by
+ *      phone call as a permitted use), so `TruecallerPhoneScreen` now routes to
+ *      email OTP or Google instead. These methods and the event types stay
+ *      wired so an unsolicited Truecaller-IM OTP event still completes, and so
+ *      a future policy-safe route can reuse them — but nothing calls
+ *      `requestVerification` today, and no UI copy promises this path.
+ *      On success the `accessToken` goes to the backend
+ *      (`POST /auth/supabase/oauth/truecaller`) which validates it.
  *
  * Android only: on iOS / web every method degrades to a platform-unsupported
  * result / no-op so callers can fall back to email login without crashing, and
@@ -98,8 +102,8 @@ export interface OneTapSuccess {
 
 /**
  * The user has no usable Truecaller profile (app missing, not signed in, or
- * they tapped "use another number"). Callers should route to the missed-call
- * phone-entry flow.
+ * they tapped "use another number"). Callers should route to the sign-in
+ * off-ramp (`TruecallerPhoneScreen`): email OTP or Google.
  */
 export interface OneTapVerificationRequired {
   type: 'verificationRequired';

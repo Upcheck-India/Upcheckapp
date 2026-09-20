@@ -8,20 +8,14 @@
  *     in AndroidManifest.xml are granted automatically.
  *   - API 23+: request READ_PHONE_STATE at runtime.
  *
- * SCOPE WARNING — this helper covers the One-Tap path ONLY.
- *
- * This comment used to say the restricted READ_CALL_LOG / ANSWER_PHONE_CALLS
- * permissions "were removed for Play Store compliance, so they are no longer
- * requested". That is true of THIS FILE and false of the app: the missed-call
- * path in `screens/auth/TruecallerPhoneScreen.tsx` runs its own
- * `PermissionsAndroid.requestMultiple` and still asks for both, and
- * `plugins/withTruecaller` still injects both into AndroidManifest.xml. Two
- * docs repeated the claim and were corrected on 2026-09-07.
- *
- * RECEIVE_SMS and CALL_PHONE really are gone. READ_CALL_LOG and
- * ANSWER_PHONE_CALLS are kept deliberately and declared to Play — see
- * docs/PLAY_STORE_LAUNCH.md §0. If Play refuses them, that section names all
- * three places to strip.
+ * READ_PHONE_STATE is the only permission the app asks for on this path, and as
+ * of C0.1 it is the only phone-related permission the app declares at all.
+ * READ_CALL_LOG and ANSWER_PHONE_CALLS are gone from AndroidManifest.xml AND
+ * from `plugins/withTruecaller.js` (which re-injects at prebuild, so removing
+ * one without the other achieves nothing), together with the missed-call flow
+ * that needed them: Play's July 2026 policy update dropped account verification
+ * by phone call as a permitted use. RECEIVE_SMS and CALL_PHONE were already
+ * gone. Do not re-add any of them without a policy-approved use.
  *
  * On non-Android platforms (iOS, web) this helper is a no-op that resolves to
  * `granted = true` so callers can use it unconditionally.
@@ -60,10 +54,9 @@ export async function requestTruecallerPermissions(): Promise<TruecallerPermissi
     return { granted: true, deniedPermissions: [] };
   }
 
-  // Only READ_PHONE_STATE is requested. The restricted READ_CALL_LOG / SMS /
-  // CALL_PHONE / ANSWER_PHONE_CALLS permissions were removed for Play Store
-  // compliance (Google restricts them to default Phone/SMS handler apps), so
-  // the legacy missed-call / SMS auto-read fallback is no longer used.
+  // Only READ_PHONE_STATE is requested — it is also the only phone permission
+  // the app still declares (C0.1). Nothing left in the app needs call-log or
+  // SMS access.
   const perms: Permission[] = [
     PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
   ];
