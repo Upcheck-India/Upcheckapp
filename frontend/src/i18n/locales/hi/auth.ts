@@ -127,9 +127,6 @@ const auth = {
   networkCheckMessage:
     'इंटरनेट कनेक्शन नहीं है। कृपया अपना नेटवर्क जांचें और पुनः प्रयास करें',
   truecallerErrorPrefix: 'Truecaller त्रुटि: ',
-  waitingForMissedCall: 'मिस्ड कॉल की प्रतीक्षा में',
-  missedCallBody:
-    'आपको जल्द ही एक मिस्ड कॉल आएगी। इसे न उठाएं — Truecaller स्वचालित रूप से सत्यापित कर देगा।',
   expiresIn: '{{seconds}}s में समाप्त',
   verifyingWithUpcheck: 'Neerani से सत्यापित किया जा रहा है...',
   signInWithEmail: 'ईमेल से साइन इन करें',
@@ -139,33 +136,16 @@ const auth = {
   serverError: 'कुछ गड़बड़ हो गई',
   serverErrorBody: 'सर्वर साइन-इन पूरा नहीं कर सका। कृपया पुनः प्रयास करें, या बार-बार होने पर सहायता टीम से संपर्क करें।',
 
-  // ── Truecaller मिस्ड-कॉल / OTP (नॉन-Truecaller यूज़र) फ़्लो ───────────────
-  tcFallbackCta: 'Truecaller ऐप नहीं है? मिस्ड कॉल से सत्यापित करें',
-  tcPhoneTitle: 'अपना नंबर सत्यापित करें',
-  tcPhoneSubtitle:
-    'हम आपके नंबर को सत्यापित करने के लिए एक छोटी मिस्ड कॉल करेंगे — कुछ भी टाइप करने की ज़रूरत नहीं।',
-  tcPhoneLabel: 'मोबाइल नंबर',
-  tcFirstNameLabel: 'पहला नाम',
-  tcFirstNamePlaceholder: 'जैसे आरव',
-  tcLastNameLabel: 'उपनाम (वैकल्पिक)',
-  tcLastNamePlaceholder: 'जैसे शर्मा',
-  tcSendVerification: 'मिस्ड कॉल से सत्यापित करें',
-  tcCallingTitle: 'आपको कॉल कर रहे हैं…',
-  tcCallingBody:
-    'हम {{phone}} पर एक छोटी कॉल कर रहे हैं। कॉल उठाने की ज़रूरत नहीं — हम इसे अपने आप पहचान लेंगे।',
-  tcOtpBody: '{{phone}} पर भेजा गया कोड दर्ज करें।',
+  // ── Truecaller one-tap unavailable → other ways in (C0.1) ───────────────
+  tcFallbackCta: 'Truecaller ऐप नहीं है? साइन इन करने के अन्य तरीके',
+  tcPhoneTitle: 'साइन इन करने का दूसरा तरीका',
+  tcPhoneSubtitle: 'इस डिवाइस पर Truecaller वन-टैप उपलब्ध नहीं है। इसके बजाय अपने ईमेल या Google खाते से साइन इन करें।',
+  tcOtpBody: 'Truecaller से मिला कोड दर्ज करें।',
+  tcContinueWithEmail: 'ईमेल से जारी रखें',
   tcVerify: 'सत्यापित करें',
   tcChangeNumber: 'दूसरा नंबर उपयोग करें',
-  tcInvalidPhone: 'मान्य 10-अंकों वाला मोबाइल नंबर दर्ज करें।',
-  tcFirstNameRequired: 'कृपया अपना पहला नाम दर्ज करें।',
   tcInvalidOtp: 'आपको मिला कोड दर्ज करें।',
   tcVerificationFailed: 'सत्यापन विफल रहा। कृपया पुनः प्रयास करें।',
-  tcPermissionsRequired:
-    'सत्यापन कॉल को अपने आप पहचानने के लिए फ़ोन और कॉल-लॉग अनुमतियाँ आवश्यक हैं। कृपया उन्हें दें, या Truecaller / ईमेल से साइन इन करें।',
-  tcNoCallDetected:
-    'हमें कोई सत्यापन कॉल नहीं मिली। यदि यह नंबर पहले से Truecaller उपयोग करता है, तो वापस जाकर वन-टैप साइन-इन करें — या कोई दूसरा नंबर आज़माएँ।',
-  tcUnsupported:
-    'मिस्ड-कॉल सत्यापन केवल Android पर उस ऐप बिल्ड के साथ उपलब्ध है जिसमें Truecaller SDK शामिल है।',
 
   // ── OtpEntrySection ───────────────────────────────────────────────────────
   enterOtpTitle: 'OTP दर्ज करें',

@@ -127,9 +127,6 @@ const auth = {
   networkCheckMessage:
     'ইন্টারনেট সংযোগ নেই। আপনার নেটওয়ার্ক চেক করুন এবং আবার চেষ্টা করুন',
   truecallerErrorPrefix: 'Truecaller ত্রুটি: ',
-  waitingForMissedCall: 'মিসড কলের জন্য অপেক্ষা করছে',
-  missedCallBody:
-    'শীঘ্রই আপনার কাছে একটি মিসড কল আসবে। কলটি তুলবেন না — Truecaller স্বয়ংক্রিয়ভাবে যাচাই করবে।',
   expiresIn: '{{seconds}}s-এ মেয়াদ শেষ',
   verifyingWithUpcheck: 'Neerani-র সাথে যাচাই হচ্ছে...',
   signInWithEmail: 'ইমেইল দিয়ে সাইন ইন',
@@ -139,33 +136,16 @@ const auth = {
   serverError: 'কিছু একটা ভুল হয়েছে',
   serverErrorBody: 'সার্ভার সাইন-ইন সম্পূর্ণ করতে পারেনি। আবার চেষ্টা করুন, বা বারবার হলে সহায়তা দলের সঙ্গে যোগাযোগ করুন।',
 
-  // ── Truecaller মিসড-কল / OTP (নন-Truecaller ইউজার) ফ্লো ──────────────────
-  tcFallbackCta: 'Truecaller অ্যাপ নেই? মিসড কলে যাচাই করুন',
-  tcPhoneTitle: 'আপনার নম্বর যাচাই করুন',
-  tcPhoneSubtitle:
-    'আপনার নম্বর যাচাই করতে আমরা একটি ছোট মিসড কল করব — কিছু টাইপ করার দরকার নেই।',
-  tcPhoneLabel: 'মোবাইল নম্বর',
-  tcFirstNameLabel: 'নামের প্রথম অংশ',
-  tcFirstNamePlaceholder: 'যেমন আরভ',
-  tcLastNameLabel: 'পদবি (ঐচ্ছিক)',
-  tcLastNamePlaceholder: 'যেমন শর্মা',
-  tcSendVerification: 'মিসড কলে যাচাই করুন',
-  tcCallingTitle: 'আপনাকে কল করা হচ্ছে…',
-  tcCallingBody:
-    'আমরা {{phone}} নম্বরে একটি ছোট কল করছি। ধরবেন না — আমরা স্বয়ংক্রিয়ভাবে এটি শনাক্ত করব।',
-  tcOtpBody: '{{phone}} নম্বরে পাঠানো কোডটি লিখুন।',
+  // ── Truecaller one-tap unavailable → other ways in (C0.1) ───────────────
+  tcFallbackCta: 'Truecaller অ্যাপ নেই? সাইন ইন করার অন্য উপায়',
+  tcPhoneTitle: 'সাইন ইন করার আরেকটি উপায়',
+  tcPhoneSubtitle: 'এই ডিভাইসে Truecaller ওয়ান-ট্যাপ পাওয়া যাচ্ছে না। পরিবর্তে আপনার ইমেল বা Google অ্যাকাউন্ট দিয়ে সাইন ইন করুন।',
+  tcOtpBody: 'Truecaller থেকে পাওয়া কোডটি লিখুন।',
+  tcContinueWithEmail: 'ইমেল দিয়ে চালিয়ে যান',
   tcVerify: 'যাচাই করুন',
   tcChangeNumber: 'অন্য নম্বর ব্যবহার করুন',
-  tcInvalidPhone: 'একটি বৈধ ১০-সংখ্যার মোবাইল নম্বর লিখুন।',
-  tcFirstNameRequired: 'অনুগ্রহ করে আপনার নামের প্রথম অংশ লিখুন।',
   tcInvalidOtp: 'আপনি যে কোডটি পেয়েছেন সেটি লিখুন।',
   tcVerificationFailed: 'যাচাই ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।',
-  tcPermissionsRequired:
-    'যাচাই কলটি স্বয়ংক্রিয়ভাবে শনাক্ত করতে ফোন ও কল-লগ অনুমতি প্রয়োজন। অনুগ্রহ করে সেগুলি দিন, অথবা Truecaller / ইমেইল দিয়ে সাইন ইন করুন।',
-  tcNoCallDetected:
-    'আমরা কোনো যাচাই কল শনাক্ত করতে পারিনি। এই নম্বরটি যদি ইতিমধ্যে Truecaller ব্যবহার করে, তবে ফিরে গিয়ে ওয়ান-ট্যাপ সাইন-ইন করুন — অথবা অন্য একটি নম্বর চেষ্টা করুন।',
-  tcUnsupported:
-    'মিসড-কল যাচাই কেবল Android-এ সেই অ্যাপ বিল্ডে উপলব্ধ যেটিতে Truecaller SDK অন্তর্ভুক্ত রয়েছে।',
 
   // ── OtpEntrySection ───────────────────────────────────────────────────────
   enterOtpTitle: 'OTP লিখুন',

@@ -9,7 +9,7 @@ Upcheck Technologies Private Limited ("we", "us", "our") operates the Neerani mo
 
 This policy explains what personal data we collect, why we collect it, who we share it with, where it is kept, and the control you have over it. It is written to be read, not to be survived.
 
-Effective 5 September 2026. Last updated 5 September 2026.
+Effective 5 September 2026. Last updated 20 September 2026.
 
 ## 1. Who this applies to
 
@@ -48,7 +48,7 @@ What we do NOT do, and will not start doing quietly:
 
 Every permission below is optional. Android asks you, you may refuse, and you may withdraw consent later in your device settings. Refusing a permission disables the feature that needs it and nothing else — the rest of the app keeps working.
 
-Phone state, call log and phone calls — used ONLY by Truecaller sign-in. Truecaller's SDK requires these to verify that the phone number is genuinely yours, including its missed-call verification method. We do not read, store, upload or analyse your call history or contacts list for any purpose of our own, and we never place calls. If you would rather not grant these, sign in with email or Google instead — Truecaller is one option, never a requirement.
+Phone state — used ONLY by Truecaller sign-in, so Truecaller can confirm that the number on this device is genuinely yours. The app no longer asks for call-log or phone-call access at all, and no longer verifies numbers with a missed call. We do not read, store, upload or analyse your call history or contacts list for any purpose of our own, and we never place calls. If you would rather not grant this, sign in with email or Google instead — Truecaller is one option, never a requirement.
 
 Camera — to photograph a pond, a diseased animal or a document and attach it to a record.
 

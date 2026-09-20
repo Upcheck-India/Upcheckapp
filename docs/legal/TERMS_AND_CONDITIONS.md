@@ -9,7 +9,7 @@ These Terms of Service ("Terms") are an agreement between you and Upcheck Techno
 
 By creating an account or using the Service, you accept these Terms and our Privacy Policy. If you do not accept them, please do not use the Service.
 
-Effective 5 September 2026. Last updated 5 September 2026.
+Effective 5 September 2026. Last updated 20 September 2026.
 
 ## 1. Who may use Neerani
 

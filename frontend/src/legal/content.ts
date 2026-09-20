@@ -26,7 +26,7 @@ export const LEGAL_META = {
   governingLaw: 'India',
   jurisdiction: 'Chennai, Tamil Nadu',
   effectiveDate: '5 September 2026',
-  lastUpdated: '5 September 2026',
+  lastUpdated: '20 September 2026',
   privacyUrl: 'https://upcheck.in/privacy',
   termsUrl: 'https://upcheck.in/terms',
   deletionUrl: 'https://upcheck.in/account-deletion',
@@ -103,11 +103,12 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       'Every permission below is optional. Android asks you, you may refuse, and you may withdraw ' +
       'consent later in your device settings. Refusing a permission disables the feature that needs ' +
       'it and nothing else — the rest of the app keeps working.\n\n' +
-      'Phone state, call log and phone calls — used ONLY by Truecaller sign-in. Truecaller\'s SDK ' +
-      'requires these to verify that the phone number is genuinely yours, including its missed-call ' +
-      'verification method. We do not read, store, upload or analyse your call history or contacts ' +
-      'list for any purpose of our own, and we never place calls. If you would rather not grant ' +
-      'these, sign in with email or Google instead — Truecaller is one option, never a requirement.\n\n' +
+      'Phone state — used ONLY by Truecaller sign-in, so Truecaller can confirm that the number on ' +
+      'this device is genuinely yours. The app no longer asks for call-log or phone-call access at ' +
+      'all, and no longer verifies numbers with a missed call. We do not read, store, upload or ' +
+      'analyse your call history or contacts list for any purpose of our own, and we never place ' +
+      'calls. If you would rather not grant this, sign in with email or Google instead — ' +
+      'Truecaller is one option, never a requirement.\n\n' +
       'Camera — to photograph a pond, a diseased animal or a document and attach it to a record.\n\n' +
       'Photos and files — to attach an existing image, and to save exports (PDF, CSV, Excel) you ask ' +
       'the app to produce.\n\n' +

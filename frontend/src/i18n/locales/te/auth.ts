@@ -127,9 +127,6 @@ const auth = {
   networkCheckMessage:
     'ఇంటర్నెట్ కనెక్షన్ లేదు. మీ నెట్‌వర్క్ తనిఖీ చేసి మళ్ళీ ప్రయత్నించండి',
   truecallerErrorPrefix: 'Truecaller లోపం: ',
-  waitingForMissedCall: 'మిస్డ్ కాల్ కోసం వేచి ఉంది',
-  missedCallBody:
-    'మీకు త్వరలో మిస్డ్ కాల్ వస్తుంది. తీసుకోకండి — Truecaller స్వయంచాలకంగా ధృవీకరిస్తుంది.',
   expiresIn: '{{seconds}}s లో గడువు ముగుస్తుంది',
   verifyingWithUpcheck: 'Neerani తో ధృవీకరిస్తోంది...',
   signInWithEmail: 'ఇమెయిల్‌తో సైన్ ఇన్',
@@ -139,33 +136,16 @@ const auth = {
   serverError: 'ఏదో తప్పు జరిగింది',
   serverErrorBody: 'సర్వర్ సైన్-ఇన్ పూర్తి చేయలేకపోయింది. మళ్లీ ప్రయత్నించండి, లేదా పదే పదే జరిగితే సపోర్ట్ బృందాన్ని సంప్రదించండి.',
 
-  // ── Truecaller మిస్డ్-కాల్ / OTP (Truecaller కాని యూజర్) ఫ్లో ─────────────
-  tcFallbackCta: 'Truecaller యాప్ లేదా? మిస్డ్ కాల్‌తో ధృవీకరించండి',
-  tcPhoneTitle: 'మీ నంబర్‌ను ధృవీకరించండి',
-  tcPhoneSubtitle:
-    'మీ నంబర్‌ను ధృవీకరించడానికి మేము ఒక చిన్న మిస్డ్ కాల్ చేస్తాం — ఏదీ టైప్ చేయాల్సిన అవసరం లేదు.',
-  tcPhoneLabel: 'మొబైల్ నంబర్',
-  tcFirstNameLabel: 'మొదటి పేరు',
-  tcFirstNamePlaceholder: 'ఉదా. ఆరవ్',
-  tcLastNameLabel: 'ఇంటిపేరు (ఐచ్ఛికం)',
-  tcLastNamePlaceholder: 'ఉదా. శర్మ',
-  tcSendVerification: 'మిస్డ్ కాల్‌తో ధృవీకరించండి',
-  tcCallingTitle: 'మీకు కాల్ చేస్తున్నాం…',
-  tcCallingBody:
-    'మేము {{phone}}కు ఒక చిన్న కాల్ చేస్తున్నాం. తీయవద్దు — మేము దానిని ఆటోమేటిక్‌గా గుర్తిస్తాం.',
-  tcOtpBody: '{{phone}}కు పంపిన కోడ్‌ను నమోదు చేయండి.',
+  // ── Truecaller one-tap unavailable → other ways in (C0.1) ───────────────
+  tcFallbackCta: 'Truecaller యాప్ లేదా? సైన్ ఇన్ చేయడానికి ఇతర మార్గాలు',
+  tcPhoneTitle: 'సైన్ ఇన్ చేయడానికి మరో మార్గం',
+  tcPhoneSubtitle: 'ఈ పరికరంలో Truecaller వన్-ట్యాప్ అందుబాటులో లేదు. బదులుగా మీ ఇమెయిల్ లేదా Google ఖాతాతో సైన్ ఇన్ చేయండి.',
+  tcOtpBody: 'Truecaller ఇచ్చిన కోడ్‌ను నమోదు చేయండి.',
+  tcContinueWithEmail: 'ఇమెయిల్‌తో కొనసాగండి',
   tcVerify: 'ధృవీకరించండి',
   tcChangeNumber: 'వేరే నంబర్‌ను ఉపయోగించండి',
-  tcInvalidPhone: 'చెల్లుబాటు అయ్యే 10-అంకెల మొబైల్ నంబర్‌ను నమోదు చేయండి.',
-  tcFirstNameRequired: 'దయచేసి మీ మొదటి పేరును నమోదు చేయండి.',
   tcInvalidOtp: 'మీకు వచ్చిన కోడ్‌ను నమోదు చేయండి.',
   tcVerificationFailed: 'ధృవీకరణ విఫలమైంది. దయచేసి మళ్లీ ప్రయత్నించండి.',
-  tcPermissionsRequired:
-    'ధృవీకరణ కాల్‌ను ఆటోమేటిక్‌గా గుర్తించడానికి ఫోన్ మరియు కాల్-లాగ్ అనుమతులు అవసరం. దయచేసి వాటిని ఇవ్వండి, లేదా Truecaller / ఇమెయిల్‌తో సైన్ ఇన్ చేయండి.',
-  tcNoCallDetected:
-    'ధృవీకరణ కాల్‌ను మేము గుర్తించలేకపోయాం. ఈ నంబర్ ఇప్పటికే Truecaller ఉపయోగిస్తే, వెనక్కి వెళ్లి వన్-ట్యాప్ సైన్-ఇన్ వాడండి — లేదా వేరే నంబర్‌ను ప్రయత్నించండి.',
-  tcUnsupported:
-    'మిస్డ్-కాల్ ధృవీకరణ Truecaller SDK కలిగిన Android యాప్ బిల్డ్‌లో మాత్రమే అందుబాటులో ఉంటుంది.',
 
   // ── OtpEntrySection ───────────────────────────────────────────────────────
   enterOtpTitle: 'OTP నమోదు చేయండి',

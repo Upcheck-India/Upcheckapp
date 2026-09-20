@@ -127,9 +127,6 @@ const auth = {
   networkCheckMessage:
     'No internet connection. Please check your network and try again',
   truecallerErrorPrefix: 'Truecaller error: ',
-  waitingForMissedCall: 'Waiting for missed call',
-  missedCallBody:
-    'You will receive a missed call shortly. Do not pick it up — Truecaller will verify automatically.',
   expiresIn: 'Expires in {{seconds}}s',
   verifyingWithUpcheck: 'Verifying with Neerani...',
   signInWithEmail: 'Sign in with email',
@@ -139,33 +136,16 @@ const auth = {
   serverError: 'Something went wrong',
   serverErrorBody: 'The server could not complete sign-in. Please try again, or contact support if it keeps happening.',
 
-  // ── Truecaller missed-call / OTP (non-Truecaller-user) flow ───────────────
-  tcFallbackCta: 'No Truecaller app? Verify with a missed call',
-  tcPhoneTitle: 'Verify your number',
-  tcPhoneSubtitle:
-    "We'll place a quick missed call to verify your number — nothing to type.",
-  tcPhoneLabel: 'Mobile number',
-  tcFirstNameLabel: 'First name',
-  tcFirstNamePlaceholder: 'e.g. Aarav',
-  tcLastNameLabel: 'Last name (optional)',
-  tcLastNamePlaceholder: 'e.g. Sharma',
-  tcSendVerification: 'Verify with missed call',
-  tcCallingTitle: 'Calling you…',
-  tcCallingBody:
-    "We're placing a quick call to {{phone}}. Don't pick up — we'll detect it automatically.",
-  tcOtpBody: 'Enter the code sent to {{phone}}.',
+  // ── Truecaller one-tap unavailable → other ways in (C0.1) ───────────────
+  tcFallbackCta: 'No Truecaller app? Other ways to sign in',
+  tcPhoneTitle: 'Another way to sign in',
+  tcPhoneSubtitle: "Truecaller one-tap isn't available on this device. Sign in with your email or your Google account instead.",
+  tcOtpBody: 'Enter the code Truecaller gave you.',
+  tcContinueWithEmail: 'Continue with email',
   tcVerify: 'Verify',
   tcChangeNumber: 'Use a different number',
-  tcInvalidPhone: 'Enter a valid 10-digit mobile number.',
-  tcFirstNameRequired: 'Please enter your first name.',
   tcInvalidOtp: 'Enter the code you received.',
   tcVerificationFailed: 'Verification failed. Please try again.',
-  tcPermissionsRequired:
-    'Phone and call-log permissions are needed to auto-detect the verification call. Please grant them, or sign in with Truecaller / email.',
-  tcNoCallDetected:
-    "We couldn't detect a verification call. If this number already uses Truecaller, go back and use one-tap sign-in — or try a different number.",
-  tcUnsupported:
-    'Missed-call verification is only available on Android with the app build that bundles the Truecaller SDK.',
 
   // ── OtpEntrySection ───────────────────────────────────────────────────────
   enterOtpTitle: 'Enter the OTP',

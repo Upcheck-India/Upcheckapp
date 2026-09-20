@@ -1,37 +1,35 @@
 /**
- * TruecallerPhoneScreen — missed-call / OTP verification for users WITHOUT the
- * Truecaller app (Truecaller "non-Truecaller user" flow; India + Android only).
+ * TruecallerPhoneScreen — the "one-tap didn't work" off-ramp.
  *
- * Flow:
- *   1. User enters their mobile number + name and taps "Verify with missed call".
- *   2. `TruecallerAuth.requestVerification(phone)` asks the native SDK to place
- *      a silent drop-call (or, on eligible accounts, a Truecaller-IM OTP).
- *   3. Progress arrives as `TruecallerVerification` events:
- *        MISSED_CALL_INITIATED → we show a "calling you" waiting state
- *        MISSED_CALL_RECEIVED  → the call was auto-detected; we call
- *                                `verifyMissedCall(firstName, lastName)`
- *        OTP_INITIATED/RECEIVED→ OTP fallback (Truecaller IM)
- *        VERIFICATION_COMPLETE / PROFILE_VERIFIED_BEFORE → an `accessToken` is
- *                                delivered
- *   4. The `accessToken` + phone + name are POSTed to
- *      `/auth/supabase/oauth/truecaller`; the backend re-validates the token
- *      server-to-server (phone is the only verified identity) and mints a
- *      session.
+ * History: this screen used to take a phone number and verify it with a
+ * Truecaller drop-call (the "non-Truecaller user" flow). That flow needed
+ * READ_CALL_LOG / ANSWER_PHONE_CALLS, and Play's July 2026 policy update
+ * removed account verification by phone call as a permitted use of them
+ * (deadline 14 Aug 2026). C0.1 removed the permissions, so the missed-call
+ * route is gone — and with it the phone-number field, because a field that
+ * cannot complete is worse than no field.
  *
- * The event listener reads name/phone from refs so it always sees the latest
- * user input despite being registered once on mount.
+ * What it does now: when Truecaller one-tap is unavailable (no Truecaller app,
+ * not signed in, "use another number", non-Android), this screen offers the two
+ * routes that DO complete today — email OTP (Supabase-backed, already live) and
+ * Google — and never dead-ends.
  *
- * NOTE: the missed-call flow needs READ_PHONE_STATE + READ_CALL_LOG runtime
- * permissions and is officially "deprecating soon" on Truecaller's side; a
- * Supabase SMS-OTP fallback is scaffolded separately for a future swap.
+ * What is deliberately still wired: the verification event listener, the OTP
+ * stage and `verifyOtp`. The native module can still emit TYPE_OTP_INITIATED /
+ * TYPE_OTP_RECEIVED (the Truecaller-IM OTP, delivered inside the Truecaller
+ * app), and nothing in the app starts that flow any more — but if such an event
+ * ever arrives on a permission-free build, the screen completes instead of
+ * dropping it. It is NOT a supported route and no copy promises it (spec
+ * C0.1). If a device test shows an OTP genuinely arrives without the call-log
+ * permissions, this is the hook to turn it back into a real route.
+ *
+ * Restoring a self-service phone sign-up (WhatsApp OTP, or SMS via an Indian
+ * provider) is C0.1b — a future release, deliberately out of scope here.
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
-    PermissionsAndroid,
-    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -45,9 +43,11 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
 import { theme } from '../../theme';
 import { authApi, type AuthResponse } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import { capture, EVENTS } from '../../features/analytics';
 import { ConsentNotice } from '../../components/ui/ConsentNotice';
 import {
@@ -55,62 +55,26 @@ import {
     type TruecallerVerificationEvent,
 } from '../../native/TruecallerAuth';
 
-type Stage = 'input' | 'calling' | 'otp' | 'submitting';
-
-// A name must contain at least one letter and be < 128 chars (Truecaller rule).
-const NAME_RE = /[A-Za-zÀ-ɏऀ-ॿ]/;
-// Indian mobile: 10 digits starting 6–9.
-const PHONE_RE = /^[6-9]\d{9}$/;
+type Stage = 'choose' | 'otp' | 'submitting';
 
 export const TruecallerPhoneScreen = ({ navigation, route }: any) => {
     const { t } = useTranslation();
     const setSession = useAuthStore((s) => s.setSession);
     const armSignupIntent = useAuthStore((s) => s.armSignupIntent);
+    const { signInWithGoogle } = useGoogleAuth();
 
-    const [stage, setStage] = useState<Stage>('input');
-    const [phone, setPhone] = useState('');
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
+    const [stage, setStage] = useState<Stage>('choose');
     const [otp, setOtp] = useState('');
     const [ttl, setTtl] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [googleLoading, setGoogleLoading] = useState(false);
 
-    // Refs so the mount-once event listener always reads current input.
+    // Nothing in the UI collects these any more (see the header comment). They
+    // stay so the retained OTP completion path behaves exactly as it did,
+    // rather than being half-deleted.
     const phoneRef = useRef('');
     const firstNameRef = useRef('');
     const lastNameRef = useRef('');
-    useEffect(() => {
-        phoneRef.current = phone;
-    }, [phone]);
-    useEffect(() => {
-        firstNameRef.current = firstName;
-    }, [firstName]);
-    useEffect(() => {
-        lastNameRef.current = lastName;
-    }, [lastName]);
-
-    // Safety net so "Calling you…" can't hang forever: if the SDK places no
-    // drop-call and fires no callback within the window (e.g. the number is
-    // already a Truecaller user — Truecaller won't drop-call its own users, or
-    // a network issue), surface a clear message and return to the input.
-    const stageRef = useRef<Stage>('input');
-    const verifyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    useEffect(() => {
-        stageRef.current = stage;
-    }, [stage]);
-    const clearVerifyTimeout = useCallback(() => {
-        if (verifyTimeoutRef.current) {
-            clearTimeout(verifyTimeoutRef.current);
-            verifyTimeoutRef.current = null;
-        }
-    }, []);
-
-    const supported = TruecallerAuth.isSupported();
-
-    // Warm up the async SDK init on mount so the first verify is responsive.
-    useEffect(() => {
-        void TruecallerAuth.initialize();
-    }, []);
 
     const handleAuthResponse = useCallback(
         (data: AuthResponse) => {
@@ -124,11 +88,11 @@ export const TruecallerPhoneScreen = ({ navigation, route }: any) => {
                 setSession(data.session);
                 // Reported HERE and not inside setSession: api/client.ts calls
                 // setSession on every silent token refresh, so an event there
-                // would count a refresh as a login. This is the Truecaller missed-call fallback.
+                // would count a refresh as a login.
                 capture(EVENTS.LOGIN_COMPLETED, { method: 'truecaller' });
-                // IntentScreen's answer, carried through the missed-call
-                // fallback. Only present when this flow began at Register — see
-                // TruecallerLoginScreen for why arming is conditional.
+                // IntentScreen's answer. Only present when this flow began at
+                // Register — see TruecallerLoginScreen for why arming is
+                // conditional.
                 if (route?.params?.intent) armSignupIntent(route.params.intent);
                 return;
             }
@@ -138,7 +102,7 @@ export const TruecallerPhoneScreen = ({ navigation, route }: any) => {
                     'The server did not return a session. Please try again.',
                 ),
             );
-            setStage('input');
+            setStage('choose');
         },
         [navigation, setSession, armSignupIntent, route?.params?.intent, t],
     );
@@ -164,40 +128,19 @@ export const TruecallerPhoneScreen = ({ navigation, route }: any) => {
                     serverMessage ||
                         t('auth.tcVerificationFailed', 'Verification failed. Please try again.'),
                 );
-                setStage('input');
+                setStage('choose');
             }
         },
         [handleAuthResponse, t],
     );
 
-    // Register the verification event listener once. It drives every stage
-    // transition after `requestVerification` is called.
+    // Registered once. Nothing in the app starts a verification any more, so in
+    // practice this never fires — it stays so an unsolicited OTP / completion
+    // event still lands somewhere that can finish the sign-in.
     useEffect(() => {
         const sub = TruecallerAuth.addVerificationListener(
             (e: TruecallerVerificationEvent) => {
-                // The SDK responded — cancel the no-response safety timeout.
-                clearVerifyTimeout();
                 switch (e.status) {
-                    case 'MISSED_CALL_INITIATED':
-                        setError(null);
-                        setStage('calling');
-                        setTtl(typeof e.ttl === 'number' ? e.ttl : null);
-                        break;
-                    case 'MISSED_CALL_RECEIVED':
-                        // Call auto-detected — complete with the user's name.
-                        void TruecallerAuth.verifyMissedCall(
-                            firstNameRef.current.trim() || 'User',
-                            lastNameRef.current.trim(),
-                        ).catch(() => {
-                            setError(
-                                t(
-                                    'auth.tcVerificationFailed',
-                                    'Verification failed. Please try again.',
-                                ),
-                            );
-                            setStage('input');
-                        });
-                        break;
                     case 'OTP_INITIATED':
                         setError(null);
                         setStage('otp');
@@ -217,7 +160,7 @@ export const TruecallerPhoneScreen = ({ navigation, route }: any) => {
                                     'Verification failed. Please try again.',
                                 ),
                             );
-                            setStage('input');
+                            setStage('choose');
                         }
                         break;
                     case 'ERROR':
@@ -228,19 +171,18 @@ export const TruecallerPhoneScreen = ({ navigation, route }: any) => {
                                     'Verification failed. Please try again.',
                                 ),
                         );
-                        setStage('input');
+                        setStage('choose');
                         break;
                 }
             },
         );
         return () => {
             sub.remove();
-            clearVerifyTimeout();
             TruecallerAuth.clear();
         };
-    }, [submitToken, t, clearVerifyTimeout]);
+    }, [submitToken, t]);
 
-    // TTL countdown for the waiting / OTP states.
+    // TTL countdown for the retained OTP state.
     useEffect(() => {
         if (ttl == null || ttl <= 0) return;
         const id = setInterval(() => {
@@ -248,78 +190,6 @@ export const TruecallerPhoneScreen = ({ navigation, route }: any) => {
         }, 1000);
         return () => clearInterval(id);
     }, [ttl]);
-
-    const startVerification = useCallback(async () => {
-        setError(null);
-        const national = phone.replace(/\D/g, '').slice(-10);
-        if (!PHONE_RE.test(national)) {
-            setError(t('auth.tcInvalidPhone', 'Enter a valid 10-digit mobile number.'));
-            return;
-        }
-        if (!NAME_RE.test(firstName.trim())) {
-            setError(t('auth.tcFirstNameRequired', 'Please enter your first name.'));
-            return;
-        }
-        setPhone(national);
-        phoneRef.current = national;
-
-        // The native SDK inits asynchronously (3.3.0 initAsync); await it so
-        // requestVerification runs only once the SDK is ready.
-        await TruecallerAuth.initialize();
-
-        // Missed-call detection needs phone-state + call-log + (Android 8+)
-        // answer-phone-calls access — the Truecaller SDK requires all three or
-        // it fails with "phone permission missing".
-        if (Platform.OS === 'android') {
-            try {
-                const perms = [
-                    PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
-                    PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
-                ];
-                if (PermissionsAndroid.PERMISSIONS.ANSWER_PHONE_CALLS) {
-                    perms.push(PermissionsAndroid.PERMISSIONS.ANSWER_PHONE_CALLS);
-                }
-                const granted = await PermissionsAndroid.requestMultiple(perms);
-                const ok = Object.values(granted).every(
-                    (v) => v === PermissionsAndroid.RESULTS.GRANTED,
-                );
-                if (!ok) {
-                    setError(
-                        t(
-                            'auth.tcPermissionsRequired',
-                            'Phone and call-log permissions are needed to auto-detect the verification call. Please grant them, or sign in with Truecaller / email.',
-                        ),
-                    );
-                    return;
-                }
-            } catch {
-                // fall through — requestVerification will surface any hard failure
-            }
-        }
-
-        setStage('calling');
-        try {
-            await TruecallerAuth.requestVerification(national);
-            // Arm the no-response safety net; any SDK callback clears it.
-            clearVerifyTimeout();
-            verifyTimeoutRef.current = setTimeout(() => {
-                if (stageRef.current === 'calling') {
-                    setError(
-                        t(
-                            'auth.tcNoCallDetected',
-                            "We couldn't detect a verification call. If this number already uses Truecaller, go back and use one-tap sign-in — or try a different number.",
-                        ),
-                    );
-                    setStage('input');
-                }
-            }, 45000);
-        } catch {
-            setError(
-                t('auth.tcVerificationFailed', 'Verification failed. Please try again.'),
-            );
-            setStage('input');
-        }
-    }, [firstName, phone, t, clearVerifyTimeout]);
 
     const submitOtp = useCallback(async () => {
         const code = otp.replace(/\D/g, '');
@@ -344,14 +214,30 @@ export const TruecallerPhoneScreen = ({ navigation, route }: any) => {
         }
     }, [otp, t]);
 
-    const resetToInput = useCallback(() => {
-        clearVerifyTimeout();
-        TruecallerAuth.clear();
-        setStage('input');
-        setOtp('');
-        setTtl(null);
+    const goToEmailOtp = useCallback(() => {
+        navigation.navigate('OtpLogin');
+    }, [navigation]);
+
+    const handleGoogle = useCallback(async () => {
         setError(null);
-    }, [clearVerifyTimeout]);
+        setGoogleLoading(true);
+        try {
+            // An `intent` param means we came from Register; Login passes none.
+            // Mirrors LoginScreen, which passes 'signin' explicitly.
+            const signupIntent = route?.params?.intent;
+            const r = await signInWithGoogle(
+                signupIntent ? 'signup' : 'signin',
+                signupIntent,
+            );
+            if (r?.requires2FA && r.tempToken) {
+                navigation.navigate('TwoFactorChallenge', {
+                    tempToken: r.tempToken,
+                });
+            }
+        } finally {
+            setGoogleLoading(false);
+        }
+    }, [navigation, route?.params?.intent, signInWithGoogle]);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -368,27 +254,13 @@ export const TruecallerPhoneScreen = ({ navigation, route }: any) => {
                         color={theme.roles.light.textPrimary}
                     />
                 </TouchableOpacity>
-                <Text style={styles.title}>{t('auth.tcPhoneTitle', 'Verify your number')}</Text>
+                <Text style={styles.title}>
+                    {t('auth.tcPhoneTitle', 'Another way to sign in')}
+                </Text>
                 <View style={{ width: 40 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
-                {!supported && (
-                    <View style={styles.statusBanner}>
-                        <MaterialCommunityIcons
-                            name="information-outline"
-                            size={18}
-                            color={theme.roles.light.dangerText}
-                        />
-                        <Text style={styles.statusBannerText}>
-                            {t(
-                                'auth.tcUnsupported',
-                                'Missed-call verification is only available on Android with the app build that bundles the Truecaller SDK.',
-                            )}
-                        </Text>
-                    </View>
-                )}
-
                 {error && (
                     <View style={styles.statusBanner}>
                         <MaterialCommunityIcons
@@ -400,84 +272,39 @@ export const TruecallerPhoneScreen = ({ navigation, route }: any) => {
                     </View>
                 )}
 
-                {stage === 'input' && (
+                {stage === 'choose' && (
                     <Card style={styles.card}>
                         <Text style={styles.subtitle}>
                             {t(
                                 'auth.tcPhoneSubtitle',
-                                "We'll place a quick missed call to verify your number — nothing to type.",
+                                "Truecaller one-tap isn't available on this device. Sign in with your email or your Google account instead.",
                             )}
                         </Text>
-                        <Input
-                            label={t('auth.tcPhoneLabel', 'Mobile number')}
-                            value={phone}
-                            onChangeText={setPhone}
-                            placeholder="9876543210"
-                            keyboardType="phone-pad"
-                            maxLength={10}
-                            required
-                        />
-                        <Input
-                            label={t('auth.tcFirstNameLabel', 'First name')}
-                            value={firstName}
-                            onChangeText={setFirstName}
-                            placeholder={t('auth.tcFirstNamePlaceholder', 'e.g. Aarav')}
-                            required
-                        />
-                        <Input
-                            label={t('auth.tcLastNameLabel', 'Last name (optional)')}
-                            value={lastName}
-                            onChangeText={setLastName}
-                            placeholder={t('auth.tcLastNamePlaceholder', 'e.g. Sharma')}
-                        />
                         <Button
-                            title={t('auth.tcSendVerification', 'Verify with missed call')}
-                            onPress={startVerification}
-                            disabled={!supported}
+                            title={t('auth.tcContinueWithEmail', 'Continue with email')}
+                            onPress={goToEmailOtp}
                             style={styles.btn}
+                        />
+                        <GoogleLoginButton
+                            onPress={handleGoogle}
+                            loading={googleLoading}
                         />
                     </Card>
                 )}
 
-                {(stage === 'calling' || stage === 'submitting') && (
+                {stage === 'submitting' && (
                     <Card style={[styles.card, styles.waitingCard]}>
                         <ActivityIndicator size="large" color={theme.roles.light.primary} />
                         <Text style={styles.waitingTitle}>
-                            {stage === 'submitting'
-                                ? t('auth.verifyingWithUpcheck')
-                                : t('auth.tcCallingTitle', 'Calling you…')}
+                            {t('auth.verifyingWithUpcheck')}
                         </Text>
-                        {stage === 'calling' && (
-                            <Text style={styles.waitingBody}>
-                                {t('auth.tcCallingBody', {
-                                    phone: `+91 ${phone}`,
-                                    defaultValue:
-                                        "We're placing a quick call to {{phone}}. Don't pick up — we'll detect it automatically.",
-                                })}
-                            </Text>
-                        )}
-                        {ttl != null && ttl > 0 && stage === 'calling' && (
-                            <Text style={styles.ttlText}>
-                                {t('auth.expiresIn', { seconds: ttl })}
-                            </Text>
-                        )}
-                        {stage === 'calling' && (
-                            <TouchableOpacity onPress={resetToInput}>
-                                <Text style={styles.changeNumber}>
-                                    {t('auth.tcChangeNumber', 'Use a different number')}
-                                </Text>
-                            </TouchableOpacity>
-                        )}
                     </Card>
                 )}
 
                 {stage === 'otp' && (
                     <Card style={styles.card}>
                         <Text style={styles.subtitle}>
-                            {t('auth.tcOtpBody', {
-                                phone: `+91 ${phone}`,
-                                defaultValue: 'Enter the code sent to {{phone}}.',
-                            })}
+                            {t('auth.tcOtpBody', 'Enter the code Truecaller gave you.')}
                         </Text>
                         <Input
                             label={t('auth.otpLabel', 'OTP')}
@@ -498,11 +325,6 @@ export const TruecallerPhoneScreen = ({ navigation, route }: any) => {
                             onPress={submitOtp}
                             style={styles.btn}
                         />
-                        <TouchableOpacity onPress={resetToInput}>
-                            <Text style={styles.changeNumber}>
-                                {t('auth.tcChangeNumber', 'Use a different number')}
-                            </Text>
-                        </TouchableOpacity>
                     </Card>
                 )}
                 <ConsentNotice navigation={navigation} />
@@ -540,21 +362,10 @@ const styles = StyleSheet.create({
         color: theme.roles.light.textPrimary,
         textAlign: 'center',
     },
-    waitingBody: {
-        ...theme.typeScale.bodyMedium,
-        color: theme.roles.light.textSecondary,
-        textAlign: 'center',
-    },
     ttlText: {
         ...theme.typeScale.bodySmall,
         color: theme.roles.light.textTertiary,
         textAlign: 'center',
-    },
-    changeNumber: {
-        ...theme.typeScale.bodyMedium,
-        color: theme.roles.light.primary,
-        textAlign: 'center',
-        marginTop: theme.spacing[3],
     },
     statusBanner: {
         flexDirection: 'row',
