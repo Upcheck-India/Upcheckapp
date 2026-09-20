@@ -17,6 +17,7 @@ import { pondsApi, Pond } from '../../api/ponds';
 import { pondLabel } from '../../utils/pondHealth';
 import { usePermissions } from '../../hooks/usePermissions';
 import { summariseCycles, CycleRow } from './cycleHistory';
+import { formatDate } from '../../utils/formatDate';
 
 const list = <T,>(data: any): T[] => (Array.isArray(data) ? data : (data?.data ?? []));
 
@@ -91,7 +92,11 @@ export const CycleListScreen = ({ route, navigation }: any) => {
         return (
             <TouchableOpacity
                 activeOpacity={0.7}
-                onPress={() => navigation.navigate('CycleDetail', { cycleId: crop.id })}
+                // `focus: undefined` on purpose: navigate() MERGES params into
+                // a CycleDetail already in the stack, so a `focus:
+                // 'biosecurity'` left over from the pond badge would still
+                // pin biosecurity to the top of a cycle opened from this list.
+                onPress={() => navigation.navigate('CycleDetail', { cycleId: crop.id, focus: undefined })}
                 accessibilityRole="button"
                 accessibilityLabel={crop.name}
             >
@@ -113,7 +118,7 @@ export const CycleListScreen = ({ route, navigation }: any) => {
                         <Stat label={t('cycles.infoDoc')} value={`${item.doc} ${t('cycles.infoDocUnit')}`} />
                         <Stat
                             label={t('cycles.listStocked')}
-                            value={crop.stockingDate ? new Date(crop.stockingDate).toLocaleDateString() : '—'}
+                            value={crop.stockingDate ? formatDate(crop.stockingDate, { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                             caption={(crop.stockingCount ?? crop.totalSeed)?.toLocaleString()}
                         />
                         <Stat

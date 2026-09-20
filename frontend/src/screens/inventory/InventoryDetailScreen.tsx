@@ -13,7 +13,7 @@ import { farmsApi } from '../../api/farms';
 import { apiErrorMessage } from '../../api/errors';
 import { usePermissions } from '../../hooks/usePermissions';
 import { confirm } from '../../utils/confirm';
-import { formatAge, formatNumber } from '../../utils/formatDate';
+import { formatAge, formatDate, formatNumber } from '../../utils/formatDate';
 import { useFocusEffect } from '@react-navigation/native';
 
 /** Same shape the finance screens use — one rupee formatter, no new util. */
@@ -341,7 +341,7 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                                     on the day it in fact goes off. */}
                                 <Text style={styles.infoLabel}>{t('inventory.labelExpiryDate')}</Text>
                                 <Text style={styles.infoValue}>
-                                    {new Date(item.expiryDate).toLocaleDateString()}
+                                    {formatDate(item.expiryDate, { day: 'numeric', month: 'short', year: 'numeric' })}
                                 </Text>
                             </View>
                         </View>
@@ -421,7 +421,7 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                                     <View key={p.id} style={styles.movementRow}>
                                         <Text style={styles.infoValue}>{formatMoney(p.amount)}</Text>
                                         <Text style={styles.movementMeta} numberOfLines={1}>
-                                            {new Date(p.transactionDate).toLocaleDateString()}
+                                            {formatDate(p.transactionDate, { day: 'numeric', month: 'short', year: 'numeric' })}
                                             {farmNames[p.farmId] ? ` · ${farmNames[p.farmId]}` : ''}
                                         </Text>
                                     </View>

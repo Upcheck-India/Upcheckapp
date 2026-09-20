@@ -9,6 +9,7 @@ import { ErrorState } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
 import { theme } from '../../../theme';
 import { logResourcesApi, MicrobiologyRecord } from '../../../api/logResources';
+import { formatDate } from '../../../utils/formatDate';
 
 const MetricPill = ({ label, value }: { label: string; value: string }) => (
     <View style={pillStyles.container}>
@@ -75,7 +76,7 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
     const handleDelete = useCallback((item: MicrobiologyRecord) => {
         Alert.alert(
             t('common.delete') + ' ' + t('common.date'),
-            t('history.microbiologyDeleteMsg', { date: new Date(item.measurementDate).toLocaleDateString() }),
+            t('history.microbiologyDeleteMsg', { date: formatDate(item.measurementDate, { day: 'numeric', month: 'short', year: 'numeric' }) }),
             [
                 { text: t('common.cancel'), style: 'cancel' },
                 {
@@ -100,7 +101,7 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
             <Card style={styles.card}>
                 <View style={styles.headerRow}>
                     <Text style={styles.dateText}>
-                        {new Date(item.measurementDate).toLocaleDateString()}
+                        {formatDate(item.measurementDate, { day: 'numeric', month: 'short', year: 'numeric' })}
                     </Text>
                     <View style={styles.rowRight}>
                         <View style={[styles.statusChip, { backgroundColor: vibrioLevel.color + '20' }]}>

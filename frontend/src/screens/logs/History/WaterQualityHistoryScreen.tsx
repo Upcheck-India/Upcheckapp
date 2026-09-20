@@ -19,6 +19,7 @@ import {
     ThresholdSpecies,
     ThresholdParam,
 } from '../../../features/waterQualityThresholds';
+import { formatDate, formatTime } from '../../../utils/formatDate';
 
 const MAX_OVERLAY_POINTS = 14;
 
@@ -229,7 +230,7 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
         <Card style={styles.card}>
             <View style={styles.cardHeader}>
                 <Text style={styles.dateText}>
-                    {new Date(item.recordedAt || '').toLocaleDateString()} at {new Date(item.recordedAt || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {formatDate(item.recordedAt, { day: 'numeric', month: 'short', year: 'numeric' })} at {formatTime(item.recordedAt)}
                 </Text>
                 <View style={styles.cardActions}>
                     <TouchableOpacity

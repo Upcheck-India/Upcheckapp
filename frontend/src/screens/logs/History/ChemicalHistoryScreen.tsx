@@ -9,6 +9,7 @@ import { ErrorState } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
 import { theme } from '../../../theme';
 import { logResourcesApi, ChemicalRecord } from '../../../api/logResources';
+import { formatDate } from '../../../utils/formatDate';
 
 const MetricPill = ({ label, value }: { label: string; value: string }) => (
     <View style={pillStyles.container}>
@@ -68,7 +69,7 @@ export const ChemicalHistoryScreen = ({ route, navigation }: any) => {
     const handleDelete = useCallback((item: ChemicalRecord) => {
         Alert.alert(
             t('common.delete') + ' ' + t('common.date'),
-            t('history.chemicalDeleteMsg', { date: new Date(item.measurementDate).toLocaleDateString() }),
+            t('history.chemicalDeleteMsg', { date: formatDate(item.measurementDate, { day: 'numeric', month: 'short', year: 'numeric' }) }),
             [
                 { text: t('common.cancel'), style: 'cancel' },
                 {
@@ -91,7 +92,7 @@ export const ChemicalHistoryScreen = ({ route, navigation }: any) => {
         <Card style={styles.card}>
             <View style={styles.headerRow}>
                 <Text style={styles.dateText}>
-                    {new Date(item.measurementDate).toLocaleDateString()}
+                    {formatDate(item.measurementDate, { day: 'numeric', month: 'short', year: 'numeric' })}
                 </Text>
                 <View style={styles.rowRight}>
                     <Text style={styles.timeText}>{item.measurementTime}</Text>

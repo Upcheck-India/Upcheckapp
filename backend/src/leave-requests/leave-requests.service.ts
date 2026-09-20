@@ -55,10 +55,16 @@ export class LeaveRequestsService {
     if (dto.id) {
       const existing = await this.leaveRepo.findOne({ where: { id: dto.id } });
       if (existing) {
+        // A replay may only hand back a record the caller could already read.
+        // READ is every role including `viewer`, so checking only that turned
+        // this into a lookup for someone else's request — `reason` is free
+        // text a farmer may have put personal or medical details in, and
+        // findAllForFarm deliberately gates other people's requests behind
+        // WRITE_MANAGEMENT. Own record, or the same bar as reading the list.
         await this.farmAccess.assertCanAccessFarm(
           callerId,
           existing.farmId,
-          'READ',
+          existing.userId === callerId ? 'READ' : 'WRITE_MANAGEMENT',
         );
         return existing;
       }

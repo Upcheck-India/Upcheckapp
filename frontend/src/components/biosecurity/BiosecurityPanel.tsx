@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -35,14 +35,25 @@ export const BiosecurityPanel = ({
     const [seedDraft, setSeedDraft] = useState<SeedHealth>(EMPTY_SEED);
     const [saving, setSaving] = useState(false);
 
+    // Which crop the data on screen belongs to. CycleDetail is reused for a
+    // different cycle, so "keep the old data on a failed refetch" must mean
+    // THIS crop's old data — otherwise a single blip left the previous
+    // cycle's checklist and score on screen as if they were this one's.
+    const loadedFor = useRef<string | null>(null);
+
     const load = useCallback(() => {
         biosecurityApi
             .get(cropId)
             .then(({ data: d }) => {
                 setData(d);
+                loadedFor.current = cropId;
                 setStatus('ready');
             })
-            .catch(() => setStatus((s) => (s === 'ready' ? s : 'error')));
+            .catch(() => {
+                if (loadedFor.current === cropId) return; // keep this crop's data
+                setData(null);
+                setStatus('error');
+            });
     }, [cropId]);
     useFocusEffect(load);
 

@@ -11,6 +11,7 @@ import { theme } from '../../../theme';
 import { harvestsApi, HarvestRecord } from '../../../api/harvests';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { groupIndian } from '../../../features/inrFormat';
+import { formatDate } from '../../../utils/formatDate';
 
 /** Weighted buyer count (pieces/kg): from the grades, else implied by g/piece. */
 const avgCountOf = (h: HarvestRecord): number | null => {
@@ -117,7 +118,7 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
                 <Card style={styles.card}>
                     <View style={styles.headerRow}>
                         <Text style={styles.dateText}>
-                            {new Date(item.harvestDate).toLocaleDateString()}
+                            {formatDate(item.harvestDate, { day: 'numeric', month: 'short', year: 'numeric' })}
                         </Text>
                         <View style={styles.cardActions}>
                             <View style={styles.badge}>

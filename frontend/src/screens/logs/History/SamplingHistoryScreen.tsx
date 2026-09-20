@@ -9,6 +9,7 @@ import { ErrorState } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
 import { theme } from '../../../theme';
 import { samplingApi, SamplingRecord } from '../../../api/sampling';
+import { formatDate } from '../../../utils/formatDate';
 
 export const SamplingHistoryScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -55,7 +56,7 @@ export const SamplingHistoryScreen = ({ route, navigation }: any) => {
     const handleDelete = useCallback((item: SamplingRecord) => {
         Alert.alert(
             t('common.delete') + ' ' + t('common.date'),
-            t('history.samplingDeleteMsg', { date: new Date(item.samplingDate).toLocaleDateString() }),
+            t('history.samplingDeleteMsg', { date: formatDate(item.samplingDate, { day: 'numeric', month: 'short', year: 'numeric' }) }),
             [
                 { text: t('common.cancel'), style: 'cancel' },
                 {
@@ -78,7 +79,7 @@ export const SamplingHistoryScreen = ({ route, navigation }: any) => {
         <Card style={styles.card}>
             <View style={styles.rowBetween}>
                 <Text style={styles.dateText}>
-                    {new Date(item.samplingDate).toLocaleDateString()}
+                    {formatDate(item.samplingDate, { day: 'numeric', month: 'short', year: 'numeric' })}
                 </Text>
                 <View style={styles.rowBetween}>
                     <Text style={styles.mbwText}>{item.mbwG ?? '--'} g</Text>

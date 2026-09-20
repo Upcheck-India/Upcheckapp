@@ -337,14 +337,22 @@ export class DailyBriefService {
           [invFarmIds])
         : none,
       canViewFinancials
-        ? q_('money',
+        ? // Income is transactions + the day's SOLD harvests: a harvest books
+          // revenue without writing a transactions row (the rule spelled out
+          // in expenses.service / money-overview), so summing transactions
+          // alone showed the Brief's own harvestKg next to income 0 on the
+          // one day money actually came in.
+          q_('money',
           `SELECT
              (SELECT coalesce(SUM(amount), 0) FROM transactions
                WHERE farm_id = ANY($1::uuid[]) AND type = 'expense' AND transaction_date BETWEEN $2 AND $3)::float
            + (SELECT coalesce(SUM(e.amount), 0) FROM expenses e JOIN ponds p ON p.id = e.pond_id
                WHERE p.farm_id = ANY($1::uuid[]) AND e.date = $4)::float AS spend,
              (SELECT coalesce(SUM(amount), 0) FROM transactions
-               WHERE farm_id = ANY($1::uuid[]) AND type = 'income' AND transaction_date BETWEEN $2 AND $3)::float AS income`,
+               WHERE farm_id = ANY($1::uuid[]) AND type = 'income' AND transaction_date BETWEEN $2 AND $3)::float
+           + (SELECT coalesce(SUM(h.sale_price_total), 0) FROM harvests h
+                JOIN crops c ON c.id = h.crop_id JOIN ponds p ON p.id = c.pond_id
+               WHERE p.farm_id = ANY($1::uuid[]) AND h.status = 'sold' AND h.harvest_date = $4)::float AS income`,
           [farmIds, dR.start, dR.end, D])
         : none,
       hasPonds

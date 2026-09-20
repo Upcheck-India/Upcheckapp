@@ -8,6 +8,7 @@
  * put a 01:30 IST feed at hour 1.
  */
 import type { Band, DailyBrief, DayScore, PersonDay, Reason, ScorePart, StalePond, StoryCode, StoryItem, WorkKind } from '../api/dailyBrief';
+import { formatDate } from '../utils/formatDate';
 
 export type T = (key: string, options?: Record<string, unknown>) => string;
 
@@ -204,7 +205,7 @@ export const storySentence = (item: StoryItem, brief: Pick<DailyBrief, 'ponds' |
             // `at` is a calendar day here, not an instant.
             return t('dailyBrief.story.antimicrobial_watch', {
                 pond,
-                date: item.at ? localNoon(item.at.slice(0, 10)).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '',
+                date: item.at ? formatDate(localNoon(item.at.slice(0, 10))) : '',
             });
         case 'carried_resolved':
         case 'carried_open':

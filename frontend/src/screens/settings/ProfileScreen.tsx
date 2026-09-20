@@ -18,6 +18,7 @@ import { useUIStore } from '../../store/uiStore';
 import { profilesApi, ProfileCompat, type MyAvatar } from '../../api/profiles';
 import { Avatar } from '../../components/ui/Avatar';
 import { ProfilePhotoSection } from '../../components/profile/ProfilePhotoSection';
+import { formatDate } from '../../utils/formatDate';
 
 export const ProfileScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -243,7 +244,7 @@ export const ProfileScreen = ({ navigation }: any) => {
                                 <View style={styles.infoTextContainer}>
                                     <Text style={styles.infoLabel}>{t('settings.memberSince')}</Text>
                                     <Text style={styles.infoValue}>
-                                        {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}
+                                        {profile?.createdAt ? formatDate(profile.createdAt, { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
                                     </Text>
                                 </View>
                             </View>
