@@ -240,11 +240,10 @@ Today: `ACCESS_FINE_LOCATION` is declared, `CreateFarmScreen.tsx` reads with
 `Location.Accuracy.Balanced` (~100 m) and stores unrounded
 `farms.latitude`/`longitude`, read by nothing. §C0.2 of the compliance spec
 removes precise location and adds a district picker
-(`docs/strategy/farm-location-strategy.md` Option B) — **pending, being
-implemented by another agent against `development`, no PR open as of 20 Sep
-2026.**
+(`docs/strategy/farm-location-strategy.md` Option B) — **done, merged 20 Sep
+2026 as PRs #170 and #171; reaches Play in build 14.**
 
-- If that PR lands as designed (district picker, optional "detect my district"
+- As merged (district picker, optional "detect my district"
   at `Accuracy.Low`, coordinates rounded to ~1 km if captured at all,
   `ACCESS_FINE_LOCATION` removed): declare **Location, not collected** (or
   **Approximate, collected, optional** only if the coarse "detect my district"

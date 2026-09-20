@@ -25,9 +25,20 @@ and `docs/superpowers/specs/2026-09-20-compliance-privacy-and-store-readiness-de
   submission — this is the one item that blocks everything else below.
 
 The fix (§C0.1 of the compliance spec) is **remove the permissions and the
-missed-call flow**, not write a better justification. That work is in
-progress against `development` by another agent — **pending, no PR open as of
-20 Sep 2026.** Do not resubmit to Play before it merges.
+missed-call flow**, not write a better justification. **Done — merged 20 Sep
+2026 (PRs #169, #170, #171).** The manifest and the prebuild plugin now declare
+neither call-log permission, and `ACCESS_FINE_LOCATION` is gone with them.
+
+**This only reaches Play in a new native build (versionCode 14).** Build 13 —
+the one in review — still declares all three. Google's documented remedy for an
+urgent release is to remove the sensitive permissions and roll out a new
+release, which is exactly what build 14 is for. Two things must happen
+together:
+
+1. submit build 14, and
+2. **remove** the `READ_CALL_LOG` declaration in App content → Sensitive app
+   permissions. A live declaration can keep the app in the extended review path
+   even when the bundle itself is clean.
 
 ---
 
