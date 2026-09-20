@@ -137,6 +137,18 @@ describe('DailyBriefService — VIEW_FINANCIALS', () => {
     expect(brief.totals.income).toBe(9000);
   });
 
+  it('counts the day\'s SOLD harvests as income, not just transactions', async () => {
+    // A harvest books revenue without a transactions row (expenses.service /
+    // the synthesised harvest rows in harvests.service), so a transactions-only
+    // sum showed harvestKg next to income 0 on the day of a sale.
+    const { svc, calls } = build({ rows: money });
+    await svc.get('u1', { date: '2026-09-14' }, NOW);
+    const sql = calls.find((c) => c.tag === 'money')!.sql;
+    expect(sql).toMatch(/SUM\(h\.sale_price_total\)/);
+    expect(sql).toMatch(/h\.status = 'sold'/);
+    expect(sql).toMatch(/h\.harvest_date = \$4/);
+  });
+
   it('worker gets null money and the money query is never issued', async () => {
     const { svc, calls } = build({ rows: money, role: 'worker' });
     const brief = await svc.get('u1', { date: '2026-09-14' }, NOW);
