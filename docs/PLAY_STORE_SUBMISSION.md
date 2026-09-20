@@ -1,8 +1,19 @@
 # Play Store Submission — Neerani
 
-**Status:** ready to submit. The artifact is built and the OTA channel is populated.
+**Status:** NOT ready to submit. `READ_CALL_LOG`/`ANSWER_PHONE_CALLS` removal
+(§C0.1), the location/district-picker change (§C0.2), iOS string fixes (§C0.3)
+and the photo-deletion fix (F1, gates the deletion answer in Data Safety) are
+required before the next submission and are **pending** — being implemented by
+other agents against `development`, none merged as of 20 Sep 2026. See
+`docs/PLAY_REVIEW_BLOCKERS.md` for the full picture and resubmission order.
 **Owner:** Upcheck Technologies Private Limited
-**Last updated:** 12 September 2026
+**Last updated:** 20 September 2026 (Data Safety corrections, credential
+rotation, test-credentials and release-signing notes — see
+`docs/superpowers/specs/2026-09-20-compliance-privacy-and-store-readiness-design.md`
+§C0.4/§C0.5). The rest of this doc (build/version/artifact details, store
+listing copy) is unchanged from 12 September and should be re-verified before
+the actual next submission — a new native build will need a new `versionCode`
+and artifact link.
 
 ---
 
@@ -66,13 +77,75 @@ Do not skip step 5. It is the only test that exercises the real signature.
 
 ---
 
+## ⚠️ Credential rotation — do this before submitting, not after
+
+These were flagged as outstanding at the time this doc was last drafted
+(originally noted under "Outstanding before or shortly after launch" below).
+Two more were exposed since, in a chat session, and must rotate too — treat
+that with the same urgency as a leaked production secret, because it is one:
+
+- [ ] Upstash (Redis) credentials
+- [ ] Render account / API credentials
+- [ ] `ADMIN_API_KEY` — **rotating this silently stops news ingestion** unless
+      QStash schedule `scd_7Afogmoukhds95HQJdULfF27tg5P` is updated in the same
+      change
+- [ ] Database password
+- [ ] Supabase service-role key
+- [ ] Brevo API key
+- [ ] **Cloudflare R2 access key — exposed in a chat session, rotate now**
+- [ ] **PostHog project key — exposed in a chat session, rotate now**
+
+Human task — do it, do not delegate to an agent (an agent should never hold or
+transmit the new secret values either). Rotate, redeploy Render with the new
+env vars, and confirm the service still boots before considering this closed.
+
+---
+
+## Test credentials for App Access
+
+The app is fully login-gated, so a Play reviewer with no account cannot get
+past the sign-in screen and will reject the submission on that basis alone.
+Play Console → **App content → App access** needs a working sign-in.
+
+**What the owner must create** (this cannot be an agent action — it is a real
+account and real, if synthetic, data):
+
+1. A **dedicated demo account**, not a real farmer's account: e.g. a farm named
+   something obviously synthetic ("Demo Farm" / "Reviewer Farm"), created for
+   this purpose only, owned by an email or phone number the owner controls.
+2. **Plausible but synthetic farm data** in that account before recording
+   credentials or taking screenshots — at least one pond, a few days of water
+   quality and feed logs, a cycle in progress, so a reviewer (and anyone
+   viewing the store screenshots) sees a populated app, not an empty shell.
+   Never `test test` values or ponds named `P1 P2 P3` — see the phone-shot-list
+   note below; the same account should supply both the reviewer credentials and
+   the screenshots.
+3. Enter the credentials into Play Console → App content → App access → "All
+   or some functionality is restricted" → provide username/password (or the
+   sign-in method used, e.g. email OTP needs a documented static fallback,
+   since Play reviewers cannot receive a one-time email — check whether Play
+   supports an app-side bypass for this account, or use Google sign-in with a
+   Google account the owner controls if OTP cannot be reviewed statelessly).
+
+**Placeholders below — the owner fills these in, this doc does not invent
+them:**
+
+| Field | Value |
+|---|---|
+| Demo account email/phone | `<OWNER TO FILL — never a real farmer's credential>` |
+| Demo account password / sign-in method | `<OWNER TO FILL>` |
+| Demo farm name | `<OWNER TO FILL, e.g. "Demo Farm">` |
+| Data populated as of | `<OWNER TO FILL — date>` |
+
+---
+
 ## Prerequisites to have ready
 
 | Item | Where it comes from | Status |
 |---|---|---|
 | Google Play Developer account (one-off $25) | play.google.com/console | you |
-| Privacy Policy, publicly reachable URL | host `docs/legal/PRIVACY_POLICY.md` | **content ready, needs hosting** |
-| Data deletion URL | host `docs/legal/ACCOUNT_DELETION.md` | **content ready, needs hosting** |
+| Privacy Policy, publicly reachable URL | `docs/legal/PRIVACY_POLICY.md` → `upcheck.in/privacy` | **done** — verified live 12 Sep 2026, see "After launch" below |
+| Data deletion URL | `docs/legal/ACCOUNT_DELETION.md` → `upcheck.in/account-deletion` | **done** — verified live 12 Sep 2026 |
 | App icon, 512×512 PNG | `frontend/assets/` | ready |
 | Feature graphic, 1024×500 | — | **to produce** |
 | Screenshots, min 2 phone | from the APK on the OPPO | **to capture** |
@@ -93,13 +166,22 @@ policy is the source of truth because it is published.
 
 ### Permissions declared in the manifest
 
-`INTERNET` · `CAMERA` · `ACCESS_FINE_LOCATION` · `ACCESS_COARSE_LOCATION` ·
-`RECORD_AUDIO` · `READ_CONTACTS` · `READ_PHONE_STATE` · `READ_EXTERNAL_STORAGE` ·
-`WRITE_EXTERNAL_STORAGE` · `VIBRATE`
+Current (`development`, verified 20 Sep 2026): `INTERNET` · `CAMERA` ·
+`ACCESS_COARSE_LOCATION` · `READ_PHONE_STATE` · `READ_EXTERNAL_STORAGE` ·
+`WRITE_EXTERNAL_STORAGE` · `VIBRATE`. `RECORD_AUDIO` and `READ_CONTACTS` are
+stripped (`tools:node="remove"`).
 
-`READ_CALL_LOG` and `ANSWER_PHONE_CALLS` were removed in C0.1 (see below) — from
-the manifest and from `frontend/plugins/withTruecaller.js`, which re-injects at
-prebuild. This takes effect in the **next native build**, not over the air.
+**Done and merged (PRs #169, #170, #171):**
+- `READ_CALL_LOG` and `ANSWER_PHONE_CALLS` **removed** — from the manifest and
+  from `frontend/plugins/withTruecaller.js`, which re-injects them at prebuild.
+  Missed-call verification is gone; Truecaller one-tap, email OTP and Google
+  remain. A jest test asserts both files stay clean.
+- `ACCESS_FINE_LOCATION` **removed**; `ACCESS_COARSE_LOCATION` stays for the
+  optional "detect my district" shortcut (Accuracy.Low).
+
+**These take effect in the next native build (versionCode 14), not over the
+air.** Until that build is submitted and rolled out, the Play Store still holds
+build 13, which declares all three — see `docs/PLAY_REVIEW_BLOCKERS.md`.
 
 ### What to declare as collected
 
@@ -114,36 +196,63 @@ original draft; the reasons are under the table.
 | Email address | Yes | No | App functionality, Account management, Developer communications | Required |
 | Phone number | Yes (Truecaller / phone sign-in only) | No | App functionality, Account management | Optional — email sign-in avoids it |
 | User IDs | Yes | No | Account management, analytics (hashed) | Required |
-| **Precise location** | Yes | No | App functionality | Optional |
+| **Location** | **Pending — see below** | — | — | Depends on the district-picker PR landing |
 | **Financial info → Other financial info** | **Yes** | No | App functionality | Required |
 | Crash logs | Yes | No | Analytics | On by default, switchable off |
 | Diagnostics | Yes | No | Analytics | On by default, switchable off |
 | App interactions | Yes | No | App functionality, Analytics | **Opt-in only** |
-| ~~Photos~~ | **No** | — | — | Attaching is disabled — see below |
+| **Photos** | **Yes** | No | App functionality | Optional. **Deletable: see the flag below — do not answer Yes yet** |
 | ~~Voice or sound recordings~~ | **No** | — | — | No audio feature exists |
 | Contacts | **No** | — | — | No contacts code exists |
 | Messages → Emails | **No** | — | — | Never declare this — see below |
+| Messages → SMS or call log | **No** | — | — | Pending §C0.1 removal — see below |
 
-Also tick: **data is encrypted in transit** (yes), **users can request deletion**
-(**YES** — see the warning below), and **no data is sold**.
+Also tick: **data is encrypted in transit** (yes); **no data is sold**.
 
-#### Location is PRECISE, not approximate
+> ### ⚠️ "Users can request deletion" — do NOT answer Yes yet
+>
+> The account-deletion flow itself works today (see the warning further below),
+> but the **photo** objects it deletes do not. Health, disease, mortality,
+> feedback and profile photos live in Cloudflare R2, and per
+> `docs/superpowers/specs/2026-09-20-photos-storage-and-privacy-design.md` (F1),
+> deleting a record or an account today does **not** delete the R2 objects.
+> **This row must stay pending until F1 ships and is verified in the tree.**
+> Answering Yes to data deletion while photos are collected and undeletable is
+> a Play Data Safety violation waiting to be found in review.
 
-The manifest declares both `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION`,
-and Play keys the answer off what you REQUEST. `CreateFarmScreen.tsx` reads with
-`Location.Accuracy.Balanced` (~100 m), well inside Google's precise threshold,
-and stores the result as `farms.latitude` / `longitude`. So: Precise, collected,
-optional, App functionality.
+#### Photos — CORRECTED to collected
 
-It is optional honestly — a single "Detect location" button on farm creation is
-the only location call site in the app, and the farmer can type an address
-instead. Say so in the justification; a skippable location permission reviews far
-more easily than one on the critical path.
+`PHOTO_ATTACH_ENABLED = false` only disables the feedback-attach flow in
+`ReportIssueScreen.tsx`. Health, disease, mortality and profile photos upload
+independently through `features/healthPhoto.ts` → `photoUrls` and are stored in
+Cloudflare R2 (per PR #159/#161, already merged to `master`). **Photos must be
+declared: Collected, not shared, optional, App functionality.** The prior "No —
+attaching is disabled" answer in this doc was wrong for the app as it stands
+today, independent of anything still pending.
 
-**Worth fixing later:** the stated purpose (farm position for weather, tide and
-regional pricing) does not need fine location. Dropping `ACCESS_FINE_LOCATION`
-and using `Accuracy.Low` would allow an Approximate-only declaration. That is a
-manifest change, so it needs a native build — fold it into the next one.
+Deletable-by-user stays **blocked** — see the flag above — until the photo
+spec's F1 (record/account deletion actually removing the R2 objects) ships.
+As of 20 Sep 2026, F1 has not shipped and is not the subject of an open PR.
+
+#### Location — PENDING, two possible answers depending on which PR lands
+
+Today: `ACCESS_FINE_LOCATION` is declared, `CreateFarmScreen.tsx` reads with
+`Location.Accuracy.Balanced` (~100 m) and stores unrounded
+`farms.latitude`/`longitude`, read by nothing. §C0.2 of the compliance spec
+removes precise location and adds a district picker
+(`docs/strategy/farm-location-strategy.md` Option B) — **pending, being
+implemented by another agent against `development`, no PR open as of 20 Sep
+2026.**
+
+- If that PR lands as designed (district picker, optional "detect my district"
+  at `Accuracy.Low`, coordinates rounded to ~1 km if captured at all,
+  `ACCESS_FINE_LOCATION` removed): declare **Location, not collected** (or
+  **Approximate, collected, optional** only if the coarse "detect my district"
+  shortcut is kept — do not declare Precise).
+- **Do not submit to Play with "Precise location: collected"** — the current
+  in-tree declaration — once `master`/`development` no longer requests
+  `ACCESS_FINE_LOCATION`. Recheck the manifest at submission time; do not trust
+  this document's date.
 
 #### Financial info — changed to YES
 
@@ -168,17 +277,18 @@ rate and due date, the question becomes whether this is a credit product — whi
 pulls in Play's financial-services policy and India's personal-loan-app rules, a
 far heavier review. Kill that inference explicitly.
 
-#### Photos and audio — NOT collected, and one is fragile
+#### Photos — collected (corrected 20 Sep 2026); audio — not collected
 
-`PHOTO_ATTACH_ENABLED = false` in `ReportIssueScreen.tsx`, so photo attaching is
-off and Photos is correctly undeclared. **This is fragile: re-enabling it is a
-one-line OTA change that needs no new store submission, and the Data Safety
-declaration silently becomes false the moment it ships.** Update Data Safety in
-the same change that flips the flag.
+Superseded: this doc previously said "Photos — NOT collected" because
+`PHOTO_ATTACH_ENABLED = false` disables feedback-report attachments. That was
+always incomplete — health, disease, mortality and profile photos upload
+independently and always have — see the corrected row and callouts above.
+`PHOTO_ATTACH_ENABLED` only ever governed the feedback flow; it was never the
+whole Photos answer.
 
 Voice recordings were in the original draft as "only a recorded note". There is
 no such feature — no `expo-av`, no `expo-audio`, no recording code anywhere.
-`RECORD_AUDIO` sits in the manifest unused.
+`RECORD_AUDIO` is stripped from the manifest (`tools:node="remove"`).
 
 #### Contacts — the old reasoning was wrong
 
@@ -193,52 +303,76 @@ never reads a mailbox. The email ADDRESS belongs under Personal info → Email
 address, which is already declared. Ticking this on a farming app invites
 scrutiny for a capability that does not exist.
 
-#### "Messages → SMS or MMS" — **not collected**
+#### "Messages → SMS or call log" — RESOLVED to Not collected (pending §C0.1)
 
-No longer a judgement call. Google's machine id here is `PSL_SMS_CALL_LOG`, its
-combined SMS/call-log bucket, and since C0.1 the app declares neither an SMS
-permission nor a call-log permission, reads neither, and has no missed-call
-verification flow. Answer **not collected**, and leave the sensitive-permission
-justification for `READ_CALL_LOG` out of the App content section entirely —
-there is nothing left to justify.
+Superseded: this doc previously treated the answer as arguable between
+`PSL_SMS_CALL_LOG` (covering `READ_CALL_LOG`) and "not collected". §C0.1 of the
+compliance spec settles it — the missed-call verification path that reads the
+call log is being removed entirely (Play's [July 2026
+policy](https://support.google.com/googleplay/android-developer/answer/17134731)
+made `READ_CALL_LOG` for phone verification non-compliant as of 14 August 2026,
+and this app's build 13 still declares it). Once that PR lands: **Not
+collected.** No SMS permission exists and none is planned. **Merged 20 Sep 2026
+(PR #169): the manifest and the prebuild plugin no longer declare either
+permission. It reaches Play only in the next native build (versionCode 14) —
+do not submit build 13.**
 
-> ### ⚠️ Answer YES to data deletion
+> ### ⚠️ Data deletion — answer is currently BLOCKED, not Yes
+
 >
 > A Play Console draft on 12 September had
-> `PSL_SUPPORT_DATA_DELETION_BY_USER → DATA_DELETION_NO`, which is wrong twice
-> over. It contradicts the account-deletion URL supplied two rows earlier
-> (`https://www.upcheck.in/account-deletion`, live), and the app genuinely has
+> `PSL_SUPPORT_DATA_DELETION_BY_USER → DATA_DELETION_NO`, which was wrong at the
+> time: it contradicted the live account-deletion URL, and the app genuinely has
 > in-app deletion: `DeleteAccountScreen.tsx` → `authStore.deleteAccount()` →
 > `ProfilesService.deleteAccount()`, which re-authenticates, removes the Supabase
 > auth identity FIRST so a deleted account cannot resurrect itself via the mirror
 > trigger, then transactionally deletes `credit_ledgers`, `users` (cascading
 > farms → ponds → crops → every log) and `profiles`.
 >
-> Answering No also forfeits the **Data deletion badge** Google puts on the
-> listing.
+> **That is no longer sufficient to answer Yes.** Now that Photos is correctly
+> declared as collected (above), "deletable by user" has to be true for photos
+> too, and it is not: R2 photo objects survive both record deletion and account
+> deletion today (photo spec F1, not shipped). **Keep this answer blocked/No
+> until F1 ships and is verified in the tree — answering Yes prematurely is a
+> worse Play-review outcome than the delayed badge.**
 
 ### Sensitive permission declarations
 
-Play used to ask you to justify two permissions here in the **App content →
-Sensitive app permissions** section. Only the note on what NOT to declare
-remains:
+> ### ⚠️ SUPERSEDED 20 Sep 2026 — do not justify `READ_CALL_LOG`, remove it
+>
+> The section below reflects the pre-20-Sep decision (keep and justify the
+> permission). The compliance spec's owner decision (CD1) reversed this:
+> **remove `READ_CALL_LOG` and `ANSWER_PHONE_CALLS` and the missed-call flow
+> entirely**, because Play's July 2026 policy update made phone verification a
+> non-compliant use of `READ_CALL_LOG` as of 14 August 2026 — writing a
+> justification for it now does not fix the underlying non-compliance. See
+> `docs/PLAY_REVIEW_BLOCKERS.md`. **Done — merged 20 Sep 2026 as PRs #169, #170
+> and #171.** In App content the declaration must be **removed**, not rewritten:
+> a bundle with no sensitive permission but a live declaration can still be put
+> through the extended review that Play applies to the declaration form. Verify
+> the manifest of the submitted bundle at submission time.
 
-- **`READ_CALL_LOG` / `ANSWER_PHONE_CALLS`** — **gone; do not declare or justify
-  them.** Play's July 2026 update removed account verification by phone call as a
-  permitted use (compliance deadline 14 August 2026), so C0.1 deleted both
-  permissions and the missed-call flow they served. Phone sign-in is now
-  Truecaller **one-tap** only (`READ_PHONE_STATE`); everyone else uses email OTP
-  or Google. If an older draft in the Console still carries a call-log
-  justification, remove it.
-- **`RECORD_AUDIO`** — **do not write a justification for this.** The draft used to
-  claim "voice notes attached to a pond record". No such feature exists and no
-  audio code is in the app. Together with `READ_CONTACTS`, this is a dead manifest
-  permission. Strip both in the next native build rather than justifying a
-  capability that isn't there — an unused microphone permission invites exactly
-  the question you don't want asked.
+Play will ask you to justify sensitive permissions in the **App content →
+Sensitive app permissions** section. Once the pending removal above lands,
+there is nothing left to justify here — `READ_PHONE_STATE` (kept, for
+Truecaller one-tap) does not require a sensitive-permissions declaration.
 
-Expect the remaining declarations to be reviewed by a human and to add days to
-the first submission.
+- ~~**`READ_CALL_LOG` / `ANSWER_PHONE_CALLS`**~~ — being removed, not justified.
+  Old justification text kept here only as a record of the prior decision:
+  "Phone number verification via the Truecaller SDK, which uses a missed call
+  the app must detect. Call log data is never read for any other purpose,
+  never stored and never transmitted to our servers. Email and Google sign-in
+  are offered as alternatives." Do not paste this into Play Console.
+- **`RECORD_AUDIO`** — **do not write a justification for this.** No audio
+  feature exists. Stripped from the manifest (`tools:node="remove"`) — **done**.
+
+Expect the pre-C0.1 assumption ("ship with call-log and expect human review, add
+days") to no longer apply once §C0.1 lands: no sensitive-permissions review
+should be needed at all. The sign-in story after C0.1: Truecaller one-tap when
+the app is installed, otherwise email OTP or Google — no phone-number field
+that cannot complete. See the design spec §C0.1 for the accepted loss (a
+phone-only user with neither Truecaller nor Google cannot self-register).
+
 
 ---
 
@@ -351,8 +485,10 @@ Every water-quality parameter listed above is a real column on
 8. **The same screen in Telugu or Tamil** — proves the six-language claim rather than asserting it
 
 Add a short caption band to each; captioned screenshots convert better than bare
-device frames. Shoot with a real account holding plausible farm data — never
-`test test` or ponds named `P1 P2 P3`. Reviewers look, and so do farmers.
+device frames. **Shoot from the dedicated demo account** (see "Test credentials
+for App Access" above) holding plausible synthetic farm data — never a real
+farmer's account, never `test test` or ponds named `P1 P2 P3`. Reviewers look,
+and so do farmers.
 
 ---
 
@@ -363,15 +499,27 @@ Play Console → **Create app**. Name `Neerani`, default language English (India
 type **App**, **Free**. Accept the declarations.
 
 ### 2. Complete "App content"
-Privacy policy URL · Ads (none) · App access (provide test credentials — sign-in
-is required, so **reviewers will be blocked without them**) · Content rating
-questionnaire · Target audience (18+, matching the Terms) · Data safety (table
+Privacy policy URL · Ads (none) · App access (provide test credentials, see the
+"Test credentials" section below — sign-in is required, so **reviewers will be
+blocked without them**) · Content rating questionnaire (answer to land on
+**18+ / Mature**, not Everyone — matches Terms §1 and Privacy Policy §10) ·
+Target audience (**18+**, matching the Terms) · Data safety (table
 above) · Government apps (no) · Financial features (**no** — the app tracks a
 farmer's own expenses, it does not provide financial services) · Health (no).
 
 ### 3. Set up Play App Signing
 Accept it when prompted. It is effectively mandatory for new apps and lets Google
 re-sign per-device APKs. **This is what triggers the SHA-1 problem above.**
+
+> **Separate release-signing gotcha, not the same issue:**
+> `frontend/android/app/build.gradle` has `release { signingConfig
+> signingConfigs.debug }` — the release build type is wired to the **debug**
+> signing config. EAS overrides this for the artifacts built above (EAS injects
+> its own managed-keystore signing), so this doc's build/submit flow is
+> unaffected. But **a local `./gradlew assembleRelease` or `expo run:android
+> --variant release` on this repo today produces a debug-signed release
+> artifact**, not something safe to distribute outside EAS. Flagging for the
+> owner to fix in the gradle file directly — out of scope for this doc.
 
 ### 4. Upload the bundle
 **Testing → Internal testing → Create new release**, upload the `.aab`.
@@ -466,10 +614,9 @@ These are deliberate, documented decisions — not oversights.
 
 1. ~~**Set `SENTRY_DSN` on Render**~~ — **done.** Verified 7 Sep 2026: the live
    service reports production events tagged with the current release.
-2. **Rotate every credential pasted into a chat session** — Upstash, Render,
-   `ADMIN_API_KEY`, the database password, the Supabase service-role key, Brevo.
-   Rotating `ADMIN_API_KEY` silently stops news ingestion unless QStash schedule
-   `scd_7Afogmoukhds95HQJdULfF27tg5P` is updated in the same change.
+2. **Rotate every exposed credential** — see the "⚠️ Credential rotation"
+   checklist near the top of this doc (now also includes the R2 access key and
+   PostHog key, exposed in a later chat session).
 3. ~~**Host both legal documents**~~ — **done.** `upcheck.in/privacy`,
    `upcheck.in/terms` and `upcheck.in/account-deletion` all resolve (verified
    12 Sep 2026).
@@ -477,9 +624,9 @@ These are deliberate, documented decisions — not oversights.
    `admin@upcheck.in` on submission. If the key is missing the service logs
    `Email not sent (BREVO_API_KEY missing)` and no-ops — reports still save, but
    nobody is told. `ADMIN_ALERT_EMAIL` overrides the recipient; unset is fine.
-5. **Strip `RECORD_AUDIO` and `READ_CONTACTS`** from the manifest in the next
-   native build. Both are unused, and both enlarge the Data Safety surface and
-   the review questions for no feature.
+5. ~~**Strip `RECORD_AUDIO` and `READ_CONTACTS`** from the manifest~~ — **done.**
+   Both carry `tools:node="remove"` in `AndroidManifest.xml` (merged to `master`).
+   Confirmed in the tree; not declared in the merged manifest.
 6. **Native-speaker review** of the Hindi, Bengali, Tamil, Telugu and Odia copy.
 7. `newsTranslatePrompt.ts` re-evaluates 1.7 MB when a news article opens —
    JS-only, ships by OTA whenever convenient.
