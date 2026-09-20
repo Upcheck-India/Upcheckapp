@@ -61,7 +61,6 @@ export class SamplingService {
       biomassEstimationKg: createDto.biomassEstimationKg,
       srEstimationPercent: createDto.srEstimationPercent,
       notes: createDto.notes,
-      photoUrls: createDto.photoUrls,
       createdById: userId,
       updatedById: userId,
     });

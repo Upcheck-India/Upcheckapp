@@ -38,6 +38,7 @@ import {
   HealthPhotoStorageService,
   farmIdOfCrop,
 } from '../health-observations/health-photo-storage.service';
+import { removedPhotoTombstone } from '../health-observations/photo-removal.util';
 import { toIstDateString } from '../common/ist-date';
 
 // Library text must never recommend antibiotics (spec 2026-09-19 D0/S3) —
@@ -429,6 +430,18 @@ export class DiseaseService {
           ? null
           : (dto.resolvedOn ?? toIstDateString(new Date()));
 
+    // P2: a dropped photo path is deleted, not just untracked, and leaves a
+    // tombstone line on `notes` rather than vanishing silently.
+    const tombstone = await removedPhotoTombstone(
+      this.diseaseRecordRepository.manager,
+      this.photos,
+      this.logger,
+      record.photoUrls,
+      dto.photoUrls,
+      userId,
+    );
+    const notes = tombstone ? [dto.notes ?? record.notes, tombstone].filter(Boolean).join('\n') : undefined;
+
     await this.diseaseRecordRepository.update(id, {
       ...fields,
       ...(severity !== undefined ? { severity } : {}),
@@ -438,6 +451,7 @@ export class DiseaseService {
       bannedSubstanceMatches: matches,
       ...(reEvaluate ? { bannedSubstanceListVersion: BANNED_LIST_VERSION } : {}),
       ...(flagHistory ? { flagHistory: flagHistory as any } : {}),
+      ...(notes !== undefined ? { notes } : {}),
     });
     if (flagHistory) {
       await this.compliance?.escalate(

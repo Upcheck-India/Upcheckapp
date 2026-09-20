@@ -46,4 +46,26 @@ describe('PhotoStrip', () => {
         fireEvent.press(getByLabelText('View photo'));
         expect(sourceOf(getByTestId('photo-viewer-image'))).toEqual({ uri: full, cacheKey: photoCacheKey(full) });
     });
+
+    it('opens the viewer on the photo that was tapped, not always the first', () => {
+        const full2 = signed('health/f/b.webp', 'x');
+        const { getAllByLabelText, getByTestId } = render(
+            <PhotoStrip full={[full, full2]} thumbs={[thumb, full2]} />,
+        );
+        fireEvent.press(getAllByLabelText('View photo')[1]);
+        expect(sourceOf(getByTestId('photo-viewer-image'))).toMatchObject({ uri: full2 });
+    });
+
+    it('has no ✕ by default (read-only history views)', () => {
+        const { queryByLabelText } = render(<PhotoStrip full={[full]} thumbs={[thumb]} />);
+        expect(queryByLabelText('Remove photo')).toBeNull();
+    });
+
+    it('P2: shows a ✕ per thumbnail when onRemove is given, calling it with that index', () => {
+        const full2 = signed('health/f/b.webp', 'x');
+        const onRemove = jest.fn();
+        const { getAllByLabelText } = render(<PhotoStrip full={[full, full2]} onRemove={onRemove} />);
+        fireEvent.press(getAllByLabelText('Remove photo')[1]);
+        expect(onRemove).toHaveBeenCalledWith(1);
+    });
 });

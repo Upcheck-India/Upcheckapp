@@ -15,6 +15,8 @@ const common = {
   add: 'జోడించు',
   close: 'మూసివేయి',
   viewPhoto: 'ఫోటో చూడండి',
+  removePhoto: 'ఫోటోను తీసివేయండి',
+  photoCount: '{{total}} లో {{current}}',
   confirm: 'నిర్ధారించు',
   back: 'వెనుకకు',
   featureUnavailable: 'ప్రస్తుతం అందుబాటులో లేదు',

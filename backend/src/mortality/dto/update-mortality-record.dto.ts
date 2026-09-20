@@ -38,11 +38,6 @@ export class UpdateMortalityRecordDto {
   note?: string;
 
   @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  images?: string[];
-
-  @IsOptional()
   @IsIn(MORTALITY_CAUSES)
   suspectedCause?: string;
 

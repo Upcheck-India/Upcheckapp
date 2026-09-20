@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -10,14 +11,23 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { IsString, MaxLength } from 'class-validator';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { OwnershipGuard } from '../common/guards/ownership.guard';
 import { OwnsResource } from '../common/decorators/owns-resource.decorator';
 import { HealthObservationsService } from './health-observations.service';
 import { CreateHealthObservationsDto } from './dto/create-health-observations.dto';
 import { MAX_HEALTH_PHOTO_BYTES } from './health-photo-storage.service';
+import { UPLOAD_THROTTLE } from '../storage/r2-storage.service';
 import type { UploadedImage } from '../feedback/feedback-storage.service';
+
+export class DeletePhotoDto {
+  @IsString()
+  @MaxLength(200)
+  path: string;
+}
 
 /**
  * Health observations (spec D6). Route guard AND service-level
@@ -55,6 +65,7 @@ export class HealthObservationsController {
   @Post('photos/:pondId')
   @UseGuards(OwnershipGuard)
   @OwnsResource('Pond', 'pondId', 'farm.userId', 'WRITE_OPERATIONAL')
+  @Throttle(UPLOAD_THROTTLE)
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: MAX_HEALTH_PHOTO_BYTES } }),
   )
@@ -64,5 +75,23 @@ export class HealthObservationsController {
     @CurrentUser() user,
   ) {
     return this.service.uploadPhoto(pondId, user.id, file);
+  }
+
+  /**
+   * P2: delete a not-yet-saved photo the picker already uploaded — e.g. the
+   * farmer tapped ✕ before submitting the form it belongs to. A path already
+   * saved on a record is removed via that record's own PATCH (see mortality
+   * and disease `update`), never here, so this can never delete a photo a
+   * record still references.
+   */
+  @Delete('photos/:pondId')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Pond', 'pondId', 'farm.userId', 'WRITE_OPERATIONAL')
+  removePhoto(
+    @Param('pondId', ParseUUIDPipe) pondId: string,
+    @Body() dto: DeletePhotoDto,
+    @CurrentUser() user,
+  ) {
+    return this.service.removePhoto(pondId, user.id, dto.path);
   }
 }

@@ -8,6 +8,7 @@ import { Card } from '../../../components/ui/Card';
 import { SkeletonList } from '../../../components/ui/Skeleton';
 import { ErrorState, NetworkError } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
+import { PhotoStrip } from '../../../components/ui/PhotoStrip';
 import { theme } from '../../../theme';
 import { mortalityApi, MortalityRecord } from '../../../api/mortalities';
 import { formatDate } from '../../../utils/formatDate';
@@ -159,6 +160,11 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
                         <Text style={styles.detailText}>{t('history.mortalityEstWeight', { weight: item.estimatedWeightKg })}</Text>
                     )}
                     {item.note && <Text style={styles.notesText}>{item.note}</Text>}
+                    {!!item.photoSignedUrls?.length && (
+                        <View style={styles.photoRow}>
+                            <PhotoStrip full={item.photoSignedUrls} thumbs={item.photoThumbUrls} />
+                        </View>
+                    )}
                 </Card>
             </Animated.View>
         );
@@ -236,6 +242,7 @@ const styles = StyleSheet.create({
     countText: { ...theme.typeScale.labelSmall, color: theme.roles.light.dangerText, fontWeight: '700' },
     detailText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[2] },
     notesText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: theme.spacing[2] },
+    photoRow: { marginTop: theme.spacing[3] },
     emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
     emptyTitle: { ...theme.typeScale.h4, color: theme.roles.light.textPrimary, marginTop: theme.spacing[4], marginBottom: theme.spacing[2] },
     emptyText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },

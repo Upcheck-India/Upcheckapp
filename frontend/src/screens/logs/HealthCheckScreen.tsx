@@ -3,20 +3,45 @@
  * photo. One screen, one save. A sign left untouched is "not checked" and is
  * not written; "None" is written, because "checked, none" is a finding.
  */
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { PhotoStrip } from '../../components/ui/PhotoStrip';
 import { ChoiceChips } from '../../components/health/ChoiceChips';
 import { HealthPhotoPicker } from '../../components/health/HealthPhotoPicker';
 import { theme } from '../../theme';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
+import { formatDate } from '../../utils/formatDate';
 import { apiErrorMessage } from '../../api/errors';
-import { HEALTH_SIGNS, healthObservationsApi, type HealthLevel, type HealthSign } from '../../api/healthObservations';
+import { HEALTH_SIGNS, healthObservationsApi, type HealthLevel, type HealthObservation, type HealthSign } from '../../api/healthObservations';
+
+/**
+ * P1: group one check's per-sign rows back into one card. Every sign saved
+ * together shares the same `observedOn` day and `photoUrls` (they're written
+ * from one `signs[]` array in one call) — signs grouped by day, with one
+ * photo strip per day rather than one per sign, is what stops the same
+ * photo rendering N times.
+ */
+function groupByDay(rows: HealthObservation[]) {
+    const byDay = new Map<string, HealthObservation[]>();
+    for (const r of rows) {
+        byDay.set(r.observedOn, [...(byDay.get(r.observedOn) ?? []), r]);
+    }
+    return [...byDay.entries()]
+        .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+        .map(([observedOn, group]) => ({
+            observedOn,
+            signs: group.filter((r) => r.level !== 'none'),
+            photoSignedUrls: group.find((r) => r.photoSignedUrls?.length)?.photoSignedUrls ?? [],
+            photoThumbUrls: group.find((r) => r.photoThumbUrls?.length)?.photoThumbUrls ?? [],
+        }));
+}
 
 const LEVELS: HealthLevel[] = ['none', 'few', 'many'];
 
@@ -27,8 +52,24 @@ export const HealthCheckScreen = ({ route, navigation }: any) => {
     const [levels, setLevels] = useState<Partial<Record<HealthSign, HealthLevel>>>({});
     const [photos, setPhotos] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
+    const [recent, setRecent] = useState<HealthObservation[]>([]);
 
     const signs = HEALTH_SIGNS.filter((s) => levels[s]).map((s) => ({ sign: s, level: levels[s]! }));
+
+    // P1: this screen is the only place health-check photos were ever
+    // uploaded from, and until now the only place they went to see them
+    // again. Refetch on focus — a save on this same screen must show up
+    // immediately, and React Navigation keeps the screen mounted.
+    const loadRecent = useCallback(async () => {
+        if (!pondId) return;
+        try {
+            const { data } = await healthObservationsApi.listForPond(pondId, 7);
+            setRecent(data);
+        } catch {
+            // History is a nice-to-have here; a failed read must not block logging.
+        }
+    }, [pondId]);
+    useFocusEffect(useCallback(() => { void loadRecent(); }, [loadRecent]));
 
     const save = async () => {
         if (!signs.length) {
@@ -87,6 +128,22 @@ export const HealthCheckScreen = ({ route, navigation }: any) => {
                     <HealthPhotoPicker pondId={pondId} value={photos} onChange={setPhotos} />
                 </Card>
                 <Button title={t('logs.saveRecord')} onPress={save} loading={saving} disabled={!signs.length} />
+                {groupByDay(recent).some((d) => d.photoThumbUrls.length > 0) && (
+                    <Card style={[styles.card, styles.recentCard]}>
+                        <Text style={styles.recentTitle}>{t('history.healthCheckRecentTitle')}</Text>
+                        {groupByDay(recent).map((d) => (
+                            <View key={d.observedOn} style={styles.recentRow} testID={`health-check-day-${d.observedOn}`}>
+                                <Text style={styles.dateText}>{formatDate(d.observedOn, { day: 'numeric', month: 'short' })}</Text>
+                                {!!d.signs.length && (
+                                    <Text style={styles.metaText}>{d.signs.map((s) => t(`health.sign.${s.sign}`)).join(' · ')}</Text>
+                                )}
+                                {!!d.photoThumbUrls.length && (
+                                    <PhotoStrip full={d.photoSignedUrls} thumbs={d.photoThumbUrls} />
+                                )}
+                            </View>
+                        ))}
+                    </Card>
+                )}
             </ScrollView>
         </ScreenWrapper>
     );
@@ -111,4 +168,9 @@ const styles = StyleSheet.create({
     card: { marginBottom: theme.spacing[4] },
     signRow: { paddingVertical: theme.spacing[2], gap: theme.spacing[1.5] },
     signLabel: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary },
+    recentCard: { marginTop: theme.spacing[4] },
+    recentTitle: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary, marginBottom: theme.spacing[2] },
+    recentRow: { marginBottom: theme.spacing[3], gap: theme.spacing[1.5] },
+    dateText: { ...theme.typeScale.labelMedium, color: theme.roles.light.textSecondary },
+    metaText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary },
 });

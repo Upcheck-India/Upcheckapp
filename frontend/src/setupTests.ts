@@ -33,6 +33,10 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
     },
 }));
 
+// react-native-gesture-handler (PhotoViewerModal's pinch-zoom, F0/P1) has no
+// native module under Jest either; the library ships its own official mock.
+import 'react-native-gesture-handler/jestSetup';
+
 // Initialise i18n (English) so components using useTranslation() render real
 // strings under test instead of raw keys.
 import './i18n';

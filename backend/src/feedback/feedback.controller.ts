@@ -9,6 +9,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { FeedbackService } from './feedback.service';
 import {
@@ -16,6 +17,7 @@ import {
   MAX_ATTACHMENT_BYTES,
   type UploadedImage,
 } from './feedback-storage.service';
+import { UPLOAD_THROTTLE } from '../storage/r2-storage.service';
 import { CreateFeedbackDto } from './dto/feedback.dto';
 
 /**
@@ -36,6 +38,7 @@ export class FeedbackController {
    * farmer that photo, not the whole report they just typed out.
    */
   @Post('attachment')
+  @Throttle(UPLOAD_THROTTLE)
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: MAX_ATTACHMENT_BYTES } }),
   )

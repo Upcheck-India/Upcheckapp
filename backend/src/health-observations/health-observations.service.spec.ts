@@ -108,6 +108,25 @@ describe('HealthObservationsService.create', () => {
   });
 });
 
+describe('HealthObservationsService.removePhoto (P2)', () => {
+  it("checks WRITE_OPERATIONAL and deletes the caller's own farm's photo", async () => {
+    const { svc, farmAccess } = make();
+    const removeSpy = jest.spyOn(HealthPhotoStorageService.prototype, 'remove').mockResolvedValue(undefined);
+    await svc.removePhoto(POND, 'u1', photo(FARM_A));
+    expect(farmAccess.assertCanAccessPond).toHaveBeenCalledWith('u1', POND, 'WRITE_OPERATIONAL');
+    expect(removeSpy).toHaveBeenCalledWith([photo(FARM_A)]);
+    removeSpy.mockRestore();
+  });
+
+  it("refuses (403) to delete another farm's path — never touches storage", async () => {
+    const { svc } = make();
+    const removeSpy = jest.spyOn(HealthPhotoStorageService.prototype, 'remove').mockResolvedValue(undefined);
+    await expect(svc.removePhoto(POND, 'u1', photo(FARM_B))).rejects.toBeInstanceOf(ForbiddenException);
+    expect(removeSpy).not.toHaveBeenCalled();
+    removeSpy.mockRestore();
+  });
+});
+
 describe('HealthObservationsService.listForPond', () => {
   it('table not migrated yet (42P01) → []', async () => {
     const { svc, repo } = make();

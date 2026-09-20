@@ -45,13 +45,6 @@ export class CreateMortalityRecordDto {
   note?: string;
 
   @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(20)
-  @IsString({ each: true })
-  @MaxLength(2048, { each: true })
-  images?: string[];
-
-  @IsOptional()
   @IsIn(MORTALITY_CAUSES)
   suspectedCause?: string;
 

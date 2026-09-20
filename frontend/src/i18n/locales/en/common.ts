@@ -15,6 +15,8 @@ const common = {
   add: 'Add',
   close: 'Close',
   viewPhoto: 'View photo',
+  removePhoto: 'Remove photo',
+  photoCount: '{{current}} of {{total}}',
   confirm: 'Confirm',
   back: 'Back',
   featureUnavailable: 'Not available right now',

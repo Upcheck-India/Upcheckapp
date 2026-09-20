@@ -100,4 +100,13 @@ export const healthObservationsApi = {
             timeout: 60000,
         });
     },
+
+    /**
+     * P2: delete a photo the picker already uploaded but that never made it
+     * onto a saved record (the farmer tapped ✕ before submitting). A path
+     * already on a saved record is removed by re-saving that record with the
+     * path dropped — never through this route.
+     */
+    removePhoto: (pondId: string, path: string) =>
+        apiClient.delete(`/health-observations/photos/${pondId}`, { data: { path } }),
 };

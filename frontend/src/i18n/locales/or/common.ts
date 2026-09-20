@@ -15,6 +15,8 @@ const common = {
   add: 'ଯୋଡ଼ନ୍ତୁ',
   close: 'ବନ୍ଦ',
   viewPhoto: 'ଫଟୋ ଦେଖନ୍ତୁ',
+  removePhoto: 'ଫଟୋ ହଟାନ୍ତୁ',
+  photoCount: '{{total}} ମଧ୍ୟରୁ {{current}}',
   confirm: 'ନିଶ୍ଚିତ',
   back: 'ପଛକୁ',
   featureUnavailable: 'ବର୍ତ୍ତମାନ ଉପଲବ୍ଧ ନାହିଁ',

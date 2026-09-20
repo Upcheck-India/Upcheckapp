@@ -53,14 +53,9 @@ export class SamplingData {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
-  @Column({
-    type: 'text',
-    array: true,
-    nullable: true,
-    default: [],
-    name: 'photo_urls',
-  })
-  photoUrls: string[];
+  // P7: dead column (no path validation/signing/UI was ever built on it).
+  // Removed from the entity; the column itself is dropped in a later
+  // cleanup migration, not here.
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   createdAt: Date;

@@ -7,7 +7,6 @@ export interface MortalityRecord {
     quantity: number;
     estimatedWeightKg?: number;
     note?: string;
-    images?: string[];
     createdAt?: string;
     /** D6: unknown | low_do | disease | molt | handling | predator | other */
     suspectedCause?: string | null;
@@ -24,7 +23,6 @@ export interface CreateMortalityRecordDto {
     quantity: number;
     estimatedWeightKg?: number;
     note?: string;
-    images?: string[];
     suspectedCause?: string;
     photoUrls?: string[];
 }

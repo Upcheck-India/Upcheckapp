@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,6 +13,7 @@ import {
   HealthPhotoStorageService,
   farmIdOfCrop,
 } from '../health-observations/health-photo-storage.service';
+import { removedPhotoTombstone } from '../health-observations/photo-removal.util';
 
 /**
  * Default mortality multiplier.
@@ -23,6 +25,8 @@ const DEFAULT_MORTALITY_MULTIPLIER = 3;
 
 @Injectable()
 export class MortalityService {
+  private readonly logger = new Logger(MortalityService.name);
+
   constructor(
     @InjectRepository(MortalityRecord)
     private mortalityRepository: Repository<MortalityRecord>,
@@ -104,10 +108,22 @@ export class MortalityService {
       (dto.quantity !== undefined
         ? dto.quantity * DEFAULT_MORTALITY_MULTIPLIER
         : undefined);
+    // P2: a dropped photo path is deleted, not just untracked, and leaves a
+    // tombstone line rather than vanishing silently.
+    const tombstone = await removedPhotoTombstone(
+      this.mortalityRepository.manager,
+      this.photos,
+      this.logger,
+      current.photoUrls,
+      dto.photoUrls,
+      userId,
+    );
+    const note = tombstone ? [dto.note ?? current.note, tombstone].filter(Boolean).join('\n') : undefined;
     await this.mortalityRepository.update(id, {
       ...dto,
       ...(estimatedTotal !== undefined ? { estimatedTotal } : {}),
       ...(userId ? { updatedById: userId } : {}),
+      ...(note !== undefined ? { note } : {}),
     });
     return this.findOne(id);
   }

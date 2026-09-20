@@ -28,6 +28,13 @@ const health = {
   fromGallery: 'গ্যালারি থেকে বাছুন',
   photosNeedConnection: 'ছবির জন্য ইন্টারনেট দরকার',
   photoFailed: 'ছবি আপলোড করা যায়নি',
+  photoRemoveFailed: 'ছবি সরানো যায়নি',
+  photoError: {
+    IMAGE_TOO_LARGE: 'ছবিটি অনেক বড়। আবার চেষ্টা করুন — এটি স্বয়ংক্রিয়ভাবে ছোট হয়ে যাবে।',
+    UNSUPPORTED_TYPE: 'ফাইলটি ছবি বলে মনে হচ্ছে না। অনুগ্রহ করে একটি ছবি বেছে নিন বা তুলুন।',
+    STORAGE_UNCONFIGURED: 'ছবি সংরক্ষণ এখন উপলব্ধ নেই। পরে আবার চেষ্টা করুন।',
+    AVATAR_NOT_MIGRATED: 'প্রোফাইল ছবি এখনও উপলব্ধ নয় — পরে আবার চেষ্টা করুন।',
+  },
   signsSeen: 'দেখা লক্ষণ',
   severity: {
     mild: 'হালকা',

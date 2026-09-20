@@ -38,7 +38,6 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
 
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
@@ -57,6 +56,7 @@ import {
 import { useSyncStore } from '../../store/syncStore';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { statusTone } from './feedbackStatus';
+import { pickHealthPhoto } from '../../features/healthPhoto';
 
 const c = theme.roles.light;
 
@@ -114,36 +114,26 @@ export const ReportIssueScreen = ({ navigation }: any) => {
     // back to check changes on our side, not theirs.
     useFocusEffect(useCallback(() => { load(); }, [load]));
 
-    const addPhoto = async () => {
+    // P8/P9: the same picker + resize path every other photo surface uses
+    // (`pickHealthPhoto` — 1600px, JPEG q0.7), instead of this screen's own
+    // ad-hoc 0.5-quality multi-select. One at a time, camera-first, matching
+    // HealthPhotoPicker's UX.
+    const addPhoto = async (from: 'camera' | 'library') => {
         if (photos.length >= MAX_PHOTOS) {
             Alert.alert(t('feedback.photoLimitReached', { count: MAX_PHOTOS }));
             return;
         }
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permission.granted) {
-            // Not a dead end: the report is still sendable without a photo, and
-            // saying so is the difference between a refusal and a lost report.
-            Alert.alert(t('feedback.permissionTitle'), t('feedback.permissionBody'));
-            return;
-        }
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            // 0.5 on a modern phone camera is roughly a 300–600 KB JPEG instead
-            // of 6 MB. A farmer on rural data is paying for every one of those
-            // megabytes, and a screenshot of a bug does not need them.
-            quality: 0.5,
-            allowsMultipleSelection: true,
-            selectionLimit: MAX_PHOTOS - photos.length,
-        });
-        if (result.canceled) return;
-        setPhotos((prev) =>
-            [...prev, ...result.assets.map((a) => ({
-                uri: a.uri,
-                mimeType: a.mimeType,
-                fileName: a.fileName,
-            }))].slice(0, MAX_PHOTOS),
-        );
+        const uri = await pickHealthPhoto(from);
+        if (!uri) return; // cancelled or permission refused — report is still sendable
+        setPhotos((prev) => [...prev, { uri }].slice(0, MAX_PHOTOS));
     };
+
+    const choosePhoto = () =>
+        Alert.alert(t('feedback.addPhoto'), undefined, [
+            { text: t('health.takePhoto'), onPress: () => void addPhoto('camera') },
+            { text: t('health.fromGallery'), onPress: () => void addPhoto('library') },
+            { text: t('common.cancel'), style: 'cancel' },
+        ]);
 
     const send = async () => {
         const text = message.trim();
@@ -297,7 +287,7 @@ export const ReportIssueScreen = ({ navigation }: any) => {
                     {photos.length < MAX_PHOTOS && (
                         <TouchableOpacity
                             style={styles.addPhoto}
-                            onPress={addPhoto}
+                            onPress={choosePhoto}
                             accessibilityRole="button"
                             accessibilityLabel={t('feedback.addPhoto')}
                         >
