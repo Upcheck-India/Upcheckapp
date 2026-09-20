@@ -58,6 +58,13 @@ export class Farm {
   @Column({ type: 'numeric', nullable: true })
   latitude: number;
 
+  // state_code / district_code (LGD-style codes, farm-location-strategy.md
+  // Option B, migration 1780702300000) are deliberately NOT entity columns —
+  // same reasoning as caa_registration_no below: mapping them here would make
+  // an unapplied migration 42703 on EVERY farm read in the app, not just this
+  // one field. farms.service.ts reads/writes them with raw SQL guarded by
+  // isMissingSchema() instead.
+
   @Column({
     name: 'water_source_type',
     type: 'varchar',

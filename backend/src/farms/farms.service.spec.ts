@@ -76,6 +76,7 @@ describe('FarmsService', () => {
           useValue: {
             getAccessibleFarmIds: jest.fn().mockResolvedValue(['farm-1']),
             assertCanAccessFarm: jest.fn().mockResolvedValue(mockFarm),
+            getRoleOnFarm: jest.fn().mockResolvedValue('owner'),
           },
         },
       ],
@@ -96,7 +97,7 @@ describe('FarmsService', () => {
       repository.save.mockResolvedValue(mockFarm);
 
       const result = await service.create({ name: 'New Farm' }, 'user-1');
-      expect(result).toEqual(mockFarm);
+      expect(result).toEqual({ ...mockFarm, stateCode: null, districtCode: null });
       expect(repository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'New Farm',
@@ -155,8 +156,48 @@ describe('FarmsService', () => {
       membersRepo.insert.mockRejectedValueOnce(new Error('duplicate key'));
 
       await expect(service.create({ name: 'New Farm' }, 'user-1')).resolves.toEqual(
-        mockFarm,
+        { ...mockFarm, stateCode: null, districtCode: null },
       );
+    });
+
+    // C0.2 (spec 2026-09-20 compliance): a farm saves with district and no
+    // coordinates.
+    it('saves district with no coordinates', async () => {
+      repository.findOneBy.mockResolvedValue(null);
+      repository.create.mockReturnValue(mockFarm);
+      repository.save.mockResolvedValue(mockFarm);
+
+      const result = await service.create(
+        { name: 'Farm', stateCode: 'AP', districtCode: 'AP-KRISHNA' } as any,
+        'user-1',
+      );
+
+      expect(repository.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE farms SET state_code'),
+        ['farm-1', 'AP'],
+      );
+      expect(repository.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE farms SET district_code'),
+        ['farm-1', 'AP-KRISHNA'],
+      );
+      expect(result.stateCode).toBe('AP');
+      expect(result.districtCode).toBe('AP-KRISHNA');
+      expect((repository.create.mock.calls[0][0] as any).longitude).toBeUndefined();
+      expect((repository.create.mock.calls[0][0] as any).latitude).toBeUndefined();
+    });
+
+    it('does not fail farm creation when the district column is unmigrated', async () => {
+      repository.findOneBy.mockResolvedValue(null);
+      repository.create.mockReturnValue(mockFarm);
+      repository.save.mockResolvedValue(mockFarm);
+      repository.query.mockRejectedValue(Object.assign(new Error('no column'), { code: '42703' }));
+
+      const result = await service.create(
+        { name: 'Farm', stateCode: 'AP', districtCode: 'AP-KRISHNA' } as any,
+        'user-1',
+      );
+      expect(result.stateCode).toBeNull();
+      expect(result.districtCode).toBeNull();
     });
 
     it('throws rather than returning a colliding code after 10 attempts', async () => {
@@ -233,7 +274,63 @@ describe('FarmsService', () => {
     it('should return farm', async () => {
       repository.findOneBy.mockResolvedValue(mockFarm);
       const result = await service.findOne('farm-1');
-      expect(result).toEqual({ ...mockFarm, caaRegistrationNo: null });
+      expect(result).toEqual({
+        ...mockFarm,
+        caaRegistrationNo: null,
+        stateCode: null,
+        districtCode: null,
+      });
+    });
+
+    // C0.2 (spec 2026-09-20 compliance): district is raw SQL, same D4 pattern
+    // as caaRegistrationNo, so an unapplied 1780702300000 reads as null.
+    it('carries the district (C0.2)', async () => {
+      repository.findOneBy.mockResolvedValue(mockFarm);
+      repository.query.mockResolvedValue([{ stateCode: 'AP', districtCode: 'AP-KRISHNA' }]);
+      const result = await service.findOne('farm-1');
+      expect(result.stateCode).toBe('AP');
+      expect(result.districtCode).toBe('AP-KRISHNA');
+    });
+
+    it('an unapplied district column (42703) reads as null, not a 500', async () => {
+      repository.findOneBy.mockResolvedValue(mockFarm);
+      repository.query.mockRejectedValue(Object.assign(new Error('no column'), { code: '42703' }));
+      const result = await service.findOne('farm-1');
+      expect(result.stateCode).toBeNull();
+      expect(result.districtCode).toBeNull();
+    });
+
+    // C0.2: coordinates are absent from a worker's or viewer's farm payload,
+    // enforced server-side — not merely hidden by the UI.
+    it('strips coordinates for a worker', async () => {
+      repository.findOneBy.mockResolvedValue(mockFarm);
+      (farmAccess.getRoleOnFarm as jest.Mock).mockResolvedValueOnce('worker');
+      const result = await service.findOne('farm-1', 'worker-1');
+      expect(result).not.toHaveProperty('latitude');
+      expect(result).not.toHaveProperty('longitude');
+    });
+
+    it('strips coordinates for a viewer', async () => {
+      repository.findOneBy.mockResolvedValue(mockFarm);
+      (farmAccess.getRoleOnFarm as jest.Mock).mockResolvedValueOnce('viewer');
+      const result = await service.findOne('farm-1', 'viewer-1');
+      expect(result).not.toHaveProperty('latitude');
+      expect(result).not.toHaveProperty('longitude');
+    });
+
+    it('keeps coordinates for the owner', async () => {
+      repository.findOneBy.mockResolvedValue(mockFarm);
+      (farmAccess.getRoleOnFarm as jest.Mock).mockResolvedValueOnce('owner');
+      const result = await service.findOne('farm-1', 'user-1');
+      expect(result.latitude).toBe(mockFarm.latitude);
+      expect(result.longitude).toBe(mockFarm.longitude);
+    });
+
+    it('keeps coordinates for a manager', async () => {
+      repository.findOneBy.mockResolvedValue(mockFarm);
+      (farmAccess.getRoleOnFarm as jest.Mock).mockResolvedValueOnce('manager');
+      const result = await service.findOne('farm-1', 'manager-1');
+      expect(result.latitude).toBe(mockFarm.latitude);
     });
 
     it('carries the CAA registration number (D4)', async () => {
@@ -304,6 +401,47 @@ describe('FarmsService', () => {
         ['farm-1', 'CAA/AP/9'],
       );
       expect(repository.update).not.toHaveBeenCalled();
+    });
+
+    // C0.2: "clear location" must persist an actual null, not merely omit
+    // the field (buildDraft() on the frontend could not express this before).
+    it('clears location by writing explicit nulls', async () => {
+      repository.findOneBy.mockResolvedValue(mockFarm);
+      repository.update.mockResolvedValue(undefined);
+
+      await service.update(
+        'farm-1',
+        { stateCode: null, districtCode: null, latitude: null, longitude: null },
+        'owner-1',
+      );
+
+      expect(repository.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE farms SET state_code'),
+        ['farm-1', null],
+      );
+      expect(repository.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE farms SET district_code'),
+        ['farm-1', null],
+      );
+      expect(repository.update).toHaveBeenCalledWith(
+        'farm-1',
+        expect.objectContaining({ latitude: null, longitude: null }),
+      );
+    });
+
+    it('a manager cannot set the district', async () => {
+      (farmAccess.assertCanAccessFarm as jest.Mock).mockRejectedValueOnce(new ForbiddenException());
+      await expect(
+        service.update('farm-1', { stateCode: 'AP' }, 'manager-1'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(repository.query).not.toHaveBeenCalled();
+    });
+
+    it('district edit fails loudly (503) when the migration has not run', async () => {
+      repository.query.mockRejectedValue(Object.assign(new Error('no column'), { code: '42703' }));
+      await expect(
+        service.update('farm-1', { stateCode: 'AP' }, 'owner-1'),
+      ).rejects.toThrow(/migration 1780702300000/);
     });
 
     it('a manager cannot set the CAA number', async () => {

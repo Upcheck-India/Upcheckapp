@@ -22,6 +22,8 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Stepper } from '../../components/ui/Stepper';
 import { Icon } from '../../components/ui/Icon';
+import { DistrictPicker } from '../../components/ui/DistrictPicker';
+import { findDistrictByName } from '../../data/lgdLocations';
 import { theme } from '../../theme';
 import { farmsApi, type CreateFarmDto, type Farm } from '../../api/farms';
 import { canDecideOnTeam } from '../../api/teamOverview';
@@ -32,6 +34,11 @@ import { useMembershipStore } from '../../store/membershipStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { capture, EVENTS, sizeBand } from '../../features/analytics';
+
+/** ~1.1km at the equator, per farm-location-strategy.md Option B — a farm's
+ *  district is the precision the app needs; a coordinate captured at all is a
+ *  rounded bonus, never a precise pin. */
+const roundToKm = (n: number): number => Math.round(n * 100) / 100;
 
 const WATER_SOURCES: { key: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
     { key: 'tidal', icon: 'waves' },
@@ -70,7 +77,16 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
     const [address, setAddress] = useState('');
     const [totalArea, setTotalArea] = useState('');
     const [waterSource, setWaterSource] = useState<string | null>(null);
+    // District is the precision the app needs (spec 2026-09-20 compliance
+    // C0.2); coords are an optional, rounded bonus filled only by "Detect my
+    // district" and never shown raw to the farmer. `hadLocation` remembers
+    // whether the loaded farm had ANY of this set, so clearing it can send an
+    // explicit null instead of just omitting the fields (which a PATCH would
+    // read as "unchanged", not "cleared").
+    const [stateCode, setStateCode] = useState<string | null>(null);
+    const [districtCode, setDistrictCode] = useState<string | null>(null);
     const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+    const [hadLocation, setHadLocation] = useState(false);
     const [locating, setLocating] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<{ name?: string; numPonds?: string; shiftEnd?: string }>({});
@@ -103,6 +119,12 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                 if (data.latitude != null && data.longitude != null) {
                     setCoords({ lat: data.latitude, lng: data.longitude });
                 }
+                setStateCode(data.stateCode ?? null);
+                setDistrictCode(data.districtCode ?? null);
+                setHadLocation(
+                    data.latitude != null || data.longitude != null ||
+                    !!data.stateCode || !!data.districtCode,
+                );
                 // A pg `time` arrives as 'HH:MM:SS'; the form speaks 'HH:MM'.
                 const loaded = { end: (data.shiftEndLocal ?? '').slice(0, 5), hours: data.shiftHours ?? DEFAULT_SHIFT_HOURS };
                 setShiftEnd(loaded.end);
@@ -132,7 +154,14 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
         navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
     };
 
-    const detectLocation = async () => {
+    /**
+     * Optional shortcut that fills the picker — never the source of truth.
+     * `Accuracy.Low` (a few km) is plenty for "which district", and the
+     * reverse-geocode result only ever shows as a district name, never a
+     * coordinate. Any coordinate captured here is rounded to ~1km before it
+     * is set into state, so nothing more precise ever leaves the device.
+     */
+    const detectDistrict = async () => {
         setLocating(true);
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
@@ -140,8 +169,26 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                 Alert.alert(t('farms.locationDeniedTitle'), t('farms.locationDeniedMsg'));
                 return;
             }
-            const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-            setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+            const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+            const rounded = { lat: roundToKm(pos.coords.latitude), lng: roundToKm(pos.coords.longitude) };
+            let places: Location.LocationGeocodedAddress[] = [];
+            try {
+                places = await Location.reverseGeocodeAsync({
+                    latitude: pos.coords.latitude,
+                    longitude: pos.coords.longitude,
+                });
+            } catch {
+                // Reverse geocoding is a nicety; the district picker below still works.
+            }
+            const guess = findDistrictByName(places[0]?.subregion || places[0]?.city, places[0]?.region);
+            if (guess) {
+                setStateCode(guess.stateCode);
+                setDistrictCode(guess.code);
+                setCoords(rounded);
+            } else {
+                setCoords(rounded);
+                Alert.alert(t('farms.districtDetectFailedTitle'), t('farms.districtDetectFailedMsg'));
+            }
         } catch {
             Alert.alert(t('common.error'), t('farms.locationError'));
         } finally {
@@ -149,16 +196,30 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
         }
     };
 
-    /** The draft as the API wants it — built once, used by both exits below. */
-    const buildDraft = (): CreateFarmDto => ({
-        name: name.trim(),
-        address: address.trim() || undefined,
-        areaHectares: totalArea ? parseFloat(totalArea) : undefined,
-        waterSourceType: waterSource ?? undefined,
-        plannedPondCount: numPonds >= 1 ? numPonds : undefined,
-        latitude: coords?.lat,
-        longitude: coords?.lng,
-    });
+    const clearLocation = () => {
+        setStateCode(null);
+        setDistrictCode(null);
+        setCoords(null);
+    };
+
+    /** The draft as the API wants it — built once, used by both exits below.
+     *  `undefined` on create simply omits the field; in edit mode, a location
+     *  that WAS set and is now cleared sends an explicit `null` so the PATCH
+     *  actually clears it instead of being read as "unchanged". */
+    const buildDraft = (): CreateFarmDto => {
+        const clearedToNull = isEdit && hadLocation && !stateCode && !coords;
+        return {
+            name: name.trim(),
+            address: address.trim() || undefined,
+            areaHectares: totalArea ? parseFloat(totalArea) : undefined,
+            waterSourceType: waterSource ?? undefined,
+            plannedPondCount: numPonds >= 1 ? numPonds : undefined,
+            stateCode: stateCode ?? (clearedToNull ? null : undefined),
+            districtCode: districtCode ?? (clearedToNull ? null : undefined),
+            latitude: coords?.lat ?? (clearedToNull ? null : undefined),
+            longitude: coords?.lng ?? (clearedToNull ? null : undefined),
+        };
+    };
 
     const handleContinue = async () => {
         const nextErrors: { name?: string; numPonds?: string; shiftEnd?: string } = {};
@@ -308,38 +369,42 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                 </Text>
                 {errors.numPonds ? <Text style={styles.fieldError}>{errors.numPonds}</Text> : null}</>)}
 
-                {/* GPS location — unlocks weather, lunar tides & regional pricing. */}
-                <Text style={styles.fieldLabel}>{t('farms.fieldLocation')}</Text>
-                <TouchableOpacity
-                    style={styles.locationBtn}
-                    onPress={detectLocation}
-                    activeOpacity={0.8}
-                    disabled={locating}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('farms.useCurrentLocation')}
-                    accessibilityState={{ disabled: locating, busy: locating }}
-                >
-                    <Icon
-                        name="location_on"
-                        size={20}
-                        color={theme.roles.light.primary}
-                    />
-                    <Text style={styles.locationText} numberOfLines={1}>
-                        {locating
-                            ? t('farms.locating')
-                            : coords
-                                ? t('farms.locationCaptured', { lat: coords.lat.toFixed(4), lng: coords.lng.toFixed(4) })
-                                : t('farms.useCurrentLocation')}
-                    </Text>
-                </TouchableOpacity>
-                {/* The design shows a map preview slot. There is no map widget in
-                    the app yet, so the slot states what it is waiting for instead
-                    of rendering an empty grey rectangle that looks broken. */}
-                {!coords && (
-                    <View style={styles.mapSlot}>
-                        <Text style={styles.mapSlotText}>{t('farms.mapPlaceholder')}</Text>
-                    </View>
-                )}
+                {/* District — the precision the app actually uses (weather,
+                    regional pricing, the disease signal). No permission
+                    needed; "Detect" below is an optional shortcut that only
+                    ever fills this picker, never shows a raw coordinate. */}
+                <Text style={styles.fieldLabel}>{t('farms.fieldDistrict')}</Text>
+                <DistrictPicker
+                    stateCode={stateCode}
+                    districtCode={districtCode}
+                    onChange={(s, d) => { setStateCode(s); setDistrictCode(d); }}
+                />
+                <View style={styles.locationActions}>
+                    <TouchableOpacity
+                        style={styles.locationActionBtn}
+                        onPress={detectDistrict}
+                        activeOpacity={0.8}
+                        disabled={locating}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('farms.detectLocation')}
+                        accessibilityState={{ disabled: locating, busy: locating }}
+                    >
+                        <Icon name="location_on" size={18} color={theme.roles.light.primary} />
+                        <Text style={styles.locationActionText}>
+                            {locating ? t('farms.locating') : t('farms.detectLocation')}
+                        </Text>
+                    </TouchableOpacity>
+                    {(stateCode || coords) && (
+                        <TouchableOpacity
+                            onPress={clearLocation}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('farms.clearLocation')}
+                        >
+                            <Text style={styles.clearLocationText}>{t('farms.clearLocation')}</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
 
                 {canEditCaa && (
                     <Input
@@ -476,31 +541,21 @@ const styles = StyleSheet.create({
         marginTop: theme.spacing[2],
         marginBottom: theme.spacing[2],
     },
-    locationBtn: {
+    locationActions: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: theme.spacing[2],
-        minHeight: 48,
-        paddingVertical: theme.spacing[3],
-        paddingHorizontal: theme.spacing[4],
-        borderRadius: theme.radius.md,
-        borderWidth: 1,
-        borderColor: theme.roles.light.borderStrong,
-        backgroundColor: theme.roles.light.surface,
-    },
-    locationText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textBrand, flex: 1 },
-    mapSlot: {
-        height: 96,
-        borderRadius: theme.radius.md,
-        borderWidth: 1,
-        borderColor: theme.roles.light.borderDefault,
-        backgroundColor: theme.roles.light.surfaceVariant,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: theme.spacing[3],
+        justifyContent: 'space-between',
+        marginTop: theme.spacing[2],
         marginBottom: theme.spacing[4],
     },
-    mapSlotText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary },
+    locationActionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[1],
+        minHeight: 44,
+    },
+    locationActionText: { ...theme.typeScale.labelMedium, color: theme.roles.light.textBrand },
+    clearLocationText: { ...theme.typeScale.labelMedium, color: theme.roles.light.textTertiary },
     sourceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2], marginBottom: theme.spacing[6] },
     sourceChip: {
         flexDirection: 'row',

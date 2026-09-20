@@ -1,6 +1,6 @@
 # Farm Location: What to Do Now, and How It Earns Its Keep
 
-**For:** founder · **Date:** 2026-09-14 · **Status:** recommendation, not built
+**For:** founder · **Date:** 2026-09-14 · **Status:** Option B (§3.2) implemented in full 2026-09-20 — see spec `docs/superpowers/specs/2026-09-20-compliance-privacy-and-store-readiness-design.md` §C0.2, migration `1780702300000`. Everything in §4 onward ("Value map" / "Roadmap" beyond "Now") is still recommendation, not built.
 **Labels used throughout:** **[EXISTS]** = in the code today · **[REC]** = recommended · **[SPEC]** = speculative / depends on partners or unverified assumptions
 
 ---

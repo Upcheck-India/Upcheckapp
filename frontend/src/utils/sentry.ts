@@ -48,6 +48,11 @@ const EXACT_KEYS = new Set([
     'ip_address',
     'aadhaar',
     'upi',
+    // Farm location (spec 2026-09-20 compliance C0.2). Exact matches, not
+    // fragments: `lat` as a fragment would eat `template`.
+    'latitude',
+    'longitude',
+    'address',
 ]);
 
 /** Substring matches on the lowercased key — secrets, identity, and the

@@ -21,7 +21,15 @@ export default {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.upcheck.app"
+      bundleIdentifier: "com.upcheck.app",
+      infoPlist: {
+        // Asked at every App Store Connect upload. This app only uses HTTPS
+        // (TLS via the OS/standard libraries) — no custom or non-standard
+        // encryption — so it qualifies for the export-compliance exemption.
+        // If that ever stops being true (e.g. a bundled crypto library),
+        // update this alongside whatever added it.
+        ITSAppUsesNonExemptEncryption: false
+      }
     },
     android: {
       package: "com.upcheck.app",
@@ -96,28 +104,39 @@ export default {
       [
         "expo-camera",
         {
-          cameraPermission: "Allow Neerani to use the camera to scan a worker's QR code."
+          // Covers both live camera uses: scanning a worker's QR code to add
+          // them to a farm, and taking health/disease/mortality/profile
+          // photos (src/features/healthPhoto.ts). C0.3 (spec 2026-09-20
+          // compliance) — the old copy named only the QR scan.
+          cameraPermission: "Allow Neerani to use the camera to scan a worker's QR code and to take photos for health, disease and profile records."
         }
       ],
       [
-        // Attaching a photo to a problem report (ReportIssueScreen).
+        // expo-image-picker: the photo-LIBRARY half of the same live uses as
+        // expo-camera above (health/disease/mortality/profile photos can be
+        // picked from the library, not just shot live) — NOT the feedback
+        // attach flow, which PHOTO_ATTACH_ENABLED keeps disabled (C0.3).
         //
         // Android needs nothing here — expo-image-picker's own manifest already
-        // merges the media permissions, which is why the report screen ships as
-        // an OTA update against the current binary. This entry exists for iOS:
+        // merges the media permissions, which is why photo screens ship as an
+        // OTA update against the current binary. This entry exists for iOS:
         // without NSPhotoLibraryUsageDescription, requesting photo access is a
         // native crash, and Info.plist is not something an OTA update can fix.
-        // Harmless to add now, and one less way for the first iOS build to be
-        // broken on arrival.
         "expo-image-picker",
         {
-          photosPermission: "Allow Neerani to attach a photo to a problem report you send to the team."
+          photosPermission: "Allow Neerani to choose a photo from your library for health, disease and profile records."
         }
       ],
       [
         "expo-location",
         {
-          locationAlwaysAndWhenInUsePermission: "Allow Neerani to use your location to set your farm position for weather, tide and regional pricing features."
+          // District-only (C0.2, farm-location-strategy.md Option B): no
+          // precise location feature exists, so this is when-in-use only —
+          // never the NSLocationAlways* family, which the plugin default
+          // used to set for a feature that was never running in the
+          // background. The optional "Detect my district" shortcut is the
+          // only caller of this permission.
+          locationWhenInUsePermission: "Allow Neerani to use your approximate location to fill in your farm's district — a shortcut for local weather and prices. You can always pick your district from the list instead."
         }
       ],
       "@react-native-google-signin/google-signin",

@@ -16,12 +16,20 @@ import { Crop } from '../crops/crop.entity';
 import { CreateFarmDto } from './dto/create-farm.dto';
 import { UpdateFarmDto, SHIFT_FIELDS } from './dto/update-farm.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
-import { FarmMember } from '../farm-access/farm-member.entity';
+import { FarmMember, FarmRole } from '../farm-access/farm-member.entity';
 import {
   FarmCapability,
   RolePolicy,
   invalidPolicyKey,
 } from '../farm-access/farm-capability';
+
+/**
+ * Roles that see a farm's district but never its raw coordinates (spec
+ * 2026-09-20 compliance C0.2). District is enough for a worker or a viewer;
+ * the owner set the pin, the owner (and a manager, who can already see
+ * everything a worker can plus more) may read it back.
+ */
+const COORDINATE_HIDDEN_ROLES: readonly FarmRole[] = ['worker', 'viewer'];
 
 @Injectable()
 export class FarmsService {
@@ -105,9 +113,12 @@ export class FarmsService {
     const farm = this.farmsRepository.create({
       name: createFarmDto.name,
       areaHectares: createFarmDto.areaHectares,
-      address: createFarmDto.address,
-      longitude: createFarmDto.longitude,
-      latitude: createFarmDto.latitude,
+      // `as any`: the DTO fields accept `null` (a "clear this" signal for
+      // UpdateFarmDto), which the entity's TS type doesn't — same reasoning
+      // as the existing waterSourceType/privacySetting casts below.
+      address: createFarmDto.address as any,
+      longitude: createFarmDto.longitude as any,
+      latitude: createFarmDto.latitude as any,
       waterSourceType: createFarmDto.waterSourceType as any,
       plannedPondCount: createFarmDto.plannedPondCount,
       qrCodeUrl: createFarmDto.qrCodeUrl,
@@ -141,7 +152,76 @@ export class FarmsService {
       // Already present, or farm_members has not been migrated in this env.
     }
 
-    return saved;
+    // state_code / district_code: raw SQL, not entity columns — see the note
+    // in farm.entity.ts. Best-effort, same reasoning as the membership insert
+    // above: an unmigrated district column must not fail a farm creation that
+    // already succeeded.
+    const location = await this.setLocationDistrict(
+      saved.id,
+      createFarmDto.stateCode,
+      createFarmDto.districtCode,
+    );
+
+    return { ...saved, ...location };
+  }
+
+  /**
+   * Writes only the columns actually provided (undefined = leave alone),
+   * so setting the district doesn't clobber a coordinate-only edit and vice
+   * versa. Returns what was actually persisted — empty/unset if the migration
+   * hasn't run, so a caller never claims a save that didn't happen.
+   */
+  private async setLocationDistrict(
+    farmId: string,
+    stateCode: string | null | undefined,
+    districtCode: string | null | undefined,
+  ): Promise<{ stateCode: string | null; districtCode: string | null }> {
+    const result: { stateCode: string | null; districtCode: string | null } = {
+      stateCode: null,
+      districtCode: null,
+    };
+    if (stateCode !== undefined) {
+      try {
+        await this.farmsRepository.query(
+          `UPDATE farms SET state_code = $2 WHERE id = $1`,
+          [farmId, stateCode],
+        );
+        result.stateCode = stateCode;
+      } catch (err) {
+        if (!isMissingSchema(err)) throw err;
+      }
+    }
+    if (districtCode !== undefined) {
+      try {
+        await this.farmsRepository.query(
+          `UPDATE farms SET district_code = $2 WHERE id = $1`,
+          [farmId, districtCode],
+        );
+        result.districtCode = districtCode;
+      } catch (err) {
+        if (!isMissingSchema(err)) throw err;
+      }
+    }
+    return result;
+  }
+
+  /** D4-style raw read (see getCaaRegistrationNo): 42703 reads as nulls. */
+  private async getLocationDistrict(
+    farmId: string,
+  ): Promise<{ stateCode: string | null; districtCode: string | null }> {
+    const rows = await this.farmsRepository
+      .query(
+        `SELECT state_code AS "stateCode", district_code AS "districtCode" FROM farms WHERE id = $1`,
+        [farmId],
+      )
+      .catch((err) => {
+        if (isMissingSchema(err)) return [];
+        throw err;
+      });
+    return {
+      stateCode: rows?.[0]?.stateCode ?? null,
+      districtCode: rows?.[0]?.districtCode ?? null,
+    };
   }
 
   /**
@@ -163,11 +243,21 @@ export class FarmsService {
       includeArchived,
     );
     if (farmIds.length === 0) return [];
-    return this.farmsRepository.find({
+    const farms = await this.farmsRepository.find({
       where: includeArchived
         ? { id: In(farmIds) }
         : { id: In(farmIds), archivedAt: IsNull() },
     });
+    // Per-farm role: the same user can own one farm and only work another.
+    // farmIds is typically small (a person's own farm list), so one role
+    // lookup per farm is fine here; getFarmIdsWithCapability's batch pattern
+    // is worth reaching for only if this list grows large in practice.
+    return Promise.all(
+      farms.map(async (farm) => {
+        const role = await this.farmAccess.getRoleOnFarm(userId, farm.id);
+        return this.stripCoordinatesForRole(farm, role);
+      }),
+    );
   }
 
   /**
@@ -181,11 +271,33 @@ export class FarmsService {
     });
   }
 
-  async findOne(id: string) {
+  /**
+   * `callerId` is optional so internal callers (e.g. `update()`, which
+   * already asserted access) don't need a redundant role lookup — but any
+   * route that hands this straight to a client MUST pass it, or a worker's
+   * farm payload keeps its coordinates.
+   */
+  async findOne(id: string, callerId?: string) {
     const farm = await this.farmsRepository.findOneBy({ id });
     if (!farm || farm.deletedAt)
       throw new NotFoundException(`Farm with ID ${id} not found`);
-    return { ...farm, caaRegistrationNo: await this.getCaaRegistrationNo(id) };
+    const role = callerId ? await this.farmAccess.getRoleOnFarm(callerId, id) : null;
+    const [caaRegistrationNo, location] = await Promise.all([
+      this.getCaaRegistrationNo(id),
+      this.getLocationDistrict(id),
+    ]);
+    return {
+      ...this.stripCoordinatesForRole(farm, role),
+      caaRegistrationNo,
+      ...location,
+    };
+  }
+
+  /** Coordinates absent (not merely null) for worker/viewer — see COORDINATE_HIDDEN_ROLES. */
+  private stripCoordinatesForRole(farm: Farm, role: FarmRole | null): Farm {
+    if (!role || !COORDINATE_HIDDEN_ROLES.includes(role)) return farm;
+    const { latitude, longitude, ...rest } = farm;
+    return rest as Farm;
   }
 
   /**
@@ -212,9 +324,11 @@ export class FarmsService {
     if (touchesNonShift) {
       await this.farmAccess.assertCanAccessFarm(callerId, id, 'OWNER_ONLY');
     }
-    // D4: not an entity column (raw SQL + 42703 fail-safe). Written FIRST so
-    // an unapplied migration refuses the whole edit instead of half-saving it.
-    const { caaRegistrationNo, ...entityFields } = updateFarmDto;
+    // D4 / C0.2: not entity columns (raw SQL + 42703 fail-safe). Written FIRST
+    // so an unapplied migration refuses the whole edit instead of
+    // half-saving it — includes "clear location", which is this same path
+    // with stateCode/districtCode/latitude/longitude sent as null.
+    const { caaRegistrationNo, stateCode, districtCode, ...entityFields } = updateFarmDto;
     if (caaRegistrationNo !== undefined) {
       await this.farmsRepository
         .query(`UPDATE farms SET caa_registration_no = $2 WHERE id = $1`, [
@@ -228,8 +342,27 @@ export class FarmsService {
           );
         });
     }
+    const districtUnavailable = () => {
+      throw new ServiceUnavailableException(
+        'Farm district is not available yet (migration 1780702300000 not applied)',
+      );
+    };
+    if (stateCode !== undefined) {
+      await this.farmsRepository
+        .query(`UPDATE farms SET state_code = $2 WHERE id = $1`, [id, stateCode])
+        .catch((err) => (isMissingSchema(err) ? districtUnavailable() : Promise.reject(err)));
+    }
+    if (districtCode !== undefined) {
+      await this.farmsRepository
+        .query(`UPDATE farms SET district_code = $2 WHERE id = $1`, [id, districtCode])
+        .catch((err) => (isMissingSchema(err) ? districtUnavailable() : Promise.reject(err)));
+    }
     if (Object.keys(entityFields).length) {
-      await this.farmsRepository.update(id, entityFields);
+      // `as any`: entityFields carries the DTO's `| null` clear-signal type
+      // for address/latitude/longitude, which TypeORM's QueryDeepPartialEntity
+      // types as non-nullable even though the columns are nullable — a real
+      // update(id, { latitude: null }) works fine at runtime.
+      await this.farmsRepository.update(id, entityFields as any);
     }
     return this.findOne(id);
   }

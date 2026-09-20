@@ -35,6 +35,25 @@ describe('scrubEvent', () => {
         expect(JSON.stringify(out)).not.toContain('9876543210');
     });
 
+    // C0.2 (spec 2026-09-20 compliance): the farm location fields, exact-key
+    // matched so "lat"/"lng" fragments never eat unrelated keys like `template`.
+    it('drops latitude, longitude and address, and nothing that merely contains them', () => {
+        const out: any = scrubEvent({
+            extra: {
+                farm: { latitude: 16.5062, longitude: 80.648, address: '12 Canal Rd' },
+                template: 'unaffected',
+                latency: 42,
+            },
+        });
+        expect(out.extra.farm.latitude).toBe(R);
+        expect(out.extra.farm.longitude).toBe(R);
+        expect(out.extra.farm.address).toBe(R);
+        expect(out.extra.template).toBe('unaffected');
+        expect(out.extra.latency).toBe(42);
+        expect(JSON.stringify(out)).not.toContain('16.5062');
+        expect(JSON.stringify(out)).not.toContain('Canal Rd');
+    });
+
     it('strips an Authorization: Bearer <jwt> header', () => {
         const jwt =
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NSIsIm5hbWUiOiJSYXZpIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk';
