@@ -10,6 +10,7 @@ import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { alertsApi, AlertData } from '../../api/alerts';
 import { useNotificationStore } from '../../store/notificationStore';
+import { formatDate, formatTime } from '../../utils/formatDate';
 
 export const NotificationsScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -164,7 +165,7 @@ export const NotificationsScreen = ({ navigation }: any) => {
                             <Text style={[styles.titleText, !item.isRead && styles.unreadText]}>{item.title}</Text>
                             <Text style={styles.messageText}>{item.message}</Text>
                             <Text style={styles.dateText}>
-                                {new Date(item.createdAt).toLocaleDateString()} at {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {formatDate(item.createdAt, { day: 'numeric', month: 'short', year: 'numeric' })} at {formatTime(item.createdAt)}
                             </Text>
                         </View>
                         {!item.isRead && <View style={styles.unreadDot} />}

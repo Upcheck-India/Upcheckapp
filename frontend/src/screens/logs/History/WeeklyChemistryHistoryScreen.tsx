@@ -30,6 +30,7 @@ import {
     ThresholdParam,
 } from '../../../features/waterQualityThresholds';
 import { cropsApi } from '../../../api/crops';
+import { formatDate } from '../../../utils/formatDate';
 
 /** Enough points to read a trend, few enough that the x labels stay legible. */
 const MAX_POINTS = 10;
@@ -176,7 +177,7 @@ export const WeeklyChemistryHistoryScreen = ({ route, navigation }: any) => {
                     return (
                         <Card key={r.id} style={styles.card}>
                             <Text style={styles.dateText}>
-                                {new Date(r.recordedAt || '').toLocaleDateString()}
+                                {formatDate(r.recordedAt, { day: 'numeric', month: 'short', year: 'numeric' })}
                             </Text>
                             <View style={styles.metricsGrid}>
                                 {present.map((p) => (

@@ -50,7 +50,7 @@ import { prefetchDiseaseLibrary } from '../../features/diseaseLibrary';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { usePendingRecords } from '../../sync/pending';
-import { formatTime, formatAge } from '../../utils/formatDate';
+import { formatTime, formatAge, formatDate } from '../../utils/formatDate';
 import { pondLabel } from '../../utils/pondHealth';
 import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
 
@@ -778,7 +778,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                     {[
                                         cycle.stockingDate
                                             ? t('ponds.stocked', {
-                                                  date: new Date(cycle.stockingDate).toLocaleDateString('en-IN', {
+                                                  date: formatDate(cycle.stockingDate, {
                                                       day: 'numeric',
                                                       month: 'short',
                                                       year: 'numeric',

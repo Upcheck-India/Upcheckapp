@@ -39,6 +39,7 @@ import {
 } from '../../api/measurements';
 import { useUIStore } from '../../store/uiStore';
 import { saveRecord } from '../../sync/recordSync';
+import { formatDate } from '../../utils/formatDate';
 
 export const MeasurementsScreen = ({ route }: any) => {
     const { t } = useTranslation();
@@ -152,10 +153,7 @@ export const MeasurementsScreen = ({ route }: any) => {
                 .filter((m) => m.valueNum !== null && m.valueNum !== undefined)
                 .map((m) => ({
                     value: Number(m.valueNum),
-                    label: new Date(m.measuredAt).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                    }),
+                    label: formatDate(m.measuredAt, { month: 'short', day: 'numeric' }),
                 })),
         [series],
     );
@@ -288,7 +286,7 @@ export const MeasurementsScreen = ({ route }: any) => {
                                     </Text>
                                     <Text style={styles.rowMeta} numberOfLines={1}>
                                         {m.doc !== null ? `DOC ${m.doc} · ` : ''}
-                                        {new Date(m.measuredAt).toLocaleDateString()}
+                                        {formatDate(m.measuredAt, { day: 'numeric', month: 'short', year: 'numeric' })}
                                     </Text>
                                 </View>
                             ))

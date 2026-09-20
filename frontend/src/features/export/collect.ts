@@ -46,6 +46,7 @@ import { istDay, recordStatus, type RecordStatus } from '../attendance/shiftStat
 import { personName } from '../../utils/personName';
 import { toLocalISODate } from '../../utils/localDate';
 import { collectInputRecord } from './inputRecord';
+import { formatDateForLanguage } from '../../utils/formatDate';
 import type {
     ExportConfig,
     ExportSections,
@@ -61,8 +62,6 @@ import type {
 const LOCALE_TAGS: Record<string, string> = {
     en: 'en-IN', hi: 'hi-IN', ta: 'ta-IN', te: 'te-IN', bn: 'bn-IN', or: 'or-IN',
 };
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const DASH = '—';
 
@@ -115,15 +114,7 @@ export const makeFmt = (language: string): Fmt => {
         t,
         date: (v) => {
             if (v == null) return DASH;
-            const d = toDate(v);
-            if (!d) return DASH;
-            try {
-                return d.toLocaleDateString(tag, { day: 'numeric', month: 'short', year: 'numeric' });
-            } catch {
-                // Hermes ships incomplete ICU data for some Indian locales; a
-                // plainer date beats a thrown RangeError mid-export.
-                return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-            }
+            return formatDateForLanguage(v, language, { day: 'numeric', month: 'short', year: 'numeric' });
         },
         time: (v) => {
             if (v == null) return DASH;

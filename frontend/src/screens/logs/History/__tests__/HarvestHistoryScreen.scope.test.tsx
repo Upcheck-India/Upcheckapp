@@ -71,9 +71,10 @@ it('asks for the POND when it has one, so successive cycles list together', asyn
     await waitFor(() => expect(harvestsApi.getByPond).toHaveBeenCalledWith('p1'));
     expect(harvestsApi.getByCrop).not.toHaveBeenCalled();
     expect(harvestsApi.getAll).not.toHaveBeenCalled();
-    // Newest first, both cycles present.
-    await findByText(new Date('2026-06-02').toLocaleDateString());
-    await findByText(new Date('2026-01-10').toLocaleDateString());
+    // Newest first, both cycles present. Rendered via formatDate (app
+    // language, not device locale) — see src/utils/formatDate.ts.
+    await findByText('2 Jun 2026');
+    await findByText('10 Jan 2026');
 });
 
 it('falls back to the crop when there is no pond', async () => {

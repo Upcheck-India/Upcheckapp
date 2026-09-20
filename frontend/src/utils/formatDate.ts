@@ -61,6 +61,30 @@ export const formatDate = (
     }
 };
 
+/**
+ * Same as `formatDate`, but for an explicit language rather than the app's
+ * current one — for a document (export) that renders in a language the
+ * reader chose, independent of whatever language the app UI is in right now.
+ * Never throws.
+ */
+export const formatDateForLanguage = (
+    value: string | number | Date | null | undefined,
+    language: string,
+    options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' },
+): string => {
+    if (value == null) return '—';
+    const d = toDate(value);
+    if (!d) return '—';
+    const tag = LOCALE_TAGS[language] ?? 'en-IN';
+    try {
+        return d.toLocaleDateString(tag, options);
+    } catch {
+        const day = d.getDate();
+        const month = MONTHS_FALLBACK[d.getMonth()];
+        return options.year ? `${day} ${month} ${d.getFullYear()}` : `${day} ${month}`;
+    }
+};
+
 /** "05:48" — 24-hour, which is how a shift is written on a farm. Never throws. */
 export const formatTime = (value: string | number | Date | null | undefined): string => {
     if (value == null) return '—';

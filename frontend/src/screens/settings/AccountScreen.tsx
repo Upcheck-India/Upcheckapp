@@ -25,6 +25,7 @@ import { apiErrorMessage } from '../../api/errors';
 import { passwordPolicyError } from '../../features/passwordPolicy';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import { useTruecallerLink } from '../../hooks/useTruecallerLink';
+import { formatDate } from '../../utils/formatDate';
 
 const c = theme.roles.light;
 
@@ -470,7 +471,7 @@ export const AccountScreen = ({ navigation }: any) => {
                 <View style={styles.memberSince}>
                     <Text style={styles.note}>
                         {t('settings.memberSince')}:{' '}
-                        {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : '—'}
+                        {profile?.createdAt ? formatDate(profile.createdAt, { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                     </Text>
                 </View>
             </ScrollView>
