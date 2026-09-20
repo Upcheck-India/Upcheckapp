@@ -187,7 +187,14 @@ export default {
     // 2.0.0 — adds file/export, sharing, audio, video, speech, gestures,
     //         reanimated, bottom sheet, sqlite, background tasks, image,
     //         contacts, SMS, maps, Sentry, PostHog, in-app updates.
-    runtimeVersion: "2.0.0",
+    // 3.0.0 — adds lottie-react-native (the motion set in assets/lottie
+    //         cannot render without it, and OTA cannot add native code).
+    //         Also the build that DROPS permissions: READ_CALL_LOG,
+    //         ANSWER_PHONE_CALLS (spec C0.1) and ACCESS_FINE_LOCATION
+    //         (C0.2). Builds on 2.0.0 stop receiving OTAs — intended: an
+    //         update that renders an animation would crash them, and no
+    //         later update could reach them to fix it.
+    runtimeVersion: "3.0.0",
     updates: {
       url: "https://u.expo.dev/f3274022-ae8a-4be6-9085-23f935542a4c"
     }
