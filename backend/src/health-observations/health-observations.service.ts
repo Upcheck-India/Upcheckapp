@@ -121,4 +121,20 @@ export class HealthObservationsService {
     );
     return { path: await this.photos.upload(pond.farmId, file) };
   }
+
+  /**
+   * P2: delete an uploaded-but-not-yet-saved photo. `assertFarmPaths` 403s
+   * unless the path belongs to this pond's farm, so a caller can never
+   * delete another farm's object.
+   */
+  async removePhoto(pondId: string, userId: string, path: string) {
+    const pond = await this.farmAccess.assertCanAccessPond(
+      userId,
+      pondId,
+      'WRITE_OPERATIONAL',
+    );
+    this.photos.assertFarmPaths(pond.farmId, [path]);
+    await this.photos.remove([path]);
+    return { removed: true };
+  }
 }

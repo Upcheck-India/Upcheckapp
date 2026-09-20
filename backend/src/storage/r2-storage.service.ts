@@ -36,9 +36,66 @@ export const ALLOWED_IMAGE_MIME = [
 /** 5 MB per image after the app's on-device compression. */
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+/**
+ * P4 (first half): 20 uploads / 10 min per caller, separate from the global
+ * 120/window limit — a farmer logging 3 photos never notices, a script does.
+ */
+export const UPLOAD_THROTTLE = { default: { limit: 20, ttl: 600_000 } };
+
 const SIGNED_URL_TTL_SECONDS = 3600;
 // Every object key embeds a fresh uuid, so its bytes never change.
 const CACHE_CONTROL = 'private, max-age=31536000, immutable';
+
+/**
+ * Codes a client maps to localised copy (P13). Kept small and stable —
+ * these are the only photo failures the app has to translate; anything else
+ * falls back to a generic "could not save this photo" message.
+ */
+export type PhotoErrorCode =
+  | 'IMAGE_TOO_LARGE'
+  | 'UNSUPPORTED_TYPE'
+  | 'STORAGE_UNCONFIGURED'
+  | 'AVATAR_NOT_MIGRATED';
+
+export function photoError(
+  statusCode: number,
+  code: PhotoErrorCode,
+  message: string,
+) {
+  return { statusCode, code, message };
+}
+
+type SniffedType = 'jpeg' | 'png' | 'webp' | 'heic';
+const HEIC_BRANDS = new Set([
+  'heic',
+  'heix',
+  'heim',
+  'heis',
+  'hevc',
+  'hevx',
+  'hevm',
+  'hevs',
+  'mif1',
+  'msf1',
+]);
+
+/**
+ * P5: decide the image type from its BYTES, never the client-declared
+ * `mimetype` header — a text/script body sent with `Content-Type:
+ * image/jpeg` must not pass. Signature-only (not a full decode); sharp still
+ * has to succeed at actually decoding it below.
+ */
+export function sniffImageType(buf: Buffer): SniffedType | null {
+  if (!buf || buf.length < 12) return null;
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpeg';
+  if (buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])))
+    return 'png';
+  if (buf.subarray(0, 4).toString('ascii') === 'RIFF' && buf.subarray(8, 12).toString('ascii') === 'WEBP')
+    return 'webp';
+  if (buf.subarray(4, 8).toString('ascii') === 'ftyp' && HEIC_BRANDS.has(buf.subarray(8, 12).toString('ascii')))
+    return 'heic';
+  return null;
+}
 
 /**
  * The thumbnail stored next to a photo: `<uuid>.webp` → `<uuid>.thumb.webp`.
@@ -106,9 +163,16 @@ export class R2StorageService {
 
   /**
    * Validate, optimise and store one image under `<namespace>/<base>.*`.
-   * Returns the stored path relative to the namespace (`<base>.webp`, or
-   * `<base>.<original ext>` when sharp cannot decode the input, e.g. HEIC —
-   * stored unchanged rather than failing the farmer's upload).
+   * Returns the stored path relative to the namespace, always `<base>.webp`.
+   *
+   * P5: the type is decided by SNIFFING THE BYTES, never the client's
+   * `Content-Type` header, and a client-declared mime is never echoed into
+   * `PutObjectCommand`. If sharp cannot decode bytes that do have a valid
+   * image signature (e.g. this build has no HEIC/HEIF support), the upload
+   * is refused rather than stored — storing unprocessed bytes would mean
+   * trusting an unverified mime and keeping whatever metadata (GPS) they
+   * carry, which is exactly the bug this closes. A photo stored here has
+   * always been decoded, rotated and re-encoded, which is what strips EXIF.
    */
   async putImage(
     namespace: PhotoNamespace,
@@ -116,59 +180,78 @@ export class R2StorageService {
     file: UploadedImage,
   ): Promise<string> {
     if (!this.client) {
-      throw new ServiceUnavailableException('Photo storage is not configured');
+      throw new ServiceUnavailableException(
+        photoError(503, 'STORAGE_UNCONFIGURED', 'Photo storage is not configured'),
+      );
     }
-    if (!file?.buffer?.length) throw new BadRequestException('Empty file');
-    if (!ALLOWED_IMAGE_MIME.includes(file.mimetype)) {
-      throw new BadRequestException(`Unsupported image type: ${file.mimetype}`);
+    if (!file?.buffer?.length) {
+      throw new BadRequestException(photoError(400, 'UNSUPPORTED_TYPE', 'Empty file'));
     }
     if (file.size > MAX_IMAGE_BYTES || file.buffer.length > MAX_IMAGE_BYTES) {
-      throw new BadRequestException('Image is too large');
+      throw new BadRequestException(photoError(400, 'IMAGE_TOO_LARGE', 'Image is too large'));
+    }
+    const sniffed = sniffImageType(file.buffer);
+    if (!sniffed) {
+      throw new BadRequestException(
+        photoError(400, 'UNSUPPORTED_TYPE', `Unsupported image type: ${file.mimetype}`),
+      );
     }
 
-    let objects: { path: string; body: Buffer; type: string }[];
+    let thumb: Buffer;
+    let full: Buffer;
     try {
-      const [full, thumb] = await Promise.all([
-        encode(file.buffer, 1600, 76),
+      [thumb, full] = await Promise.all([
         encode(file.buffer, 400, 70),
+        encode(file.buffer, 1600, 76),
       ]);
-      const path = `${base}.webp`;
-      objects = [
-        { path, body: full, type: 'image/webp' },
-        { path: thumbPathOf(path), body: thumb, type: 'image/webp' },
-      ];
     } catch (err: any) {
       this.logger.warn(
-        `Could not optimise ${file.mimetype} (${err?.message ?? err}); storing original`,
+        `Could not decode a byte-valid ${sniffed} (${err?.message ?? err}); refusing rather than storing unverified/unstrippable bytes`,
       );
-      const ext = file.mimetype.split('/')[1].replace('jpeg', 'jpg');
-      const path = `${base}.${ext}`;
-      objects = [{ path, body: file.buffer, type: file.mimetype }];
-      // A .webp path promises a .thumb.webp next to it (thumbPathOf).
-      if (ext === 'webp') {
-        objects.push({ path: thumbPathOf(path), body: file.buffer, type: file.mimetype });
-      }
+      throw new BadRequestException(
+        photoError(400, 'UNSUPPORTED_TYPE', `Could not process image type: ${sniffed}`),
+      );
     }
 
+    const path = `${base}.webp`;
+    const thumbPath = thumbPathOf(path);
+    // P6: one write, or none. Thumb first, then full; a full-size failure
+    // deletes the thumb rather than leaving an orphaned half-pair.
+    await this.putObject(namespace, thumbPath, thumb, 'image/webp');
     try {
-      await Promise.all(
-        objects.map((o) =>
-          this.client!.send(
-            new PutObjectCommand({
-              Bucket: this.bucket,
-              Key: `${namespace}/${o.path}`,
-              Body: o.body,
-              ContentType: o.type,
-              CacheControl: CACHE_CONTROL,
-            }),
-          ),
+      await this.putObject(namespace, path, full, 'image/webp');
+    } catch (err: any) {
+      this.logger.error(`R2 full-size upload failed, cleaning up thumb: ${err?.message ?? err}`);
+      await this.deleteKeys([`${namespace}/${thumbPath}`]).catch((cleanupErr: any) =>
+        this.logger.error(
+          `Could not clean up orphaned thumb ${namespace}/${thumbPath}: ${cleanupErr?.message ?? cleanupErr}`,
         ),
       );
-    } catch (err: any) {
-      this.logger.error(`R2 upload failed: ${err?.message ?? err}`);
       throw new ServiceUnavailableException('Could not store the image');
     }
-    return objects[0].path;
+    return path;
+  }
+
+  private async putObject(
+    namespace: PhotoNamespace,
+    path: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<void> {
+    try {
+      await this.client!.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: `${namespace}/${path}`,
+          Body: body,
+          ContentType: contentType,
+          CacheControl: CACHE_CONTROL,
+        }),
+      );
+    } catch (err: any) {
+      this.logger.error(`R2 upload failed for ${namespace}/${path}: ${err?.message ?? err}`);
+      throw new ServiceUnavailableException('Could not store the image');
+    }
   }
 
   /**

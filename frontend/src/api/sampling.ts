@@ -11,7 +11,6 @@ export interface SamplingRecord {
     biomassEstimationKg?: number;
     srEstimationPercent?: number;
     notes?: string;
-    photoUrls?: string[];
     createdAt?: string;
 }
 
@@ -25,7 +24,6 @@ export interface CreateSamplingDto {
     biomassEstimationKg?: number;
     srEstimationPercent?: number;
     notes?: string;
-    photoUrls?: string[];
 }
 
 export const samplingApi = {

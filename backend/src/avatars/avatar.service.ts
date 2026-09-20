@@ -8,6 +8,7 @@ import { DataSource } from 'typeorm';
 import { randomUUID } from 'crypto';
 import {
   R2StorageService,
+  photoError,
   type UploadedImage,
 } from '../storage/r2-storage.service';
 
@@ -175,7 +176,7 @@ export class AvatarService {
     try {
       await this.db.query(`UPDATE users SET show_avatar_to_team = $2 WHERE id = $1`, [userId, show]);
     } catch (err) {
-      if (isMissingColumn(err)) throw new ServiceUnavailableException(NOT_MIGRATED);
+      if (isMissingColumn(err)) throw new ServiceUnavailableException(photoError(503, 'AVATAR_NOT_MIGRATED', NOT_MIGRATED));
       throw err;
     }
     return this.mine(userId);
@@ -209,7 +210,7 @@ export class AvatarService {
     try {
       return (await this.readOwn(userId))?.avatar_path ?? null;
     } catch (err) {
-      if (isMissingColumn(err)) throw new ServiceUnavailableException(NOT_MIGRATED);
+      if (isMissingColumn(err)) throw new ServiceUnavailableException(photoError(503, 'AVATAR_NOT_MIGRATED', NOT_MIGRATED));
       throw err;
     }
   }

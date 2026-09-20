@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { R2StorageService, thumbPathOf } from './r2-storage.service';
+import { R2StorageService } from './r2-storage.service';
 
 const config = (env: Record<string, string | undefined>) =>
   ({ get: (k: string) => env[k] }) as any;
@@ -43,7 +43,7 @@ describe('R2StorageService.putImage', () => {
     const path = await svc.putImage('health', 'farm/uuid', file(await jpeg(3000, 1000)));
 
     expect(path).toBe('farm/uuid.webp');
-    const [full, thumb] = puts();
+    const [thumb, full] = puts();
     expect(full).toMatchObject({
       Bucket: 'upcheck-photos',
       Key: 'health/farm/uuid.webp',
@@ -87,20 +87,28 @@ describe('R2StorageService.putImage', () => {
     expect([fm.width, fm.height]).toEqual([100, 200]);
   });
 
-  it('stores an undecodable image (e.g. HEIC) unchanged instead of failing', async () => {
-    const { svc, puts } = make();
-    const bytes = Buffer.from('not-an-image-sharp-can-read');
-    const path = await svc.putImage('health', 'farm/uuid', file(bytes, 'image/heic'));
+  it('P5: refuses a byte-valid image sharp cannot decode (e.g. no HEIC support), never stores it', async () => {
+    const { svc, send } = make();
+    // A real HEIC/ftyp signature, but not bytes sharp can actually decode.
+    const bytes = Buffer.concat([
+      Buffer.from([0, 0, 0, 0x18]),
+      Buffer.from('ftypheic', 'ascii'),
+      Buffer.from('garbage-not-a-real-heic-payload'),
+    ]);
+    await expect(
+      svc.putImage('health', 'farm/uuid', file(bytes, 'image/heic')),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(send).not.toHaveBeenCalled();
+  });
 
-    expect(path).toBe('farm/uuid.heic');
-    expect(puts()).toHaveLength(1);
-    expect(puts()[0]).toMatchObject({
-      Key: 'health/farm/uuid.heic',
-      ContentType: 'image/heic',
-      Body: bytes,
-    });
-    // Its thumbnail is itself.
-    expect(thumbPathOf(path)).toBe(path);
+  it('P5: sniffs the real bytes, ignoring the client-declared mimetype — rejects a mislabelled non-image', async () => {
+    const { svc, send } = make();
+    const scriptBody = Buffer.from('<script>alert(1)</script>', 'ascii');
+    await expect(
+      // Mislabelled: declared as image/jpeg, but the bytes are not a JPEG.
+      svc.putImage('health', 'f/u', file(scriptBody, 'image/jpeg')),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(send).not.toHaveBeenCalled();
   });
 
   it('rejects unsupported types and oversize files before touching R2', async () => {
@@ -112,6 +120,31 @@ describe('R2StorageService.putImage', () => {
       svc.putImage('health', 'f/u', { buffer: Buffer.alloc(10), mimetype: 'image/jpeg', size: 6 * 1024 * 1024 }),
     ).rejects.toThrow('too large');
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it('P6: a failed full-size upload deletes the just-written thumb, leaving no half-pair', async () => {
+    const { svc, send } = make();
+    send.mockImplementation(async (cmd: any) => {
+      if (cmd.constructor.name === 'PutObjectCommand' && cmd.input.Key.endsWith('.webp') && !cmd.input.Key.includes('.thumb.')) {
+        throw new Error('network blip');
+      }
+      return {};
+    });
+    await expect(svc.putImage('health', 'f/u', file(await jpeg(2000, 2000)))).rejects.toMatchObject({ status: 503 });
+
+    const calls = send.mock.calls.map(([c]) => c);
+    const puts = calls.filter((c) => c.constructor.name === 'PutObjectCommand');
+    const deletes = calls.filter((c) => c.constructor.name === 'DeleteObjectsCommand');
+    expect(puts.map((p) => p.input.Key)).toEqual(['health/f/u.thumb.webp', 'health/f/u.webp']);
+    expect(deletes).toHaveLength(1);
+    expect(deletes[0].input.Delete.Objects).toEqual([{ Key: 'health/f/u.thumb.webp' }]);
+  });
+
+  it('P6: uploads the thumb before the full image', async () => {
+    const { svc, puts } = make();
+    await svc.putImage('health', 'f/order', file(await jpeg(2000, 2000)));
+    const keys = puts().map((p) => p.Key);
+    expect(keys).toEqual(['health/f/order.thumb.webp', 'health/f/order.webp']);
   });
 
   it('503s when R2 is not configured', async () => {

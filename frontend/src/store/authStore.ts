@@ -12,7 +12,6 @@ import { TruecallerAuth } from '../native/TruecallerAuth';
 import { useSyncStore } from './syncStore';
 import { useActiveFarmStore } from './activeFarmStore';
 import { useNotificationStore } from './notificationStore';
-import { useUploadStore } from './uploadStore';
 import { clearCachedReads } from '../query/client';
 import { clearAllDrafts } from '../features/roundsDraft';
 import { capture, EVENTS, type AnalyticsProps } from '../features/analytics';
@@ -400,11 +399,9 @@ export const useAuthStore = create<AuthState>()(
             clearSession: () => {
                 // Drop the previous user's in-memory context so a second user on a
                 // shared device never inherits User A's state: farm/pond/cycle
-                // (HomeScreen), notifications + unread counts, and pending photo
-                // uploads (which would otherwise replay under User B's token).
+                // (HomeScreen) and notifications + unread counts.
                 useActiveFarmStore.getState().clearAll();
                 useNotificationStore.getState().clearAll();
-                useUploadStore.getState().reset();
                 // The cached READS are the biggest store of User A's data and
                 // the only one that survives a cold start on disk — without
                 // this, User B's first paint is A's farms, ponds and alerts.

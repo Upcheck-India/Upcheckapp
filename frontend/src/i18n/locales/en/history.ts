@@ -28,6 +28,9 @@ const history = {
   chemicalEmptyTitle: 'No Chemical Logs',
   chemicalEmptyText: 'No chemical data recorded yet.',
 
+  // ── HealthCheckScreen (recent checks with photos, P1) ────────────────────
+  healthCheckRecentTitle: 'Recent checks',
+
   // ── DiseaseHistoryScreen ──────────────────────────────────────────────────
   diseaseTitle: 'Disease History',
   diseaseIdLabel: 'Disease ID: {{id}}',

@@ -1,0 +1,14 @@
+{
+  "name": "upcheck-lottie",
+  "private": true,
+  "description": "Generators for frontend/assets/lottie",
+  "scripts": {
+    "build": "node build-curl.js && node build-saved.js && node build-logged.js && node build-sync.js && node build-states.js && node build-icons.js"
+  },
+  "devDependencies": {
+    "lucide-static": "0.460.0",
+    "pngjs": "^7.0.0",
+    "potrace": "^2.1.8",
+    "svgpath": "^2.6.0"
+  }
+}

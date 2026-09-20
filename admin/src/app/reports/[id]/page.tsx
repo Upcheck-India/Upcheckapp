@@ -62,13 +62,28 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                         </p>
                     ) : (
                         <div className="photos">
-                            {/* Plain <img>: these are short-lived signed URLs on a
-                                bucket next/image would need configuring for. */}
+                            {/*
+                              P5: never a bare <img> (or a direct link) to an
+                              attachment on the admin's own origin. Pre-fix
+                              uploads may still carry a stored object whose
+                              content-type was echoed from an untrusted
+                              client — opening or rendering that directly
+                              risks the browser treating it as navigable
+                              HTML. A fully sandboxed iframe (no scripts, no
+                              same-origin, no top navigation) can only ever
+                              display pixels or an inert download, never
+                              execute anything, whatever the object turns
+                              out to actually be.
+                            */}
                             {report.attachmentUrls.map((url, i) => (
-                                <a key={url} href={url} target="_blank" rel="noreferrer">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={url} alt={`Attachment ${i + 1}`} />
-                                </a>
+                                <iframe
+                                    key={url}
+                                    src={url}
+                                    title={`Attachment ${i + 1}`}
+                                    sandbox=""
+                                    referrerPolicy="no-referrer"
+                                    className="attachment-frame"
+                                />
                             ))}
                         </div>
                     )}

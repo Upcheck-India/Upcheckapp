@@ -28,6 +28,9 @@ const history = {
   chemicalEmptyTitle: 'কোনো রাসায়নিক লগ নেই',
   chemicalEmptyText: 'এখনও কোনো রাসায়নিক ডেটা রেকর্ড করা হয়নি।',
 
+  // ── HealthCheckScreen (recent checks with photos, P1) ────────────────────
+  healthCheckRecentTitle: 'সাম্প্রতিক পরীক্ষা',
+
   // ── DiseaseHistoryScreen ──────────────────────────────────────────────────
   diseaseTitle: 'রোগের ইতিহাস',
   diseaseIdLabel: 'রোগ ID: {{id}}',

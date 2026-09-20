@@ -28,6 +28,9 @@ const history = {
   chemicalEmptyTitle: 'இரசாயன பதிவுகள் இல்லை',
   chemicalEmptyText: 'இன்னும் இரசாயன தரவு பதிவு செய்யப்படவில்லை.',
 
+  // ── HealthCheckScreen (recent checks with photos, P1) ────────────────────
+  healthCheckRecentTitle: 'சமீபத்திய சோதனைகள்',
+
   // ── DiseaseHistoryScreen ──────────────────────────────────────────────────
   diseaseTitle: 'நோய் வரலாறு',
   diseaseIdLabel: 'நோய் ID: {{id}}',

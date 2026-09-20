@@ -40,6 +40,19 @@ export class HealthPhotoStorageService {
     return this.storage.putImage('health', `${farmId}/${randomUUID()}`, file);
   }
 
+  /**
+   * P2: delete photo(s) directly — used when a not-yet-saved pick is
+   * removed, or when a saved record's photoUrls array drops one on update.
+   * F1's deletion queue doesn't exist yet, so this deletes inline; callers
+   * log rather than throw on failure, since a storage hiccup must never
+   * block saving the record itself.
+   * // F1: replace with an enqueue into `photo_deletions` once it ships.
+   */
+  remove(paths: string[]): Promise<void> {
+    if (!paths.length) return Promise.resolve();
+    return this.storage.deleteImages('health', paths);
+  }
+
   /** 403 unless every path is one of THIS farm's uploads. */
   assertFarmPaths(farmId: string, paths: string[] | undefined | null): void {
     if (!paths?.length) return;

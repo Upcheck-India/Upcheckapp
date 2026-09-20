@@ -15,6 +15,8 @@ const common = {
   add: 'जोड़ें',
   close: 'बंद करें',
   viewPhoto: 'फ़ोटो देखें',
+  removePhoto: 'फ़ोटो हटाएँ',
+  photoCount: '{{total}} में से {{current}}',
   confirm: 'पुष्टि करें',
   back: 'वापस',
   featureUnavailable: 'अभी उपलब्ध नहीं है',

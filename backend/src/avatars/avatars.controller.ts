@@ -9,9 +9,10 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { IsBoolean } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { MAX_IMAGE_BYTES, type UploadedImage } from '../storage/r2-storage.service';
+import { MAX_IMAGE_BYTES, UPLOAD_THROTTLE, type UploadedImage } from '../storage/r2-storage.service';
 import { AvatarService } from './avatar.service';
 
 export class AvatarVisibilityDto {
@@ -33,6 +34,7 @@ export class AvatarsController {
   }
 
   @Post('avatar')
+  @Throttle(UPLOAD_THROTTLE)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMAGE_BYTES } }))
   upload(@UploadedFile() file: UploadedImage, @CurrentUser() user) {
     return this.avatars.upload(user.id, file);

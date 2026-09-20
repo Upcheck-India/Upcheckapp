@@ -38,8 +38,9 @@ export class MortalityRecord {
   @Column({ type: 'text', nullable: true })
   note: string;
 
-  @Column({ type: 'text', array: true, nullable: true, default: [] })
-  images: string[];
+  // P7: dead column, superseded by photoUrls (never read anywhere; only
+  // written by the create DTO). Removed from the entity; the column itself
+  // is dropped in a later cleanup migration, not here.
 
   // D6 (migration 1780701500000): unknown | low_do | disease | molt | handling | predator | other
   @Column({ name: 'suspected_cause', type: 'text', nullable: true })
