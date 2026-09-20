@@ -1,3 +1,33 @@
+> ## ⚠️ SUPERSEDED — use `docs/PLAY_STORE_SUBMISSION.md` instead
+>
+> This document is out of date and kept only for history. It contradicts the
+> current submission doc on multiple points that would produce a wrong Play
+> Console declaration if followed:
+>
+> - **App name**: says `Upcheck — Shrimp Farm Manager` / `Upcheck: Shrimp
+>   Farming`. The app is now named **Neerani**.
+> - **Photos Data Safety**: says "Yes* if user attaches images" with no mention
+>   that attaching is (or was) flag-gated. `PLAY_STORE_SUBMISSION.md` has the
+>   corrected, verified-against-code answer (collected, not shared, optional —
+>   see its Data Safety section).
+> - **Content rating**: says "expected Everyone / PEGI 3". The correct target is
+>   **18+ / Mature**, matching Terms §1 and Privacy Policy §10.
+> - **Restricted permissions (§0)**: says "KEEP them and file the declaration"
+>   for `READ_CALL_LOG`/`ANSWER_PHONE_CALLS`. The current decision (compliance
+>   spec §C0.1) is the opposite — **remove** both; Play's July 2026 policy made
+>   phone-verification use of `READ_CALL_LOG` non-compliant as of 14 August
+>   2026, and this app's manifest still declares it.
+> - **Two-factor authentication**: the full-description draft in §5 claims
+>   "secure your account with two-factor authentication" — the app does not
+>   surface a 2FA feature to users (a TOTP secret column exists at the data
+>   layer, but there is no enrollment/verification UI). Do not ship this claim.
+>
+> See `docs/PLAY_STORE_SUBMISSION.md` for the current submission process, and
+> `docs/PLAY_REVIEW_BLOCKERS.md` for why the current production submission is
+> stalled and what has to land before resubmitting.
+
+---
+
 # Upcheck — Google Play Launch Guide & Checklist
 
 App ID: `com.upcheck.app` · Version `1.0.0` · Owner: `utpl-in` (EAS) · Expo project `f3274022-ae8a-4be6-9085-23f935542a4c`
