@@ -5,8 +5,7 @@
  * source of truth and EAS builds from them directly. This plugin exists so a
  * clean `expo prebuild` reproduces the CONFIG-level wiring:
  *   • the `com.truecaller.android.sdk.ClientId` manifest meta-data,
- *   • the phone-state / call-log / answer-calls permissions the missed-call
- *     (non-Truecaller-user) flow needs, and
+ *   • the READ_PHONE_STATE permission one-tap OAuth needs, and
  *   • the app-level Gradle dependency on the Truecaller SDK.
  *
  * NOT handled here (they live in the committed tree and must be preserved if
@@ -23,11 +22,13 @@ const {
 } = require('@expo/config-plugins');
 
 const CLIENT_ID_META = 'com.truecaller.android.sdk.ClientId';
-const PERMISSIONS = [
-  'android.permission.READ_PHONE_STATE',
-  'android.permission.READ_CALL_LOG',
-  'android.permission.ANSWER_PHONE_CALLS',
-];
+// READ_PHONE_STATE only. The restricted call-log permissions (READ_CALL_LOG,
+// ANSWER_PHONE_CALLS) were removed in C0.1: Play's July 2026 policy update
+// dropped account verification by phone call as a permitted use, and the
+// missed-call flow they served is gone. Do not re-add them here — this plugin
+// re-injects into AndroidManifest.xml at prebuild, so putting one back silently
+// undoes the manifest fix. One-tap OAuth needs READ_PHONE_STATE and nothing more.
+const PERMISSIONS = ['android.permission.READ_PHONE_STATE'];
 
 function withTruecallerManifest(config, { clientId }) {
   return withAndroidManifest(config, (cfg) => {

@@ -122,7 +122,7 @@ export default {
       ],
       "@react-native-google-signin/google-signin",
       // Local Truecaller OAuth SDK plugin: injects the ClientId manifest
-      // meta-data, the missed-call permissions, and the SDK Gradle dependency.
+      // meta-data, READ_PHONE_STATE (one-tap only), and the SDK Gradle dependency.
       // The native module itself lives in the committed android/ tree (see
       // android/app/src/main/java/com/upcheck/app/truecaller/).
       [

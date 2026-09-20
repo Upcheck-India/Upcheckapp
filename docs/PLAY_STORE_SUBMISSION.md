@@ -94,9 +94,12 @@ policy is the source of truth because it is published.
 ### Permissions declared in the manifest
 
 `INTERNET` · `CAMERA` · `ACCESS_FINE_LOCATION` · `ACCESS_COARSE_LOCATION` ·
-`RECORD_AUDIO` · `READ_CONTACTS` · `READ_PHONE_STATE` · `READ_CALL_LOG` ·
-`ANSWER_PHONE_CALLS` · `READ_EXTERNAL_STORAGE` · `WRITE_EXTERNAL_STORAGE` ·
-`VIBRATE`
+`RECORD_AUDIO` · `READ_CONTACTS` · `READ_PHONE_STATE` · `READ_EXTERNAL_STORAGE` ·
+`WRITE_EXTERNAL_STORAGE` · `VIBRATE`
+
+`READ_CALL_LOG` and `ANSWER_PHONE_CALLS` were removed in C0.1 (see below) — from
+the manifest and from `frontend/plugins/withTruecaller.js`, which re-injects at
+prebuild. This takes effect in the **next native build**, not over the air.
 
 ### What to declare as collected
 
@@ -190,17 +193,14 @@ never reads a mailbox. The email ADDRESS belongs under Personal info → Email
 address, which is already declared. Ticking this on a farming app invites
 scrutiny for a capability that does not exist.
 
-#### "Messages → SMS or MMS" — decide deliberately
+#### "Messages → SMS or MMS" — **not collected**
 
-There is no SMS permission in the manifest and no SMS-reading code. But Google's
-machine id for this response is `PSL_SMS_CALL_LOG`, its combined SMS/call-log
-bucket, so ticking it to cover `READ_CALL_LOG` is defensible. Against that: Play
-defines *collected* as transmitted off the device, and the call log is read
-on-device by the Truecaller SDK to spot the verification call.
-
-Either answer is arguable. **Whichever you pick must match the sensitive-
-permissions justification for `READ_CALL_LOG`** — two different stories in two
-places is the worst outcome.
+No longer a judgement call. Google's machine id here is `PSL_SMS_CALL_LOG`, its
+combined SMS/call-log bucket, and since C0.1 the app declares neither an SMS
+permission nor a call-log permission, reads neither, and has no missed-call
+verification flow. Answer **not collected**, and leave the sensitive-permission
+justification for `READ_CALL_LOG` out of the App content section entirely —
+there is nothing left to justify.
 
 > ### ⚠️ Answer YES to data deletion
 >
@@ -219,14 +219,17 @@ places is the worst outcome.
 
 ### Sensitive permission declarations
 
-Play will ask you to justify these two in the **App content → Sensitive app
-permissions** section:
+Play used to ask you to justify two permissions here in the **App content →
+Sensitive app permissions** section. Only the note on what NOT to declare
+remains:
 
-- **`READ_CALL_LOG` / `ANSWER_PHONE_CALLS`** — required by the Truecaller SDK for
-  missed-call phone verification. Justification: "Phone number verification via
-  the Truecaller SDK, which uses a missed call the app must detect. Call log data
-  is never read for any other purpose, never stored and never transmitted to our
-  servers. Email and Google sign-in are offered as alternatives."
+- **`READ_CALL_LOG` / `ANSWER_PHONE_CALLS`** — **gone; do not declare or justify
+  them.** Play's July 2026 update removed account verification by phone call as a
+  permitted use (compliance deadline 14 August 2026), so C0.1 deleted both
+  permissions and the missed-call flow they served. Phone sign-in is now
+  Truecaller **one-tap** only (`READ_PHONE_STATE`); everyone else uses email OTP
+  or Google. If an older draft in the Console still carries a call-log
+  justification, remove it.
 - **`RECORD_AUDIO`** — **do not write a justification for this.** The draft used to
   claim "voice notes attached to a pond record". No such feature exists and no
   audio code is in the app. Together with `READ_CONTACTS`, this is a dead manifest
@@ -234,10 +237,8 @@ permissions** section:
   capability that isn't there — an unused microphone permission invites exactly
   the question you don't want asked.
 
-Expect this to be reviewed by a human and to add days to the first submission.
-If Play pushes back on call-log access, the fallback is to ship without the
-Truecaller missed-call path and rely on its one-tap OAuth flow plus email and
-Google sign-in.
+Expect the remaining declarations to be reviewed by a human and to add days to
+the first submission.
 
 ---
 
