@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { LeaveRequestsService } from './leave-requests.service';
 import { LeaveRequest } from './leave-request.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
@@ -78,6 +78,34 @@ describe('LeaveRequestsService', () => {
 
       expect(leaveRepo.create).not.toHaveBeenCalled();
       expect(result).toBe(existing);
+      expect(farmAccess.assertCanAccessFarm).toHaveBeenCalledWith('worker-1', 'farm-1', 'READ');
+    });
+
+    it('a replay for SOMEONE ELSE\'s request needs WRITE_MANAGEMENT, not READ', async () => {
+      // READ is every role, viewer included, so the replay short-circuit used
+      // to hand a colleague's request — `reason` and all — to anyone who
+      // guessed its id, while the list it belongs to is owner/manager only.
+      const someoneElses = { id: 'req-9', farmId: 'farm-1', userId: 'worker-2', reason: 'Hospital' };
+      leaveRepo.findOne.mockResolvedValue(someoneElses);
+      farmAccess.assertCanAccessFarm.mockRejectedValueOnce(new ForbiddenException());
+
+      await expect(service.create('viewer-1', {
+        id: 'req-9', farmId: 'farm-1', startDate: '2026-08-01', endDate: '2026-08-03',
+      })).rejects.toThrow(ForbiddenException);
+
+      expect(farmAccess.assertCanAccessFarm).toHaveBeenCalledWith('viewer-1', 'farm-1', 'WRITE_MANAGEMENT');
+    });
+
+    it('a manager replaying another member\'s request still gets it back', async () => {
+      const someoneElses = { id: 'req-9', farmId: 'farm-1', userId: 'worker-2', reason: 'Hospital' };
+      leaveRepo.findOne.mockResolvedValue(someoneElses);
+
+      const result = await service.create('manager-1', {
+        id: 'req-9', farmId: 'farm-1', startDate: '2026-08-01', endDate: '2026-08-03',
+      });
+
+      expect(result).toBe(someoneElses);
+      expect(farmAccess.assertCanAccessFarm).toHaveBeenCalledWith('manager-1', 'farm-1', 'WRITE_MANAGEMENT');
     });
 
     describe('push on submit', () => {
