@@ -12,6 +12,7 @@ import { useSyncStore } from '../../store/syncStore';
 import { healthObservationsApi } from '../../api/healthObservations';
 import { pickHealthPhoto } from '../../features/healthPhoto';
 import { apiErrorMessage } from '../../api/errors';
+import { photoErrorMessage } from '../../features/photoErrors';
 import { PhotoStrip } from '../ui/PhotoStrip';
 
 const c = theme.roles.light;
@@ -43,7 +44,7 @@ export const HealthPhotoPicker: React.FC<Props> = ({ pondId, value, onChange, ex
             setLocal((l) => [...l, uri]);
             onChange([...value, data.path]);
         } catch (e) {
-            Alert.alert(t('common.error'), apiErrorMessage(e, t('health.photoFailed')));
+            Alert.alert(t('common.error'), photoErrorMessage(e, t, apiErrorMessage(e, t('health.photoFailed'))));
         } finally {
             setBusy(false);
         }
@@ -56,6 +57,29 @@ export const HealthPhotoPicker: React.FC<Props> = ({ pondId, value, onChange, ex
             { text: t('common.cancel'), style: 'cancel' },
         ]);
 
+    /**
+     * P2: removing an EXISTING (already-saved) photo just drops its path —
+     * the record's own PATCH, when the form is saved, diffs the array and
+     * deletes the object server side (see mortality/disease `update`).
+     * Removing a NOT-yet-saved (this-session) pick deletes the just-uploaded
+     * object immediately, since nothing else will ever clean it up if the
+     * form is abandoned.
+     */
+    const remove = async (index: number) => {
+        const path = value[index];
+        onChange(value.filter((_, i) => i !== index));
+        if (index < existingUrls.length) return; // saved photo: cleaned up on next save
+        setLocal((l) => l.filter((_, i) => i !== index - existingUrls.length));
+        try {
+            await healthObservationsApi.removePhoto(pondId, path);
+        } catch (e) {
+            // Never blocks the UI — the photo is already gone from this record's
+            // draft. F1: once the deletion queue exists this becomes a durable
+            // retry instead of a best-effort call that can leave an orphan.
+            Alert.alert(t('common.error'), photoErrorMessage(e, t, t('health.photoRemoveFailed')));
+        }
+    };
+
     const fullUrls = [...existingUrls, ...local];
     // Local picks are their own thumbnails.
     const thumbUrls = [...existingUrls.map((u, i) => existingThumbs[i] || u), ...local];
@@ -65,7 +89,7 @@ export const HealthPhotoPicker: React.FC<Props> = ({ pondId, value, onChange, ex
         <View>
             {fullUrls.length > 0 && (
                 <View style={styles.row}>
-                    <PhotoStrip full={fullUrls} thumbs={thumbUrls} />
+                    <PhotoStrip full={fullUrls} thumbs={thumbUrls} onRemove={(i) => void remove(i)} />
                 </View>
             )}
             <TouchableOpacity

@@ -28,6 +28,14 @@ const health = {
   fromGallery: 'Choose from gallery',
   photosNeedConnection: 'Photos need a connection',
   photoFailed: 'Could not upload the photo',
+  photoRemoveFailed: 'Could not remove the photo',
+  // P13: backend photo error codes, mapped to copy a farmer can act on.
+  photoError: {
+    IMAGE_TOO_LARGE: 'That photo is too large. Try again — it will be resized automatically.',
+    UNSUPPORTED_TYPE: "That file doesn't look like a photo. Please pick or take a photo instead.",
+    STORAGE_UNCONFIGURED: 'Photo storage is unavailable right now. Please try again later.',
+    AVATAR_NOT_MIGRATED: 'Profile photos are not available yet — please try again later.',
+  },
   signsSeen: 'Signs seen',
   severity: {
     mild: 'Mild',

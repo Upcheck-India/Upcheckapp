@@ -28,6 +28,13 @@ const health = {
   fromGallery: 'गैलरी से चुनें',
   photosNeedConnection: 'फ़ोटो के लिए इंटरनेट चाहिए',
   photoFailed: 'फ़ोटो अपलोड नहीं हो सकी',
+  photoRemoveFailed: 'फ़ोटो हटाई नहीं जा सकी',
+  photoError: {
+    IMAGE_TOO_LARGE: 'यह फ़ोटो बहुत बड़ी है। दोबारा कोशिश करें — यह अपने आप छोटी हो जाएगी।',
+    UNSUPPORTED_TYPE: 'यह फ़ाइल फ़ोटो नहीं लगती। कृपया कोई फ़ोटो चुनें या खींचें।',
+    STORAGE_UNCONFIGURED: 'फ़ोटो स्टोरेज अभी उपलब्ध नहीं है। कृपया बाद में कोशिश करें।',
+    AVATAR_NOT_MIGRATED: 'प्रोफ़ाइल फ़ोटो अभी उपलब्ध नहीं हैं — कृपया बाद में कोशिश करें।',
+  },
   signsSeen: 'दिखे लक्षण',
   severity: {
     mild: 'हल्का',

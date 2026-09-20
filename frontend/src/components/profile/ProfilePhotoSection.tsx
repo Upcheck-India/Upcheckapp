@@ -13,6 +13,7 @@ import { Avatar, evictCachedImage } from '../ui/Avatar';
 import { profilesApi, type MyAvatar } from '../../api/profiles';
 import { pickAvatarPhoto } from '../../features/healthPhoto';
 import { apiErrorMessage } from '../../api/errors';
+import { photoErrorMessage } from '../../features/photoErrors';
 import { useSyncStore } from '../../store/syncStore';
 
 const c = theme.roles.light;
@@ -44,7 +45,7 @@ export const ProfilePhotoSection: React.FC<Props> = ({ avatar, onChange, initial
             const { data } = await profilesApi.uploadAvatar(uri);
             await apply(data);
         } catch (e) {
-            Alert.alert(t('common.error'), apiErrorMessage(e, t('settings.avatar.uploadFailed')));
+            Alert.alert(t('common.error'), photoErrorMessage(e, t, apiErrorMessage(e, t('settings.avatar.uploadFailed'))));
         } finally {
             setBusy(false);
         }
@@ -69,7 +70,7 @@ export const ProfilePhotoSection: React.FC<Props> = ({ avatar, onChange, initial
                         const { data } = await profilesApi.removeAvatar();
                         await apply(data);
                     } catch (e) {
-                        Alert.alert(t('common.error'), apiErrorMessage(e, t('settings.avatar.uploadFailed')));
+                        Alert.alert(t('common.error'), photoErrorMessage(e, t, apiErrorMessage(e, t('settings.avatar.uploadFailed'))));
                     } finally {
                         setBusy(false);
                     }
@@ -84,7 +85,7 @@ export const ProfilePhotoSection: React.FC<Props> = ({ avatar, onChange, initial
             onChange(data);
         } catch (e) {
             onChange({ ...avatar, showAvatarToTeam: !show });
-            Alert.alert(t('common.error'), apiErrorMessage(e, t('settings.avatar.visibilityFailed')));
+            Alert.alert(t('common.error'), photoErrorMessage(e, t, apiErrorMessage(e, t('settings.avatar.visibilityFailed'))));
         }
     };
 

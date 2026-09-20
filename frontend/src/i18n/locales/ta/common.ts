@@ -15,6 +15,8 @@ const common = {
   add: 'சேர்',
   close: 'மூடு',
   viewPhoto: 'புகைப்படத்தைப் பார்க்கவும்',
+  removePhoto: 'புகைப்படத்தை அகற்று',
+  photoCount: '{{total}} இல் {{current}}',
   confirm: 'உறுதிப்படுத்து',
   back: 'பின்செல்',
   featureUnavailable: 'இப்போது கிடைக்கவில்லை',

@@ -15,6 +15,8 @@ const common = {
   add: 'যোগ করুন',
   close: 'বন্ধ করুন',
   viewPhoto: 'ছবি দেখুন',
+  removePhoto: 'ছবি সরান',
+  photoCount: '{{total}} এর {{current}}',
   confirm: 'নিশ্চিত করুন',
   back: 'পিছনে',
   featureUnavailable: 'এখন উপলব্ধ নয়',
