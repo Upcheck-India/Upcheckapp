@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { captureError } from './sentry';
 import i18n from '../i18n';
 import type { PondContext } from '../api/pondContext';
 import { pondSlotDone, chemistryDone, type Slot } from '../features/logProgress';
@@ -95,7 +96,13 @@ export async function registerForPushNotificationsAsync() {
                 })
             ).data;
         } catch (e: unknown) {
-            token = `${e}`;
+            // getExpoPushTokenAsync throws (e.g. Android with no Firebase
+            // config bundled) rather than resolving — it does NOT return an
+            // error string. `token` stays undefined so nothing gets sent to
+            // the backend; the error used to be stringified into `token`
+            // here and that literal error text was then persisted as
+            // `users.push_token`. Report once, no retry.
+            captureError(e, { context: 'push-token-registration' });
         }
     } else {
         console.warn('[Notifications] Must use physical device for Push Notifications');

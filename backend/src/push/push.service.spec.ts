@@ -76,6 +76,18 @@ describe('PushService.sendToUser — Expo HTTP-200 error body (AUDIT id 108)', (
     expect(usersRepository.update).not.toHaveBeenCalled();
   });
 
+  it('skips sending when the stored push_token is not a valid Expo token (pre-validation garbage rows)', async () => {
+    usersRepository.findOneBy.mockResolvedValue({
+      pushToken:
+        'Error: Make sure to complete the guide at https://docs.expo.dev/push-notifications/fcm-credentials/',
+    });
+
+    const result = await service.sendToUser(USER_ID, { title: 't', body: 'b' });
+
+    expect(result).toBe(false);
+    expect(mockedAxios.post).not.toHaveBeenCalled();
+  });
+
   it('returns false (never throws) when loading the user row fails — e.g. schema drift from an unapplied migration', async () => {
     usersRepository.findOneBy.mockRejectedValue(
       Object.assign(new Error('column User.backup_codes does not exist'), {

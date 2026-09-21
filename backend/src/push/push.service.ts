@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import axios from 'axios';
 import { User } from '../auth/user.entity';
+import { EXPO_PUSH_TOKEN_RE } from './dto/register-push-token.dto';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
@@ -57,6 +58,17 @@ export class PushService {
       return false;
     }
     if (!token) return false;
+    // Defense in depth: the register endpoint now rejects anything that
+    // isn't a real Expo token, but rows written before that validation
+    // existed (an error string, from the FCM-credentials-missing bug) can
+    // still be sitting in prod. Never hand Expo's API something that isn't
+    // a token shape it understands.
+    if (!EXPO_PUSH_TOKEN_RE.test(token)) {
+      this.logger.warn(
+        `Skipping push to user ${userId}: stored push_token is not a valid Expo token`,
+      );
+      return false;
+    }
 
     try {
       const res = await axios.post(
