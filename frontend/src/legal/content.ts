@@ -96,12 +96,17 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       'send you transactional messages such as email verification and password resets, and the ' +
       'reminders and alerts you have switched on; to keep the Service working, diagnose faults and ' +
       'improve it; and to meet legal obligations.\n\n' +
-      'The legal basis for each of these: your consent, given when you create an account and accept ' +
-      'this policy, covers account creation, sign-in, storing the records you enter, and (separately) ' +
-      'product analytics, which needs its own opt-in. Performing our contract with you covers running ' +
-      'the features you use day to day and sending transactional messages. Our legitimate interest in ' +
-      'keeping the Service secure and working covers crash reporting, fraud prevention and diagnostic ' +
-      'logs. Legal obligation covers anything we are required to retain or disclose by law.\n\n' +
+      'Under India\'s Digital Personal Data Protection Act, 2023, our ground for each of these: your ' +
+      'consent, given when you create an account and accept this policy, covers account creation, ' +
+      'sign-in, storing the records you enter, running the features you use day to day, and sending ' +
+      'transactional messages. Crash reporting and product analytics each rest on their own separate ' +
+      'consent — see section 6, where you switch analytics on, and where crash reporting can be ' +
+      'switched off. Where you have voluntarily provided data for a specified purpose and have not ' +
+      'indicated you do not consent to its use (Section 7(a)) — for example, giving us your phone ' +
+      'number to sign in with Truecaller — we rely on that certain legitimate use instead of asking ' +
+      'you to consent twice for the same act. Retaining a record to meet a legal obligation, or ' +
+      'disclosing data to comply with a court order or a request from a government agency legally ' +
+      'entitled to make one, rests on Section 7\'s legitimate uses for compliance with law.\n\n' +
       'What we do NOT do, and will not start doing quietly:\n' +
       '• We do not sell your personal data. Not to anyone, for any price.\n' +
       '• We do not use your data for third-party advertising, and we carry no ad networks.\n' +
