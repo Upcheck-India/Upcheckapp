@@ -46,6 +46,7 @@ import { useMembershipStore } from './src/store/membershipStore';
 import { useBannedSubstancesStore } from './src/features/bannedSubstancesStore';
 import { useIngredientsStore } from './src/features/ingredientsStore';
 import { pushApi } from './src/api/push';
+import { registerBackgroundSync, unregisterBackgroundSync } from './src/sync/backgroundSync';
 /*
  * PER-WEIGHT SUBPATHS, not the package barrels.
  *
@@ -182,6 +183,18 @@ export default function App() {
       .then((token) => setExpoPushToken(token ?? ''))
       .catch((error: any) => setExpoPushToken(`${error}`));
   }, [isAuthenticated, expoPushToken]);
+
+  // Periodically drain the offline record queue while the app is closed or
+  // backgrounded (Android only — see src/sync/backgroundSync.ts). Registered
+  // after sign-in, unregistered on sign-out via this effect's cleanup, which
+  // fires the moment isAuthenticated flips back to false.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    registerBackgroundSync().catch(() => undefined);
+    return () => {
+      unregisterBackgroundSync().catch(() => undefined);
+    };
+  }, [isAuthenticated]);
 
   // Telemetry, per Privacy Policy section 6. Crash reporting starts on launch
   // unless the farmer switched it off (and is a no-op with no DSN configured);
