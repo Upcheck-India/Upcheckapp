@@ -23,7 +23,7 @@ describe('PhotosService.feedForPond (F6)', () => {
         Promise.resolve({ full: paths.map((p) => `https://signed/${p}`), thumb: paths.map((p) => `https://signed/thumb/${p}`) }),
       ),
     };
-    const svc = new PhotosService(db as any, storage as any, {} as any, {} as any);
+    const svc = new PhotosService(db as any, storage as any, {} as any, {} as any, {} as any);
     return { svc, db, storage };
   }
 
@@ -64,7 +64,7 @@ describe('PhotosService.feedForPond (F6)', () => {
 
   it('degrades to [] before the migration is applied (42703), never throws', async () => {
     const db = { query: jest.fn().mockRejectedValue(Object.assign(new Error('x'), { code: '42703' })) };
-    const svc = new PhotosService(db as any, {} as any, {} as any, {} as any);
+    const svc = new PhotosService(db as any, {} as any, {} as any, {} as any, {} as any);
     await expect(svc.feedForPond(POND, { canViewFinancials: true })).resolves.toEqual([]);
   });
 });

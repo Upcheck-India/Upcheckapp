@@ -1,4 +1,5 @@
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CachedRead } from '../common/response-cache';
 import { OwnershipGuard } from '../common/guards/ownership.guard';
 import { OwnsResource } from '../common/decorators/owns-resource.decorator';
 import {
@@ -39,6 +40,7 @@ export class FarmsController {
   }
 
   @Get()
+  @CachedRead(120)
   findAll(@CurrentUser() user, @Query('includeArchived') includeArchived?: string) {
     return this.farmsService.findAll(user.id, includeArchived === 'true');
   }

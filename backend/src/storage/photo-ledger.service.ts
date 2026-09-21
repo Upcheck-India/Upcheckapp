@@ -73,6 +73,42 @@ export class PhotoLedgerService {
 
   constructor(private readonly db: DataSource) {}
 
+  private anyDropped: { value: boolean; at: number } | null = null;
+
+  /**
+   * F3: which of `paths` have had their full-size object dropped (only the
+   * thumbnail is left). Runs on every sign(), so it is skipped entirely while
+   * no photo anywhere has been downgraded — a single EXISTS, re-checked every
+   * 10 minutes. Never throws: a failed lookup just means "none dropped".
+   * ponytail: one query per sign() once downgrades exist; batch per list if it shows up in timings.
+   */
+  async droppedAmong(namespace: PhotoNamespace, paths: string[]): Promise<Set<string>> {
+    const none = new Set<string>();
+    if (!paths.length) return none;
+    try {
+      if (!this.anyDropped || Date.now() - this.anyDropped.at > 10 * 60_000) {
+        const [row] = await this.db.query(
+          `SELECT EXISTS (SELECT 1 FROM photo_objects WHERE full_dropped_at IS NOT NULL) AS any`,
+        );
+        this.anyDropped = { value: !!row?.any, at: Date.now() };
+      }
+      if (!this.anyDropped.value) return none;
+      const rows: { path: string }[] = await this.db.query(
+        `SELECT path FROM photo_objects WHERE namespace = $1 AND path = ANY($2::text[]) AND full_dropped_at IS NOT NULL`,
+        [namespace, paths],
+      );
+      return new Set(rows.map((r) => r.path));
+    } catch (err: any) {
+      if (!isMissingSchema(err)) this.logger.warn(`Could not read dropped photos: ${err?.message ?? err}`);
+      return none;
+    }
+  }
+
+  /** Retention just dropped something: stop assuming nothing is. */
+  markDropped(): void {
+    this.anyDropped = { value: true, at: Date.now() };
+  }
+
   /** The account a farm's photos count against: its current owner. */
   async ownerOfFarm(farmId: string): Promise<string | null> {
     const [row] = await this.db.query(`SELECT user_id FROM farms WHERE id = $1`, [farmId]);

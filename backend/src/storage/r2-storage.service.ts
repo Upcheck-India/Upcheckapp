@@ -310,8 +310,11 @@ export class R2StorageService {
         { expiresIn: SIGNED_URL_TTL_SECONDS },
       );
     try {
+      // F3: a photo past retention has no full-size object any more — hand
+      // out the thumbnail as its "full" so no screen ever shows a broken image.
+      const dropped = (await this.ledger?.droppedAmong(namespace, paths)) ?? new Set<string>();
       const [full, thumb] = await Promise.all([
-        Promise.all(paths.map(url)),
+        Promise.all(paths.map((p) => url(dropped.has(p) ? thumbPathOf(p) : p))),
         Promise.all(paths.map((p) => url(thumbPathOf(p)))),
       ]);
       return { full, thumb };
@@ -327,6 +330,18 @@ export class R2StorageService {
       (p) => `${namespace}/${p}`,
     );
     await this.deleteKeys(keys);
+  }
+
+  /**
+   * F3 retention: delete ONLY the full-size object, keep its thumbnail.
+   * Refuses a path that is its own thumbnail (non-.webp) — that would delete
+   * the one copy that is meant to stay forever. Throws on failure.
+   */
+  async deleteFull(namespace: PhotoNamespace, path: string): Promise<void> {
+    if (thumbPathOf(path) === path) {
+      throw new Error(`Refusing retention delete of ${namespace}/${path}: it has no separate thumbnail`);
+    }
+    await this.deleteKeys([`${namespace}/${path}`]);
   }
 
   /** Delete every object under `<namespace>/<prefix>`. Throws on failure. */

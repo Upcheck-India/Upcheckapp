@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { isFeatureEnabled } from '../../config/features';
 import { useFlag } from '../../features/remoteFlags';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../query/hooks';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/ErrorState';
@@ -26,43 +26,33 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
     // Subscribes to the remote flag so the button follows it once flags load.
     const cycleAnalysisOn = useFlag('cycleAnalysis') && isFeatureEnabled('cycleAnalysisReport');
     const { cycleId } = route.params;
-    const [cycle, setCycle] = useState<Crop | null>(null);
-    const [pnl, setPnl] = useState<CropPnl | null>(null);
+    // Paints the last copy instantly and revalidates on every focus.
+    const cycleQuery = useCachedFetch(['cycleDetail', cycleId], async (): Promise<Crop> => (await cropsApi.getById(cycleId)).data);
+    // P&L is a separate, gated read — a 403 for a member without
+    // VIEW_FINANCIALS must not blank the whole screen.
+    const pnlQuery = useCachedFetch(['cyclePnl', cycleId], async (): Promise<CropPnl | null> => {
+        try {
+            return (await pnlApi.cropPnl(cycleId)).data;
+        } catch {
+            return null;
+        }
+    });
+    const cycle = cycleQuery.data ?? null;
+    const pnl = pnlQuery.data ?? null;
+    const isLoading = cycleQuery.isInitialLoading;
+    const error = cycleQuery.error;
     const [isEditing, setIsEditing] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<any>(null);
     // The crop carries its own farmId, so the gate follows the cycle rather
     // than whichever farm happens to be active in the picker.
     const { canRecordHarvest, canManageOperations, canViewFinancials, canRecordData, isOwner, isManager } =
         usePermissions(cycle?.farmId);
     const exportOn = useFlag('export');
 
-    const fetchCycle = useCallback(async () => {
-        setError(null);
-        try {
-            const { data } = await cropsApi.getById(cycleId);
-            setCycle(data);
-            // P&L is a separate, gated read — a 403 for a member without
-            // VIEW_FINANCIALS must not blank the whole screen.
-            pnlApi.cropPnl(cycleId).then(({ data: p }) => setPnl(p)).catch(() => setPnl(null));
-        } catch (err) {
-            console.error('Failed to fetch cycle details:', err);
-            setError(err);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [cycleId]);
-
-    useFocusEffect(
-        useCallback(() => {
-            fetchCycle();
-        }, [fetchCycle])
-    );
-
     const onRetry = useCallback(() => {
-        setIsLoading(true);
-        fetchCycle();
-    }, [fetchCycle]);
+        void cycleQuery.refresh();
+        void pnlQuery.refetch();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [cycleQuery.refresh, pnlQuery.refetch]);
 
     const handleCloseCycle = async () => {
         // Why (H2)? A harvested cycle closes through a Full harvest — which
@@ -134,7 +124,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                 <EditCycleForm
                     cycle={cycle}
                     onCancel={() => setIsEditing(false)}
-                    onSaved={() => { setIsEditing(false); onRetry(); }}
+                    onSaved={() => { setIsEditing(false); void cycleQuery.refetch(); void pnlQuery.refetch(); }}
                 />
             </ScreenWrapper>
         );

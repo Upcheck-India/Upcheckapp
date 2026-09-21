@@ -6,6 +6,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { CachedRead } from '../common/response-cache';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { OwnershipGuard } from '../common/guards/ownership.guard';
 import { OwnsResource } from '../common/decorators/owns-resource.decorator';
@@ -29,6 +30,7 @@ export class PondContextController {
    * check. A non-member simply gets [].
    */
   @Get()
+  @CachedRead(60)
   getForFarm(
     @Query('farmId') farmId: string,
     @Query('scope') scope: string,
@@ -43,6 +45,7 @@ export class PondContextController {
   }
 
   @Get(':pondId')
+  @CachedRead(60)
   @UseGuards(OwnershipGuard)
   @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
   get(@Param('pondId') pondId: string, @CurrentUser() user) {

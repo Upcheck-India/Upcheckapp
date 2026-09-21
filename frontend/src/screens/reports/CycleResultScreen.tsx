@@ -6,11 +6,11 @@
  * renders them: a null is "not logged", never 0, and money appears only when
  * the server sent it (VIEW_FINANCIALS).
  */
-import React, { useCallback, useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../query/hooks';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -22,6 +22,8 @@ import { formatINR, groupIndian } from '../../features/inrFormat';
 import { formatDate } from '../../utils/formatDate';
 import { useFlag } from '../../features/remoteFlags';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useUIStore } from '../../store/uiStore';
+import { useSavePhotos } from '../../components/photos/useSavePhotos';
 
 const c = theme.roles.light;
 const BAND_COLOR: Record<Band, string> = { good: c.successText, fair: c.warningText, poor: c.dangerText };
@@ -34,27 +36,32 @@ export const CycleResultScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const exportOn = useFlag('export');
     const { cropId } = route.params ?? {};
-    const [data, setData] = useState<CycleResult | null>(null);
-    const [compliance, setCompliance] = useState<CycleCompliance | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<unknown>(null);
+    // Last copy paints instantly; every focus revalidates (a harvest can be
+    // edited elsewhere).
+    const resultQuery = useCachedFetch(
+        ['cycleResult', cropId],
+        async (): Promise<CycleResult> => (await reportsApi.getCycleResult(cropId)).data,
+    );
+    // Safety, not money: every role may read it. A failure is "not logged".
+    const complianceQuery = useCachedFetch(['cycleCompliance', cropId], async (): Promise<CycleCompliance | null> => {
+        try {
+            return (await treatmentsApi.compliance(cropId)).data;
+        } catch {
+            return null;
+        }
+    });
+    const data = resultQuery.data ?? null;
+    const compliance = complianceQuery.data ?? null;
+    const loading = resultQuery.isInitialLoading;
+    const error = resultQuery.error;
     const { canStartCycle, isOwner, isManager } = usePermissions(data?.farmId);
+    const showToast = useUIStore((s) => s.showToast);
+    const { save: savePhotos, progress: savingPhotos } = useSavePhotos((message, type) => showToast({ message, type }));
 
-    const load = useCallback(() => {
-        setError(null);
-        reportsApi
-            .getCycleResult(cropId)
-            .then(({ data: r }) => setData(r))
-            .catch((err) => setError(err))
-            .finally(() => setLoading(false));
-        // Safety, not money: every role may read it. A failure is "not logged".
-        treatmentsApi
-            .compliance(cropId)
-            .then(({ data: r }) => setCompliance(r))
-            .catch(() => setCompliance(null));
-    }, [cropId]);
-    // A harvest can be edited elsewhere; refetch on focus (screens stay mounted).
-    useFocusEffect(load);
+    const retry = () => {
+        void resultQuery.refresh();
+        void complianceQuery.refetch();
+    };
 
     const notLogged = t('reports.notLogged');
 
@@ -80,7 +87,7 @@ export const CycleResultScreen = ({ route, navigation }: any) => {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 {header}
-                <ErrorState title={t('reports.errorLoad')} error={error} onRetry={() => { setLoading(true); load(); }} />
+                <ErrorState title={t('reports.errorLoad')} error={error} onRetry={retry} />
             </ScreenWrapper>
         );
     }
@@ -275,6 +282,14 @@ export const CycleResultScreen = ({ route, navigation }: any) => {
                         style={styles.action}
                     />
                 )}
+                {/* F4.3: the whole cycle's photos as one zip (any member who can read the pond). */}
+                <Button
+                    title={savingPhotos ?? t('storage.backup.saveCycle')}
+                    variant="outlined"
+                    onPress={() => void savePhotos({ cropId })}
+                    loading={!!savingPhotos}
+                    style={styles.action}
+                />
                 {canStartCycle && data.status !== 'active' && (
                     <Button
                         title={t('reports.startNext')}

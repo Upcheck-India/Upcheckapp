@@ -390,6 +390,116 @@ export class FarmAccessService {
   }
 
   /**
+   * `getMembershipOnFarm` for many farms in two queries instead of two per
+   * farm. Same verdicts: an active membership row wins, else the farm's
+   * owner column makes the caller 'owner', else no role.
+   */
+  async getMembershipsOnFarms(
+    userId: string,
+    farmIds: string[],
+  ): Promise<Map<string, MembershipGrant>> {
+    const out = new Map<string, MembershipGrant>();
+    if (farmIds.length === 0) return out;
+    const [members, farms] = await Promise.all([
+      this.membersRepo
+        .find({ where: { userId, farmId: In(farmIds), status: 'active' } })
+        .catch((err) => {
+          if (!isMissingTable(err)) throw err;
+          this.logger.warn(
+            'farm_members table missing — run migrations; using owner-only access',
+          );
+          return [] as FarmMember[];
+        }),
+      this.farmsRepo.find({
+        where: { id: In(farmIds) },
+        select: { id: true, userId: true, rolePolicy: true },
+      }),
+    ]);
+    const memberByFarm = new Map(members.map((m) => [m.farmId, m]));
+    const farmById = new Map(farms.map((f) => [f.id, f]));
+    for (const farmId of farmIds) {
+      const member = memberByFarm.get(farmId);
+      const farm = farmById.get(farmId);
+      const policy = farm?.rolePolicy ?? null;
+      if (member) {
+        out.set(farmId, {
+          role: member.role,
+          overrides: member.capabilityOverrides ?? null,
+          policy,
+        });
+      } else if (farm && farm.userId === userId) {
+        out.set(farmId, { role: 'owner', overrides: null, policy });
+      } else {
+        out.set(farmId, { role: null, overrides: null, policy: null });
+      }
+    }
+    return out;
+  }
+
+  /**
+   * `getAccessiblePondIds` across many farms in at most four queries total,
+   * rather than three or four PER FARM. The aggregate screens (Today, alert
+   * center, daily brief, Lunar) resolved every farm separately; this is the
+   * same capability + pond-scoping rule, set-based.
+   */
+  async getAccessiblePondIdsForFarms(
+    userId: string,
+    farmIds: string[],
+    capability: FarmCapability = 'READ',
+  ): Promise<string[]> {
+    const grants = await this.getMembershipsOnFarms(userId, farmIds);
+    const allowed = farmIds.filter((f) => {
+      const g = grants.get(f)!;
+      return roleSatisfies(g.role, capability, g.overrides, g.policy);
+    });
+    if (allowed.length === 0) return [];
+    const scopable = allowed.filter((f) =>
+      SCOPABLE_ROLES.includes(grants.get(f)!.role as any),
+    );
+
+    const [ponds, scopeRows] = await Promise.all([
+      this.pondsRepo.find({
+        where: { farmId: In(allowed) },
+        select: { id: true, farmId: true },
+      }),
+      scopable.length === 0
+        ? Promise.resolve([] as { pondId: string; farmId: string }[])
+        : this.memberPondsRepo
+            .createQueryBuilder('mp')
+            .innerJoin(
+              'farm_members',
+              'fm',
+              'fm.id = mp.farm_member_id AND fm.user_id = :userId AND fm.farm_id IN (:...scopable)',
+              { userId, scopable },
+            )
+            .select('mp.pond_id', 'pondId')
+            .addSelect('fm.farm_id', 'farmId')
+            .getRawMany<{ pondId: string; farmId: string }>()
+            .catch((err) => {
+              if (!isMissingTable(err)) throw err;
+              this.logger.warn(
+                'farm_member_ponds table missing — run migrations; no pond scoping applied',
+              );
+              return [];
+            }),
+    ]);
+
+    // Same rule as getScopedPondIds: no rows on a farm = the whole farm.
+    const scopeByFarm = new Map<string, Set<string>>();
+    for (const r of scopeRows) {
+      const set = scopeByFarm.get(r.farmId) ?? new Set<string>();
+      set.add(r.pondId);
+      scopeByFarm.set(r.farmId, set);
+    }
+    return ponds
+      .filter((p) => {
+        const scope = scopeByFarm.get(p.farmId);
+        return !scope || scope.has(p.id);
+      })
+      .map((p) => p.id);
+  }
+
+  /**
    * Replace a member's pond scope. An empty array clears it, restoring
    * whole-farm access — the deliberate way to un-scope someone.
    */

@@ -3,9 +3,9 @@
  * photo. One screen, one save. A sign left untouched is "not checked" and is
  * not written; "None" is written, because "checked, none" is a finding.
  */
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../query/hooks';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -57,32 +57,24 @@ export const HealthCheckScreen = ({ route, navigation }: any) => {
     const [levels, setLevels] = useState<Partial<Record<HealthSign, HealthLevel>>>({});
     const [photos, setPhotos] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
-    // null = not loaded yet. An empty array is a real answer ("no checks");
-    // "still loading" and "could not load" must never render as it.
-    const [recent, setRecent] = useState<HealthObservation[] | null>(null);
-    const [loadError, setLoadError] = useState<unknown>(null);
-
     const signs = HEALTH_SIGNS.filter((s) => levels[s]).map((s) => ({ sign: s, level: levels[s]! }));
 
     // P1: this screen is the only place health-check photos were ever
     // uploaded from, and until now the only place they went to see them
-    // again. Refetch on focus — a save on this same screen must show up
-    // immediately, and React Navigation keeps the screen mounted.
-    const loadRecent = useCallback(async () => {
-        if (!pondId) return;
-        try {
-            // 90 is the backend's ceiling for this endpoint.
-            const { data } = await healthObservationsApi.listForPond(pondId, historyOnly ? 90 : 7);
-            setRecent(data);
-            setLoadError(null);
-        } catch (e) {
-            // Never blocks logging, and never wipes what is already on screen:
-            // a failed refetch keeps the previous list.
-            setLoadError(e);
-        }
-    }, [pondId, historyOnly]);
+    // again. Revalidates on every focus (paints the last list instantly) —
+    // a save on this same screen must show up, and React Navigation keeps
+    // the screen mounted. A failed refetch never blocks logging and never
+    // wipes what is already on screen.
+    const { data, error: loadError, refresh } = useCachedFetch(
+        // 90 is the backend's ceiling for this endpoint.
+        ['healthCheckRecent', pondId ?? null, historyOnly],
+        async (): Promise<HealthObservation[]> => (await healthObservationsApi.listForPond(pondId, historyOnly ? 90 : 7)).data,
+        { enabled: !!pondId },
+    );
+    // null = not loaded yet. An empty array is a real answer ("no checks");
+    // "still loading" and "could not load" must never render as it.
+    const recent: HealthObservation[] | null = data ?? null;
     const days = groupByDay(recent ?? []);
-    useFocusEffect(useCallback(() => { void loadRecent(); }, [loadRecent]));
 
     const save = async () => {
         if (!signs.length) {
@@ -126,7 +118,7 @@ export const HealthCheckScreen = ({ route, navigation }: any) => {
                     <View testID="health-check-loading"><SkeletonList count={3} /></View>
                 )}
                 {historyOnly && recent === null && !!loadError && (
-                    <ErrorState title={t('history.couldNotLoad')} error={loadError} onRetry={() => { setLoadError(null); void loadRecent(); }} />
+                    <ErrorState title={t('history.couldNotLoad')} error={loadError} onRetry={() => { void refresh(); }} />
                 )}
                 {historyOnly && <StaleNotice visible={recent !== null && !!loadError} />}
                 {historyOnly && recent !== null && !days.length && (

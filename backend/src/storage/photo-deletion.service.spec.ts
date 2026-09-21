@@ -26,7 +26,7 @@ function make({ migrated = true, configured = true } = {}) {
       });
       return [];
     }
-    if (/^SELECT id, namespace, path FROM photo_deletions/.test(q)) {
+    if (/^SELECT id, namespace, path, reason FROM photo_deletions/.test(q)) {
       const all = /attempts </.test(q) ? false : true;
       return rows
         .filter((r) => !r.done_at && (all || (r.attempts < MAX_AUTO_ATTEMPTS && r.due)))

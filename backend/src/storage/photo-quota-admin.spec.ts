@@ -249,7 +249,7 @@ describe('PhotosService.topUsers (admin "Top storage users")', () => {
   function svc(rows: any[]) {
     const query = jest.fn(async (q: string) => (/FROM photo_objects o\s+JOIN users/.test(q) ? rows : []));
     const db = { query };
-    return new PhotosService(db as any, {} as any, {} as any, {} as any);
+    return new PhotosService(db as any, {} as any, {} as any, {} as any, {} as any);
   }
 
   it('reports bytes used, the effective limit, and % of it — override wins over the default', async () => {
@@ -277,7 +277,7 @@ describe('PhotosService.topUsers (admin "Top storage users")', () => {
     const query = jest.fn(async () => {
       throw undefinedTable;
     });
-    const s = new PhotosService({ query } as any, {} as any, {} as any, {} as any);
+    const s = new PhotosService({ query } as any, {} as any, {} as any, {} as any, {} as any);
     await expect(s.topUsers(50)).resolves.toEqual([]);
   });
 });

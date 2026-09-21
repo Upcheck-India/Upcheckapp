@@ -7,6 +7,7 @@ import { FeedbackNote } from './feedback-note.entity';
 import { FeedbackStorageService } from './feedback-storage.service';
 import { PushService } from '../push/push.service';
 import { EmailService } from '../email.service';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 const MINE = 'farmer-1';
 const THEIRS = 'farmer-2';
@@ -37,6 +38,7 @@ describe('FeedbackService', () => {
   let storage: { signAttachments: jest.Mock; attach: jest.Mock };
   let push: { sendToUser: jest.Mock };
   let email: { sendFeedbackAlertEmail: jest.Mock };
+  let access: { assertCanAccessFarm: jest.Mock };
 
   beforeEach(async () => {
     repo = {
@@ -57,6 +59,7 @@ describe('FeedbackService', () => {
     storage = { signAttachments: jest.fn().mockResolvedValue({ full: [], thumb: [] }), attach: jest.fn() };
     push = { sendToUser: jest.fn().mockResolvedValue(true) };
     email = { sendFeedbackAlertEmail: jest.fn().mockResolvedValue(undefined) };
+    access = { assertCanAccessFarm: jest.fn().mockResolvedValue({}) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -66,10 +69,45 @@ describe('FeedbackService', () => {
         { provide: FeedbackStorageService, useValue: storage },
         { provide: PushService, useValue: push },
         { provide: EmailService, useValue: email },
+        { provide: FarmAccessService, useValue: access },
       ],
     }).compile();
 
     service = module.get(FeedbackService);
+  });
+
+  describe('reportPhoto (F7.8)', () => {
+    const FARM = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const PATH = `${FARM}/cccccccc-cccc-4ccc-8ccc-cccccccccccc.webp`;
+
+    it('files a report that references the photo path (not a copy), on its farm', async () => {
+      await service.reportPhoto(MINE, { path: PATH });
+
+      expect(access.assertCanAccessFarm).toHaveBeenCalledWith(MINE, FARM, 'READ');
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: MINE,
+          farmId: FARM,
+          status: 'new',
+          attachmentPaths: [`health/${PATH}`],
+        }),
+      );
+      expect(email.sendFeedbackAlertEmail).toHaveBeenCalled();
+    });
+
+    it('refuses a photo on a farm the reporter cannot read', async () => {
+      access.assertCanAccessFarm.mockRejectedValueOnce(new ForbiddenException());
+      await expect(service.reportPhoto(MINE, { path: PATH })).rejects.toThrow(ForbiddenException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('signs the reported photo for staff only', async () => {
+      repo.findOne.mockResolvedValue({ id: 'r1', userId: MINE, attachmentPaths: [`health/${PATH}`] });
+      await service.findOneMine(MINE, 'r1');
+      expect(storage.signAttachments).toHaveBeenLastCalledWith([`health/${PATH}`], false);
+      await service.findOneAsAdmin('r1');
+      expect(storage.signAttachments).toHaveBeenLastCalledWith([`health/${PATH}`], true);
+    });
   });
 
   describe('create', () => {

@@ -1,8 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../query/hooks';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -33,15 +33,17 @@ export const FeedingTrayChecksScreen = ({ route, navigation }: any) => {
     const [trayNumber, setTrayNumber] = useState(1);
     const [residue, setResidue] = useState<TrayResidue>('few_left');
     const [saving, setSaving] = useState(false);
-    const [checks, setChecks] = useState<FeedingTrayCheck[]>([]);
+    // Paints the last list instantly and revalidates on every focus; a failed
+    // refresh keeps the list rather than wiping it.
+    const { data, refetch } = useCachedFetch(
+        ['feedingTrayChecks', cropId ?? null],
+        async (): Promise<FeedingTrayCheck[]> => (await feedingTrayApi.getByCrop(cropId)).data,
+    );
+    const checks = data ?? [];
+    const load = () => void refetch();
     // F5: tray photo (cap 1). Not in route params — resolved from the crop.
     const [pondId, setPondId] = useState<string | undefined>(route.params?.pondId);
     const [photoPath, setPhotoPath] = useState<string | undefined>(undefined);
-
-    const load = useCallback(() => {
-        feedingTrayApi.getByCrop(cropId).then(({ data }) => setChecks(data)).catch(() => setChecks([]));
-    }, [cropId]);
-    useFocusEffect(useCallback(() => { load(); }, [load]));
 
     React.useEffect(() => {
         if (pondId || !cropId) return;
@@ -71,10 +73,9 @@ export const FeedingTrayChecksScreen = ({ route, navigation }: any) => {
                     : t('common.savedSuccess'),
                 type: 'success',
             });
-            // load()'s catch clears the list to empty on failure — while
-            // offline that refetch would just fail and wipe the visible
-            // history for a check that's actually safely queued. Skip it and
-            // let the next focus/reconnect pick up the real list.
+            // Offline the refetch would just fail for a check that's safely
+            // queued. Skip it and let the next focus/reconnect pick up the
+            // real list.
             if (!res.queued) load();
         } catch (e: any) {
             Alert.alert(t('common.error'), apiErrorMessage(e, t('logs.feedingTray_errorSave', 'Could not save tray check')));
