@@ -8,7 +8,9 @@ export default {
     // user-visible string, and changing it would orphan the project.
     name: "Neerani",
     slug: "upcheck",
-    version: "1.0.0",
+    // User-facing version. Tracks runtimeVersion's major (3.x = the 3.0.0
+    // binary); an OTA carries this value to the About/Settings screens.
+    version: "3.0.0",
     scheme: "upcheckapp",
     orientation: "portrait",
     icon: "./assets/icon.png",

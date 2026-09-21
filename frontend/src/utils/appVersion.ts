@@ -6,11 +6,14 @@ import Constants from 'expo-constants';
  *
  * Both settings screens used to render the literal "v1.0.0", which was already
  * drifting (app.config carries version 1.0.0 but runtimeVersion 2.0.0) and
- * would rot again on the next bump. expo-application reads them from the
- * installed package; expo-constants is the fallback for Expo Go, where the
- * native version belongs to Expo Go rather than to us.
+ * would rot again on the next bump.
+ *
+ * The version comes from the RUNNING update's app config first: an OTA carries
+ * app.config's `version`, so bumping it there shows up without a native build.
+ * The binary's own versionName (frozen at build time) is the fallback. The
+ * build number stays native — it only changes with a new binary.
  */
 export const appVersion = (): string =>
-    Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? '—';
+    Constants.expoConfig?.version ?? Application.nativeApplicationVersion ?? '—';
 
 export const appBuild = (): string => Application.nativeBuildVersion ?? '—';
