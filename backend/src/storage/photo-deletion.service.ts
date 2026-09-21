@@ -22,6 +22,8 @@ export interface PhotoRef {
 /** Automatic retries stop here; the row stays, surfaced to staff. */
 export const MAX_AUTO_ATTEMPTS = 5;
 const LAZY_DRAIN_EVERY_MS = 60_000;
+/** An upload still on no record after this long was abandoned (F1 orphans). */
+export const ORPHAN_AFTER_HOURS = 24;
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 // A prefix is exactly one owner segment. Never '' or '/': that would be the
@@ -35,6 +37,8 @@ const validRef = (r: PhotoRef) =>
 
 const isMissingTable = (err: any) =>
   (err?.code ?? err?.driverError?.code) === '42P01';
+const isMissingSchema = (err: any) =>
+  ['42P01', '42703'].includes(err?.code ?? err?.driverError?.code);
 
 interface Row {
   id: string;
@@ -149,12 +153,14 @@ export class PhotoDeletionService {
     }
   }
 
-  /** Fire-and-forget drain, at most once a minute per instance. */
+  /** Fire-and-forget orphan sweep + drain, at most once a minute per instance. */
   drainSoon(): void {
     const now = Date.now();
     if (now - this.lastLazyDrain < LAZY_DRAIN_EVERY_MS) return;
     this.lastLazyDrain = now;
-    void this.drain().catch((err: any) =>
+    void this.sweepOrphans()
+      .then(() => this.drain())
+      .catch((err: any) =>
       this.logger.warn(`Lazy photo drain failed: ${err?.message ?? err}`),
     );
   }
@@ -195,6 +201,7 @@ export class PhotoDeletionService {
       for (const row of rows) {
         try {
           await this.deleteRef(row);
+          await this.forgetLedger(row);
           await this.db.query(
             `UPDATE photo_deletions SET done_at = now(), attempts = attempts + 1, last_error = NULL WHERE id = $1`,
             [row.id],
@@ -220,6 +227,39 @@ export class PhotoDeletionService {
     }
   }
 
+  /**
+   * F1 orphan collection: an upload whose `photo_objects` row is still on no
+   * record ORPHAN_AFTER_HOURS later was abandoned (form closed, app killed)
+   * — queue it as `orphan`. Belt and braces: a path some record, avatar or
+   * report still references is never swept, even if its attach was lost.
+   * Returns how many were queued; 0 before the migrations.
+   */
+  async sweepOrphans(limit = 100): Promise<number> {
+    let rows: Row[];
+    try {
+      rows = await this.db.query(
+        `SELECT o.namespace, o.path FROM photo_objects o
+         WHERE o.record_id IS NULL
+           AND o.uploaded_at < now() - interval '${ORPHAN_AFTER_HOURS} hours'
+           AND NOT EXISTS (SELECT 1 FROM photo_deletions d WHERE d.namespace = o.namespace AND d.path = o.path)
+           AND NOT (o.namespace = 'health' AND (
+                 EXISTS (SELECT 1 FROM health_observations h WHERE h.photo_urls @> ARRAY[o.path])
+              OR EXISTS (SELECT 1 FROM mortality_records r WHERE r.photo_urls @> ARRAY[o.path])
+              OR EXISTS (SELECT 1 FROM disease_records r WHERE r.photo_urls @> ARRAY[o.path])))
+           AND NOT (o.namespace = 'avatars' AND EXISTS (SELECT 1 FROM users u WHERE u.avatar_path = o.path))
+           AND NOT (o.namespace = 'feedback' AND EXISTS (SELECT 1 FROM feedback_reports f WHERE f.attachment_paths ? o.path))
+         ORDER BY o.uploaded_at LIMIT $1`,
+        [limit],
+      );
+    } catch (err) {
+      if (isMissingSchema(err)) return 0;
+      throw err;
+    }
+    if (!rows.length) return 0;
+    await this.enqueue(rows.map((r) => ({ namespace: r.namespace, path: r.path })), 'orphan');
+    return rows.length;
+  }
+
   /** Rows automatic retries gave up on — for the staff dashboard. */
   async failures(limit = 100) {
     try {
@@ -233,6 +273,25 @@ export class PhotoDeletionService {
     } catch (err) {
       if (isMissingTable(err)) return [];
       throw err;
+    }
+  }
+
+  /**
+   * F2: the object is gone, so it stops counting. Exact path, or everything
+   * under a `<owner>/` prefix. Logged, not thrown: the R2 delete already
+   * succeeded, and a still-queued row is excluded from usage anyway.
+   */
+  private async forgetLedger(r: PhotoRef): Promise<void> {
+    try {
+      await this.db.query(
+        `DELETE FROM photo_objects
+         WHERE namespace = $1 AND (path = $2 OR (right($2, 1) = '/' AND starts_with(path, $2)))`,
+        [r.namespace, r.path],
+      );
+    } catch (err: any) {
+      if (!isMissingTable(err)) {
+        this.logger.warn(`Could not drop ledger row(s) for ${r.namespace}/${r.path}: ${err?.message ?? err}`);
+      }
     }
   }
 

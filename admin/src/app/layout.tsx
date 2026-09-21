@@ -21,8 +21,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <html lang="en">
             <body>
                 <nav className="top-nav">
-                    <Link href="/">Feedback</Link>
+                    <Link href="/">Overview</Link>
+                    <Link href="/reports">Feedback</Link>
+                    <Link href="/users">Users</Link>
+                    <Link href="/farms">Farms</Link>
                     <Link href="/announcements">Announcements</Link>
+                    <Link href="/news">News</Link>
+                    <Link href="/prices">Prices</Link>
+                    <Link href="/photos">Photos</Link>
+                    <Link href="/storage">Storage</Link>
                     <Link href="/access-log">Access log</Link>
                     {staffName && (
                         <span className="who">

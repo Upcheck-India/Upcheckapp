@@ -13,6 +13,8 @@ import {
     loadTelemetryPrefs,
     shouldAskAnalyticsConsent,
 } from '../features/telemetryPrefs';
+import { acceptPolicyUpdate, settleLegalConsent, type LegalSheet } from '../features/consent';
+import { PolicyUpdateSheet } from '../components/PolicyUpdateSheet';
 
 // EAGER — only what the app can actually paint on first frame.
 //
@@ -142,6 +144,8 @@ export type RootStackParamList = {
     Notifications: undefined;
     Help: undefined;
     ReportIssue: undefined;
+    // F2: no params = the account pool; pondId / farmId = that pond's photos.
+    PhotoStorage: { pondId?: string; farmId?: string; name?: string } | undefined;
     SyncStatus: undefined;
     FeedbackDetail: { id: string };
     About: undefined;
@@ -192,6 +196,10 @@ export type RootStackParamList = {
     Language: undefined;
     Welcome: undefined;
     Intent: undefined;
+    // Short data notice (compliance C2.2), between Intent and Register.
+    DataNotice: { intent?: SignupIntent } | undefined;
+    // Settings → Privacy → model-training opt-in (compliance C3).
+    ImproveAdvice: undefined;
     PondSetup: { farmId: string; totalPonds: number };
     PondNames: { farm: CreateFarmDto; pondCount: number };
     // code: from the upcheckapp://join/<CODE> deep link (linking.ts).
@@ -306,6 +314,28 @@ const RootNavigator = () => {
     }, []);
     useEffect(refreshConsentGate, [refreshConsentGate]);
 
+    /**
+     * Terms + privacy for the current LEGAL_VERSION (compliance C2.1). Runs
+     * AFTER sign-in (per user; asks GET /consents/me, falls back to device
+     * storage offline) and never holds the splash. A sheet, if needed, opens
+     * over whatever screen the user is on. Sign-in itself is untouched.
+     */
+    const userId = useAuthStore((s) => s.user?.id);
+    const [policySheet, setPolicySheet] = useState<LegalSheet>('none');
+    useEffect(() => {
+        if (!isAuthenticated || !userId) {
+            setPolicySheet('none');
+            return;
+        }
+        let live = true;
+        settleLegalConsent(userId).then((show) => {
+            if (live) setPolicySheet(show);
+        });
+        return () => {
+            live = false;
+        };
+    }, [isAuthenticated, userId]);
+
     // Load the user's farm memberships once authenticated so usePermissions()
     // resolves correctly on every screen; clear them on logout.
     useEffect(() => {
@@ -325,6 +355,7 @@ const RootNavigator = () => {
     }
 
     return (
+        <>
         <Stack.Navigator
             /**
              * The consent ask comes FIRST once there is an account (W8/D2) —
@@ -363,6 +394,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="Language" component={LanguageScreen} />
                     <Stack.Screen name="Welcome" component={WelcomeScreen} />
                     <Stack.Screen name="Intent" getComponent={() => require('../screens/onboarding/IntentScreen').IntentScreen} />
+                    <Stack.Screen name="DataNotice" getComponent={() => require('../screens/onboarding/DataNoticeScreen').DataNoticeScreen} />
                     <Stack.Screen name="Login" getComponent={() => require('../screens/auth/LoginScreen').LoginScreen} />
                     <Stack.Screen name="Register" getComponent={() => require('../screens/auth/RegisterScreen').RegisterScreen} />
                     <Stack.Screen
@@ -481,6 +513,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="Notifications" getComponent={() => require('../screens/notifications/NotificationsScreen').NotificationsScreen} />
                     <Stack.Screen name="Help" getComponent={() => require('../screens/settings/HelpScreen').HelpScreen} />
                     <Stack.Screen name="ReportIssue" getComponent={() => require('../screens/settings/ReportIssueScreen').ReportIssueScreen} />
+                    <Stack.Screen name="PhotoStorage" getComponent={() => require('../screens/settings/PhotoStorageScreen').PhotoStorageScreen} />
                     <Stack.Screen name="SyncStatus" getComponent={() => require('../screens/settings/SyncStatusScreen').SyncStatusScreen} />
                     <Stack.Screen name="FeedbackDetail" getComponent={() => require('../screens/settings/FeedbackDetailScreen').FeedbackDetailScreen} />
                     <Stack.Screen name="About" getComponent={() => require('../screens/settings/AboutScreen').AboutScreen} />
@@ -541,9 +574,23 @@ const RootNavigator = () => {
                     {/* Legal */}
                     <Stack.Screen name="PrivacyPolicy" getComponent={() => require('../screens/legal/PrivacyPolicyScreen').PrivacyPolicyScreen} />
                     <Stack.Screen name="Terms" getComponent={() => require('../screens/legal/TermsScreen').TermsScreen} />
+                    <Stack.Screen name="ImproveAdvice" getComponent={() => require('../screens/settings/ImproveAdviceScreen').ImproveAdviceScreen} />
                 </>
             )}
         </Stack.Navigator>
+        {/* Over the navigator, not a route: it changes no initial route and
+            no auth transition, and cannot be navigated away from. */}
+        <PolicyUpdateSheet
+            visible={policySheet !== 'none'}
+            variant={policySheet === 'notice' ? 'notice' : 'update'}
+            onContinue={(locale) => {
+                if (userId) {
+                    void acceptPolicyUpdate(userId, locale, policySheet === 'notice' ? 'signup' : 'reconsent');
+                }
+                setPolicySheet('none');
+            }}
+        />
+        </>
     );
 };
 

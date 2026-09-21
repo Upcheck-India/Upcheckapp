@@ -20,7 +20,7 @@ describe('MortalityService — idempotent create (offline replay safety)', () =>
       providers: [
         MortalityService,
         { provide: getRepositoryToken(MortalityRecord), useValue: repo },
-        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn() } },
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), attach: jest.fn() } },
       ],
     }).compile();
     service = module.get(MortalityService);

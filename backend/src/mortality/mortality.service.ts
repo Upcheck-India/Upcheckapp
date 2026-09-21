@@ -77,7 +77,9 @@ export class MortalityService {
       createdById: userId,
       updatedById: userId,
     });
-    return this.mortalityRepository.save(record);
+    const saved = await this.mortalityRepository.save(record);
+    await this.photos.attach(saved.photoUrls, 'mortality', saved.id, saved.cropId);
+    return saved;
   }
 
   async findByCrop(cropId: string) {
@@ -127,6 +129,7 @@ export class MortalityService {
       ...(note !== undefined ? { note } : {}),
     });
     await enqueueRemovedPhotos(this.photos, this.logger, removed, userId);
+    await this.photos.attach(dto.photoUrls, 'mortality', id, current.cropId);
     return this.findOne(id);
   }
 

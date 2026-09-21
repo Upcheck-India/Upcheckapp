@@ -23,7 +23,7 @@ import { theme } from '../../theme';
 import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { pondContextApi } from '../../api/pondContext';
-import { qk } from '../../query/client';
+import { qk, queryClient, orPrevious } from '../../query/client';
 import { MoltInlineAction } from '../../components/molt/MoltInlineAction';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 
@@ -77,11 +77,16 @@ const sourceIcon: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> =
 const loadBriefing = async (): Promise<{ items: BriefingItem[]; routines: RoutineSummary[] | null }> => {
   // Live engine alerts (recomputed from latest data) + persisted alerts,
   // merged to one card per pond keeping the highest severity.
-  const [live, persisted] = await Promise.all([
-    alertCenterApi.liveBriefing().catch(() => ({ data: [] as BriefingItem[] })),
-    alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
-  ]);
-  const items = mergeByPond([...live.data, ...persisted.data]);
+  //
+  // A failed read is NOT "no alerts": swallowing it into [] rendered the
+  // all-clear banner. Keep the last copy, or fail with nothing to keep.
+  const prev = queryClient.getQueryData<{ items: BriefingItem[] }>(qk.briefing());
+  const items = await orPrevious(
+    Promise.all([alertCenterApi.liveBriefing(), alertCenterApi.briefing()]).then(([live, persisted]) =>
+      mergeByPond([...live.data, ...persisted.data]),
+    ),
+    prev?.items,
+  );
   if (items.length > 0) return { items, routines: null };
 
   const { data: ponds } = await pondsApi.getMine();

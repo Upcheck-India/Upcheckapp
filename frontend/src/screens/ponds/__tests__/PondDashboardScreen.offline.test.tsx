@@ -153,3 +153,52 @@ describe('a failed read is not an empty pond', () => {
         await waitFor(() => expect(second.getByText(/Showing saved data/)).toBeTruthy());
     });
 });
+
+/**
+ * Owner report: "Showing pond IDLE when internet is slow or lost." The cycle
+ * read used to be swallowed into `null`, which rendered "Pond is Idle" for a
+ * stocked pond — and was cached as a success over the good copy.
+ */
+describe('a pond whose cycle did not load is not idle', () => {
+    it('shows an error, not "Pond is Idle", when the cycle read fails with nothing cached', async () => {
+        (cropsApi.getById as jest.Mock).mockRejectedValue({ message: 'Network Error' });
+        const { findByText, queryByTestId } = renderScreen();
+        await findByText('No Internet Connection');
+        expect(queryByTestId('pond-idle')).toBeNull();
+    });
+
+    it('keeps the cached cycle and context when a refetch of them fails', async () => {
+        const first = renderScreen();
+        await first.findByText('Cycle 1');
+        first.unmount();
+
+        const cycleReads = (cropsApi.getById as jest.Mock).mock.calls.length;
+        (cropsApi.getById as jest.Mock).mockRejectedValue({ message: 'Network Error' });
+        (pondContextApi.get as jest.Mock).mockRejectedValue({ message: 'Network Error' });
+        queryClient.invalidateQueries({ queryKey: ['pond'] });
+        const second = renderScreen();
+
+        // The pond itself refetched fine; only the cycle and context reads
+        // failed. Wait for that refetch to have settled.
+        await waitFor(() => expect((cropsApi.getById as jest.Mock).mock.calls.length).toBeGreaterThan(cycleReads));
+        await waitFor(() => expect(queryClient.getQueryState(['pond', 'p1'])?.fetchStatus).toBe('idle'));
+        expect(second.getByText('Cycle 1')).toBeTruthy();
+        // …and the context did not collapse to dashes either.
+        expect(second.getByText('1,250')).toBeTruthy();
+        expect(second.queryByTestId('pond-idle')).toBeNull();
+    });
+
+    it('shows neither idle nor the cycle while the pond is still loading', () => {
+        (pondsApi.getById as jest.Mock).mockReturnValue(new Promise(() => {}));
+        const { queryByTestId } = renderScreen();
+        expect(queryByTestId('pond-idle')).toBeNull();
+    });
+
+    it('still says idle for a pond that really has no cycle', async () => {
+        (pondsApi.getById as jest.Mock).mockResolvedValue({
+            data: { id: 'p1', farmId: 'f1', name: 'Pond 1', status: 'fallow', activeCycleId: null },
+        });
+        const { findByTestId } = renderScreen();
+        expect(await findByTestId('pond-idle')).toBeTruthy();
+    });
+});

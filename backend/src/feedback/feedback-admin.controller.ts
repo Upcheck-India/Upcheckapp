@@ -5,13 +5,18 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { Public } from '../auth/decorators/auth.decorators';
 import { AdminKeyGuard } from './admin-key.guard';
 import { FeedbackService } from './feedback.service';
-import { ListFeedbackDto, UpdateFeedbackDto } from './dto/feedback.dto';
+import {
+  AddFeedbackNoteDto,
+  ListFeedbackDto,
+  UpdateFeedbackDto,
+} from './dto/feedback.dto';
 
 /**
  * Staff-only feedback inbox, called server-side by the Vercel dashboard.
@@ -48,5 +53,19 @@ export class FeedbackAdminController {
     @Body() dto: UpdateFeedbackDto,
   ) {
     return this.feedback.update(id, dto);
+  }
+
+  /** Append-only internal notes — never shown to the farmer. */
+  @Get(':id/notes')
+  notes(@Param('id', ParseUUIDPipe) id: string) {
+    return this.feedback.listNotes(id);
+  }
+
+  @Post(':id/notes')
+  addNote(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AddFeedbackNoteDto,
+  ) {
+    return this.feedback.addNote(id, dto);
   }
 }

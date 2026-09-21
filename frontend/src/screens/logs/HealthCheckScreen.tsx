@@ -12,6 +12,9 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { PhotoStrip } from '../../components/ui/PhotoStrip';
+import { ErrorState } from '../../components/ui/ErrorState';
+import { StaleNotice } from '../../components/ui/CacheNotice';
+import { SkeletonList } from '../../components/ui/Skeleton';
 import { ChoiceChips } from '../../components/health/ChoiceChips';
 import { HealthPhotoPicker } from '../../components/health/HealthPhotoPicker';
 import { theme } from '../../theme';
@@ -54,7 +57,10 @@ export const HealthCheckScreen = ({ route, navigation }: any) => {
     const [levels, setLevels] = useState<Partial<Record<HealthSign, HealthLevel>>>({});
     const [photos, setPhotos] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
-    const [recent, setRecent] = useState<HealthObservation[]>([]);
+    // null = not loaded yet. An empty array is a real answer ("no checks");
+    // "still loading" and "could not load" must never render as it.
+    const [recent, setRecent] = useState<HealthObservation[] | null>(null);
+    const [loadError, setLoadError] = useState<unknown>(null);
 
     const signs = HEALTH_SIGNS.filter((s) => levels[s]).map((s) => ({ sign: s, level: levels[s]! }));
 
@@ -68,11 +74,14 @@ export const HealthCheckScreen = ({ route, navigation }: any) => {
             // 90 is the backend's ceiling for this endpoint.
             const { data } = await healthObservationsApi.listForPond(pondId, historyOnly ? 90 : 7);
             setRecent(data);
-        } catch {
-            // History is a nice-to-have here; a failed read must not block logging.
+            setLoadError(null);
+        } catch (e) {
+            // Never blocks logging, and never wipes what is already on screen:
+            // a failed refetch keeps the previous list.
+            setLoadError(e);
         }
     }, [pondId, historyOnly]);
-    const days = groupByDay(recent);
+    const days = groupByDay(recent ?? []);
     useFocusEffect(useCallback(() => { void loadRecent(); }, [loadRecent]));
 
     const save = async () => {
@@ -113,7 +122,14 @@ export const HealthCheckScreen = ({ route, navigation }: any) => {
             </View>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 {!!pondName && !historyOnly && <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>}
-                {historyOnly && !days.length && (
+                {historyOnly && recent === null && !loadError && (
+                    <View testID="health-check-loading"><SkeletonList count={3} /></View>
+                )}
+                {historyOnly && recent === null && !!loadError && (
+                    <ErrorState title={t('history.couldNotLoad')} error={loadError} onRetry={() => { setLoadError(null); void loadRecent(); }} />
+                )}
+                {historyOnly && <StaleNotice visible={recent !== null && !!loadError} />}
+                {historyOnly && recent !== null && !days.length && (
                     <Text style={styles.hint} testID="health-check-empty">{t('history.healthCheckEmptyText')}</Text>
                 )}
                 {!historyOnly && (<>

@@ -50,6 +50,7 @@ import {
     type TelemetryPrefs,
 } from '../../features/telemetryPrefs';
 import { syncAnalyticsConsent } from '../../features/analytics';
+import { recordConsent } from '../../features/consent';
 import { resolveFlag, useRemoteFlagsStore, type RemoteFlagKey } from '../../features/remoteFlags';
 import { setCrashReportingEnabled } from '../../utils/sentry';
 import { alertCenterApi } from '../../api/alertCenter';
@@ -60,6 +61,7 @@ import { profilesApi } from '../../api/profiles';
 import { Avatar } from '../../components/ui/Avatar';
 import { useAuthStore } from '../../store/authStore';
 import { useMembershipStore } from '../../store/membershipStore';
+import { PhotoPoolNote } from '../../components/photos/PhotoPool';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
@@ -482,6 +484,8 @@ export const SettingsScreen = ({ navigation }: any) => {
                 {farmLinks.map((row) => (
                     <Row key={row.key} row={row} />
                 ))}
+                <Row row={{ key: 'photoStorage', icon: 'add_a_photo', label: t('storage.title'), route: 'PhotoStorage' }} />
+                <PhotoPoolNote />
 
                 {/*
                   * Privacy — deliberately immediately above "About", so the
@@ -498,7 +502,10 @@ export const SettingsScreen = ({ navigation }: any) => {
                     </View>
                     <Switch
                         value={telemetry.crashReports}
-                        onValueChange={(v) => updateTelemetry({ ...telemetry, crashReports: v })}
+                        onValueChange={(v) => {
+                            updateTelemetry({ ...telemetry, crashReports: v });
+                            void recordConsent('crash', v, 'settings');
+                        }}
                         trackColor={{ false: c.borderDefault, true: c.primaryHover }}
                     />
                 </View>
@@ -511,12 +518,14 @@ export const SettingsScreen = ({ navigation }: any) => {
                         // 'unasked' and 'declined' both read as OFF. Silence is
                         // never shown to the farmer as a yes.
                         value={telemetry.analytics === 'granted'}
-                        onValueChange={(v) =>
-                            updateTelemetry({ ...telemetry, analytics: v ? 'granted' : 'declined' })
-                        }
+                        onValueChange={(v) => {
+                            updateTelemetry({ ...telemetry, analytics: v ? 'granted' : 'declined' });
+                            void recordConsent('analytics', v, 'settings');
+                        }}
                         trackColor={{ false: c.borderDefault, true: c.primaryHover }}
                     />
                 </View>
+                <Row row={{ key: 'improveAdvice', icon: 'lightbulb', label: t('consent.improveTitle'), route: 'ImproveAdvice' }} />
 
                 <SectionHeader label={t('settings.about')} />
                 {/* "Is my data saved?" needs an answer that is always reachable,

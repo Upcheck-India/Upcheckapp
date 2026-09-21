@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
+import { StaleNotice } from '../../../components/ui/CacheNotice';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
 import { theme } from '../../../theme';
@@ -132,7 +133,8 @@ export const SamplingHistoryScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            {isLoading ? (
+            <StaleNotice visible={!!error && records.length > 0} />
+            {isLoading && records.length === 0 ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
             ) : error && records.length === 0 ? (
                 <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={handleRetry} />

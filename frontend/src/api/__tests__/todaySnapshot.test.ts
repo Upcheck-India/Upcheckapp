@@ -57,6 +57,16 @@ describe('the fast path', () => {
 
         expect(snap.briefing.map((b) => b.pondId).sort()).toEqual(['p1', 'p2']);
     });
+
+    // It used to fall back to [] — a timed-out read silently dropped those
+    // alerts and the thinner answer replaced the cached one. Failing lets the
+    // screen keep its last full copy and mark it stale.
+    it('fails rather than dropping the persisted alerts when that read fails', async () => {
+        today.mockResolvedValue({ data: { contexts: [], briefing: [alert('p1')] } });
+        briefing.mockRejectedValue(new Error('timeout'));
+
+        await expect(fetchTodaySnapshot(['farm-1'])).rejects.toThrow('timeout');
+    });
 });
 
 describe('the fallback, for a backend older than the app', () => {

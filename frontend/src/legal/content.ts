@@ -32,7 +32,68 @@ export const LEGAL_META = {
   deletionUrl: 'https://upcheck.in/account-deletion',
   /** Days before residual backup copies are rotated out after deletion. */
   deletionGraceDays: 30,
+  // ── Grievance contact (DPDP published particulars, spec C2.3) ──
+  // TODO(human): NOT YET DECIDED. Fill these in once a grievance officer is
+  // named and the registered address / CIN are confirmed. Each line renders in
+  // the policy ONLY when filled — never invent a value here.
+  grievanceOfficerName: '',
+  grievanceOfficerDesignation: '',
+  grievanceEmail: '',
+  postalAddress: '',
+  registeredAddress: '',
+  cin: '',
 };
+
+/**
+ * The version a consent row records (user_consents.doc_version). Bump it with
+ * `lastUpdated` whenever the Privacy Policy or Terms change materially: every
+ * signed-in user then sees the "what changed" sheet once and a fresh row is
+ * recorded. 2026-09-21 is the first tracked version.
+ */
+export const LEGAL_VERSION = '2026-09-21';
+
+/**
+ * What the "what changed" sheet lists for LEGAL_VERSION. English only, like
+ * the rest of this file. Replace the list when LEGAL_VERSION is bumped.
+ */
+export const POLICY_CHANGES = [
+  'Every company that handles your data is now named, with where it is kept (sections 5 and 7).',
+  'A table of how long each kind of data is kept (section 8).',
+  'The app no longer asks for call-log access, and location is district-level only (section 4).',
+  'Your consent choices are now recorded with the date and policy version, and how to withdraw them is spelled out (section 9).',
+  'New and off unless you switch it on: letting your farm records or photos help improve Neerani\'s advice (section 3).',
+];
+
+/** Published particulars, only the lines that have actually been filled in. */
+const GRIEVANCE_LINES = [
+  LEGAL_META.grievanceOfficerName &&
+    `Grievance Officer: ${LEGAL_META.grievanceOfficerName}` +
+      (LEGAL_META.grievanceOfficerDesignation ? `, ${LEGAL_META.grievanceOfficerDesignation}` : ''),
+  LEGAL_META.grievanceEmail && `Grievance email: ${LEGAL_META.grievanceEmail}`,
+  LEGAL_META.postalAddress && `Postal address: ${LEGAL_META.postalAddress}`,
+  LEGAL_META.registeredAddress && `Registered office: ${LEGAL_META.registeredAddress}`,
+  LEGAL_META.cin && `CIN: ${LEGAL_META.cin}`,
+]
+  .filter(Boolean)
+  .map((line) => `${line}\n`)
+  .join('');
+
+/**
+ * DRAFT — PENDING LAWYER REVIEW (spec C3). Replacement for Terms §3 once
+ * counsel approves it. Deliberately NOT wired into TERMS below; the in-app
+ * toggle ships without it, and the Privacy Policy (sections 2, 3, 9) already
+ * describes the opt-in.
+ */
+export const PENDING_LAWYER_TERMS_S3_DRAFT =
+  'You own the farm data and content you enter. You give us a limited licence to store, process ' +
+  'and display it for the sole purpose of operating the Service for you and your farm team.\n\n' +
+  'We do not use your farm data or photos to train models — ours or anyone else\'s — unless you ' +
+  'switch that on in Settings → Privacy → "Help improve Neerani\'s advice". Farm records and ' +
+  'photos are separate choices. Switching either off stops any future use of that data for ' +
+  'training. Your name, phone number and money figures are never used for training.\n\n' +
+  'Export your important records and keep your own copies. The app can produce PDF, CSV and ' +
+  'Excel exports at any time. No online service should be your only copy of something that ' +
+  'matters.';
 
 export const PRIVACY_POLICY: LegalBlock[] = [
   {
@@ -75,8 +136,9 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       'converted to WebP format and their embedded metadata — including any location tag your device ' +
       'recorded — is stripped before storage; a small thumbnail is generated alongside the full ' +
       'image. A photo is visible to members of the farm the record belongs to, per their role, and ' +
-      'is used only for that record and for exports you generate from it — never to train any model, ' +
-      'ours or anyone else\'s. If we ever build a feature that analyses a photo automatically (for ' +
+      'is used only for that record and for exports you generate from it. It is never used to train ' +
+      'any model unless you switch on photos under "Help improve Neerani\'s advice" (section 3), and ' +
+      'never to train anyone else\'s. If we ever build a feature that analyses a photo automatically (for ' +
       'example, image-based disease detection), we will ask for your separate, specific consent ' +
       'before turning it on, and this policy will describe it before it launches.\n\n' +
       'Team and attendance — who belongs to a farm, their role, and attendance or task records an ' +
@@ -107,6 +169,13 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       'you to consent twice for the same act. Retaining a record to meet a legal obligation, or ' +
       'disclosing data to comply with a court order or a request from a government agency legally ' +
       'entitled to make one, rests on Section 7\'s legitimate uses for compliance with law.\n\n' +
+      'Improving Neerani\'s advice (model training) is a separate purpose with its own consent, and it ' +
+      'is OFF unless you switch it on in Settings → Privacy → "Help improve Neerani\'s advice". Farm ' +
+      'records and photos are two separate switches: you may allow one and refuse the other. If you ' +
+      'allow it, we may use those records or photos to improve the advice the app gives. We never use ' +
+      'your name, phone number or money figures for this. Switching it off stops any future use, and a ' +
+      'training dataset only ever includes data from people whose switch is on at the time it is ' +
+      'built.\n\n' +
       'What we do NOT do, and will not start doing quietly:\n' +
       '• We do not sell your personal data. Not to anyone, for any price.\n' +
       '• We do not use your data for third-party advertising, and we carry no ad networks.\n' +
@@ -246,6 +315,16 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       'the purpose it was collected for; know who else we have shared your data with; get a way to ' +
       'raise a grievance with us; and nominate someone to exercise these rights on your behalf if ' +
       'you become incapacitated or die.\n\n' +
+      'Withdrawing consent. You can withdraw any consent as easily as you gave it:\n' +
+      '• Product analytics and crash reporting — switch them off in Settings → Privacy.\n' +
+      '• Model training — switch off farm records, photos or both in Settings → Privacy → "Help ' +
+      'improve Neerani\'s advice".\n' +
+      '• The core Service — storing your records and running the features you use — cannot run ' +
+      'without your data, so withdrawing that consent means closing your account (Profile → Delete ' +
+      'Account).\n' +
+      'Withdrawal stops future processing for that purpose; it does not undo processing already ' +
+      'done. Each time you give or withdraw a consent we record the choice, the date, the policy ' +
+      'version and the language it was shown in, so there is a record of what you agreed to.\n\n' +
       `Write to ${LEGAL_META.contactEmail} to exercise any of these. We aim to respond promptly, ` +
       'and in any case no later than 90 days.\n\n' +
       'If you are unhappy with how we have handled your data, tell us first — we would rather fix it ' +
@@ -276,7 +355,8 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       'We may update this policy as the Service changes. If a change materially affects your rights ' +
       'or what we collect, we will tell you in the app or by email before it takes effect — not by ' +
       'silently editing this page. The "last updated" date at the top always reflects the current ' +
-      'version.',
+      'version. When the version changes, the app shows you a short summary of what changed the next ' +
+      'time you open it, and records that you have seen it.',
   },
   {
     heading: '13. Language, and how to reach us',
@@ -288,6 +368,7 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       'write to us and we will explain it.\n\n' +
       `${LEGAL_META.company}\n` +
       `Email: ${LEGAL_META.contactEmail}\n` +
+      GRIEVANCE_LINES +
       'Tamil Nadu, India.',
   },
 ];
