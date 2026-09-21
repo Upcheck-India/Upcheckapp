@@ -290,10 +290,23 @@ export class TransactionsService {
         );
       }
     }
+    // photoPaths is not an entity column (F5) — handled separately below, or
+    // `.update()` would throw on an unmapped property.
+    const { photoPaths, ...columns } = updateDto;
     await this.transactionsRepository.update(id, {
-      ...updateDto,
+      ...columns,
       updatedById: userId,
     });
+    if (photoPaths !== undefined) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.transactionsRepository.manager,
+        'transactions',
+        'transaction',
+        existing.farmId,
+        id,
+        photoPaths,
+      );
+    }
     return this.transactionsRepository.findOneBy({ id });
   }
 

@@ -787,6 +787,7 @@ export class HarvestsService {
       rejectedReason,
       confirmOutOfRange,
       harvestType,
+      photoPaths,
       ...fields
     } = dto;
     // Immutable (H2): a full harvest closed the cycle. Old builds resend the
@@ -809,6 +810,20 @@ export class HarvestsService {
     }
     if (fields.harvestDate) {
       assertHarvestDate(fields.harvestDate, existing.crop.stockingDate);
+    }
+    // F5: the weighing slip is money evidence too — same VIEW_FINANCIALS
+    // gate as salePriceTotal/buyerName above.
+    const slipPaths = canView ? photoPaths : undefined;
+    if (slipPaths !== undefined) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.harvestsRepository.manager,
+        'harvests',
+        'harvest',
+        (await this.farmAccess.assertCanAccessPond(userId, existing.crop.pondId, 'RECORD_HARVEST')).farmId,
+        id,
+        slipPaths,
+        existing.cropId,
+      );
     }
 
     if (!grades && rejectedKg === undefined && rejectedReason === undefined) {

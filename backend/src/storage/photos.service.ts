@@ -259,7 +259,7 @@ export class PhotosService {
     let rows: any[];
     try {
       rows = await this.db.query(
-        `SELECT o.path, o.entity, o.record_id, o.uploaded_at, ${PROTECTED} AS protected
+        `SELECT o.path, o.entity, o.record_id, o.crop_id, o.farm_id, o.uploaded_at, ${PROTECTED} AS protected
          FROM photo_objects o WHERE ${where}
          ORDER BY o.uploaded_at DESC LIMIT ${limit}`,
         params,
@@ -279,6 +279,10 @@ export class PhotosService {
       entity: r.entity ?? null,
       title: ENTITY_TITLES[r.entity] ?? r.entity ?? 'Photo',
       recordId: r.record_id ?? null,
+      // For the tap-to-open mapping (F6): most record screens are keyed by
+      // crop or farm, not the pond this tab is already scoped to.
+      cropId: r.crop_id ?? null,
+      farmId: r.farm_id ?? null,
       uploadedAt: r.uploaded_at,
       protected: !!r.protected,
       money: MONEY_ENTITIES.has(r.entity),

@@ -107,6 +107,42 @@ export class PhotosController {
     return { path: await this.healthPhotoStorage.upload(farmId, file, user.id) };
   }
 
+  /**
+   * F5: delete a not-yet-saved F5 upload — the farmer tapped ✕ before
+   * submitting the form it belongs to. Mirrors
+   * HealthObservationsController.removePhoto exactly (assertFarmPaths then
+   * enqueue), scoped by pond instead of owner so it works even when the
+   * upload counts against the farm owner's pool rather than the uploader's
+   * (a worker's photo). A path already on a saved record is removed by that
+   * record's own PATCH with the path dropped, never here.
+   */
+  @Delete('upload/pond/:pondId')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
+  async removeForPond(
+    @Param('pondId', ParseUUIDPipe) pondId: string,
+    @Body() dto: RemovePhotoDto,
+    @CurrentUser() user,
+  ) {
+    const pond = await this.farmAccess.assertCanAccessPond(user.id, pondId, 'READ');
+    this.healthPhotoStorage.assertFarmPaths(pond.farmId, [dto.path]);
+    await this.healthPhotoStorage.remove([dto.path], 'photo_removed', user.id);
+    return { removed: true };
+  }
+
+  @Delete('upload/farm/:farmId')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Farm', 'farmId', 'userId', 'READ')
+  async removeForFarm(
+    @Param('farmId', ParseUUIDPipe) farmId: string,
+    @Body() dto: RemovePhotoDto,
+    @CurrentUser() user,
+  ) {
+    this.healthPhotoStorage.assertFarmPaths(farmId, [dto.path]);
+    await this.healthPhotoStorage.remove([dto.path], 'photo_removed', user.id);
+    return { removed: true };
+  }
+
   private requireSurface(key: string, scope: 'pond' | 'farm') {
     const surface = PHOTO_SURFACES[key as SurfaceKey];
     if (!surface || surface.scope !== scope) {

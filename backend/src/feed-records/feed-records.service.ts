@@ -246,14 +246,26 @@ export class FeedRecordsService {
       );
     }
 
-    // isFasting is not a persisted column — strip it before the update. (`id`
-    // and pondId are not on UpdateFeedRecordDto at all: S1.)
-    const { isFasting: _isFasting, recordedAt, ...columns } = updateDto;
+    // isFasting/photoPaths are not persisted columns — strip before the
+    // update (`id` and pondId are not on UpdateFeedRecordDto at all: S1).
+    const { isFasting: _isFasting, recordedAt, photoPaths, ...columns } = updateDto;
     await this.recordsRepository.update(id, {
       ...columns,
       ...(recordedAt ? { recordedAt: new Date(recordedAt) } : {}),
       ...(userId ? { updatedById: userId } : {}),
     });
+    if (photoPaths !== undefined && userId) {
+      const pond = await this.pondsService.findOneAccessible(existing.pondId, userId, 'WRITE_OPERATIONAL');
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.recordsRepository.manager,
+        'feed_records',
+        'feed_record',
+        pond.farmId,
+        id,
+        photoPaths,
+        existing.cropId,
+      );
+    }
     return this.findOne(id);
   }
 

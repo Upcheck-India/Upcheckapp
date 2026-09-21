@@ -409,9 +409,22 @@ export class InventoryService {
   }
 
   async update(id: string, updateDto: UpdateInventoryItemDto, userId: string) {
-    const { farms } = await this.loadItem(id, userId, 'MANAGE_INVENTORY');
+    const { item, farms } = await this.loadItem(id, userId, 'MANAGE_INVENTORY');
+    // photoPaths is not an entity column (F5) — handled separately below, or
+    // `.update()` would throw on an unmapped property.
+    const { photoPaths, ...columns } = updateDto;
     // farmId is not on the DTO (D14) — an item cannot change farms.
-    await this.itemsRepository.update(id, updateDto);
+    await this.itemsRepository.update(id, columns);
+    if (photoPaths !== undefined) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.itemsRepository.manager,
+        'inventory',
+        'inventory',
+        item.farmId!,
+        id,
+        photoPaths,
+      );
+    }
     const saved = await this.itemsRepository.findOneBy({ id });
 
     /**

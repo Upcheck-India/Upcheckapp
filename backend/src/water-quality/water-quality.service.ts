@@ -378,11 +378,25 @@ export class WaterQualityService {
     updateDto: UpdateWaterQualityRecordDto,
     userId: string,
   ) {
-    await this.findOne(id, userId); // Verify access
+    const existing = await this.findOne(id, userId); // Verify access
+    // photoPath is not an entity column (F5) — handled separately below, or
+    // `.update()` would throw on an unmapped property.
+    const { photoPath, ...columns } = updateDto;
     await this.recordsRepository.update(id, {
-      ...updateDto,
+      ...columns,
       updatedById: userId,
     });
+    if (photoPath !== undefined) {
+      const pond = await this.pondsService.findOneAccessible(existing.pondId, userId, 'WRITE_OPERATIONAL');
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.recordsRepository.manager,
+        'water_quality_records',
+        'water_quality',
+        pond.farmId,
+        id,
+        photoPath ? [photoPath] : [],
+      );
+    }
     return this.findOne(id, userId);
   }
 

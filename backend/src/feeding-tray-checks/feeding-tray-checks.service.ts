@@ -101,11 +101,25 @@ export class FeedingTrayChecksService {
     updateDto: UpdateFeedingTrayCheckDto,
     userId?: string,
   ): Promise<FeedingTrayCheck> {
-    await this.findOne(id);
+    const existing = await this.findOne(id);
+    // photoPath is not an entity column (F5) — handled separately below, or
+    // `.update()` would throw on an unmapped property.
+    const { photoPath, ...columns } = updateDto;
     await this.checksRepository.update(id, {
-      ...updateDto,
+      ...columns,
       ...(userId ? { updatedById: userId } : {}),
     });
+    if (photoPath !== undefined && userId) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.checksRepository.manager,
+        'feeding_tray_checks',
+        'feeding_tray_check',
+        await this.farmIdOfCrop(existing.cropId),
+        id,
+        photoPath ? [photoPath] : [],
+        existing.cropId,
+      );
+    }
     return this.findOne(id);
   }
 

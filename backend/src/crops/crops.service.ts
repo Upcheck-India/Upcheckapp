@@ -252,8 +252,22 @@ export class CropsService {
   async update(id: string, updateCropDto: UpdateCropDto, userId: string) {
     // Matches the route's WRITE_MANAGEMENT gate. `findOne` would demand
     // VIEW_FINANCIALS and 403 a member the owner granted WRITE_MANAGEMENT.
-    await this.findOneAccessible(id, userId, 'WRITE_MANAGEMENT');
-    await this.cropsRepository.update(id, updateCropDto);
+    const crop = await this.findOneAccessible(id, userId, 'WRITE_MANAGEMENT');
+    // photoPaths is not an entity column (F5) — handled separately below, or
+    // `.update()` would throw on an unmapped property.
+    const { photoPaths, ...columns } = updateCropDto;
+    await this.cropsRepository.update(id, columns);
+    if (photoPaths !== undefined) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.cropsRepository.manager,
+        'crops',
+        'crop',
+        crop.farmId ?? (await this.pondsService.findOneAccessible(crop.pondId, userId, 'READ')).farmId,
+        id,
+        photoPaths,
+        id,
+      );
+    }
     return this.findOneAccessible(id, userId, 'WRITE_MANAGEMENT');
   }
 
