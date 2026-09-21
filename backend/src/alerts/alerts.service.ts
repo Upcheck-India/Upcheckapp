@@ -51,6 +51,12 @@ export class AlertsService {
     severity: 'info' | 'warning' | 'critical' = 'info',
     data?: Record<string, any>,
     pondId?: string,
+    /**
+     * C5.2: some callers' `message` embeds a pond name (e.g. water quality) —
+     * the alert-center row keeps that detail, but the push notification must
+     * not. When set, this replaces `message` in the push body only.
+     */
+    pushMessage?: string,
   ) {
     const alert = this.alertsRepository.create({
       userId,
@@ -69,7 +75,7 @@ export class AlertsService {
     // Best-effort Expo push to the owner; reflect the outcome on the row.
     const pushed = await this.pushService.sendToUser(userId, {
       title,
-      body: message,
+      body: pushMessage ?? message,
       data: { alertId: saved.id, type, ...(data ?? {}) },
     });
     if (pushed) {

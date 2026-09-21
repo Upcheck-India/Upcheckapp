@@ -179,6 +179,59 @@ describe('AlertsService', () => {
     });
   });
 
+  describe('createAutoAlert', () => {
+    it('C5.2: pushMessage, when given, replaces the alert message in the push body only', async () => {
+      const push = (service as any).pushService as { sendToUser: jest.Mock };
+      (repository.create as jest.Mock).mockReturnValue(mockAlert);
+      (repository.save as jest.Mock).mockResolvedValue({ ...mockAlert, id: 'alert-2' });
+
+      await service.createAutoAlert(
+        'user-1',
+        'farm-1',
+        'water_quality',
+        'Low pH Alert',
+        'pH level 5.2 is below critical minimum of 6.0 in pond Kovalam East',
+        'critical',
+        undefined,
+        'pond-1',
+        'A water quality alert needs your attention. Open the app for details.',
+      );
+
+      expect(push.sendToUser).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({
+          title: 'Low pH Alert',
+          body: 'A water quality alert needs your attention. Open the app for details.',
+        }),
+      );
+      // The stored alert row keeps the detailed message.
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'pH level 5.2 is below critical minimum of 6.0 in pond Kovalam East',
+        }),
+      );
+    });
+
+    it('falls back to the alert message in the push when no pushMessage is given', async () => {
+      const push = (service as any).pushService as { sendToUser: jest.Mock };
+      (repository.create as jest.Mock).mockReturnValue(mockAlert);
+      (repository.save as jest.Mock).mockResolvedValue({ ...mockAlert, id: 'alert-3' });
+
+      await service.createAutoAlert(
+        'user-1',
+        'farm-1',
+        'inventory_low_stock',
+        'Low Stock Alert',
+        'Feed is running low (2 kg).',
+      );
+
+      expect(push.sendToUser).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ body: 'Feed is running low (2 kg).' }),
+      );
+    });
+  });
+
   describe('getUnreadCount', () => {
     it('should return unread alert count for a user', async () => {
       const userId = 'user-1';
