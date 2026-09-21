@@ -4,22 +4,28 @@ import { R2StorageService } from './r2-storage.service';
 import { PhotoDeletionService, type PhotoDeletionReason } from './photo-deletion.service';
 import { LIVE_BYTES, NOT_PENDING, PHOTO_QUOTA, PhotoLedgerService } from './photo-ledger.service';
 import { removedPhotoTombstone } from '../health-observations/photo-removal.util';
+import { MONEY_ENTITIES } from './photo-surfaces';
 
 const isMissingSchema = (err: any) =>
   ['42P01', '42703'].includes(err?.code ?? err?.driverError?.code);
 
 /**
- * §F2.4 protected photos, for the rules whose data exists today:
- * - attached to a disease record carrying a banned/restricted substance flag (D3).
- * The column `protected` is the hook for the rest (set it, it sticks).
- * Skipped until their data exists (no invented schema):
- * - seed PCR certificate — crops store the PCR result, no certificate photo;
- * - cycle input record already generated — D4 builds it on demand, no persisted marker;
- * - harvest weighing slip within 12 months — harvests have no photos yet (F5).
+ * §F2.4 protected photos:
+ * - attached to a disease record carrying a banned/restricted substance flag (D3);
+ * - a seed PCR certificate (D5) — protected unconditionally, F5 gave this real data;
+ * - a harvest's buyer's weighing slip, within 12 months of the harvest (F5);
+ * - the column `protected` is the hook for the rest (set it, it sticks) —
+ *   still skipped: "cycle input record already generated" (D4 builds it on
+ *   demand, no persisted marker).
  */
-export const PROTECTED = `(o.protected OR (o.entity = 'disease' AND EXISTS (
-  SELECT 1 FROM disease_records dr
-  WHERE dr.id = o.record_id AND dr.banned_substance_flag IN ('banned', 'restricted'))))`;
+export const PROTECTED = `(o.protected
+  OR (o.entity = 'disease' AND EXISTS (
+    SELECT 1 FROM disease_records dr
+    WHERE dr.id = o.record_id AND dr.banned_substance_flag IN ('banned', 'restricted')))
+  OR o.entity = 'crop'
+  OR (o.entity = 'harvest' AND EXISTS (
+    SELECT 1 FROM harvests h
+    WHERE h.id = o.record_id AND h.harvest_date > (now() - interval '12 months'))))`;
 
 /**
  * The caller's own pool, and only while they still own the farm: a farm that
@@ -37,6 +43,39 @@ const RECORD_TABLES: { table: string; note: string | null }[] = [
 ];
 
 const num = (v: unknown) => Number(v ?? 0);
+
+/**
+ * F6: what a photo "belongs to", by `photo_objects.entity`. A static label
+ * per entity type, not a per-record join (a per-record detail like a
+ * diagnosis name needs a table-specific join for each of 14 entities — this
+ * gives the tab its grouping/filtering without the N+1 cost; a later pass
+ * can enrich to "Health check — white feces" once the tab proves it's worth it).
+ * ponytail: static label, not a per-record title join.
+ */
+const ENTITY_TITLES: Record<string, string> = {
+  health_observation: 'Health check',
+  mortality: 'Mortality record',
+  disease: 'Disease record',
+  expense: 'Expense — receipt',
+  transaction: 'Transaction — receipt',
+  harvest: 'Harvest — weighing slip',
+  treatment: 'Treatment — input label',
+  feed_record: 'Feed record — input label',
+  inventory: 'Inventory item — input label',
+  crop: 'Stocking — seed PCR certificate',
+  pond: 'Pond photo',
+  farm: 'Farm photo',
+  water_quality: 'Water quality — colour',
+  feeding_tray_check: 'Feed tray check',
+};
+
+const FILTER_ENTITIES: Record<string, Set<string> | null> = {
+  all: null,
+  health: new Set(['health_observation', 'mortality', 'disease']),
+  money: MONEY_ENTITIES,
+  inputs: new Set(['treatment', 'feed_record', 'inventory', 'crop']),
+  pond: new Set(['pond', 'water_quality', 'feeding_tray_check', 'farm']),
+};
 
 export interface PondUsage { pondId: string | null; name: string | null; photos: number; bytes: number }
 export interface FarmUsage { farmId: string; name: string | null; photos: number; bytes: number; ponds: PondUsage[] }
@@ -193,6 +232,56 @@ export class PhotosService {
       uploadedAt: r.uploaded_at,
       bytes: num(r.bytes),
       protected: !!r.protected,
+      url: full[i] ?? null,
+      thumbUrl: thumb[i] ?? null,
+    }));
+  }
+
+  /**
+   * F6: the pond Photos tab — a VIEW over records, never an album (§2). Every
+   * row names the record it belongs to (a static per-entity label, see
+   * ENTITY_TITLES) and carries the record's id so the app can open it.
+   * `canViewFinancials` strips money rows entirely rather than masking one
+   * field, because the row's only content IS the money photo (§F5/§F6).
+   * READ capability on the pond is checked by the controller before this runs.
+   */
+  async feedForPond(
+    pondId: string,
+    opts: { canViewFinancials: boolean; category?: string; before?: string; limit?: number },
+  ) {
+    const limit = Math.min(200, Math.max(1, opts.limit ?? 50));
+    const params: any[] = [pondId];
+    let where = `o.pond_id = $1 AND ${NOT_PENDING} AND o.namespace = 'health'`;
+    if (opts.before) {
+      params.push(opts.before);
+      where += ` AND o.uploaded_at < $${params.length}`;
+    }
+    let rows: any[];
+    try {
+      rows = await this.db.query(
+        `SELECT o.path, o.entity, o.record_id, o.uploaded_at, ${PROTECTED} AS protected
+         FROM photo_objects o WHERE ${where}
+         ORDER BY o.uploaded_at DESC LIMIT ${limit}`,
+        params,
+      );
+    } catch (err) {
+      if (isMissingSchema(err)) return [];
+      throw err;
+    }
+
+    rows = rows.filter((r) => opts.canViewFinancials || !MONEY_ENTITIES.has(r.entity));
+    const wanted = FILTER_ENTITIES[opts.category ?? 'all'];
+    if (wanted) rows = rows.filter((r) => wanted.has(r.entity));
+
+    const { full, thumb } = await this.storage.sign('health', rows.map((r) => r.path));
+    return rows.map((r, i) => ({
+      path: r.path,
+      entity: r.entity ?? null,
+      title: ENTITY_TITLES[r.entity] ?? r.entity ?? 'Photo',
+      recordId: r.record_id ?? null,
+      uploadedAt: r.uploaded_at,
+      protected: !!r.protected,
+      money: MONEY_ENTITIES.has(r.entity),
       url: full[i] ?? null,
       thumbUrl: thumb[i] ?? null,
     }));
