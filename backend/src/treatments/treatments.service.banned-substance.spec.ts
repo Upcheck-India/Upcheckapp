@@ -6,6 +6,7 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import { BANNED_LIST_VERSION } from '../banned-substances/banned-substances.data';
 import { ComplianceService } from '../compliance/compliance.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 /**
  * BANNED-1 write-time flag — server-evaluated, independent of anything the
@@ -34,6 +35,7 @@ describe('TreatmentsService — banned-substance write-time flag (BANNED-1)', ()
         { provide: FarmAccessService, useValue: {} },
         { provide: ComplianceService, useValue: { escalate: jest.fn() } },
         { provide: InventoryService, useValue: {} },
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } },
       ],
     }).compile();
     service = module.get(TreatmentsService);

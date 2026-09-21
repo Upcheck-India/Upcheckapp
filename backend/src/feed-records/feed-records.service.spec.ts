@@ -8,6 +8,7 @@ import { FeedRecord } from './feed-record.entity';
 import { PondsService } from '../ponds/ponds.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 // Mock repository factory
 const createMockRepository = () => ({
@@ -72,6 +73,7 @@ describe('FeedRecordsService', () => {
             assertCanAccessPond: jest.fn().mockResolvedValue(undefined),
           },
         },
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } },
       ],
     }).compile();
 

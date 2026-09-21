@@ -87,6 +87,7 @@ const build = (over: any = {}) => {
     harvestsService as any,
     farmAccess as any,
     transactionsRepository as any,
+    { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } as any,
   );
   return {
     service,

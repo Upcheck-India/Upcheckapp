@@ -43,6 +43,7 @@ function makeService() {
     ponds as any,
     alerts as any,
     farmAccess as any,
+    { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } as any,
   );
   return { service, repo, alerts, order, releasePush };
 }

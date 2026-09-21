@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { FeedingTrayChecksService } from './feeding-tray-checks.service';
 import { FeedingTrayCheck } from './feeding-tray-check.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 const CLIENT_ID = '11111111-1111-1111-1111-111111111111';
 
@@ -22,6 +23,7 @@ describe('FeedingTrayChecksService — idempotent create (SYNC-2 offline replay)
         FeedingTrayChecksService,
         { provide: getRepositoryToken(FeedingTrayCheck), useValue: repo },
         { provide: FarmAccessService, useValue: {} },
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } },
       ],
     }).compile();
     service = module.get(FeedingTrayChecksService);
