@@ -15,6 +15,7 @@ import { FarmMembersModule } from './farm-members/farm-members.module';
 import { FarmsModule } from './farms/farms.module';
 import { AuthModule } from './auth/auth.module';
 import { RedisModule } from './redis/redis.module';
+import { ResponseCacheModule } from './common/response-cache';
 import { PondsModule } from './ponds/ponds.module';
 import { CropsModule } from './crops/crops.module';
 import { WaterQualityModule } from './water-quality/water-quality.module';
@@ -200,6 +201,7 @@ import { AdminAccessLogModule } from './admin-access-log/admin-access-log.module
     FarmsModule,
     AuthModule,
     RedisModule,
+    ResponseCacheModule,
     PondsModule,
     CropsModule,
     WaterQualityModule,

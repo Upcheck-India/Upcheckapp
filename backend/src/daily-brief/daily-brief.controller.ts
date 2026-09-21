@@ -1,4 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
+import { CachedRead } from '../common/response-cache';
 import { IsDateString, IsOptional, IsUUID, Matches } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { DailyBriefService } from './daily-brief.service';
@@ -24,6 +25,7 @@ export class DailyBriefController {
   constructor(private readonly service: DailyBriefService) {}
 
   @Get()
+  @CachedRead(60)
   get(@CurrentUser() user, @Query() q: DailyBriefQueryDto) {
     return this.service.get(user.id, q);
   }
