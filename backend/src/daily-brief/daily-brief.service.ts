@@ -114,24 +114,22 @@ export class DailyBriefService {
     } else {
       farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
     }
-    const perFarm = await Promise.all(
-      farmIds.map(async (farmId) => {
-        const [grant, pondIds] = await Promise.all([
-          this.farmAccess.getMembershipOnFarm(userId, farmId),
-          this.farmAccess.getAccessiblePondIds(userId, farmId, 'READ'),
-        ]);
-        const can = (c: Parameters<typeof roleSatisfies>[1]) =>
-          roleSatisfies(grant.role, c, grant.overrides, grant.policy);
-        return {
-          farmId,
-          pondIds,
-          fin: can('VIEW_FINANCIALS'),
-          inv: can('VIEW_INVENTORY'),
-          mgmt: can('WRITE_MANAGEMENT'),
-        };
-      }),
-    );
-    const pondIds = perFarm.flatMap((f) => f.pondIds);
+    // Set-based across farms (a fixed handful of queries), not 5–6 per farm.
+    const [grants, pondIds] = await Promise.all([
+      this.farmAccess.getMembershipsOnFarms(userId, farmIds),
+      this.farmAccess.getAccessiblePondIdsForFarms(userId, farmIds, 'READ'),
+    ]);
+    const perFarm = farmIds.map((farmId) => {
+      const grant = grants.get(farmId)!;
+      const can = (c: Parameters<typeof roleSatisfies>[1]) =>
+        roleSatisfies(grant.role, c, grant.overrides, grant.policy);
+      return {
+        farmId,
+        fin: can('VIEW_FINANCIALS'),
+        inv: can('VIEW_INVENTORY'),
+        mgmt: can('WRITE_MANAGEMENT'),
+      };
+    });
     const canViewFinancials = perFarm.length > 0 && perFarm.every((f) => f.fin);
     const canSeeAttendance = perFarm.length > 0 && perFarm.every((f) => f.mgmt);
     const invFarmIds = perFarm.filter((f) => f.inv).map((f) => f.farmId);

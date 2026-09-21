@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../../query/hooks';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
@@ -29,16 +29,10 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
     // `cropId` is only sent while the pond has an ACTIVE cycle.
     const { pondId, cropId, pondName, farmId } = route.params;
     const { canRecordHarvest } = usePermissions(farmId);
-    const [records, setRecords] = useState<HarvestRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [error, setError] = useState<any>(null);
-
-    const fetchRecords = useCallback(async (forceRefresh = false) => {
-        if (!forceRefresh) setIsLoading(true);
-        setError(null);
-
-        try {
+    // Paints the last list instantly and revalidates on every focus.
+    const { data, isInitialLoading: isLoading, isRefreshing, error, refresh: handleRefresh } = useCachedFetch(
+        ['harvestHistory', pondId ?? null, cropId ?? null],
+        async (): Promise<HarvestRecord[]> => {
             /*
              * A pond, when we have one, beats a single crop: harvests run
              * across successive cycles on the same pond and the farmer is
@@ -50,37 +44,16 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
              * tonnage, summed into "total harvested", on a screen a farmer
              * reads as one pond's record. No scope, no list.
              */
-            if (!pondId && !cropId) {
-                setRecords([]);
-                return;
-            }
+            if (!pondId && !cropId) return [];
             const { data } = pondId
                 ? await harvestsApi.getByPond(pondId)
                 : await harvestsApi.getByCrop(cropId);
             const result: HarvestRecord[] = Array.isArray(data) ? data : (data as any)?.data ?? [];
-            result.sort((a, b) => new Date(b.harvestDate).getTime() - new Date(a.harvestDate).getTime());
-            setRecords(result);
-        } catch (err) {
-            setError(err);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [pondId, cropId]);
-
-    // Refetch on focus, not just mount — this screen stays mounted in the
-    // stack, so logging a new reading and navigating back never showed it.
-    useFocusEffect(useCallback(() => { fetchRecords(); }, [fetchRecords]));
-
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
-
-    const handleRetry = useCallback(() => {
-        setIsLoading(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
+            return result.sort((a, b) => new Date(b.harvestDate).getTime() - new Date(a.harvestDate).getTime());
+        },
+    );
+    const records = data ?? [];
+    const handleRetry = handleRefresh;
 
     const totalBiomass = records.reduce((sum, r) => sum + (Number(r.weightKg) || 0), 0);
 

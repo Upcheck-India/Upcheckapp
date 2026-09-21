@@ -156,9 +156,12 @@ export class PondsService {
    * Return all ponds belonging to any farm owned by the given user.
    */
   async findAllForUser(userId: string): Promise<Pond[]> {
-    // Ponds across every farm the user can access (owner or worker).
+    // Ponds across every farm the user can access (owner or worker) — and,
+    // for a pond-scoped member, only the ponds they were given (#217).
     const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
     if (farmIds.length === 0) return [];
+    const pondIds = await this.farmAccess.getAccessiblePondIdsForFarms(userId, farmIds);
+    if (pondIds.length === 0) return [];
     return this.pondsRepository
       .createQueryBuilder('pond')
       .innerJoin(
@@ -167,7 +170,7 @@ export class PondsService {
         'farm.id = pond.farm_id AND farm.deleted_at IS NULL',
       )
       .leftJoinAndSelect('pond.activeCycle', 'activeCycle')
-      .where('pond.farm_id IN (:...farmIds)', { farmIds })
+      .where('pond.id IN (:...pondIds)', { pondIds })
       .andWhere('pond.status != :archived', { archived: 'archived' })
       .orderBy('pond.name', 'ASC')
       .getMany();

@@ -1,4 +1,5 @@
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CachedRead } from '../common/response-cache';
 import { OwnershipGuard } from '../common/guards/ownership.guard';
 import { OwnsResource } from '../common/decorators/owns-resource.decorator';
 import {
@@ -32,6 +33,7 @@ export class PondsController {
   }
 
   @Get('mine')
+  @CachedRead(120)
   findAllForUser(@CurrentUser() user) {
     return this.pondsService.findAllForUser(user.id);
   }

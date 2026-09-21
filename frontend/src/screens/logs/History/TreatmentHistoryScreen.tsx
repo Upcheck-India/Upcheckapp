@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../../query/hooks';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
@@ -33,43 +33,19 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
             : r.dosageKg != null
               ? `${r.dosageKg} kg`
               : null;
-    const [records, setRecords] = useState<TreatmentRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [error, setError] = useState<any>(null);
-
-    const fetchRecords = useCallback(async (forceRefresh = false) => {
-        if (!forceRefresh) setIsLoading(true);
-        setError(null);
-
-        try {
+    // Paints the last list instantly and revalidates on every focus.
+    const { data, isInitialLoading: isLoading, isRefreshing, error, refresh: handleRefresh } = useCachedFetch(
+        ['treatmentHistory', cropId ?? null],
+        async (): Promise<TreatmentRecord[]> => {
             const { data } = cropId
                 ? await treatmentsApi.getByCrop(cropId)
                 : await treatmentsApi.getAll();
             const result: TreatmentRecord[] = Array.isArray(data) ? data : [];
-            result.sort((a, b) => new Date(b.treatmentDate || b.createdAt || '').getTime() - new Date(a.treatmentDate || a.createdAt || '').getTime());
-            setRecords(result);
-        } catch (err) {
-            setError(err);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [cropId]);
-
-    // Refetch on focus, not just mount — this screen stays mounted in the
-    // stack, so logging a new reading and navigating back never showed it.
-    useFocusEffect(useCallback(() => { fetchRecords(); }, [fetchRecords]));
-
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
-
-    const handleRetry = useCallback(() => {
-        setIsLoading(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
+            return result.sort((a, b) => new Date(b.treatmentDate || b.createdAt || '').getTime() - new Date(a.treatmentDate || a.createdAt || '').getTime());
+        },
+    );
+    const records = data ?? [];
+    const handleRetry = handleRefresh;
 
     const renderItem = ({ item }: { item: TreatmentRecord }) => (
         <Card style={styles.card}>

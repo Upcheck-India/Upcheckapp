@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../../query/hooks';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
@@ -15,44 +15,21 @@ import { formatDate } from '../../../utils/formatDate';
 export const SamplingHistoryScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { pondId, pondName, cropId } = route.params;
-    const [records, setRecords] = useState<SamplingRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [error, setError] = useState<any>(null);
-
-    const fetchRecords = useCallback(async (forceRefresh = false) => {
-        if (!forceRefresh) setIsLoading(true);
-        setError(null);
-
-        try {
+    // Paints the last list instantly and revalidates on every focus.
+    const { data, isInitialLoading: isLoading, isRefreshing, error, refresh: handleRefresh, setData } = useCachedFetch(
+        ['samplingHistory', pondId ?? null, cropId ?? null],
+        async (): Promise<SamplingRecord[]> => {
             const { data } = cropId
                 ? await samplingApi.getByCrop(cropId)
                 : await samplingApi.getAll();
             const result: SamplingRecord[] = Array.isArray(data) ? data : [];
             const filtered = cropId ? result : result.filter((r) => r.pondId === pondId);
-            filtered.sort((a, b) => new Date(b.samplingDate).getTime() - new Date(a.samplingDate).getTime());
-            setRecords(filtered);
-        } catch (err) {
-            setError(err);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [pondId, cropId]);
-
-    // Refetch on focus, not just mount — this screen stays mounted in the
-    // stack, so logging a new reading and navigating back never showed it.
-    useFocusEffect(useCallback(() => { fetchRecords(); }, [fetchRecords]));
-
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
-
-    const handleRetry = useCallback(() => {
-        setIsLoading(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
+            return filtered.sort((a, b) => new Date(b.samplingDate).getTime() - new Date(a.samplingDate).getTime());
+        },
+    );
+    const records = data ?? [];
+    const handleRetry = handleRefresh;
+    const setRecords = (fn: (prev: SamplingRecord[]) => SamplingRecord[]) => setData((prev) => fn(prev ?? []));
 
     const handleDelete = useCallback((item: SamplingRecord) => {
         Alert.alert(
