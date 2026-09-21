@@ -65,7 +65,7 @@ Most items `AUDIT.md` (2026-06-01) flagged as broken were **fixed in the remedia
 | Treatments: log, history, edit/delete | WIRED | FE has a banned-substance guard; **no matching BE validation** (FE-only guardrail). |
 | Disease records (per-crop) + **real library picker** | WIRED | `DiseaseLogScreen` fetches library, renders chip picker — **no hardcoded UUID** (old audit issue fixed). |
 | Disease **severity** on log | PARTIAL | FE hardcodes `'Mild'` instead of using the library's `severityLevel`. *Minor — Gap L2.* |
-| **Photo upload** (mortality/disease) | PARTIAL | Entities + API accept `images[]`/`photoUrls[]`, but **no image-picker UI** and **no compression**. Blueprint wants ≤800px compression. *Gap L3.* |
+| **Photo upload** (mortality/disease) | WIRED | Shipped as F0: image-picker UI, WebP conversion + thumbnail, Cloudflare R2 storage, 1-hour signed URLs. *Gap L3 closed.* |
 | Tasks: create, list, status, delete | WIRED | `TaskListScreen` ↔ `tasks.controller.ts`. |
 | Tasks: **assign-to / priority** UI | PARTIAL | Fields exist in API+BE; **no FE form** to set them. *Minor.* |
 
@@ -133,7 +133,7 @@ Mapped to the workstreams in `UPCHECK_LAUNCH_PLAN.md`. **Verify-or-fix, not buil
 - **X3 — Offline writes not queued/drained** (`syncStore` orphaned). Wire core record writes (feed/WQ/sampling/mortality) to enqueue-on-failure + drain-on-reconnect; generalize the working `measurementSync` pattern; add client-UUID idempotency. → Plan **OFF-1…4 / D2**.
 - **E1 — Push delivery (verify)**: confirm alert creation actually sends an Expo push + flips `is_push_sent` on a real device. → Plan **PUSH-1**.
 - **A1 — Reset-password landing**: add an in-app deep-link screen or change the Supabase redirect. → Plan **AUTH-2**.
-- **L3 — Photo capture + compression**: add image pickers for mortality/disease + ≤800px compression before upload. → Plan **PERF-2**.
+- **L3 — Photo capture + compression**: shipped (F0) — image pickers for mortality/disease/other records, WebP conversion + thumbnail before upload to Cloudflare R2. → Plan **PERF-2**, closed.
 - **X1 — Feature-flag system**: add `src/config/features.ts` and hide the PARTIAL/DEAD screens below so nothing broken ships.
 
 ### [P2] Build to completion (in-app features previously listed as cut)

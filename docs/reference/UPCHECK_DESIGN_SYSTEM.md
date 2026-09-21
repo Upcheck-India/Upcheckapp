@@ -116,7 +116,7 @@ Subtle and fast (target 2 GB devices): 150–250 ms transitions, standard easing
 
 ## 9. Imagery & data
 
-- Photos (mortality/disease) compressed to ≤ 800 px before upload; shown in consistent rounded thumbnails.
+- Photos (mortality/disease, and other record types) are converted to WebP with metadata stripped and a thumbnail generated, before upload to Cloudflare R2; shown in consistent rounded thumbnails.
 - **No lorem ipsum, no placeholder/sample data, no fake counts in production.** Empty means a real empty state.
 - Charts: clean, labeled axes, single accent; only where they aid decisions; never on the worker daily path.
 

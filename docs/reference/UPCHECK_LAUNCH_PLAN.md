@@ -165,7 +165,7 @@ Organized by area. Each item: what to do + where. **Most are verify-or-fix, not 
 
 ### H. Low-end device & UX polish (blueprint §11.4)
 - **PERF-1** Cold start < 3s on a 2GB device; skeletons not spinners on the home/record screens.
-- **PERF-2** Image compression on upload (≤800px) before Supabase Storage — verify it exists for mortality/disease photos.
+- **PERF-2** ~~Image compression on upload (≤800px) before Supabase Storage~~ — shipped (F0): photos are converted to WebP with a thumbnail and stored in Cloudflare R2, not Supabase Storage.
 - **PERF-3** No heavy charts on the primary worker flow.
 
 ### I. Test & CI hardening
@@ -190,7 +190,7 @@ Execute **only after Sections A–I are green** and the app is feature-complete 
 6. Run the **full migration chain** against the new `DATABASE_URL`: `cd backend && DATABASE_URL=... npm run migration:run`. Assert: expected table count (≈33) + disease seed rows present.
 7. Apply the **auth trigger** (`supabase_setup.sql`) in the new project. Test: create a throwaway auth user → confirm a `public.users` row appears. **If this step is skipped, login silently produces orphaned auth users — this was the original breakage.**
 8. Configure Supabase Auth in the new project: email templates, **OAuth providers (Google)**, redirect URLs (incl. the reset-password route from AUTH-2), OTP settings, allowed redirect origins.
-9. Storage: recreate buckets used (mortality/disease photos, avatars) with the same names + access policy.
+9. Storage: photos live in Cloudflare R2 (one bucket, prefixed by category), not Supabase Storage, so this step is a no-op for photos on a Supabase cutover — recreate only Supabase-hosted storage, if any, with the same names + access policy.
 
 **Wire the apps to the new project**
 10. Backend (Render): set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `JWT_SECRET`, Redis URL. Add the `migration:run` release step (DB-1).

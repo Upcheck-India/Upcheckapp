@@ -187,7 +187,7 @@ For each: **purpose · key elements · primary action · role notes**. Route nam
 ### 5.7 Log-form pattern (`WaterQualityLog`, `FeedLog`, `SamplingLog`, `MortalityLog`, `TreatmentLog`, `ChemicalLog`, `PlanktonLog`, `MicrobiologyLog`, `DiseaseLog`, `HarvestLog`)
 - **Shared anatomy:** context header (pond + active cycle + date, pre-filled) → grouped inputs (number pads/steppers/chips) → optional notes → optional **photo** (mortality/disease) → single **Save**.
 - **On save:** threshold check may raise an alert (water quality); success toast; return to Pond Dashboard with the entry in Recent.
-- **Build deltas:** add **photo picker + ≤800 px compression** (Gap L3); DiseaseLog uses library `severityLevel` not hardcoded "Mild" (L2); feed/treatment chips for type/brand.
+- **Build deltas:** ~~add photo picker + ≤800 px compression~~ (Gap L3 — shipped in F0 as image-picker + WebP conversion/thumbnail to Cloudflare R2); DiseaseLog uses library `severityLevel` not hardcoded "Mild" (L2); feed/treatment chips for type/brand.
 
 ### 5.8 History pattern (`*History` screens)
 - List sorted newest-first; filter by date/cycle; row → edit/delete (forgiving). Charts where useful (sampling growth, FCR trend) but **not on the worker daily path** (P10/PERF).
