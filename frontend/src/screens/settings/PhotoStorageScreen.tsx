@@ -19,10 +19,19 @@ import { Button } from '../../components/ui/Button';
 import { PhotoStrip } from '../../components/ui/PhotoStrip';
 import { theme } from '../../theme';
 import { useUIStore } from '../../store/uiStore';
-import { photosApi, type FreeUpOption, type PhotoItem, type PhotoUsage } from '../../api/photos';
+import {
+    photosApi,
+    type BackupCycle,
+    type FreeUpOption,
+    type PhotoItem,
+    type PhotoRetention,
+    type PhotoUsage,
+} from '../../api/photos';
 import { formatBytes, groupByMonth, poolFraction, poolLevel } from '../../features/photoStorage';
 import { formatDate } from '../../utils/formatDate';
 import { PhotoPoolLine } from '../../components/photos/PhotoPool';
+import { RetentionNoticeCard } from '../../components/photos/PhotoRetention';
+import { useSavePhotos } from '../../components/photos/useSavePhotos';
 
 const c = theme.roles.light;
 
@@ -40,6 +49,10 @@ export const PhotoStorageScreen = ({ navigation, route }: any) => {
     const [loading, setLoading] = useState(false);
     const [failed, setFailed] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [retention, setRetention] = useState<PhotoRetention | null>(null);
+    const [cycles, setCycles] = useState<BackupCycle[] | null>(null);
+    // F4: every "save" on this screen is the same zip-and-share flow.
+    const { save, progress } = useSavePhotos((message, type) => showToast({ message, type }));
 
     const count = (n: number) => t('storage.photoCount', { count: n });
 
@@ -55,6 +68,8 @@ export const PhotoStorageScreen = ({ navigation, route }: any) => {
             } else {
                 const { data } = await photosApi.usage();
                 setUsage(data);
+                // F3: the permanent retention line + the notice; never blocks the screen.
+                photosApi.retention().then((r) => setRetention(r.data)).catch(() => undefined);
             }
         } catch {
             setFailed(true);
@@ -64,7 +79,20 @@ export const PhotoStorageScreen = ({ navigation, route }: any) => {
     }, [detail, params?.pondId, params?.farmId]);
 
     // Usage changes elsewhere (every upload, every record delete).
-    useFocusEffect(useCallback(() => { load(); setOptions(null); }, [load]));
+    useFocusEffect(useCallback(() => { load(); setOptions(null); setCycles(null); }, [load]));
+
+    // F4.3: "Back up my photos" — every cycle that has photos, one zip each.
+    const openBackup = async () => {
+        setBusy(true);
+        try {
+            const { data } = await photosApi.backupCycles();
+            setCycles(data);
+        } catch {
+            setFailed(true);
+        } finally {
+            setBusy(false);
+        }
+    };
 
     const openFreeUp = async () => {
         setBusy(true);
@@ -148,6 +176,12 @@ export const PhotoStorageScreen = ({ navigation, route }: any) => {
             </View>
 
             {failed && <Text style={styles.error}>{t('storage.loadFailed')}</Text>}
+            {progress && (
+                <View style={styles.progress}>
+                    <ActivityIndicator color={c.primary} />
+                    <Text style={styles.note}>{progress}</Text>
+                </View>
+            )}
 
             {detail ? (
                 items && items.length === 0 ? (
@@ -155,7 +189,22 @@ export const PhotoStorageScreen = ({ navigation, route }: any) => {
                 ) : (
                     groupByMonth(items ?? []).map((g) => (
                         <View key={g.month}>
-                            <Text style={styles.section}>{formatDate(`${g.month}-15`, { month: 'long', year: 'numeric' })}</Text>
+                            <View style={styles.farmRow}>
+                                <Text style={[styles.section, { flex: 1 }]}>{formatDate(`${g.month}-15`, { month: 'long', year: 'numeric' })}</Text>
+                                {/* F4.2: one pond-month → a zip. */}
+                                {params?.pondId && (
+                                    <TouchableOpacity
+                                        onPress={() => void save({ pondId: params.pondId!, month: g.month })}
+                                        disabled={!!progress}
+                                        hitSlop={12}
+                                        accessibilityRole="button"
+                                        style={styles.saveBtn}
+                                    >
+                                        <MaterialCommunityIcons name="folder-zip-outline" size={18} color={progress ? c.textDisabled : c.primary} />
+                                        <Text style={[styles.saveText, !!progress && { color: c.textDisabled }]}>{t('storage.backup.saveThese')}</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
                             <Card style={styles.card}>
                                 {g.items.map((it) => (
                                     <View key={it.path} style={styles.itemRow}>
@@ -207,7 +256,16 @@ export const PhotoStorageScreen = ({ navigation, route }: any) => {
                             {t('storage.limitRule', { photos: usage.limits.photos, bytes: formatBytes(usage.limits.bytes) })}
                         </Text>
                         {usage.incomplete && <Text style={styles.note}>{t('storage.incomplete')}</Text>}
+                        {/* F3: the rule, permanently, with the oldest photo still at full size. */}
+                        <Text style={styles.note}>
+                            {t('storage.retention.rule')}
+                            {retention?.oldestFullAt
+                                ? ` ${t('storage.retention.oldest', { date: formatDate(retention.oldestFullAt, { day: 'numeric', month: 'short', year: 'numeric' }) })}`
+                                : ''}
+                        </Text>
                     </Card>
+
+                    {retention?.upcoming && <RetentionNoticeCard upcoming={retention.upcoming} onBackup={openBackup} />}
 
                     {usage.farms.length === 0 && usage.account.photos === 0 && (
                         <Text style={styles.note}>{t('storage.empty')}</Text>
@@ -246,6 +304,39 @@ export const PhotoStorageScreen = ({ navigation, route }: any) => {
                         </Card>
                     )}
 
+                    {cycles === null ? (
+                        <View style={{ marginBottom: theme.spacing[3] }}>
+                            <Button title={t('storage.backup.button')} variant="outlined" onPress={openBackup} loading={busy} disabled={usage.photos === 0} />
+                        </View>
+                    ) : (
+                        <>
+                            <Text style={styles.section}>{t('storage.backup.button')}</Text>
+                            <Text style={[styles.note, { marginBottom: theme.spacing[3] }]}>{t('storage.backup.intro')}</Text>
+                            {cycles.length === 0 && <Text style={styles.note}>{t('storage.backup.nothing')}</Text>}
+                            {cycles.length > 0 && (
+                                <Card style={styles.card}>
+                                    {cycles.map((cy) => (
+                                        <TouchableOpacity
+                                            key={cy.cropId}
+                                            style={styles.pondRow}
+                                            disabled={!!progress}
+                                            onPress={() => void save({ cropId: cy.cropId })}
+                                            accessibilityRole="button"
+                                        >
+                                            <View style={{ flex: 1, minWidth: 0 }}>
+                                                <Text style={styles.rowSub} numberOfLines={1}>
+                                                    {[cy.farmName, cy.pondName, cy.name].filter(Boolean).join(' · ')}
+                                                </Text>
+                                                <Text style={styles.rowSubMuted}>{count(cy.photos)} · {formatBytes(cy.bytes)}</Text>
+                                            </View>
+                                            <MaterialCommunityIcons name="folder-zip-outline" size={20} color={progress ? c.textDisabled : c.primary} />
+                                        </TouchableOpacity>
+                                    ))}
+                                </Card>
+                            )}
+                        </>
+                    )}
+
                     {options === null ? (
                         <Button title={t('storage.freeUp')} variant="outlined" onPress={openFreeUp} loading={busy} disabled={usage.photos === 0} />
                     ) : (
@@ -253,12 +344,13 @@ export const PhotoStorageScreen = ({ navigation, route }: any) => {
                             <Text style={styles.section}>{t('storage.freeUp')}</Text>
                             <Text style={[styles.note, { marginBottom: theme.spacing[3] }]}>{t('storage.freeUpIntro')}</Text>
                             {options.length === 0 && <Text style={styles.note}>{t('storage.nothingToFree')}</Text>}
-                            {(['crop', 'pond'] as const).map((kind) => {
+                            {(['old', 'crop', 'pond'] as const).map((kind) => {
                                 const list = options.filter((o) => o.kind === kind);
                                 if (!list.length) return null;
+                                const heading = { old: t('storage.olderThanYear'), crop: t('storage.closedCycles'), pond: t('storage.ponds') }[kind];
                                 return (
                                     <Card key={kind} style={styles.card}>
-                                        <Text style={styles.rowLabel}>{kind === 'crop' ? t('storage.closedCycles') : t('storage.ponds')}</Text>
+                                        <Text style={styles.rowLabel}>{heading}</Text>
                                         {list.map((o) => (
                                             <TouchableOpacity
                                                 key={o.id}
@@ -269,7 +361,9 @@ export const PhotoStorageScreen = ({ navigation, route }: any) => {
                                             >
                                                 <View style={{ flex: 1, minWidth: 0 }}>
                                                     <Text style={styles.rowSub} numberOfLines={1}>
-                                                        {[o.farmName, o.pondName, o.name].filter(Boolean).join(' · ')}
+                                                        {o.kind === 'old'
+                                                            ? t('storage.olderThanYearNote')
+                                                            : [o.farmName, o.pondName, o.name].filter(Boolean).join(' · ')}
                                                     </Text>
                                                     <Text style={styles.rowSubMuted}>
                                                         {count(o.photos)} · {t('storage.willFree', { bytes: formatBytes(o.bytes) })}
@@ -304,6 +398,9 @@ const styles = StyleSheet.create({
     },
     backBtn: { padding: theme.spacing[1] },
     headerTitle: { ...theme.typeScale.h3, color: c.textPrimary, flex: 1 },
+    progress: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2], marginBottom: theme.spacing[3] },
+    saveBtn: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1], marginBottom: theme.spacing[2], minHeight: 32 },
+    saveText: { ...theme.typeScale.labelMedium, color: c.primary },
     section: {
         ...theme.typeScale.labelLarge,
         color: c.textPrimary,

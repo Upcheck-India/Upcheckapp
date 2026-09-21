@@ -26,7 +26,7 @@ export const LEGAL_META = {
   governingLaw: 'India',
   jurisdiction: 'Chennai, Tamil Nadu',
   effectiveDate: '5 September 2026',
-  lastUpdated: '21 September 2026',
+  lastUpdated: '22 September 2026',
   privacyUrl: 'https://upcheck.in/privacy',
   termsUrl: 'https://upcheck.in/terms',
   deletionUrl: 'https://upcheck.in/account-deletion',
@@ -48,20 +48,18 @@ export const LEGAL_META = {
  * The version a consent row records (user_consents.doc_version). Bump it with
  * `lastUpdated` whenever the Privacy Policy or Terms change materially: every
  * signed-in user then sees the "what changed" sheet once and a fresh row is
- * recorded. 2026-09-21 is the first tracked version.
+ * recorded. 2026-09-21 is the first tracked version; 2026-09-22 adds photo
+ * retention (photos spec F3) and photo reports (F7.8).
  */
-export const LEGAL_VERSION = '2026-09-21';
+export const LEGAL_VERSION = '2026-09-22';
 
 /**
  * What the "what changed" sheet lists for LEGAL_VERSION. English only, like
  * the rest of this file. Replace the list when LEGAL_VERSION is bumped.
  */
 export const POLICY_CHANGES = [
-  'Every company that handles your data is now named, with where it is kept (sections 5 and 7).',
-  'A table of how long each kind of data is kept (section 8).',
-  'The app no longer asks for call-log access, and location is district-level only (section 4).',
-  'Your consent choices are now recorded with the date and policy version, and how to withdraw them is spelled out (section 9).',
-  'New and off unless you switch it on: letting your farm records or photos help improve Neerani\'s advice (section 3).',
+  'Photos: the full-size photo is kept for 12 months, then only a small version is kept. The app warns you at least 30 days before, and you can save your photos at any time (sections 2 and 8).',
+  'A farm member can report a photo that does not belong in the app; our staff may then view that photo to handle the report (section 2).',
 ];
 
 /** Published particulars, only the lines that have actually been filled in. */
@@ -136,7 +134,10 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       'converted to WebP format and their embedded metadata — including any location tag your device ' +
       'recorded — is stripped before storage; a small thumbnail is generated alongside the full ' +
       'image. A photo is visible to members of the farm the record belongs to, per their role, and ' +
-      'is used only for that record and for exports you generate from it. It is never used to train ' +
+      'is used only for that record and for exports you generate from it. The full-size photo is ' +
+      'kept for 12 months; after that we keep only the small version (see section 8). You can save ' +
+      'your photos to your phone at any time from the app. If a farm member reports a photo as not ' +
+      'belonging in the app, our staff may view that photo to handle the report, and only then. It is never used to train ' +
       'any model unless you switch on photos under "Help improve Neerani\'s advice" (section 3), and ' +
       'never to train anyone else\'s. If we ever build a feature that analyses a photo automatically (for ' +
       'example, image-based disease detection), we will ask for your separate, specific consent ' +
@@ -279,9 +280,12 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       '• Farm logs and records (ponds, cycles, water quality, feeding, sampling, mortality, ' +
       'chemical, plankton, microbiology, disease, treatment, harvest, inventory, expenses, ' +
       'transactions, tasks) — while the farm they belong to exists.\n' +
-      '• Photos — while the record they are attached to exists. Deleting a record, a farm, or your ' +
-      'account queues its photos for removal from storage; a short periodic clean-up job then ' +
-      'deletes them, so removal follows shortly after rather than instantly.\n' +
+      '• Photos — the full-size photo for 12 months from when it was added; after that only the ' +
+      'small version is kept, for as long as the record it is attached to exists. The app tells you ' +
+      'at least 30 days before any of your photos are reduced, and you can save them at any time ' +
+      'before or after. Deleting a record, a farm, or your account queues its photos (both sizes) ' +
+      'for removal from storage; a short periodic clean-up job then deletes them, so removal ' +
+      'follows shortly after rather than instantly.\n' +
       '• Email verification codes — 10 minutes, then they expire and cannot be reused.\n' +
       '• Photo links (the signed URLs used to view a photo) — 1 hour, then they stop working and a ' +
       'new one is generated on demand.\n' +

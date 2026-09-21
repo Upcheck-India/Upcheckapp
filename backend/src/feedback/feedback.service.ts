@@ -8,13 +8,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FeedbackReport } from './feedback.entity';
 import { FeedbackNote } from './feedback-note.entity';
-import { FeedbackStorageService } from './feedback-storage.service';
+import { FeedbackStorageService, REPORTED_PHOTO_PREFIX } from './feedback-storage.service';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 import { PushService } from '../push/push.service';
 import { EmailService } from '../email.service';
 import {
   AddFeedbackNoteDto,
   CreateFeedbackDto,
   ListFeedbackDto,
+  ReportPhotoDto,
   UpdateFeedbackDto,
 } from './dto/feedback.dto';
 import type { FeedbackCategory, FeedbackStatus } from './feedback-status';
@@ -61,6 +63,7 @@ export class FeedbackService {
     private readonly storage: FeedbackStorageService,
     private readonly push: PushService,
     private readonly email: EmailService,
+    private readonly access: FarmAccessService,
   ) {}
 
   // ──────────────────────────────── farmer ────────────────────────────────
@@ -68,16 +71,39 @@ export class FeedbackService {
   async create(userId: string, dto: CreateFeedbackDto): Promise<FeedbackView> {
     const paths = dto.attachmentPaths ?? [];
     this.assertOwnsPaths(userId, paths);
-
-    const report = this.repo.create({
-      userId,
+    return this.submit(userId, {
       farmId: dto.farmId ?? null,
       category: dto.category as FeedbackCategory,
       subject: dto.subject?.trim() || null,
       message: dto.message.trim(),
       attachmentPaths: paths,
-      status: 'new',
     });
+  }
+
+  /**
+   * F7.8 "Report this photo" (Play UGC): a member flags a farm photo. It
+   * lands in the same inbox as every other report, with the photo REFERENCED
+   * (`health/<path>`), not copied — staff see it in the dashboard; the
+   * reporter needs READ on the photo's farm.
+   */
+  async reportPhoto(userId: string, dto: ReportPhotoDto): Promise<FeedbackView> {
+    const farmId = dto.path.split('/')[0];
+    await this.access.assertCanAccessFarm(userId, farmId, 'READ');
+    return this.submit(userId, {
+      farmId,
+      category: 'other',
+      subject: 'Reported photo',
+      message: dto.message?.trim() || 'A farm member reported this photo.',
+      attachmentPaths: [`${REPORTED_PHOTO_PREFIX}${dto.path}`],
+    });
+  }
+
+  private async submit(
+    userId: string,
+    fields: Pick<FeedbackReport, 'farmId' | 'category' | 'subject' | 'message' | 'attachmentPaths'>,
+  ): Promise<FeedbackView> {
+    const paths = fields.attachmentPaths;
+    const report = this.repo.create({ userId, ...fields, status: 'new' });
     const saved = await this.repo.save(report);
     await this.storage.attach(paths, saved.id);
 
@@ -191,7 +217,7 @@ export class FeedbackService {
     });
     if (!report) throw new NotFoundException('Report not found');
     const assignees = await this.assigneesFor([id]);
-    return { ...(await this.withUrls(report)), assignee: assignees.get(id) ?? null };
+    return { ...(await this.withUrls(report, true)), assignee: assignees.get(id) ?? null };
   }
 
   /**
@@ -260,7 +286,7 @@ export class FeedbackService {
         .catch(() => undefined);
     }
 
-    return { ...(await this.withUrls(saved)), assignee };
+    return { ...(await this.withUrls(saved, true)), assignee };
   }
 
   // ──────────────────────────────── notes ──────────────────────────────────
@@ -324,9 +350,11 @@ export class FeedbackService {
     }
   }
 
-  private async withUrls(report: FeedbackReport): Promise<FeedbackView> {
+  /** `staff`: also sign reported farm photos (F7.8) — the dashboard only. */
+  private async withUrls(report: FeedbackReport, staff = false): Promise<FeedbackView> {
     const { full, thumb } = await this.storage.signAttachments(
       report.attachmentPaths ?? [],
+      staff,
     );
     return {
       ...report,

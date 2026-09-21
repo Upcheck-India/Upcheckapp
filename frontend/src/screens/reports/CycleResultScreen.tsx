@@ -22,6 +22,8 @@ import { formatINR, groupIndian } from '../../features/inrFormat';
 import { formatDate } from '../../utils/formatDate';
 import { useFlag } from '../../features/remoteFlags';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useUIStore } from '../../store/uiStore';
+import { useSavePhotos } from '../../components/photos/useSavePhotos';
 
 const c = theme.roles.light;
 const BAND_COLOR: Record<Band, string> = { good: c.successText, fair: c.warningText, poor: c.dangerText };
@@ -53,6 +55,9 @@ export const CycleResultScreen = ({ route, navigation }: any) => {
     const loading = resultQuery.isInitialLoading;
     const error = resultQuery.error;
     const { canStartCycle, isOwner, isManager } = usePermissions(data?.farmId);
+    const showToast = useUIStore((s) => s.showToast);
+    const { save: savePhotos, progress: savingPhotos } = useSavePhotos((message, type) => showToast({ message, type }));
+
     const retry = () => {
         void resultQuery.refresh();
         void complianceQuery.refetch();
@@ -277,6 +282,14 @@ export const CycleResultScreen = ({ route, navigation }: any) => {
                         style={styles.action}
                     />
                 )}
+                {/* F4.3: the whole cycle's photos as one zip (any member who can read the pond). */}
+                <Button
+                    title={savingPhotos ?? t('storage.backup.saveCycle')}
+                    variant="outlined"
+                    onPress={() => void savePhotos({ cropId })}
+                    loading={!!savingPhotos}
+                    style={styles.action}
+                />
                 {canStartCycle && data.status !== 'active' && (
                     <Button
                         title={t('reports.startNext')}

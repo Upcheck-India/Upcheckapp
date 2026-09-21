@@ -10,18 +10,20 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { IsIn, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsIn, IsString, IsUUID, MaxLength, ValidateIf } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { OwnershipGuard } from '../common/guards/ownership.guard';
 import { OwnsResource } from '../common/decorators/owns-resource.decorator';
-import { PhotosService } from './photos.service';
+import { PhotosService, type BackupScope, type FreeUpKind } from './photos.service';
 
 export class FreeUpDto {
-  @IsIn(['crop', 'pond'])
-  kind: 'crop' | 'pond';
+  @IsIn(['old', 'crop', 'pond'])
+  kind: FreeUpKind;
 
+  /** The cycle or pond; unused for 'old' (photos older than 12 months). */
+  @ValidateIf((o) => o.kind !== 'old')
   @IsUUID()
-  id: string;
+  id?: string;
 }
 
 export class RemovePhotoDto {
@@ -31,6 +33,8 @@ export class RemovePhotoDto {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const PATH_RE = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp|heic)$/;
+const isUuid = (v?: string): v is string => !!v && UUID_RE.test(v);
 
 /**
  * F2: Settings → Photos & storage. Everything here is scoped to the caller's
@@ -64,6 +68,46 @@ export class PhotosController {
     const id = pondId ?? farmId;
     if (!id || !UUID_RE.test(id)) throw new BadRequestException('pondId or farmId required');
     return this.photos.list(user.id, pondId ? { pondId } : { farmId });
+  }
+
+  /**
+   * F4: signed URLs + photos.csv metadata for one backup batch —
+   * `?recordId=`, `?pondId=&month=YYYY-MM`, or `?cropId=`. READ on the pond
+   * is checked in the service; money photos need VIEW_FINANCIALS.
+   */
+  @Get('backup')
+  backup(
+    @CurrentUser() user,
+    @Query('recordId') recordId?: string,
+    @Query('pondId') pondId?: string,
+    @Query('month') month?: string,
+    @Query('cropId') cropId?: string,
+  ) {
+    let scope: BackupScope;
+    if (isUuid(recordId)) scope = { recordId };
+    else if (isUuid(cropId)) scope = { cropId };
+    else if (isUuid(pondId) && month) scope = { pondId, month };
+    else throw new BadRequestException('recordId, cropId, or pondId + month required');
+    return this.photos.backup(user.id, scope);
+  }
+
+  /** F4: the caller's cycles that have photos ("Back up my photos"). */
+  @Get('backup/cycles')
+  backupCycles(@CurrentUser() user) {
+    return this.photos.backupCycles(user.id);
+  }
+
+  /** F3 / F4 / F7.8: what the viewer needs per photo — `?paths=a,b`, up to 20. */
+  @Get('info')
+  info(@CurrentUser() user, @Query('paths') paths?: string) {
+    const list = (paths ?? '').split(',').filter((p) => PATH_RE.test(p)).slice(0, 20);
+    return this.photos.info(user.id, list);
+  }
+
+  /** F3: oldest full-size photo + the next batch that shrinks (stamps the notice clock). */
+  @Get('retention')
+  retention(@CurrentUser() user) {
+    return this.photos.retention(user.id);
   }
 
   @Get('free-up')

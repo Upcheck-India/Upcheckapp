@@ -74,6 +74,10 @@ export const feedbackApi = {
 
     create: (dto: CreateFeedbackDto) => apiClient.post<FeedbackReport>('/feedback', dto),
 
+    /** F7.8: report a farm photo someone else added — the path is referenced, not re-uploaded. */
+    reportPhoto: (path: string, message?: string) =>
+        apiClient.post<FeedbackReport>('/feedback/report-photo', { path, message }),
+
     mine: () => apiClient.get<FeedbackReport[]>('/feedback'),
 
     one: (id: string) => apiClient.get<FeedbackReport>(`/feedback/${id}`),

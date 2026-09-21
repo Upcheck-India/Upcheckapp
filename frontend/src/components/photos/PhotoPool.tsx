@@ -11,6 +11,7 @@ import { theme } from '../../theme';
 import { photosApi, type PhotoLimits } from '../../api/photos';
 import { poolFraction, poolLevel } from '../../features/photoStorage';
 import { useSyncStore } from '../../store/syncStore';
+import { PhotoRetentionHint } from './PhotoRetention';
 
 const c = theme.roles.light;
 
@@ -44,27 +45,39 @@ export function usePhotoPool(pondId?: string): Pool | null {
     return pool;
 }
 
-export const PhotoPoolLine: React.FC<{ pool: Pool | null; link?: boolean }> = ({ pool, link = true }) => {
+/**
+ * `hint` (default on where the line links, i.e. at the photo picker): the F3
+ * once-per-account retention line, so it appears where photos are added.
+ */
+export const PhotoPoolLine: React.FC<{ pool: Pool | null; link?: boolean; hint?: boolean }> = ({
+    pool,
+    link = true,
+    hint = link,
+}) => {
     const { t } = useTranslation();
     const navigation = useContext(NavigationContext);
-    if (!pool) return null;
+    const retention = hint ? <PhotoRetentionHint /> : null;
+    if (!pool) return retention;
     const level = poolLevel(pool, pool.limits);
-    if (level === 'ok') return null;
+    if (level === 'ok') return retention;
     const text =
         level === 'full'
             ? t('storage.full')
             : t('storage.nearlyFull', { pct: Math.floor(poolFraction(pool, pool.limits) * 100) });
     const line = <Text style={styles.line}>{text}</Text>;
-    if (!link || !navigation) return line;
+    if (!link || !navigation) return <>{line}{retention}</>;
     return (
-        <TouchableOpacity onPress={() => navigation.navigate('PhotoStorage')} accessibilityRole="link" hitSlop={8}>
-            {line}
-        </TouchableOpacity>
+        <>
+            <TouchableOpacity onPress={() => navigation.navigate('PhotoStorage')} accessibilityRole="link" hitSlop={8}>
+                {line}
+            </TouchableOpacity>
+            {retention}
+        </>
     );
 };
 
 /** Settings: the caller's own pool. */
-export const PhotoPoolNote: React.FC = () => <PhotoPoolLine pool={usePhotoPool()} />;
+export const PhotoPoolNote: React.FC = () => <PhotoPoolLine pool={usePhotoPool()} hint={false} />;
 
 const styles = StyleSheet.create({
     line: { ...theme.typeScale.bodySmall, color: c.warningText, marginTop: theme.spacing[1] },
