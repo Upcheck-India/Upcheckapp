@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { getCurrentStaffName } from '@/lib/admin-key';
+import { signOut } from './login/actions';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -9,7 +11,12 @@ export const metadata: Metadata = {
     robots: { index: false, follow: false },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+    // Not present on /login (middleware.ts is what actually gates access —
+    // this is only what the header shows). getCurrentStaffName() never
+    // throws, so /login renders fine with no cookie yet.
+    const staffName = await getCurrentStaffName();
+
     return (
         <html lang="en">
             <body>
@@ -17,6 +24,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <Link href="/">Feedback</Link>
                     <Link href="/announcements">Announcements</Link>
                     <Link href="/access-log">Access log</Link>
+                    {staffName && (
+                        <span className="who">
+                            {staffName}
+                            <form action={signOut} className="signout">
+                                <button type="submit">Sign out</button>
+                            </form>
+                        </span>
+                    )}
                 </nav>
                 <main>{children}</main>
             </body>

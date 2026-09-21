@@ -81,6 +81,15 @@ button:disabled { opacity: .5; cursor: default; }
     display: flex; gap: 16px; padding: 12px 16px; border-bottom: 1px solid var(--line);
 }
 .top-nav a { text-decoration: none; font-weight: 600; font-size: 14px; }
+.top-nav .who {
+    margin-left: auto; display: flex; align-items: center; gap: 8px;
+    color: var(--muted); font-size: 13px;
+}
+.top-nav .signout { display: inline; }
+.top-nav .signout button {
+    border: none; background: none; padding: 0; color: var(--link);
+    font-size: 13px; cursor: pointer; text-decoration: underline;
+}
 
 /* Page header with an action on the right (list pages, detail pages) */
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }

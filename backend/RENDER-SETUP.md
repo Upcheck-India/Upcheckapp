@@ -150,16 +150,18 @@ every admin request must present a key from `ADMIN_STAFF_KEYS` from then on.
 Roll out keys to everyone who needs the dashboard *before* setting this, not
 after, or staff still on the shared key get locked out mid-session.
 
-### 3. Point each dashboard deployment at its person's key
+### 3. Each staffer signs in to the dashboard with their own key
 
-The admin dashboard (`admin/`) itself still holds one key server-side
-(`ADMIN_API_KEY` in its own Vercel env — see `admin/src/lib/feedback.ts`) and
-uses it for every request that deployment makes. Set that Vercel env var to
-one staff member's raw key from step 1 (not the hash). If more than one
-person needs to be individually attributed, they need their own dashboard
-deployment (or env-var switch) pointed at their own key — this spec doesn't
-add per-request login to the dashboard itself, only per-key attribution at
-the backend.
+The admin dashboard (`admin/`) no longer holds one shared key. It has its
+own `/login` page: each staffer pastes their personal raw key from step 1,
+the dashboard validates it against `GET /admin/whoami` and stores it in an
+httpOnly, 8-hour session cookie (`admin/src/lib/admin-key.ts`,
+`admin/src/app/login/`). `middleware.ts` sends anyone without that cookie to
+`/login`, and the signed-in name shows in the header with a sign-out link.
+
+**Remove `ADMIN_API_KEY` from the admin dashboard's Vercel env** once staff
+have keys and are signing in — it's read by nothing in `admin/` anymore.
+(The backend's own `ADMIN_API_KEY` is unrelated and stays — see step 2.)
 
 ### 4. Adding or rotating a person later
 

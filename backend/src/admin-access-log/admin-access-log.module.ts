@@ -4,6 +4,7 @@ import { AdminKeyGuard } from '../feedback/admin-key.guard';
 import { AdminAccessLogController } from './admin-access-log.controller';
 import { AdminAccessLogInterceptor } from './admin-access-log.interceptor';
 import { AdminAccessLogService } from './admin-access-log.service';
+import { AdminWhoamiController } from './admin-whoami.controller';
 
 /**
  * Registers AdminAccessLogInterceptor as APP_INTERCEPTOR here (not in
@@ -12,7 +13,7 @@ import { AdminAccessLogService } from './admin-access-log.service';
  * module instead of scattering providers into app.module.ts.
  */
 @Module({
-  controllers: [AdminAccessLogController],
+  controllers: [AdminAccessLogController, AdminWhoamiController],
   providers: [
     AdminAccessLogService,
     AdminKeyGuard,
