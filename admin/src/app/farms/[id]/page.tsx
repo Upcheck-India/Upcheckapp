@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getFarm } from '@/lib/directory';
+import { ApiError, getFarm } from '@/lib/directory';
 import { formatWhen } from '@/lib/feedback';
 
 export const dynamic = 'force-dynamic';
@@ -11,10 +11,20 @@ export default async function FarmDetailPage({ params }: { params: Promise<{ id:
     try {
         farm = await getFarm(id);
     } catch (err) {
+        const refused = err instanceof ApiError && err.status === 401;
         return (
             <>
                 <p><Link href="/farms">← Farms</Link></p>
-                <p className="error">Could not load this farm. {(err as Error).message}</p>
+                <p className="error">
+                    {refused ? (
+                        <>
+                            Your admin key was refused — it may have been rotated or revoked.{' '}
+                            <Link href="/login">Sign in again</Link>.
+                        </>
+                    ) : (
+                        <>Could not load this farm. {(err as Error).message}</>
+                    )}
+                </p>
             </>
         );
     }

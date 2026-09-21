@@ -13,11 +13,13 @@ export default async function UsersPage({
 
     let results: Awaited<ReturnType<typeof searchUsers>> = [];
     let error: string | null = null;
+    let refused = false;
     if (hasQuery) {
         try {
             results = await searchUsers({ email, phone, id });
         } catch (err) {
-            error = err instanceof ApiError ? err.message : (err as Error).message;
+            refused = err instanceof ApiError && err.status === 401;
+            error = (err as Error).message;
         }
     }
 
@@ -42,7 +44,18 @@ export default async function UsersPage({
                 <button type="submit">Search</button>
             </form>
 
-            {error && <p className="error">{error}</p>}
+            {error && (
+                <p className="error">
+                    {refused ? (
+                        <>
+                            Your admin key was refused — it may have been rotated or revoked.{' '}
+                            <Link href="/login">Sign in again</Link>.
+                        </>
+                    ) : (
+                        error
+                    )}
+                </p>
+            )}
 
             {hasQuery && !error && results.length === 0 && <p className="empty">No match.</p>}
 

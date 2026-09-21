@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { ingestNews } from '@/lib/ops';
+import { ApiError, ingestNews } from '@/lib/ops';
 
 /**
  * Runs ingestion and hands the result back via the redirect's query string —
@@ -13,7 +13,8 @@ export async function runIngest() {
     try {
         result = await ingestNews();
     } catch (err) {
-        redirect(`/news?error=${encodeURIComponent((err as Error).message)}`);
+        const refused = err instanceof ApiError && err.status === 401 ? '&refused=1' : '';
+        redirect(`/news?error=${encodeURIComponent((err as Error).message)}${refused}`);
     }
     redirect(`/news?result=${encodeURIComponent(JSON.stringify(result))}`);
 }

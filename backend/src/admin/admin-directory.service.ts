@@ -17,9 +17,11 @@ import { SearchFarmsDto, SearchUsersDto } from './dto/search-users.dto';
  * personal-data surface, and only staff who already know who they're
  * looking for reach it (exact email/phone/id, or a farm-name prefix).
  *
- * Route params carry the subject id (`/admin/users/:id`, `/admin/farms/:id`)
- * so C5.1's global admin-access-log interceptor can name the subject — this
- * service does not log anything itself.
+ * Subject logging is entirely the controller's job (AdminDirectoryController):
+ * `@AdminSubject('user'|'farm')` on the `:id` detail routes, and
+ * `req.adminSubject` set to the MATCHED result id(s) on the search routes —
+ * never the raw email/phone searched. This service does not log anything
+ * itself.
  */
 const USER_SUMMARY_SELECT = {
   id: true,
@@ -172,14 +174,21 @@ export class AdminDirectoryService {
     };
   }
 
-  /** Measurement rows logged in the last 30 days across this farm's ponds. */
+  /**
+   * Measurement rows logged in the last 30 IST calendar days across this
+   * farm's ponds. `AT TIME ZONE 'Asia/Kolkata'` — same reasoning as
+   * AdminOverviewService.logsPerDay: the boundary is IST midnight, not a
+   * rolling 30×24h window from UTC now.
+   */
   private async activityLast30d(farmId: string): Promise<number | null> {
     try {
       const [row] = await this.dataSource.query(
         `SELECT count(*) AS count
          FROM measurements m
          JOIN ponds p ON p.id = m.pond_id
-         WHERE p.farm_id = $1 AND m.created_at >= now() - interval '30 days'`,
+         WHERE p.farm_id = $1
+           AND (m.created_at AT TIME ZONE 'Asia/Kolkata')
+               >= date_trunc('day', now() AT TIME ZONE 'Asia/Kolkata') - interval '30 days'`,
         [farmId],
       );
       return Number(row.count);

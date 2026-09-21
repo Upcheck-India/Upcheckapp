@@ -12,10 +12,11 @@ import {
 /**
  * The inbox.
  *
- * A Server Component: the fetch (and therefore ADMIN_API_KEY) happens on the
- * server and only rendered HTML reaches the staffer's browser. Filters are
- * plain links/a GET form rather than client state — it makes a filtered
- * inbox a shareable URL, and there is no JavaScript to ship.
+ * A Server Component: the fetch (and therefore the signed-in staffer's own
+ * admin key, read via getAdminKey()) happens on the server and only
+ * rendered HTML reaches the staffer's browser. Filters are plain links/a GET
+ * form rather than client state — it makes a filtered inbox a shareable URL,
+ * and there is no JavaScript to ship.
  */
 export const dynamic = 'force-dynamic';
 
@@ -44,9 +45,8 @@ export default async function ReportsPage({
                 <p className="error">
                     {refused ? (
                         <>
-                            The Upcheck API refused this dashboard. Set <code>ADMIN_API_KEY</code>{' '}
-                            on the backend (Render) and here, to the same value — the message
-                            below says which side is unhappy.
+                            Your admin key was refused — it may have been rotated or revoked.{' '}
+                            <Link href="/login">Sign in again</Link>.
                         </>
                     ) : (
                         <>

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ApiError, listPriceFeeds } from '@/lib/ops';
 import { saveFeed } from './actions';
 
@@ -12,11 +13,13 @@ export default async function PricesPage({
 
     let feeds: Awaited<ReturnType<typeof listPriceFeeds>> = [];
     let error: string | null = null;
+    let refused = false;
     if (region) {
         try {
             feeds = await listPriceFeeds(region);
         } catch (err) {
-            error = err instanceof ApiError ? err.message : (err as Error).message;
+            refused = err instanceof ApiError && err.status === 401;
+            error = (err as Error).message;
         }
     }
 
@@ -33,7 +36,18 @@ export default async function PricesPage({
                 <button type="submit" className="secondary">Search</button>
             </form>
 
-            {error && <p className="error">{error}</p>}
+            {error && (
+                <p className="error">
+                    {refused ? (
+                        <>
+                            Your admin key was refused — it may have been rotated or revoked.{' '}
+                            <Link href="/login">Sign in again</Link>.
+                        </>
+                    ) : (
+                        error
+                    )}
+                </p>
+            )}
             {region && !error && feeds.length === 0 && <p className="empty">No feeds for this region.</p>}
 
             {feeds.map((f) => (

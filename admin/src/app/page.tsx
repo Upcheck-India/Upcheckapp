@@ -1,9 +1,11 @@
+import Link from 'next/link';
 import { ApiError, formatBytes, getOverview } from '@/lib/overview';
 
 /**
  * The dashboard home page — read-only aggregate numbers, no per-user data.
- * A Server Component, same reasoning as the reports inbox: the fetch (and
- * ADMIN_API_KEY) stays on the server.
+ * A Server Component: the fetch (and therefore the signed-in staffer's own
+ * admin key, read via getAdminKey()) happens on the server and only
+ * rendered HTML reaches the staffer's browser.
  */
 export const dynamic = 'force-dynamic';
 
@@ -30,8 +32,8 @@ export default async function OverviewPage() {
                 <p className="error">
                     {refused ? (
                         <>
-                            The Upcheck API refused this dashboard. Set <code>ADMIN_API_KEY</code>{' '}
-                            on the backend (Render) and here, to the same value.
+                            Your admin key was refused — it may have been rotated or revoked.{' '}
+                            <Link href="/login">Sign in again</Link>.
                         </>
                     ) : (
                         <>

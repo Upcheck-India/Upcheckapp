@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { runIngest } from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -5,9 +6,9 @@ export const dynamic = 'force-dynamic';
 export default async function NewsPage({
     searchParams,
 }: {
-    searchParams: Promise<{ result?: string; error?: string }>;
+    searchParams: Promise<{ result?: string; error?: string; refused?: string }>;
 }) {
-    const { result, error } = await searchParams;
+    const { result, error, refused } = await searchParams;
     const parsed = result ? (JSON.parse(result) as { sources: { source: string; fetched: number; inserted: number; skipped: number; error?: string }[] }) : null;
 
     return (
@@ -27,7 +28,18 @@ export default async function NewsPage({
                 </div>
             </div>
 
-            {error && <p className="error">{error}</p>}
+            {error && (
+                <p className="error">
+                    {refused ? (
+                        <>
+                            Your admin key was refused — it may have been rotated or revoked.{' '}
+                            <Link href="/login">Sign in again</Link>.
+                        </>
+                    ) : (
+                        error
+                    )}
+                </p>
+            )}
 
             {parsed && (
                 <>

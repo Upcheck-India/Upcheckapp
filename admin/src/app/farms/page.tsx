@@ -13,11 +13,13 @@ export default async function FarmsPage({
 
     let results: Awaited<ReturnType<typeof searchFarms>> = [];
     let error: string | null = null;
+    let refused = false;
     if (query) {
         try {
             results = await searchFarms(query);
         } catch (err) {
-            error = err instanceof ApiError ? err.message : (err as Error).message;
+            refused = err instanceof ApiError && err.status === 401;
+            error = (err as Error).message;
         }
     }
 
@@ -34,7 +36,18 @@ export default async function FarmsPage({
                 <button type="submit">Search</button>
             </form>
 
-            {error && <p className="error">{error}</p>}
+            {error && (
+                <p className="error">
+                    {refused ? (
+                        <>
+                            Your admin key was refused — it may have been rotated or revoked.{' '}
+                            <Link href="/login">Sign in again</Link>.
+                        </>
+                    ) : (
+                        error
+                    )}
+                </p>
+            )}
 
             {query && query.length < 3 && <p className="empty">Type at least 3 characters.</p>}
             {query && query.length >= 3 && !error && results.length === 0 && <p className="empty">No match.</p>}

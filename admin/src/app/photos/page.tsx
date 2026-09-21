@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { ApiError, FailedDeletion, listFailedDeletions } from '@/lib/ops';
 import { runDrain } from './actions';
 
@@ -6,18 +7,20 @@ export const dynamic = 'force-dynamic';
 export default async function PhotosPage({
     searchParams,
 }: {
-    searchParams: Promise<{ result?: string; error?: string }>;
+    searchParams: Promise<{ result?: string; error?: string; refused?: string }>;
 }) {
-    const { result, error } = await searchParams;
+    const { result, error, refused } = await searchParams;
     const parsed = result ? (JSON.parse(result) as { deleted: number; failed: number }) : null;
 
     let failures: FailedDeletion[];
     let listError: string | null = null;
+    let listRefused = false;
     try {
         failures = await listFailedDeletions();
     } catch (err) {
         failures = [];
-        listError = err instanceof ApiError ? err.message : (err as Error).message;
+        listRefused = err instanceof ApiError && err.status === 401;
+        listError = (err as Error).message;
     }
 
     return (
@@ -37,13 +40,35 @@ export default async function PhotosPage({
                 </div>
             </div>
 
-            {error && <p className="error">{error}</p>}
+            {error && (
+                <p className="error">
+                    {refused ? (
+                        <>
+                            Your admin key was refused — it may have been rotated or revoked.{' '}
+                            <Link href="/login">Sign in again</Link>.
+                        </>
+                    ) : (
+                        error
+                    )}
+                </p>
+            )}
             {parsed && (
                 <p className="sub">Last drain: {parsed.deleted} deleted, {parsed.failed} still failing.</p>
             )}
 
             <h2>Failed deletions ({failures.length})</h2>
-            {listError && <p className="error">{listError}</p>}
+            {listError && (
+                <p className="error">
+                    {listRefused ? (
+                        <>
+                            Your admin key was refused — it may have been rotated or revoked.{' '}
+                            <Link href="/login">Sign in again</Link>.
+                        </>
+                    ) : (
+                        listError
+                    )}
+                </p>
+            )}
             {failures.length === 0 && !listError ? (
                 <p className="empty">Nothing stuck.</p>
             ) : (

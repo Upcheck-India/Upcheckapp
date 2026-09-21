@@ -125,13 +125,24 @@ export class AdminOverviewService {
     }
   }
 
-  /** Last 14 (UTC) calendar days, including days with zero logs. */
+  /**
+   * Last 14 IST calendar days, including days with zero logs. `AT TIME ZONE
+   * 'Asia/Kolkata'` (same day boundary as `toIstDateString()` in
+   * common/ist-date.ts, done in SQL here since this is an aggregate query) —
+   * a plain UTC bucket would misfile anything logged before 05:30 IST onto
+   * the previous day.
+   */
   private async logsPerDay(): Promise<{ date: string; count: number }[]> {
     try {
       const rows = await this.dataSource.query(
-        `SELECT to_char(d::date, 'YYYY-MM-DD') AS date, count(m.id)::int AS count
-         FROM generate_series(current_date - interval '13 days', current_date, interval '1 day') d
-         LEFT JOIN measurements m ON date_trunc('day', m.created_at) = d
+        `SELECT to_char(d, 'YYYY-MM-DD') AS date, count(m.id)::int AS count
+         FROM generate_series(
+                date_trunc('day', now() AT TIME ZONE 'Asia/Kolkata') - interval '13 days',
+                date_trunc('day', now() AT TIME ZONE 'Asia/Kolkata'),
+                interval '1 day'
+              ) d
+         LEFT JOIN measurements m
+           ON date_trunc('day', m.created_at AT TIME ZONE 'Asia/Kolkata') = d
          GROUP BY d ORDER BY d`,
       );
       return rows.map((r: any) => ({ date: r.date, count: Number(r.count) }));
@@ -144,7 +155,13 @@ export class AdminOverviewService {
     }
   }
 
-  /** Only meaningful once F2's photo_objects table lands. */
+  /**
+   * Only meaningful once F2's photo_objects table lands. Column names and the
+   * total-bytes formula per the F2 spec: `bytes_thumb` is always kept, but
+   * `bytes_full` is reclaimed once the full-size copy is dropped
+   * (`full_dropped_at` set) — so a dropped row's full-size bytes don't count
+   * toward the total, only its thumbnail's do.
+   */
   private async storage(): Promise<AdminOverview['storage']> {
     try {
       const [{ exists }] = await this.dataSource.query(
@@ -152,12 +169,16 @@ export class AdminOverviewService {
       );
       if (!exists) return null;
       const [row] = await this.dataSource.query(
-        `SELECT count(*) AS count, coalesce(sum(size_bytes), 0) AS bytes FROM photo_objects`,
+        `SELECT
+           count(*) AS count,
+           coalesce(sum(bytes_thumb), 0)
+             + coalesce(sum(bytes_full) FILTER (WHERE full_dropped_at IS NULL), 0) AS bytes
+         FROM photo_objects`,
       );
       return { objectCount: Number(row.count), totalBytes: Number(row.bytes) };
     } catch (err) {
-      // 42703 covers photo_objects existing with a different size column name
-      // than we guessed — degrade the same as "table doesn't exist yet".
+      // 42703 covers photo_objects existing with different column names than
+      // expected — degrade the same as "table doesn't exist yet".
       if (isMissingSchema(err)) return null;
       throw err;
     }

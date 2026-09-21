@@ -11,8 +11,8 @@ import { addNote, updateReport } from '@/lib/feedback';
  * so the two live on the same submit. (The backend also refuses to leave a
  * replied-to report at `new` — see FeedbackService.update.)
  *
- * A Server Action, so ADMIN_API_KEY stays on the server. The value is read from
- * `@/lib/feedback`, which is `server-only`.
+ * A Server Action, so the staffer's admin key stays on the server. It's read
+ * from `@/lib/feedback`, which is `server-only`.
  */
 export async function saveReport(id: string, formData: FormData) {
     const status = String(formData.get('status') ?? '');

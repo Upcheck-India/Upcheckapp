@@ -14,18 +14,17 @@ export class ApiError extends Error {
     }
 }
 
-function config() {
-    const baseUrl = process.env.UPCHECK_API_URL;
-    const key = getAdminKey();
-    if (!baseUrl || !key) {
-        throw new Error('UPCHECK_API_URL and ADMIN_API_KEY must both be set on this deployment.');
+function baseUrl() {
+    const url = process.env.UPCHECK_API_URL;
+    if (!url) {
+        throw new Error('UPCHECK_API_URL must be set on this deployment.');
     }
-    return { baseUrl: baseUrl.replace(/\/$/, ''), key };
+    return url.replace(/\/$/, '');
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-    const { baseUrl, key } = config();
-    const res = await fetch(`${baseUrl}${path}`, {
+    const key = await getAdminKey();
+    const res = await fetch(`${baseUrl()}${path}`, {
         ...init,
         headers: { 'content-type': 'application/json', 'x-admin-key': key, ...(init?.headers ?? {}) },
         cache: 'no-store',

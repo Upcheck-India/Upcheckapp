@@ -28,12 +28,12 @@ export class ApiError extends Error {
 }
 
 export async function getOverview(): Promise<AdminOverview> {
-    const baseUrl = process.env.UPCHECK_API_URL;
-    const key = getAdminKey();
-    if (!baseUrl || !key) {
-        throw new Error('UPCHECK_API_URL and ADMIN_API_KEY must both be set on this deployment.');
+    const url = process.env.UPCHECK_API_URL;
+    if (!url) {
+        throw new Error('UPCHECK_API_URL must be set on this deployment.');
     }
-    const res = await fetch(`${baseUrl.replace(/\/$/, '')}/admin/overview`, {
+    const key = await getAdminKey();
+    const res = await fetch(`${url.replace(/\/$/, '')}/admin/overview`, {
         headers: { 'x-admin-key': key },
         cache: 'no-store',
     });

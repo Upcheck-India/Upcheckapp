@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import {
+    ApiError,
     getReport,
     listNotes,
     formatWhen,
@@ -19,12 +20,22 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
     try {
         report = await getReport(id);
     } catch (err) {
+        const refused = err instanceof ApiError && err.status === 401;
         return (
             <>
                 <p>
                     <Link href="/reports">← Inbox</Link>
                 </p>
-                <p className="error">Could not load this report. {(err as Error).message}</p>
+                <p className="error">
+                    {refused ? (
+                        <>
+                            Your admin key was refused — it may have been rotated or revoked.{' '}
+                            <Link href="/login">Sign in again</Link>.
+                        </>
+                    ) : (
+                        <>Could not load this report. {(err as Error).message}</>
+                    )}
+                </p>
             </>
         );
     }

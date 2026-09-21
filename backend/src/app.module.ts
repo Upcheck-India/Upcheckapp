@@ -70,6 +70,7 @@ import { HealthObservationsModule } from './health-observations/health-observati
 import { StorageModule } from './storage/storage.module';
 import { AvatarsModule } from './avatars/avatars.module';
 import { AdminModule } from './admin/admin.module';
+import { AdminAccessLogModule } from './admin-access-log/admin-access-log.module';
 
 @Module({
   imports: [
@@ -252,6 +253,7 @@ import { AdminModule } from './admin/admin.module';
     DailyBriefModule,
     HealthObservationsModule,
     AdminModule,
+    AdminAccessLogModule,
   ],
   controllers: [AppController],
   providers: [

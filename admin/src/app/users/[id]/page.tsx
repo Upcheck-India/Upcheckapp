@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getUser } from '@/lib/directory';
+import { ApiError, getUser } from '@/lib/directory';
 import { formatWhen } from '@/lib/feedback';
 
 export const dynamic = 'force-dynamic';
@@ -11,10 +11,20 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
     try {
         user = await getUser(id);
     } catch (err) {
+        const refused = err instanceof ApiError && err.status === 401;
         return (
             <>
                 <p><Link href="/users">← Users</Link></p>
-                <p className="error">Could not load this user. {(err as Error).message}</p>
+                <p className="error">
+                    {refused ? (
+                        <>
+                            Your admin key was refused — it may have been rotated or revoked.{' '}
+                            <Link href="/login">Sign in again</Link>.
+                        </>
+                    ) : (
+                        <>Could not load this user. {(err as Error).message}</>
+                    )}
+                </p>
             </>
         );
     }
