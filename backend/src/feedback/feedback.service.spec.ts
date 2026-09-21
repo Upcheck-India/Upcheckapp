@@ -3,12 +3,25 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { FeedbackService } from './feedback.service';
 import { FeedbackReport } from './feedback.entity';
+import { FeedbackNote } from './feedback-note.entity';
 import { FeedbackStorageService } from './feedback-storage.service';
 import { PushService } from '../push/push.service';
 import { EmailService } from '../email.service';
 
 const MINE = 'farmer-1';
 const THEIRS = 'farmer-2';
+
+/** Chainable stand-in for TypeORM's SelectQueryBuilder, used by findAll. */
+function makeQueryBuilder(rows: any[] = []) {
+  const qb: any = {
+    andWhere: jest.fn().mockReturnThis(),
+    orderBy: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    getMany: jest.fn().mockResolvedValue(rows),
+  };
+  return qb;
+}
 
 describe('FeedbackService', () => {
   let service: FeedbackService;
@@ -17,7 +30,10 @@ describe('FeedbackService', () => {
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
+    query: jest.Mock;
+    createQueryBuilder: jest.Mock;
   };
+  let notesRepo: { find: jest.Mock; create: jest.Mock; save: jest.Mock };
   let storage: { signAttachments: jest.Mock; attach: jest.Mock };
   let push: { sendToUser: jest.Mock };
   let email: { sendFeedbackAlertEmail: jest.Mock };
@@ -28,6 +44,15 @@ describe('FeedbackService', () => {
       findOne: jest.fn(),
       create: jest.fn((x) => x),
       save: jest.fn((x) => Promise.resolve(x)),
+      // assigneesFor()/update()'s raw SQL — empty by default, i.e. the
+      // `assignee` column behaves as "not migrated yet / nobody assigned".
+      query: jest.fn().mockResolvedValue([]),
+      createQueryBuilder: jest.fn(() => makeQueryBuilder([])),
+    };
+    notesRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      create: jest.fn((x) => x),
+      save: jest.fn((x) => Promise.resolve({ id: 'note-1', createdAt: new Date(), ...x })),
     };
     storage = { signAttachments: jest.fn().mockResolvedValue({ full: [], thumb: [] }), attach: jest.fn() };
     push = { sendToUser: jest.fn().mockResolvedValue(true) };
@@ -37,6 +62,7 @@ describe('FeedbackService', () => {
       providers: [
         FeedbackService,
         { provide: getRepositoryToken(FeedbackReport), useValue: repo },
+        { provide: getRepositoryToken(FeedbackNote), useValue: notesRepo },
         { provide: FeedbackStorageService, useValue: storage },
         { provide: PushService, useValue: push },
         { provide: EmailService, useValue: email },
@@ -228,7 +254,13 @@ describe('FeedbackService', () => {
     });
 
     it('degrades the admin list to empty instead of 500ing', async () => {
-      repo.find.mockRejectedValue(undefinedTable);
+      repo.createQueryBuilder.mockReturnValue({
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockRejectedValue(undefinedTable),
+      });
       await expect(service.findAll({})).resolves.toEqual([]);
     });
 
@@ -377,6 +409,86 @@ describe('FeedbackService', () => {
       await expect(
         service.update('r1', { adminResponse: 'Fixed.' }),
       ).resolves.toBeTruthy();
+    });
+  });
+
+  describe('assignee (raw-SQL column, not entity-mapped)', () => {
+    const existing = () => ({
+      id: 'r1',
+      userId: MINE,
+      status: 'new',
+      adminResponse: null,
+      respondedAt: null,
+      respondedBy: null,
+      attachmentPaths: [],
+    });
+
+    it('sets the assignee via raw SQL and returns it', async () => {
+      repo.findOne.mockResolvedValue(existing());
+
+      const result = await service.update('r1', { assignee: 'Priya' });
+
+      expect(repo.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE feedback_reports SET assignee'),
+        ['Priya', 'r1'],
+      );
+      expect(result.assignee).toBe('Priya');
+    });
+
+    it('clears the assignee on an empty string', async () => {
+      repo.findOne.mockResolvedValue(existing());
+      const result = await service.update('r1', { assignee: '  ' });
+      expect(result.assignee).toBeNull();
+    });
+
+    it('degrades to null instead of 500ing when the column is not migrated', async () => {
+      repo.findOne.mockResolvedValue(existing());
+      repo.query.mockRejectedValueOnce(
+        Object.assign(new Error('column "assignee" does not exist'), { code: '42703' }),
+      );
+
+      const result = await service.update('r1', { assignee: 'Priya' });
+
+      expect(result.status).toBe('new'); // the rest of the update still saved
+      expect(result.assignee).toBeNull();
+    });
+
+    it('lists reports with their assignee joined in', async () => {
+      repo.createQueryBuilder.mockReturnValue(
+        makeQueryBuilder([{ id: 'r1', attachmentPaths: [] }]),
+      );
+      repo.query.mockResolvedValue([{ id: 'r1', assignee: 'Priya' }]);
+
+      const [row] = await service.findAll({});
+      expect(row.assignee).toBe('Priya');
+    });
+  });
+
+  describe('notes (append-only)', () => {
+    it('adds a note against an existing report', async () => {
+      repo.findOne.mockResolvedValue({ id: 'r1' });
+
+      const note = await service.addNote('r1', { note: 'Called the farmer.', author: 'Ravi' });
+
+      expect(notesRepo.save).toHaveBeenCalled();
+      expect(note.note).toBe('Called the farmer.');
+      expect(note.author).toBe('Ravi');
+      expect(note.reportId).toBe('r1');
+    });
+
+    it('404s adding a note to an unknown report', async () => {
+      repo.findOne.mockResolvedValue(null);
+      await expect(
+        service.addNote('nope', { note: 'x' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('degrades listNotes to empty when feedback_notes is missing', async () => {
+      const undefinedTable = Object.assign(new Error('relation does not exist'), {
+        code: '42P01',
+      });
+      notesRepo.find.mockRejectedValue(undefinedTable);
+      await expect(service.listNotes('r1')).resolves.toEqual([]);
     });
   });
 });

@@ -71,6 +71,14 @@ export class UpdateFeedbackDto {
   @IsOptional()
   @MaxLength(120)
   respondedBy?: string;
+
+  // Free-text staff name — see feedback.entity.ts's comment on why this is
+  // raw SQL under the hood, not a mapped column. Empty string clears it, same
+  // convention as adminResponse.
+  @IsString()
+  @IsOptional()
+  @MaxLength(120)
+  assignee?: string;
 }
 
 /** Admin list filters. */
@@ -95,4 +103,24 @@ export class ListFeedbackDto {
   @Min(0)
   @IsOptional()
   offset?: number;
+
+  // Free-text search across subject/message (ILIKE, server-side). Short
+  // queries are cheap on a table this size — no full-text index needed yet.
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  q?: string;
+}
+
+/** Admin: append a staff-only note. Notes are never edited, only added. */
+export class AddFeedbackNoteDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(2000)
+  note: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(120)
+  author?: string;
 }

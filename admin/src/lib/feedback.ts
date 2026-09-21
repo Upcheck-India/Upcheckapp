@@ -45,8 +45,18 @@ export interface FeedbackReport {
     adminResponse: string | null;
     respondedAt: string | null;
     respondedBy: string | null;
+    /** null until the backend migration runs, or when nobody is assigned. */
+    assignee: string | null;
     createdAt: string;
     updatedAt: string;
+}
+
+export interface FeedbackNote {
+    id: string;
+    reportId: string;
+    author: string | null;
+    note: string;
+    createdAt: string;
 }
 
 /** Carries the HTTP status so the page can tell refused from unreachable. */
@@ -112,10 +122,12 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 export function listReports(filter: {
     status?: string;
     category?: string;
+    q?: string;
 }): Promise<FeedbackReport[]> {
     const params = new URLSearchParams();
     if (filter.status) params.set('status', filter.status);
     if (filter.category) params.set('category', filter.category);
+    if (filter.q) params.set('q', filter.q);
     params.set('limit', '200');
     return call<FeedbackReport[]>(`/admin/feedback?${params}`);
 }
@@ -126,10 +138,24 @@ export function getReport(id: string): Promise<FeedbackReport> {
 
 export function updateReport(
     id: string,
-    body: { status?: string; adminResponse?: string; respondedBy?: string },
+    body: { status?: string; adminResponse?: string; respondedBy?: string; assignee?: string },
 ): Promise<FeedbackReport> {
     return call<FeedbackReport>(`/admin/feedback/${id}`, {
         method: 'PATCH',
+        body: JSON.stringify(body),
+    });
+}
+
+export function listNotes(reportId: string): Promise<FeedbackNote[]> {
+    return call<FeedbackNote[]>(`/admin/feedback/${reportId}/notes`);
+}
+
+export function addNote(
+    reportId: string,
+    body: { note: string; author?: string },
+): Promise<FeedbackNote> {
+    return call<FeedbackNote>(`/admin/feedback/${reportId}/notes`, {
+        method: 'POST',
         body: JSON.stringify(body),
     });
 }
