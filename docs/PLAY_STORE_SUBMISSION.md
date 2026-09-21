@@ -1,19 +1,22 @@
 # Play Store Submission — Neerani
 
 **Status:** NOT ready to submit. `READ_CALL_LOG`/`ANSWER_PHONE_CALLS` removal
-(§C0.1), the location/district-picker change (§C0.2), iOS string fixes (§C0.3)
-and the photo-deletion fix (F1, gates the deletion answer in Data Safety) are
-required before the next submission and are **pending** — being implemented by
-other agents against `development`, none merged as of 20 Sep 2026. See
-`docs/PLAY_REVIEW_BLOCKERS.md` for the full picture and resubmission order.
+(§C0.1), the location/district-picker change (§C0.2) and the iOS string fixes
+(§C0.3) are **merged to `development`** (PRs #169, #170, #171, 20 Sep 2026) —
+but they only take effect once a new native build (versionCode 14) is produced
+and submitted; the live Play listing still holds build 13. The photo-deletion
+fix (F1, gates the deletion answer in Data Safety) has **not** shipped and is
+not the subject of an open PR as of 21 Sep 2026 — that still blocks
+resubmission. See `docs/PLAY_REVIEW_BLOCKERS.md` for the full picture and
+resubmission order.
 **Owner:** Upcheck Technologies Private Limited
-**Last updated:** 20 September 2026 (Data Safety corrections, credential
-rotation, test-credentials and release-signing notes — see
+**Last updated:** 21 September 2026 (C0.1/C0.2/C0.3 confirmed merged; Data
+Safety rows for location and SMS/call-log updated to match — see
 `docs/superpowers/specs/2026-09-20-compliance-privacy-and-store-readiness-design.md`
-§C0.4/§C0.5). The rest of this doc (build/version/artifact details, store
-listing copy) is unchanged from 12 September and should be re-verified before
-the actual next submission — a new native build will need a new `versionCode`
-and artifact link.
+"Doc corrections to carry"). The rest of this doc (build/version/artifact
+details, store listing copy) is unchanged from 12 September and should be
+re-verified before the actual next submission — a new native build will need a
+new `versionCode` and artifact link.
 
 ---
 
@@ -196,7 +199,7 @@ original draft; the reasons are under the table.
 | Email address | Yes | No | App functionality, Account management, Developer communications | Required |
 | Phone number | Yes (Truecaller / phone sign-in only) | No | App functionality, Account management | Optional — email sign-in avoids it |
 | User IDs | Yes | No | Account management, analytics (hashed) | Required |
-| **Location** | **Pending — see below** | — | — | Depends on the district-picker PR landing |
+| **Location** | Yes (Approximate) | No | App functionality | Optional — see below |
 | **Financial info → Other financial info** | **Yes** | No | App functionality | Required |
 | Crash logs | Yes | No | Analytics | On by default, switchable off |
 | Diagnostics | Yes | No | Analytics | On by default, switchable off |
@@ -205,7 +208,7 @@ original draft; the reasons are under the table.
 | ~~Voice or sound recordings~~ | **No** | — | — | No audio feature exists |
 | Contacts | **No** | — | — | No contacts code exists |
 | Messages → Emails | **No** | — | — | Never declare this — see below |
-| Messages → SMS or call log | **No** | — | — | Pending §C0.1 removal — see below |
+| Messages → SMS or call log | **No** | — | — | See below |
 
 Also tick: **data is encrypted in transit** (yes); **no data is sold**.
 
@@ -234,24 +237,23 @@ Deletable-by-user stays **blocked** — see the flag above — until the photo
 spec's F1 (record/account deletion actually removing the R2 objects) ships.
 As of 20 Sep 2026, F1 has not shipped and is not the subject of an open PR.
 
-#### Location — PENDING, two possible answers depending on which PR lands
+#### Location — RESOLVED to Approximate (§C0.2 merged)
 
-Today: `ACCESS_FINE_LOCATION` is declared, `CreateFarmScreen.tsx` reads with
-`Location.Accuracy.Balanced` (~100 m) and stores unrounded
-`farms.latitude`/`longitude`, read by nothing. §C0.2 of the compliance spec
-removes precise location and adds a district picker
-(`docs/strategy/farm-location-strategy.md` Option B) — **done, merged 20 Sep
-2026 as PRs #170 and #171; reaches Play in build 14.**
+§C0.2 of the compliance spec removed precise location and added a district
+picker (`docs/strategy/farm-location-strategy.md` Option B) — **done, merged
+20 Sep 2026 as PRs #170 and #171.** `ACCESS_FINE_LOCATION` is gone from the
+manifest; `ACCESS_COARSE_LOCATION` stays for the optional "detect my district"
+shortcut (`Accuracy.Low`), and any coordinates it captures are rounded to
+~1 km before leaving the device.
 
-- As merged (district picker, optional "detect my district"
-  at `Accuracy.Low`, coordinates rounded to ~1 km if captured at all,
-  `ACCESS_FINE_LOCATION` removed): declare **Location, not collected** (or
-  **Approximate, collected, optional** only if the coarse "detect my district"
-  shortcut is kept — do not declare Precise).
-- **Do not submit to Play with "Precise location: collected"** — the current
-  in-tree declaration — once `master`/`development` no longer requests
-  `ACCESS_FINE_LOCATION`. Recheck the manifest at submission time; do not trust
-  this document's date.
+- Declare **Location: Approximate, collected, optional, App functionality** —
+  not Precise (the coarse shortcut still collects a location, so "not
+  collected" would be wrong), and not the old Precise answer, which no longer
+  matches what the manifest requests.
+- This only reaches Play once a new bundle (versionCode 14) is built from this
+  code and submitted — the live listing still declares Precise until then.
+  Recheck the manifest of the actual submitted bundle at submission time; do
+  not trust this document's date.
 
 #### Financial info — changed to YES
 
@@ -302,19 +304,19 @@ never reads a mailbox. The email ADDRESS belongs under Personal info → Email
 address, which is already declared. Ticking this on a farming app invites
 scrutiny for a capability that does not exist.
 
-#### "Messages → SMS or call log" — RESOLVED to Not collected (pending §C0.1)
+#### "Messages → SMS or call log" — RESOLVED to Not collected (§C0.1 merged)
 
 Superseded: this doc previously treated the answer as arguable between
 `PSL_SMS_CALL_LOG` (covering `READ_CALL_LOG`) and "not collected". §C0.1 of the
-compliance spec settles it — the missed-call verification path that reads the
-call log is being removed entirely (Play's [July 2026
+compliance spec settles it — the missed-call verification path that read the
+call log has been removed entirely (Play's [July 2026
 policy](https://support.google.com/googleplay/android-developer/answer/17134731)
 made `READ_CALL_LOG` for phone verification non-compliant as of 14 August 2026,
-and this app's build 13 still declares it). Once that PR lands: **Not
-collected.** No SMS permission exists and none is planned. **Merged 20 Sep 2026
-(PR #169): the manifest and the prebuild plugin no longer declare either
-permission. It reaches Play only in the next native build (versionCode 14) —
-do not submit build 13.**
+and this app's build 13 still declares it). **Not collected.** No SMS
+permission exists and none is planned. **Merged 20 Sep 2026 (PR #169): the
+manifest and the prebuild plugin no longer declare either permission.** It
+reaches Play only once the next native build (versionCode 14) is submitted —
+do not submit build 13.
 
 > ### ⚠️ Data deletion — answer is currently BLOCKED, not Yes
 
