@@ -132,7 +132,7 @@ export const SamplingHistoryScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            {isLoading ? (
+            {isLoading && records.length === 0 ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
             ) : error && records.length === 0 ? (
                 <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={handleRetry} />

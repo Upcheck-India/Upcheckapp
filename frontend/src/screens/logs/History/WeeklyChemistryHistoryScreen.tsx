@@ -115,7 +115,7 @@ export const WeeklyChemistryHistoryScreen = ({ route, navigation }: any) => {
     const chartWidth = Dimensions.get('window').width - theme.spacing[4] * 2 - theme.spacing[8];
 
     const body = () => {
-        if (isLoading) return <SkeletonList count={3} style={styles.padded} />;
+        if (isLoading && records.length === 0) return <SkeletonList count={3} style={styles.padded} />;
         if (error && records.length === 0) {
             return <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={handleRetry} />;
         }

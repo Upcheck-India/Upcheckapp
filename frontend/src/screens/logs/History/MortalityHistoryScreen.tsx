@@ -180,7 +180,7 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            {isLoading ? (
+            {isLoading && records.length === 0 ? (
                 renderSkeleton()
             ) : isOffline ? (
                 <NetworkError onRetry={handleRetry} />

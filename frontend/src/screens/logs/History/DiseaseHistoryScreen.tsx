@@ -183,7 +183,7 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            {isLoading ? (
+            {isLoading && records.length === 0 ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={c.primary} /></View>
             ) : error && records.length === 0 ? (
                 <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={() => fetchRecords(true)} />
