@@ -90,6 +90,13 @@ export class FeedbackReport {
   })
   respondedBy: string | null;
 
+  // `assignee` (migration 1780702600000) is deliberately NOT an entity column
+  // here — same reasoning as farm.entity.ts's state_code/district_code
+  // comment: mapping it would make an unapplied migration turn EVERY
+  // feedback read (including the farmer's own findMine/findOneMine) into a
+  // 42703, not just the admin assignee field. FeedbackService reads/writes it
+  // with raw SQL guarded by isMissingColumn() instead.
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   createdAt: Date;
 

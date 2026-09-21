@@ -69,6 +69,7 @@ import { DailyBriefModule } from './daily-brief/daily-brief.module';
 import { HealthObservationsModule } from './health-observations/health-observations.module';
 import { StorageModule } from './storage/storage.module';
 import { AvatarsModule } from './avatars/avatars.module';
+import { AdminModule } from './admin/admin.module';
 import { AdminAccessLogModule } from './admin-access-log/admin-access-log.module';
 
 @Module({
@@ -251,6 +252,7 @@ import { AdminAccessLogModule } from './admin-access-log/admin-access-log.module
     FeaturesModule,
     DailyBriefModule,
     HealthObservationsModule,
+    AdminModule,
     AdminAccessLogModule,
   ],
   controllers: [AppController],
