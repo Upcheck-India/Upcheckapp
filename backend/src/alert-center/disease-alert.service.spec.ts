@@ -42,8 +42,10 @@ describe('DiseaseAlertService (D7 push dedup)', () => {
     expect(await m.svc.notify(crit, m.now())).toBe(2);
     expect(m.push.sendToUser.mock.calls.map((c) => c[0]).sort()).toEqual([MANAGER, OWNER]);
     const toManager = m.push.sendToUser.mock.calls.find((c) => c[0] === MANAGER)![1];
-    expect(toManager.title).toContain('Pond 3');
+    // C5.2: the push itself carries no pond name or disease name.
+    expect(toManager.title).not.toContain('Pond 3');
     expect(toManager.title).not.toContain('risk is high');
+    expect(toManager.title).toBe('వ్యాధి ప్రమాద హెచ్చరిక'); // recipient reads Telugu
     expect(m.alerts.create.mock.calls[0][0]).toMatchObject({ type: 'disease', severity: 'critical', isRead: true });
   });
 

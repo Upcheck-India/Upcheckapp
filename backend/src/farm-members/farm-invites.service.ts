@@ -356,17 +356,12 @@ export class FarmInvitesService {
    */
   private async notifyPendingJoin(farm: Farm, joinerId: string) {
     try {
-      const joiner = await this.usersRepo.findOne({ where: { id: joinerId } });
-      const joinerName =
-        [joiner?.firstName, joiner?.lastName].filter(Boolean).join(' ') ||
-        joiner?.username ||
-        'Someone';
       const recipients = await this.approversOf(farm);
       await Promise.all(
         recipients.map((userId) =>
           this.push.sendToUser(userId, {
             title: 'Someone wants to join your farm',
-            body: `${joinerName} is waiting for approval at ${farm.name}.`,
+            body: 'Someone is waiting for approval to join your farm.',
             data: { type: 'pending_join', farmId: farm.id },
           }),
         ),

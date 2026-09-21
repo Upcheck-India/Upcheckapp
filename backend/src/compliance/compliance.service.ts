@@ -5,7 +5,11 @@ import { PushService } from '../push/push.service';
 import { BANNED_LIST_VERSION } from '../banned-substances/banned-substances.data';
 import { BannedSubstanceFlag } from '../banned-substances/banned-substance-matcher';
 import { evaluateRecord, FlagHistoryEntry } from './compliance-eval';
-import { COMPLIANCE_ALERT_EN, COMPLIANCE_PUSH, fill } from './compliance-push.i18n';
+import {
+  COMPLIANCE_ALERT_EN,
+  COMPLIANCE_PUSH_GENERIC,
+  fill,
+} from './compliance-push.i18n';
 
 /** 42P01 undefined_table / 42703 undefined_column — not-yet-migrated schema. */
 function isMissingSchema(err: any): boolean {
@@ -141,10 +145,12 @@ export class ComplianceService {
           },
         } as any);
         if (banned) {
-          const text = COMPLIANCE_PUSH[langOf.get(userId) ?? 'en'] ?? COMPLIANCE_PUSH.en;
+          const text =
+            COMPLIANCE_PUSH_GENERIC[langOf.get(userId) ?? 'en'] ??
+            COMPLIANCE_PUSH_GENERIC.en;
           await this.push.sendToUser(userId, {
             title: text.title,
-            body: fill(text.body, params),
+            body: text.body,
             data: { type: 'compliance', recordId: rec.id, pondId: ctx.pondId },
           });
         }

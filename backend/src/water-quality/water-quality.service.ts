@@ -250,6 +250,8 @@ export class WaterQualityService {
             ammonia: record.ammonia,
           },
           pond.id,
+          // C5.2: alert.message embeds the pond name; the push must not.
+          'A water quality alert needs your attention. Open the app for details.',
         );
       } catch (error) {
         this.logger.error(
