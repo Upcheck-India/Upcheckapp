@@ -7,6 +7,8 @@ import {
   IsInt,
   IsIn,
   IsNotEmpty,
+  IsArray,
+  ArrayMaxSize,
   MaxLength,
   Min,
   Max,
@@ -14,6 +16,13 @@ import {
 import { CANONICAL_SPECIES, SEED_TYPES } from '../species';
 
 export class CreateCropDto {
+  /** F5: seed PCR certificate (cap 2, protected). Optional; saves without it. */
+  @IsArray()
+  @ArrayMaxSize(2)
+  @IsString({ each: true })
+  @IsOptional()
+  photoPaths?: string[];
+
   @IsUUID()
   pondId: string;
 

@@ -16,6 +16,7 @@ import { PageOptionsDto } from '../common/dto/page-options.dto';
 import { PageMetaDto, PageDto } from '../common/dto/page.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { toIstDateString } from '../common/ist-date';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 @Injectable()
 export class FeedRecordsService {
@@ -25,6 +26,7 @@ export class FeedRecordsService {
     private pondsService: PondsService,
     private inventoryService: InventoryService,
     private readonly farmAccess: FarmAccessService,
+    private readonly healthPhotoStorage: HealthPhotoStorageService,
   ) {}
 
   async create(createDto: CreateFeedRecordDto, userId: string) {
@@ -107,8 +109,9 @@ export class FeedRecordsService {
       updatedById: userId,
     });
 
+    let saved: FeedRecord;
     try {
-      return await this.recordsRepository.save(record);
+      saved = await this.recordsRepository.save(record);
     } catch (err) {
       // Compensate the deduction if the record failed to persist, so stock is
       // never phantom-deducted with no matching record. adjustStock runs on the
@@ -130,6 +133,21 @@ export class FeedRecordsService {
       }
       throw err;
     }
+
+    // F5 input label + batch (cap 2). After the record + stock deduction are
+    // committed — a rejected (foreign-farm) photo must not unwind either.
+    if (createDto.photoPaths !== undefined) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.recordsRepository.manager,
+        'feed_records',
+        'feed_record',
+        pond.farmId,
+        saved.id,
+        createDto.photoPaths,
+        pond.activeCycleId,
+      );
+    }
+    return saved;
   }
 
   async findAll(

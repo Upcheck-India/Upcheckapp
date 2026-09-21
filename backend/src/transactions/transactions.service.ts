@@ -16,6 +16,7 @@ import {
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { FarmCapability } from '../farm-access/farm-capability';
 import { Pond } from '../ponds/pond.entity';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 @Injectable()
 export class TransactionsService {
@@ -25,6 +26,7 @@ export class TransactionsService {
     @InjectRepository(Pond)
     private pondsRepository: Repository<Pond>,
     private readonly farmAccess: FarmAccessService,
+    private readonly healthPhotoStorage: HealthPhotoStorageService,
   ) {}
 
   async create(createDto: CreateTransactionDto, userId: string) {
@@ -73,12 +75,27 @@ export class TransactionsService {
     }
 
     // Stamp the actor so money rows say who entered them.
+    const { photoPaths, ...fields } = createDto;
     const transaction = this.transactionsRepository.create({
-      ...createDto,
+      ...fields,
       createdById: userId,
       updatedById: userId,
     });
-    return this.transactionsRepository.save(transaction);
+    const saved = await this.transactionsRepository.save(transaction);
+
+    // F5 receipt / bill (cap 2). Already VIEW_FINANCIALS-gated on every read
+    // of this table, so no separate mask is needed here.
+    if (photoPaths !== undefined) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.transactionsRepository.manager,
+        'transactions',
+        'transaction',
+        createDto.farmId,
+        saved.id,
+        photoPaths,
+      );
+    }
+    return saved;
   }
 
   /**

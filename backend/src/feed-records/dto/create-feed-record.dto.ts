@@ -5,6 +5,8 @@ import {
   IsUUID,
   IsBoolean,
   IsDateString,
+  IsArray,
+  ArrayMaxSize,
   Min,
   Max,
 } from 'class-validator';
@@ -60,4 +62,11 @@ export class CreateFeedRecordDto {
   @IsBoolean()
   @IsOptional()
   isFasting?: boolean;
+
+  /** F5: input label + batch (cap 2). Optional; the record saves without it. */
+  @IsArray()
+  @ArrayMaxSize(2)
+  @IsString({ each: true })
+  @IsOptional()
+  photoPaths?: string[];
 }

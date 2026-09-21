@@ -18,6 +18,7 @@ import { CropsService } from '../crops/crops.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { toIstDateString } from '../common/ist-date';
 import { harvestTotals, HarvestTotals } from './harvest-totals';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 import { isMissingSchema } from '../pond-context/pond-context.service';
 import { bandsFromGrades, writeHarvestQuote } from '../india/pricing.service';
 import { currentMoltWindow } from '../molt/molt-window';
@@ -129,6 +130,7 @@ const asDateString = (d: unknown): string =>
 export const maskFinancials = <
   T extends Pick<Harvest, 'salePriceTotal' | 'buyerName'> & {
     grades?: { pricePerKg: number | null }[];
+    photoPaths?: string[];
   },
 >(
   row: T,
@@ -140,6 +142,8 @@ export const maskFinancials = <
         ...row,
         salePriceTotal: null,
         buyerName: null,
+        // F5: the weighing slip is money evidence too — same rule as the price.
+        ...(row.photoPaths !== undefined ? { photoPaths: [] } : {}),
         ...(row.grades
           ? { grades: row.grades.map((g) => ({ ...g, pricePerKg: null })) }
           : {}),
@@ -153,6 +157,7 @@ export class HarvestsService {
     private cropsService: CropsService,
     private readonly farmAccess: FarmAccessService,
     private readonly dataSource: DataSource,
+    private readonly healthPhotoStorage: HealthPhotoStorageService,
   ) {}
 
   async create(createDto: CreateHarvestDto, userId: string) {
@@ -185,7 +190,7 @@ export class HarvestsService {
       createDto.cropId,
       userId,
     );
-    await this.farmAccess.assertCanAccessPond(
+    const harvestPond = await this.farmAccess.assertCanAccessPond(
       userId,
       crop.pondId,
       'RECORD_HARVEST',
@@ -198,11 +203,14 @@ export class HarvestsService {
       rejectedReason,
       confirmOutOfRange,
       planId,
+      photoPaths,
       ...fields
     } = createDto;
     // A price is money: without VIEW_FINANCIALS it is stripped, not refused —
     // the manager weighs at the pond, the owner adds the price later (H1).
     if (!canView) delete fields.salePriceTotal;
+    // F5: the weighing slip is money evidence too (§F5/§F6) — same rule.
+    const slipPaths = canView ? photoPaths : undefined;
     const lines = grades ? this.cleanGrades(grades, canView) : null;
     if (lines) assertPriceBand(lines, confirmOutOfRange);
 
@@ -247,6 +255,18 @@ export class HarvestsService {
       const row = await manager.save(
         manager.create(Harvest, { ...fields, createdById: userId }),
       );
+      // F5 buyer's weighing slip (cap 2, protected within 12mo — PROTECTED).
+      if (slipPaths !== undefined) {
+        await this.healthPhotoStorage.applyRecordPhotos(
+          manager,
+          'harvests',
+          'harvest',
+          harvestPond.farmId,
+          row.id,
+          slipPaths,
+          locked.id,
+        );
+      }
       await this.writeDetails(manager, row.id, lines, totals, rejectedKg, rejectedReason);
       // H5: priced grade lines are the farm's newest buyer quote. `lines` has
       // no prices without VIEW_FINANCIALS (cleanGrades), so none is written.
@@ -503,7 +523,7 @@ export class HarvestsService {
     try {
       details = await this.harvestsRepository.query(
         `SELECT h.id, h.rejected_kg::float AS "rejectedKg", h.rejected_reason AS "rejectedReason",
-                h.pieces, h.pieces_estimated AS "piecesEstimated",
+                h.pieces, h.pieces_estimated AS "piecesEstimated", h.photo_paths AS "photoPaths",
                 COALESCE(json_agg(json_build_object(
                   'id', g.id, 'countPerKg', g.count_per_kg,
                   'weightKg', g.weight_kg, 'pricePerKg', g.price_per_kg
@@ -531,6 +551,7 @@ export class HarvestsService {
         rejectedReason: d?.rejectedReason ?? null,
         pieces: d?.pieces ?? null,
         piecesEstimated: !!d?.piecesEstimated,
+        photoPaths: d?.photoPaths ?? [],
       };
     });
   }

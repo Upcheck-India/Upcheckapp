@@ -13,6 +13,7 @@ import { Pond } from '../ponds/pond.entity';
 import { PondsService } from '../ponds/ponds.service';
 import type { FarmCapability } from '../farm-access/farm-capability';
 import { PhotoDeletionService } from '../storage/photo-deletion.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 @Injectable()
 export class CropsService {
@@ -24,6 +25,7 @@ export class CropsService {
     private pondsService: PondsService,
     private dataSource: DataSource,
     private readonly photoDeletions: PhotoDeletionService,
+    private readonly healthPhotoStorage: HealthPhotoStorageService,
   ) {}
 
   async create(createCropDto: CreateCropDto, userId: string) {
@@ -96,6 +98,19 @@ export class CropsService {
         broodstockId: createCropDto.broodstockId,
       });
       const savedCrop = await manager.save(crop);
+
+      // F5 seed PCR certificate (cap 2, protected — see photos.service.ts PROTECTED).
+      if (createCropDto.photoPaths !== undefined) {
+        await this.healthPhotoStorage.applyRecordPhotos(
+          manager,
+          'crops',
+          'crop',
+          owned.farmId,
+          savedCrop.id,
+          createCropDto.photoPaths,
+          savedCrop.id,
+        );
+      }
 
       // Link as the pond's active cycle inside the same locked transaction.
       if (isActive && pond) {

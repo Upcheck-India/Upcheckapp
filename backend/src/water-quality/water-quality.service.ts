@@ -11,6 +11,7 @@ import { PageMetaDto, PageDto } from '../common/dto/page.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { latestNonNull } from '../pond-context/pond-context.service';
 import { thresholdFor } from '../common/wq-thresholds';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 /**
  * Critical limits for persisted water-quality alerts, from the shared
@@ -62,6 +63,7 @@ export class WaterQualityService {
     private pondsService: PondsService,
     private alertsService: AlertsService,
     private readonly farmAccess: FarmAccessService,
+    private readonly healthPhotoStorage: HealthPhotoStorageService,
   ) {}
 
   async create(createDto: CreateWaterQualityRecordDto, userId: string) {
@@ -90,8 +92,9 @@ export class WaterQualityService {
       'WRITE_OPERATIONAL',
     );
 
+    const { photoPath, ...fields } = createDto;
     const record = this.recordsRepository.create({
-      ...createDto,
+      ...fields,
       recordedAt: createDto.recordedAt
         ? new Date(createDto.recordedAt)
         : undefined,
@@ -99,6 +102,18 @@ export class WaterQualityService {
       updatedById: userId,
     });
     const savedRecord = await this.recordsRepository.save(record);
+
+    // F5 water colour (cap 1). Evidence only — no colour-analysis claim.
+    if (photoPath !== undefined) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.recordsRepository.manager,
+        'water_quality_records',
+        'water_quality',
+        pond.farmId,
+        savedRecord.id,
+        photoPath ? [photoPath] : [],
+      );
+    }
 
     // Alerts run AFTER the response, not inside it. They were awaited inline:
     // a species lookup, a supersede UPDATE, an alert INSERT and — the slow

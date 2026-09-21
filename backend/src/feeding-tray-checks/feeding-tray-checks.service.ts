@@ -9,6 +9,7 @@ import { FeedingTrayCheck } from './feeding-tray-check.entity';
 import { CreateFeedingTrayCheckDto } from './dto/create-feeding-tray-check.dto';
 import { UpdateFeedingTrayCheckDto } from './dto/update-feeding-tray-check.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 @Injectable()
 export class FeedingTrayChecksService {
@@ -16,7 +17,17 @@ export class FeedingTrayChecksService {
     @InjectRepository(FeedingTrayCheck)
     private checksRepository: Repository<FeedingTrayCheck>,
     private readonly farmAccess: FarmAccessService,
+    private readonly healthPhotoStorage: HealthPhotoStorageService,
   ) {}
+
+  private async farmIdOfCrop(cropId: string): Promise<string> {
+    const [row] = await this.checksRepository.manager.query(
+      `SELECT p.farm_id AS "farmId" FROM crops c JOIN ponds p ON p.id = c.pond_id WHERE c.id = $1`,
+      [cropId],
+    );
+    if (!row) throw new NotFoundException(`Crop ${cropId} not found`);
+    return row.farmId;
+  }
 
   async create(createDto: CreateFeedingTrayCheckDto, userId?: string) {
     // Idempotent replay guard for offline queue drains. OwnershipGuard has already
@@ -37,12 +48,27 @@ export class FeedingTrayChecksService {
       }
     }
 
+    const { photoPath, ...fields } = createDto;
     const record = this.checksRepository.create({
-      ...createDto,
+      ...fields,
       createdById: userId,
       updatedById: userId,
     });
-    return this.checksRepository.save(record);
+    const saved = await this.checksRepository.save(record);
+
+    // F5 tray photo (cap 1).
+    if (photoPath !== undefined) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.checksRepository.manager,
+        'feeding_tray_checks',
+        'feeding_tray_check',
+        await this.farmIdOfCrop(createDto.cropId),
+        saved.id,
+        photoPath ? [photoPath] : [],
+        createDto.cropId,
+      );
+    }
+    return saved;
   }
 
   async findAll(userId: string, cropId?: string) {

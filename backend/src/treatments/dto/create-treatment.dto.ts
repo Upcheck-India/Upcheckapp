@@ -97,4 +97,11 @@ export class CreateTreatmentDto {
   @IsUUID()
   @IsOptional()
   inventoryItemId?: string;
+
+  /** F5: input label + batch (cap 2). Optional; the record saves without it. */
+  @IsArray()
+  @ArrayMaxSize(2)
+  @IsString({ each: true })
+  @IsOptional()
+  photoPaths?: string[];
 }

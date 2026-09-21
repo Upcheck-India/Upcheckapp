@@ -20,6 +20,7 @@ import { PondNamingService } from './pond-naming.service';
 import { PageOptionsDto } from '../common/dto/page-options.dto';
 import { PageMetaDto, PageDto } from '../common/dto/page.dto';
 import { PhotoDeletionService } from '../storage/photo-deletion.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 @Injectable()
 export class PondsService {
@@ -34,7 +35,21 @@ export class PondsService {
     private dataSource: DataSource,
     private farmAccess: FarmAccessService,
     private readonly photoDeletions: PhotoDeletionService,
+    private readonly healthPhotoStorage: HealthPhotoStorageService,
   ) {}
+
+  /** F5 pond identity photo (cap 1, replaces — see HealthPhotoStorageService.applySinglePhoto). */
+  private applyPondPhoto(pond: Pond, photoPath: string | null | undefined, userId: string) {
+    return this.healthPhotoStorage.applySinglePhoto(
+      this.pondsRepository.manager,
+      'ponds',
+      'pond',
+      pond.farmId,
+      pond.id,
+      photoPath,
+      userId,
+    );
+  }
 
   /**
    * Create a single pond or batch of ponds.
@@ -392,9 +407,9 @@ export class PondsService {
         newDimensions,
       );
 
-      // Remove changeReason from DTO before saving
-      // Also ensure activeCycleId is preserved if passed
-      const { changeReason, ...updateFields } = updatePondDto;
+      // Remove changeReason/photoPath from DTO before saving (photoPath is not
+      // an entity column — see applyPondPhoto).
+      const { changeReason, photoPath, ...updateFields } = updatePondDto;
 
       await this.pondsRepository.update(id, {
         ...updateFields,
@@ -403,13 +418,15 @@ export class PondsService {
         activeCycleId: updatePondDto.activeCycleId as any,
       });
     } else {
-      const { changeReason, ...updateFields } = updatePondDto;
+      const { changeReason, photoPath, ...updateFields } = updatePondDto;
       await this.pondsRepository.update(id, {
         ...updateFields,
         assumedFields: remainingAssumed,
         activeCycleId: updatePondDto.activeCycleId as any,
       });
     }
+
+    await this.applyPondPhoto(pond, updatePondDto.photoPath, userId);
 
     return this.findOneAccessible(id, userId, 'READ');
   }

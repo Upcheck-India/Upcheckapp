@@ -14,6 +14,7 @@ import { BANNED_LIST_VERSION } from '../banned-substances/banned-substances.data
 import { evaluateRecord, nextFlagHistory } from '../compliance/compliance-eval';
 import { ComplianceService } from '../compliance/compliance.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 /** Fields the banned-substance evaluation reads (D2: ingredients ∪ product ∪ text). */
 const EVALUATED = ['ingredientKeys', 'productName', 'description', 'notes'] as const;
@@ -29,6 +30,7 @@ export class TreatmentsService {
     private readonly farmAccess: FarmAccessService,
     private readonly compliance: ComplianceService,
     private readonly inventory: InventoryService,
+    private readonly healthPhotoStorage: HealthPhotoStorageService,
   ) {}
 
   async create(createDto: CreateTreatmentDto, userId?: string) {
@@ -51,7 +53,7 @@ export class TreatmentsService {
       }
     }
 
-    const { inventoryItemId, ...fields } = createDto;
+    const { inventoryItemId, photoPaths, ...fields } = createDto;
 
     // Server-evaluated at write time (BANNED-1, D2) — recomputed here regardless
     // of anything the client detected or sent, so the audit trail is
@@ -111,6 +113,20 @@ export class TreatmentsService {
       throw err;
     }
 
+    // F5 input label + batch (cap 2 enforced by the DTO). 403s before anything
+    // else if the photo belongs to another farm.
+    if (photoPaths !== undefined) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.treatmentsRepository.manager,
+        'treatments',
+        'treatment',
+        farmId ?? (await this.farmIdOfCrop(createDto.cropId)),
+        saved.id,
+        photoPaths,
+        createDto.cropId,
+      );
+    }
+
     // Never blocks (DD1): escalate swallows its own errors.
     await this.compliance.escalate(
       {
@@ -164,7 +180,19 @@ export class TreatmentsService {
     userId?: string,
   ): Promise<Treatment> {
     const existing = await this.findOne(id);
-    const { flagChangeReason, ...fields } = updateDto;
+    const { flagChangeReason, photoPaths, ...fields } = updateDto;
+
+    if (photoPaths !== undefined) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.treatmentsRepository.manager,
+        'treatments',
+        'treatment',
+        await this.farmIdOfCrop(existing.cropId),
+        id,
+        photoPaths,
+        existing.cropId,
+      );
+    }
 
     // Re-evaluate whenever an evaluated field changes — an edit that removes
     // the flagged text also clears the flag (only with a reason, and always
