@@ -82,6 +82,9 @@ export interface PondPhoto {
     entity: string | null;
     title: string;
     recordId: string | null;
+    /** For the tap-to-open mapping (F6) — most record screens key on these, not the pond. */
+    cropId: string | null;
+    farmId: string | null;
     uploadedAt: string;
     protected: boolean;
     money: boolean;
@@ -129,6 +132,14 @@ export const photosApi = {
     /** F6: the pond Photos tab — a view over records, never an album. */
     feedForPond: (pondId: string, opts?: { category?: string; before?: string; limit?: number }) =>
         apiClient.get<PondPhoto[]>(`/photos/pond/${pondId}`, { params: opts }),
+
+    /**
+     * F5: delete a not-yet-saved upload the picker already sent — before the
+     * form it belongs to is submitted. A path already on a saved record is
+     * removed by that record's own save with the path dropped, never here.
+     */
+    removeForPond: (pondId: string, path: string) => apiClient.delete(`/photos/upload/pond/${pondId}`, { data: { path } }),
+    removeForFarm: (farmId: string, path: string) => apiClient.delete(`/photos/upload/farm/${farmId}`, { data: { path } }),
 
     /** F8.1: has this account acknowledged "Farm records only" yet? */
     getTermsAck: () => apiClient.get<{ ackedAt: string | null }>('/photos/terms-ack'),

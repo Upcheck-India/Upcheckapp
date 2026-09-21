@@ -19,13 +19,34 @@ import { formatDate } from '../../utils/formatDate';
 
 const c = theme.roles.light;
 
-/** Which record screen a row's entity opens, when the app already has one. */
+/**
+ * Which record screen a row's entity opens, when the app already has one.
+ * `p.cropId`/`p.farmId` come from the ledger row (photo_objects), not this
+ * screen's own pondId — most record screens are keyed on the crop or the
+ * farm, not the pond the tab happens to be scoped to. `focusId` is passed
+ * through for a screen that can use it to scroll/highlight; today none do,
+ * so it degrades to "opens that record's list", which still satisfies
+ * "tapping a row opens the record" for a list-shaped history screen.
+ * Falls back to no-op only where no screen exists at all (health_observation
+ * has no single-record view; a receipt/purchase line has no detail screen).
+ */
 const RECORD_ROUTE: Record<string, (photo: PondPhoto, pondId: string, pondName?: string) => [string, object] | null> = {
     health_observation: () => null, // no dedicated single-record screen today
-    mortality: (p, pondId) => ['MortalityHistory', { pondId, cropId: undefined, focusId: p.recordId }],
-    disease: (p, pondId) => ['DiseaseHistory', { pondId, cropId: undefined, focusId: p.recordId }],
-    treatment: (p, pondId, pondName) => ['TreatmentHistory', { pondId, pondName, focusId: p.recordId }],
-    harvest: (p, pondId) => ['HarvestHistory', { pondId, focusId: p.recordId }],
+    mortality: (p, pondId) => ['MortalityHistory', { pondId, cropId: p.cropId ?? undefined, focusId: p.recordId }],
+    disease: (p, pondId) => ['DiseaseHistory', { pondId, cropId: p.cropId ?? undefined, focusId: p.recordId }],
+    treatment: (p, pondId, pondName) => ['TreatmentHistory', { pondId, pondName, cropId: p.cropId ?? undefined, focusId: p.recordId }],
+    harvest: (p, pondId) => ['HarvestHistory', { pondId, cropId: p.cropId ?? undefined, focusId: p.recordId }],
+    feed_record: (p, pondId, pondName) => ['FeedHistory', { pondId, pondName, cropId: p.cropId ?? undefined, focusId: p.recordId }],
+    water_quality: (p, pondId, pondName) => ['WaterQualityHistory', { pondId, pondName, cropId: p.cropId ?? undefined, focusId: p.recordId }],
+    feeding_tray_check: (p) => (p.cropId ? ['FeedingTrayChecks', { cropId: p.cropId, focusId: p.recordId }] : null),
+    crop: (p) => ['CycleDetail', { cycleId: p.recordId }],
+    expense: (p, pondId) => (p.cropId ? ['Expenses', { cropId: p.cropId, pondName: undefined, focusId: p.recordId }] : null),
+    transaction: (p, pondId, pondName) => (p.farmId ? ['Transactions', { farmId: p.farmId, farmName: pondName, focusId: p.recordId }] : null),
+    inventory_purchase: (p, pondId, pondName) =>
+        p.farmId ? ['Transactions', { farmId: p.farmId, farmName: pondName, focusId: p.recordId }] : null,
+    inventory: (p) => ['InventoryDetail', { inventoryId: p.recordId }],
+    pond: (p, pondId, pondName) => (p.farmId ? ['CreatePond', { farmId: p.farmId, editPondId: pondId, pondName }] : null),
+    farm: (p) => (p.farmId ? ['CreateFarm', { editFarmId: p.farmId }] : null),
 };
 
 const FILTERS = ['all', 'health', 'money', 'inputs', 'pond'] as const;

@@ -19,6 +19,7 @@ import {
     SlowChangingField,
 } from '../../api/waterQuality';
 import { apiErrorMessage } from '../../api/errors';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 
 export const WaterQualityLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -38,6 +39,8 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
     const [transparency, setTransparency] = useState(editRecord?.transparency != null ? String(editRecord.transparency) : '');
 
     const [notes, setNotes] = useState(editRecord?.notes ?? '');
+    // F5: water colour (cap 1). Evidence only — no colour-analysis claim.
+    const [photoPath, setPhotoPath] = useState<string | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(false);
     // Quick-mode: only pH/DO/temperature show by default (the readings a
     // farmer logs every visit); the rest are one tap away, not a wall of
@@ -162,6 +165,7 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
             hardness: hardness ? parseFloat(hardness) : undefined,
             transparency: transparency ? parseFloat(transparency) : undefined,
             notes: notes.trim() || undefined,
+            ...(photoPath !== undefined ? { photoPath } : {}),
         };
 
         try {
@@ -319,6 +323,13 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                         multiline
                         numberOfLines={3}
                         style={styles.textArea}
+                    />
+                    <PhotoAttach
+                        surface="water_colour"
+                        scope={{ pondId }}
+                        value={photoPath ? [photoPath] : []}
+                        onChange={(paths) => setPhotoPath(paths[paths.length - 1])}
+                        max={1}
                     />
                 </Card>
 

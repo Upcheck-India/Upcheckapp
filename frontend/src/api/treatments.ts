@@ -36,6 +36,8 @@ export interface Treatment {
     doseUnit?: string | null;
     diseaseRecordId?: string | null;
     flagHistory?: FlagHistoryEntry[];
+    /** F5: input label + batch (cap 2). */
+    photoPaths?: string[];
 }
 
 export interface CreateTreatmentDto {

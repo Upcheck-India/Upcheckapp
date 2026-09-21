@@ -13,6 +13,8 @@ export interface FeedRecord {
     waterTemperature?: number;
     notes?: string;
     recordedAt?: string;
+    /** F5: input label + batch (cap 2). Create only. */
+    photoPaths?: string[];
 }
 
 export interface CreateFeedRecordDto {
@@ -25,6 +27,8 @@ export interface CreateFeedRecordDto {
     waterTemperature?: number;
     notes?: string;
     inventoryItemId?: string;
+    /** F5: input label + batch (cap 2). */
+    photoPaths?: string[];
 }
 
 export const feedApi = {

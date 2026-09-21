@@ -67,6 +67,8 @@ export interface CreateExpenseDto {
     category: ExpenseCategory;
     amount: number;
     description?: string;
+    /** F5: receipt / bill (cap 2). VIEW_FINANCIALS gated. */
+    photoPaths?: string[];
 }
 
 export interface CycleFinancials {

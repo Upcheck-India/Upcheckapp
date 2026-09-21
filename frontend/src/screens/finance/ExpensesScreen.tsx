@@ -28,6 +28,7 @@ import {
 } from '../../api/expenses';
 import { cropsApi } from '../../api/crops';
 import { apiErrorMessage } from '../../api/errors';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 
 const CATEGORY_OPTIONS = Object.values(ExpenseCategory);
 
@@ -55,6 +56,9 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
     // ponytail: a crop belongs to exactly one pond, so pondId is derived from the crop, not typed.
     const [pondId, setPondId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    // F5: receipt / bill (cap 2). This screen is only reachable with
+    // VIEW_FINANCIALS already, so no extra role gate is needed here.
+    const [photoPaths, setPhotoPaths] = useState<string[]>([]);
 
     const loadData = useCallback(async (showRefreshIndicator = false) => {
         if (showRefreshIndicator) {
@@ -116,12 +120,14 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
                 category: formCategory,
                 amount: parseFloat(formAmount),
                 description: formDescription.trim() || undefined,
+                photoPaths: photoPaths.length ? photoPaths : undefined,
             });
             // Reset form
             setFormAmount('');
             setFormDescription('');
             setFormDate(todayISO());
             setFormCategory(ExpenseCategory.FEED);
+            setPhotoPaths([]);
             setShowForm(false);
             // Refresh data
             void loadData(true);
@@ -346,6 +352,16 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
                 multiline
                 numberOfLines={2}
             />
+
+            {pondId && (
+                <PhotoAttach
+                    surface="expense_receipt"
+                    scope={{ pondId }}
+                    value={photoPaths}
+                    onChange={setPhotoPaths}
+                    max={2}
+                />
+            )}
 
             <View style={styles.formActions}>
                 <Button

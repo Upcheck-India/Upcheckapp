@@ -43,6 +43,8 @@ export interface CreateTransactionDto {
     referenceNumber?: string;
     /** Optional: the pond this money belongs to. Omitted means "whole farm". */
     pondId?: string;
+    /** F5: receipt / bill (cap 2). VIEW_FINANCIALS gated. */
+    photoPaths?: string[];
 }
 
 export interface UpdateTransactionDto {

@@ -127,10 +127,12 @@ export const PhotoAttach: React.FC<Props> = ({
         if (index < existingUrls.length) return; // saved photo: cleaned up on next save
         setLocal((l) => l.filter((_, i) => i !== index - existingUrls.length));
         try {
-            // Not-yet-saved uploads have no dedicated remove route per surface
-            // (unlike health photos) — F1's 24h orphan sweep collects them if
-            // the form is abandoned, same as any other unattached upload.
+            if ('pondId' in scope) await photosApi.removeForPond(scope.pondId, path);
+            else await photosApi.removeForFarm(scope.farmId, path);
         } catch (e) {
+            // Never blocks the UI — the photo is already gone from this
+            // form's draft. F1's 24h orphan sweep collects it either way if
+            // this best-effort call fails.
             Alert.alert(t('common.error'), photoErrorMessage(e, t, t('photos.removeFailed')));
         }
     };

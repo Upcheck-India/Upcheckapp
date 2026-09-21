@@ -68,7 +68,10 @@ export interface CreatePondResult {
     warnings?: { field: string; message: string }[];
 }
 
-export interface UpdatePondDto extends Partial<Omit<CreatePondDto, 'farmId'>> { }
+export interface UpdatePondDto extends Partial<Omit<CreatePondDto, 'farmId'>> {
+    /** F5: identity photo (cap 1, replaces). `null` clears it. */
+    photoPath?: string | null;
+}
 
 export const pondsApi = {
     getAll: (farmId: string, params?: { status?: string; search?: string; sort?: string; includeArchived?: boolean; page?: number; take?: number }) =>
