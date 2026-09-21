@@ -69,6 +69,7 @@ import { DailyBriefModule } from './daily-brief/daily-brief.module';
 import { HealthObservationsModule } from './health-observations/health-observations.module';
 import { StorageModule } from './storage/storage.module';
 import { AvatarsModule } from './avatars/avatars.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -250,6 +251,7 @@ import { AvatarsModule } from './avatars/avatars.module';
     FeaturesModule,
     DailyBriefModule,
     HealthObservationsModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [
