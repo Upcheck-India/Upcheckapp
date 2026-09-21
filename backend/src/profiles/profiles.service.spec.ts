@@ -7,6 +7,7 @@ import { ProfilesService } from './profiles.service';
 import { Profile } from './profile.entity';
 import { SupabaseAuthService } from '../auth/supabase-auth.service';
 import { AvatarService } from '../avatars/avatar.service';
+import { PhotoDeletionService } from '../storage/photo-deletion.service';
 
 // Mock repository factory
 const createMockRepository = () => ({
@@ -26,8 +27,18 @@ describe('ProfilesService', () => {
   let mockRepository: any;
   let authService: any;
   let avatars: any;
+  let deletions: { enqueue: jest.Mock };
+  let manager: { query: jest.Mock };
+  const FARM_1 = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const FARM_2 = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
   beforeEach(async () => {
+    manager = {
+      query: jest.fn(async (sql: string) =>
+        /FROM farms WHERE user_id/.test(sql) ? [{ id: FARM_1 }, { id: FARM_2 }] : [],
+      ),
+    };
+    deletions = { enqueue: jest.fn().mockResolvedValue(true) };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         {
@@ -39,9 +50,7 @@ describe('ProfilesService', () => {
           useValue: {
             // Invoke the callback with a manager whose query() is a spy, so
             // deleteAccount's cascade transaction can be asserted.
-            transaction: jest.fn((cb) =>
-              cb({ query: jest.fn().mockResolvedValue(undefined) }),
-            ),
+            transaction: jest.fn((cb) => cb(manager)),
           },
         },
         {
@@ -57,6 +66,7 @@ describe('ProfilesService', () => {
           },
         },
         { provide: AvatarService, useValue: { purgeUser: jest.fn().mockResolvedValue(undefined) } },
+        { provide: PhotoDeletionService, useValue: deletions },
         ProfilesService,
         {
           provide: getRepositoryToken(Profile),
@@ -140,6 +150,30 @@ describe('ProfilesService', () => {
       await service.deleteAccount('test-id', 'correct-password');
       expect(avatars.purgeUser).toHaveBeenCalledWith('test-id');
       expect(order).toEqual(['purge', 'auth']);
+    });
+
+    it('F1: queues feedback/<userId>/ and every owned farm, in the transaction, BEFORE the users row goes', async () => {
+      const order: string[] = [];
+      deletions.enqueue.mockImplementation(async () => { order.push('enqueue'); return true; });
+      const realQuery = manager.query.getMockImplementation()!;
+      manager.query.mockImplementation(async (sql: string, p?: unknown[]) => {
+        if (/^DELETE FROM users/.test(sql)) order.push('delete-user');
+        return realQuery(sql, p);
+      });
+
+      await service.deleteAccount('test-id', 'correct-password');
+
+      expect(deletions.enqueue).toHaveBeenCalledWith(
+        [
+          { namespace: 'feedback', path: 'test-id/' },
+          { namespace: 'health', path: `${FARM_1}/` },
+          { namespace: 'health', path: `${FARM_2}/` },
+        ],
+        'account_deleted',
+        'test-id',
+        manager,
+      );
+      expect(order).toEqual(['enqueue', 'delete-user']);
     });
 
     it('a failed purge aborts the deletion (retryable), never leaving photos behind', async () => {

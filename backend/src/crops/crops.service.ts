@@ -12,6 +12,7 @@ import { UpdateCropDto } from './dto/update-crop.dto';
 import { Pond } from '../ponds/pond.entity';
 import { PondsService } from '../ponds/ponds.service';
 import type { FarmCapability } from '../farm-access/farm-capability';
+import { PhotoDeletionService } from '../storage/photo-deletion.service';
 
 @Injectable()
 export class CropsService {
@@ -22,6 +23,7 @@ export class CropsService {
     private cropsRepository: Repository<Crop>,
     private pondsService: PondsService,
     private dataSource: DataSource,
+    private readonly photoDeletions: PhotoDeletionService,
   ) {}
 
   async create(createCropDto: CreateCropDto, userId: string) {
@@ -260,7 +262,18 @@ export class CropsService {
       );
     }
 
-    return this.cropsRepository.delete(id);
+    // F1: mortality and disease rows cascade with the cycle, so their photos
+    // are queued for R2 deletion in the delete's transaction. Health checks
+    // are not: their crop_id is ON DELETE SET NULL and they stay on the pond.
+    const photos = await this.photoDeletions.healthRefs(
+      `SELECT unnest(photo_urls) AS path FROM mortality_records WHERE crop_id = $1
+       UNION SELECT unnest(photo_urls) AS path FROM disease_records WHERE crop_id = $1`,
+      [id],
+    );
+    return this.dataSource.transaction(async (m) => {
+      await this.photoDeletions.enqueue(photos, 'cycle_deleted', userId, m);
+      return m.delete(Crop, id);
+    });
   }
 
   /**

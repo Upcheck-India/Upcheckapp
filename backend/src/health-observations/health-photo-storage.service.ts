@@ -6,6 +6,10 @@ import {
   R2StorageService,
   type UploadedImage,
 } from '../storage/r2-storage.service';
+import {
+  PhotoDeletionService,
+  type PhotoDeletionReason,
+} from '../storage/photo-deletion.service';
 
 /** The app compresses to ≤1600 px JPEG q0.7, well under this. */
 export const MAX_HEALTH_PHOTO_BYTES = MAX_IMAGE_BYTES;
@@ -34,23 +38,33 @@ const PATH_RE = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp|heic)$/;
  */
 @Injectable()
 export class HealthPhotoStorageService {
-  constructor(private readonly storage: R2StorageService) {}
+  constructor(
+    private readonly storage: R2StorageService,
+    private readonly deletions: PhotoDeletionService,
+  ) {}
 
   upload(farmId: string, file: UploadedImage): Promise<string> {
     return this.storage.putImage('health', `${farmId}/${randomUUID()}`, file);
   }
 
   /**
-   * P2: delete photo(s) directly — used when a not-yet-saved pick is
-   * removed, or when a saved record's photoUrls array drops one on update.
-   * F1's deletion queue doesn't exist yet, so this deletes inline; callers
-   * log rather than throw on failure, since a storage hiccup must never
-   * block saving the record itself.
-   * // F1: replace with an enqueue into `photo_deletions` once it ships.
+   * F1: queue photo(s) (+ thumbnails) for deletion from R2. Pass the
+   * transaction's `manager` when the record goes in the same transaction.
+   * Never calls R2 in the request, so a storage outage cannot fail a delete.
    */
-  remove(paths: string[]): Promise<void> {
-    if (!paths.length) return Promise.resolve();
-    return this.storage.deleteImages('health', paths);
+  async remove(
+    paths: string[] | null | undefined,
+    reason: PhotoDeletionReason,
+    requestedBy?: string | null,
+    manager?: EntityManager,
+  ): Promise<void> {
+    if (!paths?.length) return;
+    await this.deletions.enqueue(
+      paths.map((path) => ({ namespace: 'health' as const, path })),
+      reason,
+      requestedBy,
+      manager,
+    );
   }
 
   /** 403 unless every path is one of THIS farm's uploads. */

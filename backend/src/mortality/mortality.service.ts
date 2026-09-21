@@ -13,7 +13,10 @@ import {
   HealthPhotoStorageService,
   farmIdOfCrop,
 } from '../health-observations/health-photo-storage.service';
-import { removedPhotoTombstone } from '../health-observations/photo-removal.util';
+import {
+  enqueueRemovedPhotos,
+  removedPhotoTombstone,
+} from '../health-observations/photo-removal.util';
 
 /**
  * Default mortality multiplier.
@@ -110,10 +113,8 @@ export class MortalityService {
         : undefined);
     // P2: a dropped photo path is deleted, not just untracked, and leaves a
     // tombstone line rather than vanishing silently.
-    const tombstone = await removedPhotoTombstone(
+    const { removed, tombstone } = await removedPhotoTombstone(
       this.mortalityRepository.manager,
-      this.photos,
-      this.logger,
       current.photoUrls,
       dto.photoUrls,
       userId,
@@ -125,12 +126,17 @@ export class MortalityService {
       ...(userId ? { updatedById: userId } : {}),
       ...(note !== undefined ? { note } : {}),
     });
+    await enqueueRemovedPhotos(this.photos, this.logger, removed, userId);
     return this.findOne(id);
   }
 
-  async remove(id: string): Promise<{ message: string }> {
-    await this.findOne(id);
-    await this.mortalityRepository.delete(id);
+  /** F1: the record's photos are queued for R2 deletion in the same transaction. */
+  async remove(id: string, userId?: string): Promise<{ message: string }> {
+    const record = await this.findOne(id);
+    await this.mortalityRepository.manager.transaction(async (m) => {
+      await this.photos.remove(record.photoUrls, 'record_deleted', userId, m);
+      await m.delete(MortalityRecord, id);
+    });
     return { message: 'Mortality record deleted successfully' };
   }
 }

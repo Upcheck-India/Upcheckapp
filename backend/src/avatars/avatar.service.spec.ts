@@ -45,33 +45,40 @@ function make(row: Record<string, any> | null = { id: ME, avatar_url: null, avat
     }),
     deletePrefix: jest.fn(async () => undefined),
   };
-  const svc = new AvatarService(db as any, storage as any);
-  svc.retryDelayMs = 0;
-  return { svc, db, storage, log, row };
+  // F1: old pictures go to the durable deletion queue, not R2 inline.
+  const deletions = {
+    enqueue: jest.fn(async (refs: { namespace: string; path: string }[], reason: string, ..._rest: any[]) => {
+      log.push(`queue:${refs.map((r) => `${r.namespace}/${r.path}`).join(',')}:${reason}`);
+      return true;
+    }),
+  };
+  const svc = new AvatarService(db as any, storage as any, deletions as any);
+  return { svc, db, storage, deletions, log, row };
 }
 
 const file = { buffer: Buffer.from('x'), mimetype: 'image/jpeg', size: 1 };
 
 describe('AvatarService.upload (replace)', () => {
-  it('stores the new picture, points the DB at it, THEN deletes the old one (full + thumb)', async () => {
-    const { svc, storage, log, row } = make({ id: ME, avatar_url: null, avatar_path: OLD, show_avatar_to_team: true });
+  it('stores the new picture, points the DB at it, THEN queues the old one for deletion', async () => {
+    const { svc, storage, deletions, log, row } = make({ id: ME, avatar_url: null, avatar_path: OLD, show_avatar_to_team: true });
     const res = await svc.upload(ME, file);
 
     expect(storage.putImage).toHaveBeenCalledWith('avatars', expect.stringMatching(new RegExp(`^${ME}/[0-9a-f-]{36}$`)), file);
-    expect(log).toEqual(['r2:put', `db:set:${NEW}`, `r2:delete:${OLD}`]);
-    expect(storage.deleteImages).toHaveBeenCalledWith('avatars', [OLD]);
+    expect(log).toEqual(['r2:put', `db:set:${NEW}`, `queue:avatars/${OLD}:photo_removed`]);
+    expect(storage.deleteImages).not.toHaveBeenCalled();
+    expect(deletions.enqueue).toHaveBeenCalledWith([{ namespace: 'avatars', path: OLD }], 'photo_removed', ME);
     expect(row!.avatar_path).toBe(NEW);
     expect(res).toMatchObject({ hasUploadedAvatar: true, avatarThumbUrl: expect.stringContaining('.thumb.webp') });
   });
 
   it('a first upload deletes nothing', async () => {
-    const { svc, storage } = make();
+    const { svc, deletions } = make();
     await svc.upload(ME, file);
-    expect(storage.deleteImages).not.toHaveBeenCalled();
+    expect(deletions.enqueue).not.toHaveBeenCalled();
   });
 
-  it('if the photo changed meanwhile, deletes its own upload and 409s (DB untouched)', async () => {
-    const { svc, db, storage, row } = make({ id: ME, avatar_url: null, avatar_path: OLD, show_avatar_to_team: true });
+  it('if the photo changed meanwhile, queues its own upload for deletion and 409s (DB untouched)', async () => {
+    const { svc, db, deletions, row } = make({ id: ME, avatar_url: null, avatar_path: OLD, show_avatar_to_team: true });
     // Another request swaps the picture between our read and our write.
     const realQuery = db.query.getMockImplementation()!;
     db.query.mockImplementation(async (sql: string, params: any[]) => {
@@ -79,21 +86,17 @@ describe('AvatarService.upload (replace)', () => {
       return realQuery(sql, params);
     });
     await expect(svc.upload(ME, file)).rejects.toMatchObject({ status: 409 });
-    expect(storage.deleteImages).toHaveBeenCalledWith('avatars', [NEW]);
-    expect(storage.deleteImages).not.toHaveBeenCalledWith('avatars', [OLD]);
+    expect(deletions.enqueue).toHaveBeenCalledTimes(1);
+    expect(deletions.enqueue).toHaveBeenCalledWith([{ namespace: 'avatars', path: NEW }], 'photo_removed', ME);
   });
 
-  it('a failing old-object delete is retried, then logged, never thrown and never skipped silently', async () => {
-    const { svc, storage } = make({ id: ME, avatar_url: null, avatar_path: OLD, show_avatar_to_team: true });
-    storage.deleteImages.mockRejectedValue(new Error('R2 down'));
+  it('a failing enqueue is logged with the key, never thrown', async () => {
+    const { svc, deletions } = make({ id: ME, avatar_url: null, avatar_path: OLD, show_avatar_to_team: true });
+    deletions.enqueue.mockRejectedValue(new Error('db down'));
     const error = jest.spyOn((svc as any).logger, 'error').mockImplementation(() => undefined);
-    const timer = jest.spyOn(global, 'setTimeout');
 
     await expect(svc.upload(ME, file)).resolves.toMatchObject({ hasUploadedAvatar: true });
-    expect(storage.deleteImages).toHaveBeenCalledTimes(3);
     expect(error).toHaveBeenCalledWith(expect.stringContaining(`avatars/${OLD}`));
-    expect(timer).toHaveBeenCalledWith(expect.any(Function), 10 * 60_000);
-    timer.mockRestore();
   });
 
   it('503s with a clear message, before touching R2, when the column is not migrated', async () => {
@@ -105,22 +108,21 @@ describe('AvatarService.upload (replace)', () => {
 });
 
 describe('AvatarService.remove', () => {
-  it('clears the DB reference, then deletes both R2 objects', async () => {
-    const { svc, storage, log, row } = make({ id: ME, avatar_url: null, avatar_path: OLD, show_avatar_to_team: true });
+  it('clears the DB reference, then queues the picture (full + thumb) for deletion', async () => {
+    const { svc, log, row } = make({ id: ME, avatar_url: null, avatar_path: OLD, show_avatar_to_team: true });
     const res = await svc.remove(ME);
-    expect(log).toEqual(['db:clear', `r2:delete:${OLD}`]);
-    // deleteImages removes the image AND its .thumb.webp (see r2-storage spec).
-    expect(storage.deleteImages).toHaveBeenCalledWith('avatars', [OLD]);
+    // The drain's deleteImages removes the image AND its .thumb.webp.
+    expect(log).toEqual(['db:clear', `queue:avatars/${OLD}:photo_removed`]);
     expect(row!.avatar_path).toBeNull();
     expect(res).toMatchObject({ hasUploadedAvatar: false, avatarUrl: null });
   });
 
   it('never deletes a path outside the user\'s own folder', async () => {
     const foreign = `${OTHER}/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webp`;
-    const { svc, storage } = make({ id: ME, avatar_url: null, avatar_path: foreign, show_avatar_to_team: true });
+    const { svc, deletions } = make({ id: ME, avatar_url: null, avatar_path: foreign, show_avatar_to_team: true });
     jest.spyOn((svc as any).logger, 'error').mockImplementation(() => undefined);
     await svc.remove(ME);
-    expect(storage.deleteImages).not.toHaveBeenCalled();
+    expect(deletions.enqueue).not.toHaveBeenCalled();
   });
 });
 

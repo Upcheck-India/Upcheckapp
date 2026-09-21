@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { PondsService } from '../ponds/ponds.service';
 import { Pond } from '../ponds/pond.entity';
+import { PhotoDeletionService } from '../storage/photo-deletion.service';
 
 describe('CropsService', () => {
   let service: CropsService;
@@ -23,7 +24,9 @@ describe('CropsService', () => {
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
+    delete: jest.Mock;
   };
+  let photoDeletions: { healthRefs: jest.Mock; enqueue: jest.Mock };
 
   const mockCrop = new Crop();
   mockCrop.id = 'crop-1';
@@ -77,6 +80,11 @@ describe('CropsService', () => {
       findOne: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+      delete: jest.fn(),
+    };
+    photoDeletions = {
+      healthRefs: jest.fn().mockResolvedValue([]),
+      enqueue: jest.fn().mockResolvedValue(true),
     };
     defaultManager = { update: jest.fn() };
     const module: TestingModule = await Test.createTestingModule({
@@ -109,6 +117,7 @@ describe('CropsService', () => {
             },
           },
         },
+        { provide: PhotoDeletionService, useValue: photoDeletions },
       ],
     }).compile();
 
@@ -259,13 +268,34 @@ describe('CropsService', () => {
 
       jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
       pondsService.findOneAccessible.mockResolvedValue(mockPond as any);
-      (repository.delete as jest.Mock).mockResolvedValue({ affected: 1 });
+      manager.delete.mockResolvedValue({ affected: 1 });
 
       const result = await service.remove(cropId, userId);
 
       expect(service.findOne).toHaveBeenCalledWith(cropId, userId);
-      expect(repository.delete).toHaveBeenCalledWith(cropId);
+      expect(manager.delete).toHaveBeenCalledWith(Crop, cropId);
       expect(result).toEqual({ affected: 1 });
+    });
+
+    it("F1: queues the cycle's mortality + disease photos in the delete's transaction", async () => {
+      const refs = [{ namespace: 'health', path: 'farm/p1.webp' }];
+      jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
+      pondsService.findOneAccessible.mockResolvedValue(mockPond as any);
+      photoDeletions.healthRefs.mockResolvedValue(refs);
+      const order: string[] = [];
+      photoDeletions.enqueue.mockImplementation(async () => { order.push('enqueue'); return true; });
+      manager.delete.mockImplementation(async () => { order.push('delete'); return { affected: 1 }; });
+
+      await service.remove('crop-1', 'user-1');
+
+      const [sql, params] = photoDeletions.healthRefs.mock.calls[0];
+      expect(sql).toMatch(/FROM mortality_records WHERE crop_id = \$1/);
+      expect(sql).toMatch(/FROM disease_records WHERE crop_id = \$1/);
+      // health_observations.crop_id is ON DELETE SET NULL: those stay on the pond.
+      expect(sql).not.toMatch(/health_observations/);
+      expect(params).toEqual(['crop-1']);
+      expect(photoDeletions.enqueue).toHaveBeenCalledWith(refs, 'cycle_deleted', 'user-1', manager);
+      expect(order).toEqual(['enqueue', 'delete']);
     });
   });
 

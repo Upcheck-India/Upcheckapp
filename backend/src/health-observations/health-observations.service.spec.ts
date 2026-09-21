@@ -35,9 +35,13 @@ const make = (stored: any[] = []) => {
   const farmAccess = {
     assertCanAccessPond: jest.fn(async () => ({ id: POND, farmId: FARM_A, activeCycleId: CROP })),
   };
-  const photos = new HealthPhotoStorageService(new R2StorageService({ get: () => undefined } as any));
+  const deletions = { enqueue: jest.fn(async () => true) };
+  const photos = new HealthPhotoStorageService(
+    new R2StorageService({ get: () => undefined } as any),
+    deletions as any,
+  );
   const svc = new HealthObservationsService(repo as any, farmAccess as any, photos);
-  return { svc, repo, qb, inserted, farmAccess };
+  return { svc, repo, qb, inserted, farmAccess, deletions };
 };
 
 const dto = (over: Partial<CreateHealthObservationsDto> = {}): CreateHealthObservationsDto => ({
@@ -109,21 +113,22 @@ describe('HealthObservationsService.create', () => {
 });
 
 describe('HealthObservationsService.removePhoto (P2)', () => {
-  it("checks WRITE_OPERATIONAL and deletes the caller's own farm's photo", async () => {
-    const { svc, farmAccess } = make();
-    const removeSpy = jest.spyOn(HealthPhotoStorageService.prototype, 'remove').mockResolvedValue(undefined);
+  it("checks WRITE_OPERATIONAL and queues the caller's own farm's photo (F1)", async () => {
+    const { svc, farmAccess, deletions } = make();
     await svc.removePhoto(POND, 'u1', photo(FARM_A));
     expect(farmAccess.assertCanAccessPond).toHaveBeenCalledWith('u1', POND, 'WRITE_OPERATIONAL');
-    expect(removeSpy).toHaveBeenCalledWith([photo(FARM_A)]);
-    removeSpy.mockRestore();
+    expect(deletions.enqueue).toHaveBeenCalledWith(
+      [{ namespace: 'health', path: photo(FARM_A) }],
+      'photo_removed',
+      'u1',
+      undefined,
+    );
   });
 
-  it("refuses (403) to delete another farm's path — never touches storage", async () => {
-    const { svc } = make();
-    const removeSpy = jest.spyOn(HealthPhotoStorageService.prototype, 'remove').mockResolvedValue(undefined);
+  it("refuses (403) to delete another farm's path — never queues it", async () => {
+    const { svc, deletions } = make();
     await expect(svc.removePhoto(POND, 'u1', photo(FARM_B))).rejects.toBeInstanceOf(ForbiddenException);
-    expect(removeSpy).not.toHaveBeenCalled();
-    removeSpy.mockRestore();
+    expect(deletions.enqueue).not.toHaveBeenCalled();
   });
 });
 
@@ -147,7 +152,7 @@ describe('HealthPhotoStorageService.signForFarm', () => {
       full: paths.map((p) => `signed:${p}`),
       thumb: paths.map((p) => `thumb:${p}`),
     }));
-    const photos = new HealthPhotoStorageService({ sign } as any);
+    const photos = new HealthPhotoStorageService({ sign } as any, {} as any);
     const urls = await photos.signForFarm(FARM_A, [photo(FARM_A), photo(FARM_B), 'https://evil/x.jpg']);
     expect(sign).toHaveBeenCalledWith('health', [photo(FARM_A)]);
     expect(urls).toEqual({ full: [`signed:${photo(FARM_A)}`], thumb: [`thumb:${photo(FARM_A)}`] });
@@ -158,14 +163,14 @@ describe('HealthPhotoStorageService.signForFarm', () => {
       full: paths.map((p) => `signed:${p}`),
       thumb: paths.map((p) => `thumb:${p}`),
     }));
-    const photos = new HealthPhotoStorageService({ sign } as any);
+    const photos = new HealthPhotoStorageService({ sign } as any, {} as any);
     const [row] = await photos.withSigned(FARM_A, [{ photoUrls: [photo(FARM_A)] }]);
     expect(row.photoSignedUrls).toEqual([`signed:${photo(FARM_A)}`]);
     expect(row.photoThumbUrls).toEqual([`thumb:${photo(FARM_A)}`]);
   });
 
   it('with R2 unconfigured, reads degrade to no urls instead of throwing', async () => {
-    const photos = new HealthPhotoStorageService(new R2StorageService({ get: () => undefined } as any));
+    const photos = new HealthPhotoStorageService(new R2StorageService({ get: () => undefined } as any), {} as any);
     await expect(photos.signForFarm(FARM_A, [photo(FARM_A)])).resolves.toEqual({ full: [], thumb: [] });
   });
 });

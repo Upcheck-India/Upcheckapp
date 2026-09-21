@@ -11,6 +11,7 @@ import {
   photoError,
   type UploadedImage,
 } from '../storage/r2-storage.service';
+import { PhotoDeletionService } from '../storage/photo-deletion.service';
 
 /** What a viewer gets for one person: both null when hidden or unset. */
 export interface AvatarUrls {
@@ -55,12 +56,11 @@ interface Row {
 @Injectable()
 export class AvatarService {
   private readonly logger = new Logger(AvatarService.name);
-  /** Backoff base between old-object delete attempts; tests set 0. */
-  retryDelayMs = 500;
 
   constructor(
     private readonly db: DataSource,
     private readonly storage: R2StorageService,
+    private readonly deletions: PhotoDeletionService,
   ) {}
 
   /** A stored avatar path must sit in that user's own folder. */
@@ -235,39 +235,22 @@ export class AvatarService {
   }
 
   /**
-   * Delete one of the user's pictures (+ thumbnail), retrying. A final
-   * failure is logged with the key so it is never kept silently, and retried
-   * once more later.
-   * ponytail: the late retry is in-process (lost on restart); the error log
-   * line is the durable record. Add a deletion-queue table if this ever fires.
+   * F1: queue one of the user's pictures (+ thumbnail) for R2 deletion. The
+   * queue retries durably; a failed enqueue is logged with the key, never
+   * thrown — the new picture is already saved.
    */
   private async deleteOwn(userId: string, path: string): Promise<void> {
     if (!this.ownsPath(userId, path)) {
       this.logger.error(`Refusing to delete avatar path outside ${userId}/: ${path}`);
       return;
     }
-    let last: any;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        await this.storage.deleteImages('avatars', [path]);
-        return;
-      } catch (err) {
-        last = err;
-        await sleep(this.retryDelayMs * 2 ** attempt);
-      }
-    }
-    this.logger.error(
-      `Could not delete old avatar avatars/${path} after 3 attempts (${last?.message ?? last}); retrying in 10 min`,
-    );
-    setTimeout(() => {
-      this.storage
-        .deleteImages('avatars', [path])
-        .catch((e) => this.logger.error(`Giving up on avatars/${path}: ${e?.message ?? e} — delete it manually`));
-    }, 10 * 60_000).unref();
+    await this.deletions
+      .enqueue([{ namespace: 'avatars', path }], 'photo_removed', userId)
+      .catch((err: any) =>
+        this.logger.error(`Could not queue old avatar avatars/${path}: ${err?.message ?? err}`),
+      );
   }
 }
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** node-postgres UPDATE … RETURNING via TypeORM: [rows, count] or rows. */
 function updatedRows(result: unknown): number {

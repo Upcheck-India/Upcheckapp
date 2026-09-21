@@ -11,6 +11,7 @@ import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { SupabaseAuthService } from '../auth/supabase-auth.service';
 import { AvatarService } from '../avatars/avatar.service';
+import { PhotoDeletionService } from '../storage/photo-deletion.service';
 
 @Injectable()
 export class ProfilesService {
@@ -22,6 +23,7 @@ export class ProfilesService {
     private dataSource: DataSource,
     private readonly supabaseAuthService: SupabaseAuthService,
     private readonly avatars: AvatarService,
+    private readonly photoDeletions: PhotoDeletionService,
   ) {}
 
   create(createProfileDto: CreateProfileDto) {
@@ -173,6 +175,22 @@ export class ProfilesService {
     // `profiles` and `credit_ledgers` have NO foreign key to users, so they
     // must be deleted explicitly or they orphan (leaking dealer/debt PII).
     await this.dataSource.transaction(async (manager) => {
+      // F1: the cascade below takes every farm the user owns (farms.user_id)
+      // and its records; their photos, and the user's Report-an-issue
+      // attachments, are queued for R2 deletion in this same transaction.
+      const farms: { id: string }[] = await manager.query(
+        `SELECT id FROM farms WHERE user_id = $1`,
+        [userId],
+      );
+      await this.photoDeletions.enqueue(
+        [
+          { namespace: 'feedback', path: `${userId}/` },
+          ...farms.map((f) => ({ namespace: 'health' as const, path: `${f.id}/` })),
+        ],
+        'account_deleted',
+        userId,
+        manager,
+      );
       await manager.query(`DELETE FROM credit_ledgers WHERE user_id = $1`, [
         userId,
       ]);

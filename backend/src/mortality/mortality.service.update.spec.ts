@@ -24,7 +24,10 @@ describe('MortalityService.update — estimatedTotal follows quantity (H6)', () 
       // crop c1 lives on farm A
       manager: { query: jest.fn().mockResolvedValue([{ farm_id: FARM_A }]) },
     };
-    const photos = new HealthPhotoStorageService(new R2StorageService({ get: () => undefined } as any));
+    const photos = new HealthPhotoStorageService(
+      new R2StorageService({ get: () => undefined } as any),
+      { enqueue: jest.fn().mockResolvedValue(true) } as any,
+    );
     service = new MortalityService(repo as any, photos);
   });
 
@@ -60,7 +63,7 @@ describe('MortalityService.update — estimatedTotal follows quantity (H6)', () 
   });
 });
 
-/** P2: dropping a photo path on update deletes it and leaves a tombstone. */
+/** P2 + F1: dropping a photo path on update queues it and leaves a tombstone. */
 describe('MortalityService.update — removing a photo (P2)', () => {
   const row = {
     id: 'm1',
@@ -71,7 +74,7 @@ describe('MortalityService.update — removing a photo (P2)', () => {
     photoUrls: [PHOTO(FARM_A), PHOTO2(FARM_A)],
   };
   let repo: { findOne: jest.Mock; update: jest.Mock; manager: { query: jest.Mock } };
-  let storage: R2StorageService;
+  let deletions: { enqueue: jest.Mock };
   let service: MortalityService;
 
   beforeEach(() => {
@@ -80,15 +83,26 @@ describe('MortalityService.update — removing a photo (P2)', () => {
       update: jest.fn().mockResolvedValue({ affected: 1 }),
       manager: { query: jest.fn().mockResolvedValue([{ farm_id: FARM_A }]) },
     };
-    storage = new R2StorageService({ get: () => undefined } as any);
-    jest.spyOn(storage, 'deleteImages').mockResolvedValue(undefined);
-    const photos = new HealthPhotoStorageService(storage);
+    deletions = { enqueue: jest.fn().mockResolvedValue(true) };
+    const photos = new HealthPhotoStorageService(
+      new R2StorageService({ get: () => undefined } as any),
+      deletions as any,
+    );
     service = new MortalityService(repo as any, photos);
   });
 
-  it('deletes the dropped photo from storage', async () => {
+  it('queues the dropped photo for deletion, AFTER the record saved', async () => {
+    deletions.enqueue.mockImplementation(async () => {
+      expect(repo.update).toHaveBeenCalled();
+      return true;
+    });
     await service.update('m1', { photoUrls: [PHOTO(FARM_A)] }, 'u1');
-    expect(storage.deleteImages).toHaveBeenCalledWith('health', [PHOTO2(FARM_A)]);
+    expect(deletions.enqueue).toHaveBeenCalledWith(
+      [{ namespace: 'health', path: PHOTO2(FARM_A) }],
+      'photo_removed',
+      'u1',
+      undefined,
+    );
   });
 
   it('appends a tombstone line to the note rather than silently dropping the photo', async () => {
@@ -101,17 +115,17 @@ describe('MortalityService.update — removing a photo (P2)', () => {
   it('leaves the note untouched when no photo is dropped (array unchanged)', async () => {
     await service.update('m1', { photoUrls: [PHOTO(FARM_A), PHOTO2(FARM_A)] }, 'u1');
     expect(repo.update.mock.calls[0][1]).not.toHaveProperty('note');
-    expect(storage.deleteImages).not.toHaveBeenCalled();
+    expect(deletions.enqueue).not.toHaveBeenCalled();
   });
 
   it('leaves the note untouched when photoUrls is not part of the edit at all', async () => {
     await service.update('m1', { quantity: 12 }, 'u1');
     expect(repo.update.mock.calls[0][1]).not.toHaveProperty('note');
-    expect(storage.deleteImages).not.toHaveBeenCalled();
+    expect(deletions.enqueue).not.toHaveBeenCalled();
   });
 
-  it('a failed storage delete never blocks saving the record', async () => {
-    (storage.deleteImages as jest.Mock).mockRejectedValue(new Error('R2 down'));
+  it('a failed enqueue never blocks saving the record', async () => {
+    deletions.enqueue.mockRejectedValue(new Error('db hiccup'));
     await expect(service.update('m1', { photoUrls: [] }, 'u1')).resolves.toBeDefined();
     expect(repo.update).toHaveBeenCalled();
   });
