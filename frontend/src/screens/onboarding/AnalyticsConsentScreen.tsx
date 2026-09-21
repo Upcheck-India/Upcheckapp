@@ -49,6 +49,7 @@ import {
     type ConsentState,
 } from '../../features/telemetryPrefs';
 import { syncAnalyticsConsent } from '../../features/analytics';
+import { recordConsent } from '../../features/consent';
 import { useAuthStore } from '../../store/authStore';
 
 const c = theme.roles.light;
@@ -71,6 +72,8 @@ export const AnalyticsConsentScreen = ({ navigation }: any) => {
             // the Privacy Policy and must survive this answer untouched.
             const prefs = await loadTelemetryPrefs();
             await saveTelemetryPrefs({ ...prefs, analytics });
+            // The audit copy (compliance C2.1). Never throws, queues offline.
+            void recordConsent('analytics', analytics === 'granted', 'signup');
             // Start or stop the client to match, immediately — the same entry
             // point Settings uses. Never let a failure here strand the farmer
             // on a screen they have already answered.

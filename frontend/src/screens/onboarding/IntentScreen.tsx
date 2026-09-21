@@ -97,7 +97,9 @@ export const IntentScreen = ({ navigation }: any) => {
 
             <Button
                 title={t('common.continue')}
-                onPress={() => navigation.navigate('Register', { intent })}
+                // Via the short data notice (compliance C2.2), which passes
+                // the intent on to Register unchanged.
+                onPress={() => navigation.navigate('DataNotice', { intent })}
                 style={styles.cta}
             />
             <Text style={styles.footnote}>{t('onboarding.intentFootnote')}</Text>

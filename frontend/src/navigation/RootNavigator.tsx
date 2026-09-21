@@ -13,6 +13,8 @@ import {
     loadTelemetryPrefs,
     shouldAskAnalyticsConsent,
 } from '../features/telemetryPrefs';
+import { acceptPolicyUpdate, settleLegalConsent } from '../features/consent';
+import { PolicyUpdateSheet } from '../components/PolicyUpdateSheet';
 
 // EAGER — only what the app can actually paint on first frame.
 //
@@ -192,6 +194,10 @@ export type RootStackParamList = {
     Language: undefined;
     Welcome: undefined;
     Intent: undefined;
+    // Short data notice (compliance C2.2), between Intent and Register.
+    DataNotice: { intent?: SignupIntent } | undefined;
+    // Settings → Privacy → model-training opt-in (compliance C3).
+    ImproveAdvice: undefined;
     PondSetup: { farmId: string; totalPonds: number };
     PondNames: { farm: CreateFarmDto; pondCount: number };
     // code: from the upcheckapp://join/<CODE> deep link (linking.ts).
@@ -306,6 +312,29 @@ const RootNavigator = () => {
     }, []);
     useEffect(refreshConsentGate, [refreshConsentGate]);
 
+    /**
+     * Terms + privacy for the current LEGAL_VERSION (compliance C2.1). Runs
+     * AFTER sign-in, reads only device storage, and never holds the splash:
+     * a new account that came through the data notice is recorded silently,
+     * anyone else gets the "what changed" sheet over whatever screen they are
+     * on. Sign-in itself is untouched.
+     */
+    const userId = useAuthStore((s) => s.user?.id);
+    const [policySheet, setPolicySheet] = useState(false);
+    useEffect(() => {
+        if (!isAuthenticated || !userId) {
+            setPolicySheet(false);
+            return;
+        }
+        let live = true;
+        settleLegalConsent(userId).then((show) => {
+            if (live) setPolicySheet(show);
+        });
+        return () => {
+            live = false;
+        };
+    }, [isAuthenticated, userId]);
+
     // Load the user's farm memberships once authenticated so usePermissions()
     // resolves correctly on every screen; clear them on logout.
     useEffect(() => {
@@ -325,6 +354,7 @@ const RootNavigator = () => {
     }
 
     return (
+        <>
         <Stack.Navigator
             /**
              * The consent ask comes FIRST once there is an account (W8/D2) —
@@ -363,6 +393,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="Language" component={LanguageScreen} />
                     <Stack.Screen name="Welcome" component={WelcomeScreen} />
                     <Stack.Screen name="Intent" getComponent={() => require('../screens/onboarding/IntentScreen').IntentScreen} />
+                    <Stack.Screen name="DataNotice" getComponent={() => require('../screens/onboarding/DataNoticeScreen').DataNoticeScreen} />
                     <Stack.Screen name="Login" getComponent={() => require('../screens/auth/LoginScreen').LoginScreen} />
                     <Stack.Screen name="Register" getComponent={() => require('../screens/auth/RegisterScreen').RegisterScreen} />
                     <Stack.Screen
@@ -541,9 +572,20 @@ const RootNavigator = () => {
                     {/* Legal */}
                     <Stack.Screen name="PrivacyPolicy" getComponent={() => require('../screens/legal/PrivacyPolicyScreen').PrivacyPolicyScreen} />
                     <Stack.Screen name="Terms" getComponent={() => require('../screens/legal/TermsScreen').TermsScreen} />
+                    <Stack.Screen name="ImproveAdvice" getComponent={() => require('../screens/settings/ImproveAdviceScreen').ImproveAdviceScreen} />
                 </>
             )}
         </Stack.Navigator>
+        {/* Over the navigator, not a route: it changes no initial route and
+            no auth transition, and cannot be navigated away from. */}
+        <PolicyUpdateSheet
+            visible={policySheet}
+            onContinue={(locale) => {
+                if (userId) void acceptPolicyUpdate(userId, locale);
+                setPolicySheet(false);
+            }}
+        />
+        </>
     );
 };
 

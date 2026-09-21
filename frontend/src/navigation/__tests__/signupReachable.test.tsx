@@ -23,11 +23,12 @@ jest.mock('../../hooks/useGoogleAuth', () => ({
 }));
 
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LoginScreen } from '../../screens/auth/LoginScreen';
 import { WelcomeScreen } from '../../screens/onboarding/WelcomeScreen';
 import { IntentScreen } from '../../screens/onboarding/IntentScreen';
+import { DataNoticeScreen } from '../../screens/onboarding/DataNoticeScreen';
 import { useAuthStore } from '../../store/authStore';
 
 const TEST_SAFE_AREA_METRICS = {
@@ -54,7 +55,7 @@ describe('signing up is reachable after a logout', () => {
         expect(navigation.navigate).toHaveBeenCalledWith('Welcome');
     });
 
-    it('walks Welcome → Intent → Register carrying a real answer', () => {
+    it('walks Welcome → Intent → DataNotice → Register carrying a real answer', async () => {
         const fromWelcome = { navigate: jest.fn(), goBack: jest.fn() };
         const welcome = wrap(<WelcomeScreen navigation={fromWelcome} />);
         fireEvent.press(welcome.getByText('Get started'));
@@ -66,8 +67,17 @@ describe('signing up is reachable after a logout', () => {
 
         // An intent the farmer actually chose, not RegisterScreen's default.
         expect(fromIntent.navigate).toHaveBeenCalledWith(
-            'Register',
+            'DataNotice',
             expect.objectContaining({ intent: expect.any(String) }),
+        );
+
+        // The data notice (compliance C2.2) hands the same answer to Register.
+        const chosen = fromIntent.navigate.mock.calls[0][1].intent;
+        const fromNotice = { navigate: jest.fn(), goBack: jest.fn() };
+        const notice = wrap(<DataNoticeScreen navigation={fromNotice} route={{ params: { intent: chosen } }} />);
+        fireEvent.press(notice.getByText('I understand — continue'));
+        await waitFor(() =>
+            expect(fromNotice.navigate).toHaveBeenCalledWith('Register', { intent: chosen }),
         );
     });
 
