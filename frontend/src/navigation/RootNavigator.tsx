@@ -142,6 +142,8 @@ export type RootStackParamList = {
     Notifications: undefined;
     Help: undefined;
     ReportIssue: undefined;
+    // F2: no params = the account pool; pondId / farmId = that pond's photos.
+    PhotoStorage: { pondId?: string; farmId?: string; name?: string } | undefined;
     SyncStatus: undefined;
     FeedbackDetail: { id: string };
     About: undefined;
@@ -481,6 +483,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="Notifications" getComponent={() => require('../screens/notifications/NotificationsScreen').NotificationsScreen} />
                     <Stack.Screen name="Help" getComponent={() => require('../screens/settings/HelpScreen').HelpScreen} />
                     <Stack.Screen name="ReportIssue" getComponent={() => require('../screens/settings/ReportIssueScreen').ReportIssueScreen} />
+                    <Stack.Screen name="PhotoStorage" getComponent={() => require('../screens/settings/PhotoStorageScreen').PhotoStorageScreen} />
                     <Stack.Screen name="SyncStatus" getComponent={() => require('../screens/settings/SyncStatusScreen').SyncStatusScreen} />
                     <Stack.Screen name="FeedbackDetail" getComponent={() => require('../screens/settings/FeedbackDetailScreen').FeedbackDetailScreen} />
                     <Stack.Screen name="About" getComponent={() => require('../screens/settings/AboutScreen').AboutScreen} />

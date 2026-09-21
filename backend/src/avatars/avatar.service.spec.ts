@@ -63,7 +63,12 @@ describe('AvatarService.upload (replace)', () => {
     const { svc, storage, deletions, log, row } = make({ id: ME, avatar_url: null, avatar_path: OLD, show_avatar_to_team: true });
     const res = await svc.upload(ME, file);
 
-    expect(storage.putImage).toHaveBeenCalledWith('avatars', expect.stringMatching(new RegExp(`^${ME}/[0-9a-f-]{36}$`)), file);
+    expect(storage.putImage).toHaveBeenCalledWith('avatars', expect.stringMatching(new RegExp(`^${ME}/[0-9a-f-]{36}$`)), file, {
+      ownerUserId: ME,
+      uploadedBy: ME,
+      entity: 'avatar',
+      recordId: ME,
+    });
     expect(log).toEqual(['r2:put', `db:set:${NEW}`, `queue:avatars/${OLD}:photo_removed`]);
     expect(storage.deleteImages).not.toHaveBeenCalled();
     expect(deletions.enqueue).toHaveBeenCalledWith([{ namespace: 'avatars', path: OLD }], 'photo_removed', ME);

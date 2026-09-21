@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { AdminOverviewService } from './admin-overview.service';
+import { R2AnalyticsService } from '../storage/r2-analytics.service';
 
 const undefinedTable = Object.assign(new Error('relation does not exist'), {
   code: '42P01',
@@ -9,13 +10,16 @@ const undefinedTable = Object.assign(new Error('relation does not exist'), {
 describe('AdminOverviewService', () => {
   let service: AdminOverviewService;
   let query: jest.Mock;
+  let bucketStats: jest.Mock;
 
   beforeEach(async () => {
     query = jest.fn();
+    bucketStats = jest.fn().mockResolvedValue(null);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminOverviewService,
         { provide: DataSource, useValue: { query } },
+        { provide: R2AnalyticsService, useValue: { bucketStats } },
       ],
     }).compile();
     service = module.get(AdminOverviewService);
@@ -42,6 +46,23 @@ describe('AdminOverviewService', () => {
     expect(result.photoDeletions).toEqual({ pending: 3, failed: 1 });
     expect(result.logsPerDay).toEqual([{ date: '2026-09-20', count: 4 }]);
     expect(result.storage).toBeNull();
+    expect(result.r2Bucket).toBeNull();
+  });
+
+  it('carries the R2 bucket stats through when Cloudflare analytics is configured', async () => {
+    query
+      .mockResolvedValueOnce([{ today: '0', last7d: '0', last30d: '0', total: '0' }])
+      .mockResolvedValueOnce([{ total: '0', active: '0' }])
+      .mockResolvedValueOnce([{ total: '0', active: '0' }])
+      .mockResolvedValueOnce([{ active: '0' }])
+      .mockResolvedValueOnce([{ open: '0' }])
+      .mockResolvedValueOnce([{ pending: '0', failed: '0' }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ exists: false }]);
+    bucketStats.mockResolvedValue({ objectCount: 84, totalBytes: 2000 });
+
+    const result = await service.get();
+    expect(result.r2Bucket).toEqual({ objectCount: 84, totalBytes: 2000 });
   });
 
   it('omits a number instead of failing the whole page when its table is missing', async () => {

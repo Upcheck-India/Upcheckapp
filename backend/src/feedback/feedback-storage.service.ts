@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
   MAX_IMAGE_BYTES,
   R2StorageService,
   type UploadedImage,
 } from '../storage/r2-storage.service';
+import { PhotoLedgerService } from '../storage/photo-ledger.service';
 
 export type { UploadedImage } from '../storage/r2-storage.service';
 
@@ -14,7 +15,10 @@ export const MAX_ATTACHMENT_BYTES = MAX_IMAGE_BYTES;
 /** Feedback screenshots, stored in R2 under `feedback/`. */
 @Injectable()
 export class FeedbackStorageService {
-  constructor(private readonly storage: R2StorageService) {}
+  constructor(
+    private readonly storage: R2StorageService,
+    @Optional() private readonly ledger?: PhotoLedgerService,
+  ) {}
 
   /**
    * Store one image and return its object PATH.
@@ -25,7 +29,16 @@ export class FeedbackStorageService {
    * back on create.
    */
   upload(userId: string, file: UploadedImage): Promise<string> {
-    return this.storage.putImage('feedback', `${userId}/${randomUUID()}`, file);
+    // F2: counts against the reporter's own pool.
+    return this.storage.putImage('feedback', `${userId}/${randomUUID()}`, file, {
+      ownerUserId: userId,
+      uploadedBy: userId,
+    });
+  }
+
+  /** F2: the report saved — its screenshots are no longer orphans. */
+  attach(paths: string[], reportId: string): Promise<void> {
+    return this.ledger?.attach('feedback', paths, { entity: 'feedback', recordId: reportId }) ?? Promise.resolve();
   }
 
   /**

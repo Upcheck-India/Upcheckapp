@@ -144,7 +144,13 @@ export class AvatarService {
   async upload(userId: string, file: UploadedImage): Promise<MyAvatar> {
     // Before touching R2: an unmigrated DB must not leave an orphan upload.
     const old = await this.currentPath(userId);
-    const path = await this.storage.putImage('avatars', `${userId}/${randomUUID()}`, file);
+    // F2: the user's own pool; attached to the user from the start (never an orphan).
+    const path = await this.storage.putImage('avatars', `${userId}/${randomUUID()}`, file, {
+      ownerUserId: userId,
+      uploadedBy: userId,
+      entity: 'avatar',
+      recordId: userId,
+    });
     // Conditional on the path we read, so two racing uploads cannot both win
     // and leave one picture unreferenced-but-kept.
     const updated: unknown[] = await this.db.query(

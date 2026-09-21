@@ -79,6 +79,7 @@ export class FeedbackService {
       status: 'new',
     });
     const saved = await this.repo.save(report);
+    await this.storage.attach(paths, saved.id);
 
     // Alert the team, or the report sits in a table nobody is watching.
     // Best-effort by the same rule as update()'s push: the farmer was shown a

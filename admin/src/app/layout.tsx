@@ -29,6 +29,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     <Link href="/news">News</Link>
                     <Link href="/prices">Prices</Link>
                     <Link href="/photos">Photos</Link>
+                    <Link href="/storage">Storage</Link>
                     <Link href="/access-log">Access log</Link>
                     {staffName && (
                         <span className="who">
