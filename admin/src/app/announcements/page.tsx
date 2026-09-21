@@ -15,8 +15,8 @@ export default async function AnnouncementsPage() {
                 <p className="error">
                     {refused ? (
                         <>
-                            The Upcheck API refused this dashboard. Set <code>ADMIN_API_KEY</code>{' '}
-                            on the backend (Render) and here, to the same value.
+                            Your admin key was refused — it may have been rotated or revoked.{' '}
+                            <Link href="/login">Sign in again</Link>.
                         </>
                     ) : (
                         <>

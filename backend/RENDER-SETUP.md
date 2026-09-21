@@ -106,3 +106,75 @@ If health check fails during cold start:
 1. The `/api/liveness` endpoint should respond within 30 seconds
 2. Check Render logs for startup errors
 3. Verify all required environment variables are set
+
+## Admin access: per-staff keys (`ADMIN_STAFF_KEYS`)
+
+C5.1 — the admin dashboard's key is being split from one shared secret into
+one key per staff member, so `admin_access_log` can name who read or changed
+what. `admin-key.guard.ts` and `docs/superpowers/specs/2026-09-20-compliance-privacy-and-store-readiness-design.md`
+§C5.1 have the full design; this is the operational rollout.
+
+**Until you set `ADMIN_STAFF_KEYS`, nothing changes** — the shared
+`ADMIN_API_KEY` keeps working exactly as it does today, just logged in
+`admin_access_log` as staff `"shared-key"` instead of a named person (with a
+startup warning in the logs reminding you this is still the old mode).
+
+### 1. Generate a key per person
+
+From `backend/`, once per staff member:
+
+```
+npx ts-node -r tsconfig-paths/register scripts/make-admin-key.ts "Robin"
+```
+
+This prints two things:
+- **The raw key** — shown once. Send it to that person directly (not by
+  email/Slack in plaintext if you can help it); it's what they put wherever
+  the admin dashboard picks up its `x-admin-key` header from.
+- **A hash line** (`"Robin": "…sha256 hex…"`) — this goes in the env var
+  below. The raw key is never stored anywhere, including Render.
+
+### 2. Set `ADMIN_STAFF_KEYS` on the backend's Render service
+
+One JSON object, merging every staff member's hash line from step 1:
+
+```json
+{"Robin": "<hash>", "Asha": "<hash>"}
+```
+
+Render → `upcheck-backend` → **Environment** → add `ADMIN_STAFF_KEYS` with
+that value → **Save Changes** (redeploys automatically).
+
+**The moment this is set, the old shared `ADMIN_API_KEY` stops working** —
+every admin request must present a key from `ADMIN_STAFF_KEYS` from then on.
+Roll out keys to everyone who needs the dashboard *before* setting this, not
+after, or staff still on the shared key get locked out mid-session.
+
+### 3. Each staffer signs in to the dashboard with their own key
+
+The admin dashboard (`admin/`) no longer holds one shared key. It has its
+own `/login` page: each staffer pastes their personal raw key from step 1,
+the dashboard validates it against `GET /admin/whoami` and stores it in an
+httpOnly, 8-hour session cookie (`admin/src/lib/admin-key.ts`,
+`admin/src/app/login/`). `middleware.ts` sends anyone without that cookie to
+`/login`, and the signed-in name shows in the header with a sign-out link.
+
+**Remove `ADMIN_API_KEY` from the admin dashboard's Vercel env** once staff
+have keys and are signing in — it's read by nothing in `admin/` anymore.
+(The backend's own `ADMIN_API_KEY` is unrelated and stays — see step 2.)
+
+### 4. Adding or rotating a person later
+
+Re-run the script for the new/rotated person, merge their hash line into the
+existing `ADMIN_STAFF_KEYS` JSON (don't drop the others), save. To revoke
+someone, delete their entry from the JSON — their old key stops matching
+immediately.
+
+### Migration status
+
+`admin_access_log` (migration `1780702500000`) is **not yet applied** in
+production as of this change — run `npm run migration:run` (see the main
+setup section above) before relying on `GET /admin/access-log` or expecting
+rows to actually persist. Until it's applied, admin requests still work
+normally; logging degrades to a warning in the Render logs instead of
+failing anything (see `isMissingTable` in `AdminAccessLogService`).
