@@ -5,7 +5,8 @@
 // into useState with no cache at all. Rather than migrate 89 screens, the HTTP
 // layer serves the last-known-good GET when the network is gone — which fixes
 // every screen at once, cached or not.
-import { readCached, writeCached, clearOfflineCache } from '../offlineCache';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readCached, writeCached, clearOfflineCache, purgePersonalData } from '../offlineCache';
 
 beforeEach(async () => {
     await clearOfflineCache();
@@ -70,4 +71,53 @@ it('does not orphan entries when writes overlap, so sign-out really wipes them',
     await clearOfflineCache();
 
     for (const u of urls) expect(await readCached(u)).toBeNull();
+});
+
+// C5.4: AsyncStorage is an unencrypted SQLite file on Android, so other
+// people's personal data (members, attendance, leave, feedback) never goes in.
+describe('personal data (C5.4)', () => {
+    const personal = [
+        '/farms/f1/members',
+        '/farms/f1/pending',
+        '/farms/f1/invites',
+        '/farm-members/users/lookup{"phone":"9999999999"}',
+        '/attendance{"farmId":"f1"}',
+        '/attendance/mine{"farmId":"f1"}',
+        '/leave-requests{"farmId":"f1"}',
+        '/leave-requests/mine',
+        '/feedback',
+        '/feedback/abc',
+        '/team/overview{"farmId":"f1"}',
+    ];
+
+    it.each(personal)('never persists %s', async (url) => {
+        await writeCached(url, [{ name: 'Someone' }]);
+        expect(await AsyncStorage.getItem(`upcheck-http-cache:${url}`)).toBeNull();
+        expect(await readCached(url)).toBeNull();
+    });
+
+    it.each([
+        '/water-quality/pond/p1/latest',
+        '/feed-records{"pondId":"p1"}',
+        '/farms/f1',
+        '/farms',
+        '/farm-members/mine', // own roles — needed for offline permission checks
+        '/feedback-products', // prefix lookalike, not feedback
+    ])('still persists %s', async (url) => {
+        await writeCached(url, [{ id: 'x' }]);
+        expect((await readCached(url))?.data).toEqual([{ id: 'x' }]);
+    });
+
+    it('purges person data cached by older builds on app start, keeping the rest', async () => {
+        await AsyncStorage.setItem('upcheck-http-cache:/farms/f1/members', '{"data":[],"at":1}');
+        await AsyncStorage.setItem('upcheck-http-cache:/ponds/mine', JSON.stringify({ data: [1], at: Date.now() }));
+        await AsyncStorage.setItem('upcheck-http-cache-index', JSON.stringify(['/farms/f1/members', '/ponds/mine']));
+
+        // Runs automatically at module load (app start); called directly here.
+        await purgePersonalData();
+
+        expect(await AsyncStorage.getItem('upcheck-http-cache:/farms/f1/members')).toBeNull();
+        expect((await readCached('/ponds/mine'))?.data).toEqual([1]);
+        expect(JSON.parse((await AsyncStorage.getItem('upcheck-http-cache-index'))!)).not.toContain('/farms/f1/members');
+    });
 });
