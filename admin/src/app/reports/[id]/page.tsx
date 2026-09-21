@@ -1,13 +1,14 @@
 import Link from 'next/link';
 import {
     getReport,
+    listNotes,
     formatWhen,
     STATUSES,
     STATUS_LABEL,
     CATEGORY_LABEL,
     headline,
 } from '@/lib/feedback';
-import { saveReport } from './actions';
+import { saveReport, saveNote } from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,21 +22,26 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         return (
             <>
                 <p>
-                    <Link href="/">← Inbox</Link>
+                    <Link href="/reports">← Inbox</Link>
                 </p>
                 <p className="error">Could not load this report. {(err as Error).message}</p>
             </>
         );
     }
 
-    // The action is bound here, on the server, so the id is not something the
-    // browser can change on submit.
+    // Best-effort: an inbox that fails to render because the internal notes
+    // table isn't migrated yet is worse than one with a quietly empty list.
+    const notes = await listNotes(id).catch(() => []);
+
+    // The actions are bound here, on the server, so the id is not something
+    // the browser can change on submit.
     const save = saveReport.bind(null, report.id);
+    const addNote = saveNote.bind(null, report.id);
 
     return (
         <>
             <p>
-                <Link href="/">← Inbox</Link>
+                <Link href="/reports">← Inbox</Link>
             </p>
 
             <h1>{headline(report)}</h1>
@@ -128,6 +134,18 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                     />
                 </div>
 
+                <div>
+                    <label htmlFor="assignee">Assigned to (internal — free text)</label>
+                    <input
+                        id="assignee"
+                        name="assignee"
+                        type="text"
+                        defaultValue={report.assignee ?? ''}
+                        maxLength={120}
+                        placeholder="Unassigned"
+                    />
+                </div>
+
                 <button type="submit">Save</button>
             </form>
 
@@ -139,6 +157,34 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
                     </small>
                 </p>
             )}
+
+            <h2>Internal notes ({notes.length})</h2>
+            <p className="sub">
+                <small>Staff only — the farmer never sees these. Append-only: nothing here can be edited or removed.</small>
+            </p>
+            {notes.length === 0 ? (
+                <p className="empty">No notes yet.</p>
+            ) : (
+                notes.map((n) => (
+                    <div key={n.id} className="message" style={{ marginBottom: 8 }}>
+                        <div>{n.note}</div>
+                        <small className="sub">
+                            {formatWhen(n.createdAt)}{n.author ? ` · ${n.author}` : ''}
+                        </small>
+                    </div>
+                ))
+            )}
+            <form action={addNote} className="editor">
+                <div>
+                    <label htmlFor="note">Add a note</label>
+                    <textarea id="note" name="note" maxLength={2000} placeholder="What did you find out / do?" />
+                </div>
+                <div>
+                    <label htmlFor="author">Your name</label>
+                    <input id="author" name="author" type="text" maxLength={120} />
+                </div>
+                <button type="submit" className="secondary">Add note</button>
+            </form>
         </>
     );
 }
