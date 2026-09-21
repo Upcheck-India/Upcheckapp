@@ -45,6 +45,7 @@ import compliance from './compliance';
 import health from './health';
 import reports from './reports';
 import biosecurity from './biosecurity';
+import consent from './consent';
 import storage from './storage';
 
 export default {
@@ -87,5 +88,6 @@ export default {
   health,
   reports,
   biosecurity,
+  consent,
   storage,
 };

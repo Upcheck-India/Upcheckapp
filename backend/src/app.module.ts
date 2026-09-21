@@ -67,6 +67,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
 import { FeaturesModule } from './features/features.module';
 import { DailyBriefModule } from './daily-brief/daily-brief.module';
 import { HealthObservationsModule } from './health-observations/health-observations.module';
+import { ConsentsModule } from './consents/consents.module';
 import { StorageModule } from './storage/storage.module';
 import { AvatarsModule } from './avatars/avatars.module';
 import { AdminModule } from './admin/admin.module';
@@ -252,6 +253,7 @@ import { AdminAccessLogModule } from './admin-access-log/admin-access-log.module
     FeaturesModule,
     DailyBriefModule,
     HealthObservationsModule,
+    ConsentsModule,
     AdminModule,
     AdminAccessLogModule,
   ],

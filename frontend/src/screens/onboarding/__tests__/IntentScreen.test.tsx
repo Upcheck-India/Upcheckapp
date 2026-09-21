@@ -26,14 +26,16 @@ describe('IntentScreen — artboard 03', () => {
     it('carries the pre-selected owner intent through to create-account', () => {
         const { getByText } = renderScreen();
         fireEvent.press(getByText('Continue'));
-        expect(navigation.navigate).toHaveBeenCalledWith('Register', { intent: 'own_farm' });
+        // Via the data notice, which forwards the intent to Register
+        // unchanged (DataNoticeScreen.test.tsx).
+        expect(navigation.navigate).toHaveBeenCalledWith('DataNotice', { intent: 'own_farm' });
     });
 
     it('carries the worker intent when that option is chosen', () => {
         const { getByText } = renderScreen();
         fireEvent.press(getByText("I work on someone's farm"));
         fireEvent.press(getByText('Continue'));
-        expect(navigation.navigate).toHaveBeenCalledWith('Register', { intent: 'work_on_farm' });
+        expect(navigation.navigate).toHaveBeenCalledWith('DataNotice', { intent: 'work_on_farm' });
     });
 
     it('says out loud that the choice is not permanent', () => {

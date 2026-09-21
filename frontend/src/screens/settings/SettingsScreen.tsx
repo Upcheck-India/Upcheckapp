@@ -50,6 +50,7 @@ import {
     type TelemetryPrefs,
 } from '../../features/telemetryPrefs';
 import { syncAnalyticsConsent } from '../../features/analytics';
+import { recordConsent } from '../../features/consent';
 import { resolveFlag, useRemoteFlagsStore, type RemoteFlagKey } from '../../features/remoteFlags';
 import { setCrashReportingEnabled } from '../../utils/sentry';
 import { alertCenterApi } from '../../api/alertCenter';
@@ -501,7 +502,10 @@ export const SettingsScreen = ({ navigation }: any) => {
                     </View>
                     <Switch
                         value={telemetry.crashReports}
-                        onValueChange={(v) => updateTelemetry({ ...telemetry, crashReports: v })}
+                        onValueChange={(v) => {
+                            updateTelemetry({ ...telemetry, crashReports: v });
+                            void recordConsent('crash', v, 'settings');
+                        }}
                         trackColor={{ false: c.borderDefault, true: c.primaryHover }}
                     />
                 </View>
@@ -514,12 +518,14 @@ export const SettingsScreen = ({ navigation }: any) => {
                         // 'unasked' and 'declined' both read as OFF. Silence is
                         // never shown to the farmer as a yes.
                         value={telemetry.analytics === 'granted'}
-                        onValueChange={(v) =>
-                            updateTelemetry({ ...telemetry, analytics: v ? 'granted' : 'declined' })
-                        }
+                        onValueChange={(v) => {
+                            updateTelemetry({ ...telemetry, analytics: v ? 'granted' : 'declined' });
+                            void recordConsent('analytics', v, 'settings');
+                        }}
                         trackColor={{ false: c.borderDefault, true: c.primaryHover }}
                     />
                 </View>
+                <Row row={{ key: 'improveAdvice', icon: 'lightbulb', label: t('consent.improveTitle'), route: 'ImproveAdvice' }} />
 
                 <SectionHeader label={t('settings.about')} />
                 {/* "Is my data saved?" needs an answer that is always reachable,

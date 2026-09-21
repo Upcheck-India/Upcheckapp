@@ -25,7 +25,7 @@ Sign-in provider data — if you choose Google, we receive the email address, na
 
 Farm records you enter — farms, ponds and culture cycles, pond location if you provide it, water-quality readings, feeding, sampling, mortality, chemical, plankton, microbiology, disease and treatment logs, harvests, inventory, expenses, transactions, tasks and simulations. This is the substance of the app and most of it is entered by you.
 
-Photos — only images you choose to attach to a record (a health check, disease log, mortality log or your profile picture are the current uses), either taken with the camera or picked from your library. We do not access your gallery or camera in the background. Photos are converted to WebP format and their embedded metadata — including any location tag your device recorded — is stripped before storage; a small thumbnail is generated alongside the full image. A photo is visible to members of the farm the record belongs to, per their role, and is used only for that record and for exports you generate from it — never to train any model, ours or anyone else's. If we ever build a feature that analyses a photo automatically (for example, image-based disease detection), we will ask for your separate, specific consent before turning it on, and this policy will describe it before it launches.
+Photos — only images you choose to attach to a record (a health check, disease log, mortality log or your profile picture are the current uses), either taken with the camera or picked from your library. We do not access your gallery or camera in the background. Photos are converted to WebP format and their embedded metadata — including any location tag your device recorded — is stripped before storage; a small thumbnail is generated alongside the full image. A photo is visible to members of the farm the record belongs to, per their role, and is used only for that record and for exports you generate from it. It is never used to train any model unless you switch on photos under "Help improve Neerani's advice" (section 3), and never to train anyone else's. If we ever build a feature that analyses a photo automatically (for example, image-based disease detection), we will ask for your separate, specific consent before turning it on, and this policy will describe it before it launches.
 
 Team and attendance — who belongs to a farm, their role, and attendance or task records an owner or manager keeps.
 
@@ -38,6 +38,8 @@ Connected Neerani devices — where you use Neerani hardware, the readings it ta
 We use your data to create and secure your account and confirm who you are; to run the features you came for — storing your records, producing calculations, reports and alerts; to send you transactional messages such as email verification and password resets, and the reminders and alerts you have switched on; to keep the Service working, diagnose faults and improve it; and to meet legal obligations.
 
 Under India's Digital Personal Data Protection Act, 2023, our ground for each of these: your consent, given when you create an account and accept this policy, covers account creation, sign-in, storing the records you enter, running the features you use day to day, and sending transactional messages. Crash reporting and product analytics each rest on their own separate consent — see section 6, where you switch analytics on, and where crash reporting can be switched off. Where you have voluntarily provided data for a specified purpose and have not indicated you do not consent to its use (Section 7(a)) — for example, giving us your phone number to sign in with Truecaller — we rely on that certain legitimate use instead of asking you to consent twice for the same act. Retaining a record to meet a legal obligation, or disclosing data to comply with a court order or a request from a government agency legally entitled to make one, rests on Section 7's legitimate uses for compliance with law.
+
+Improving Neerani's advice (model training) is a separate purpose with its own consent, and it is OFF unless you switch it on in Settings → Privacy → "Help improve Neerani's advice". Farm records and photos are two separate switches: you may allow one and refuse the other. If you allow it, we may use those records or photos to improve the advice the app gives. We never use your name, phone number or money figures for this. Switching it off stops any future use, and a training dataset only ever includes data from people whose switch is on at the time it is built.
 
 What we do NOT do, and will not start doing quietly:
 • We do not sell your personal data. Not to anyone, for any price.
@@ -125,6 +127,12 @@ You can, at any time:
 
 Under India's Digital Personal Data Protection Act, you also have the right to: access a summary of the personal data we hold about you and how we process it; have inaccurate or incomplete data corrected or updated; have your data erased once it is no longer needed for the purpose it was collected for; know who else we have shared your data with; get a way to raise a grievance with us; and nominate someone to exercise these rights on your behalf if you become incapacitated or die.
 
+Withdrawing consent. You can withdraw any consent as easily as you gave it:
+• Product analytics and crash reporting — switch them off in Settings → Privacy.
+• Model training — switch off farm records, photos or both in Settings → Privacy → "Help improve Neerani's advice".
+• The core Service — storing your records and running the features you use — cannot run without your data, so withdrawing that consent means closing your account (Profile → Delete Account).
+Withdrawal stops future processing for that purpose; it does not undo processing already done. Each time you give or withdraw a consent we record the choice, the date, the policy version and the language it was shown in, so there is a record of what you agreed to.
+
 Write to admin@upcheck.in to exercise any of these. We aim to respond promptly, and in any case no later than 90 days.
 
 If you are unhappy with how we have handled your data, tell us first — we would rather fix it than have you escalate. Contact admin@upcheck.in. You also retain the right to complain to the Data Protection Board of India.
@@ -141,7 +149,7 @@ A device is linked to a pond by you, and can be unlinked by you. If a specific d
 
 ## 12. Changes to this policy
 
-We may update this policy as the Service changes. If a change materially affects your rights or what we collect, we will tell you in the app or by email before it takes effect — not by silently editing this page. The "last updated" date at the top always reflects the current version.
+We may update this policy as the Service changes. If a change materially affects your rights or what we collect, we will tell you in the app or by email before it takes effect — not by silently editing this page. The "last updated" date at the top always reflects the current version. When the version changes, the app shows you a short summary of what changed the next time you open it, and records that you have seen it.
 
 ## 13. Language, and how to reach us
 
