@@ -16,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <nav className="top-nav">
                     <Link href="/">Feedback</Link>
                     <Link href="/announcements">Announcements</Link>
+                    <Link href="/access-log">Access log</Link>
                 </nav>
                 <main>{children}</main>
             </body>
