@@ -391,7 +391,7 @@ window_key varchar NULL, created_by uuid, created_at
 - The harvest spec M2 entry points (the Sampling soft-shell row, the post-molt quick tap, harvest rejection) write `sign='soft_shell'` here.
 - **"Health check" quick log** on the pond dashboard: 11 sign chips, each with None / Few / Many, plus an optional photo. It is one screen and one save.
 - The tray check form adds optional "white feces on tray" and "empty gut" toggles. These write observations with `source='tray'`.
-- Photos: `photo_urls text[]` on observations. Upload reuses the feedback storage pattern (`backend/src/feedback/feedback-storage.service.ts`) with a new bucket `health-photos`. The bucket is **private**, reads use signed URLs, and access is checked per farm.
+- Photos: `photo_urls text[]` on observations. Upload reuses the feedback storage pattern (`backend/src/feedback/feedback-storage.service.ts`), stored in the single R2 photos bucket under a `health/` prefix (not a separate `health-photos` bucket). The bucket is **private**, reads use signed URLs, and access is checked per farm.
   - Photos are **online-only**. Offline, the photo button is disabled with "Photos need a connection". The observation itself still saves offline.
   - Compress to ≤1600 px, JPEG q0.7.
 

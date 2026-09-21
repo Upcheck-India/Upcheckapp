@@ -26,7 +26,7 @@ export const LEGAL_META = {
   governingLaw: 'India',
   jurisdiction: 'Chennai, Tamil Nadu',
   effectiveDate: '5 September 2026',
-  lastUpdated: '20 September 2026',
+  lastUpdated: '21 September 2026',
   privacyUrl: 'https://upcheck.in/privacy',
   termsUrl: 'https://upcheck.in/terms',
   deletionUrl: 'https://upcheck.in/account-deletion',
@@ -69,8 +69,16 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       'water-quality readings, feeding, sampling, mortality, chemical, plankton, microbiology, ' +
       'disease and treatment logs, harvests, inventory, expenses, transactions, tasks and ' +
       'simulations. This is the substance of the app and most of it is entered by you.\n\n' +
-      'Photos and voice notes — only files you choose to attach to a record. We do not access your ' +
-      'gallery, camera or microphone in the background.\n\n' +
+      'Photos — only images you choose to attach to a record (a health check, disease log, mortality ' +
+      'log or your profile picture are the current uses), either taken with the camera or picked ' +
+      'from your library. We do not access your gallery or camera in the background. Photos are ' +
+      'converted to WebP format and their embedded metadata — including any location tag your device ' +
+      'recorded — is stripped before storage; a small thumbnail is generated alongside the full ' +
+      'image. A photo is visible to members of the farm the record belongs to, per their role, and ' +
+      'is used only for that record and for exports you generate from it — never to train any model, ' +
+      'ours or anyone else\'s. If we ever build a feature that analyses a photo automatically (for ' +
+      'example, image-based disease detection), we will ask for your separate, specific consent ' +
+      'before turning it on, and this policy will describe it before it launches.\n\n' +
       'Team and attendance — who belongs to a farm, their role, and attendance or task records an ' +
       'owner or manager keeps.\n\n' +
       'Device and technical data — app version, device model, operating system version, language, a ' +
@@ -88,13 +96,20 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       'send you transactional messages such as email verification and password resets, and the ' +
       'reminders and alerts you have switched on; to keep the Service working, diagnose faults and ' +
       'improve it; and to meet legal obligations.\n\n' +
+      'The legal basis for each of these: your consent, given when you create an account and accept ' +
+      'this policy, covers account creation, sign-in, storing the records you enter, and (separately) ' +
+      'product analytics, which needs its own opt-in. Performing our contract with you covers running ' +
+      'the features you use day to day and sending transactional messages. Our legitimate interest in ' +
+      'keeping the Service secure and working covers crash reporting, fraud prevention and diagnostic ' +
+      'logs. Legal obligation covers anything we are required to retain or disclose by law.\n\n' +
       'What we do NOT do, and will not start doing quietly:\n' +
       '• We do not sell your personal data. Not to anyone, for any price.\n' +
       '• We do not use your data for third-party advertising, and we carry no ad networks.\n' +
       '• We do not share your farm records, harvest volumes, expenses, transactions or prices with ' +
       'other users, buyers, traders or competitors.\n' +
-      '• We do not read your photos, contacts, messages or call history for any purpose beyond the ' +
-      'specific feature you invoked, described in section 4.\n' +
+      '• We do not access your photo library, camera or call/phone state for any purpose beyond the ' +
+      'specific feature you invoked, described in section 4. We do not read your contacts or ' +
+      'messages — the app has no feature that accesses either.\n' +
       '• We do not build advertising or credit profiles about you.',
   },
   {
@@ -112,13 +127,14 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       'Camera — to photograph a pond, a diseased animal or a document and attach it to a record.\n\n' +
       'Photos and files — to attach an existing image, and to save exports (PDF, CSV, Excel) you ask ' +
       'the app to produce.\n\n' +
-      'Microphone — to record a voice note against a pond or a problem report. Many of our users ' +
-      'find speaking easier than typing. Recording only ever starts when you press record.\n\n' +
-      'Location — to set a farm or pond location, and to provide regionally relevant guidance. Used ' +
-      'when you ask for it. We do not track your movements in the background.\n\n' +
-      'Contacts — only to let you pick someone to invite to your farm, instead of typing their ' +
-      'number. We read the entry you select. We do not upload your address book.\n\n' +
-      'Notifications — to deliver the reminders and alerts you configure.\n\n' +
+      'Approximate location — only for the optional "Detect my district" shortcut when filling in ' +
+      'your farm\'s district, to pre-fill local weather and prices. We ask for coarse (approximate) ' +
+      'location, never precise location, only when you tap that shortcut, and never in the ' +
+      'background. You can always pick your district from a list instead and skip this entirely.\n\n' +
+      'Notifications — to deliver the reminders and alerts you configure. A notification\'s title and ' +
+      'body are generated by us but delivered through our push provider (Expo) and your device\'s ' +
+      'operating system (Google or Apple push services), which is how any app delivers a ' +
+      'notification. They may appear on your lock screen depending on your device settings.\n\n' +
       'Other apps on your device — the app checks whether certain apps (such as WhatsApp, a mail ' +
       'app, a dialler or maps) are installed, so that sharing a report or calling a worker opens ' +
       'something that actually exists. We check for a short, specific list. We do not request the ' +
@@ -128,12 +144,16 @@ export const PRIVACY_POLICY: LegalBlock[] = [
     heading: '5. Who else is involved',
     text:
       'We use service providers who process data on our behalf, under contract, and only on our ' +
-      'instructions. By function:\n' +
-      '• Cloud hosting, database and caching providers — running the Service and storing your data.\n' +
-      '• An email delivery provider — verification, password reset and notification emails.\n' +
-      '• A push-notification service — delivering alerts to your device.\n' +
-      '• A crash-reporting service — see section 6.\n' +
-      '• A product-analytics service — see section 6, and only with your consent.\n\n' +
+      'instructions. Named, with what they handle and where:\n' +
+      '• Supabase — authentication and our primary database (account, farm and log records). ' +
+      'Singapore.\n' +
+      '• Render — hosts our backend servers. Singapore.\n' +
+      '• Cloudflare R2 — stores the photos you attach to records. Asia-Pacific region.\n' +
+      '• Sentry — crash and error reporting; see section 6. European Union (Germany).\n' +
+      '• PostHog — product analytics, only with your consent; see section 6. United States.\n' +
+      '• Expo — delivers push notifications and app updates to your device. United States.\n' +
+      '• Brevo — sends verification, password-reset and notification emails on our behalf. ' +
+      'European Union.\n\n' +
       'Two providers are involved only because you chose them, and their own terms and privacy ' +
       'policies also apply to that choice:\n' +
       '• Google — if you sign in with Google.\n' +
@@ -162,29 +182,43 @@ export const PRIVACY_POLICY: LegalBlock[] = [
   {
     heading: '7. Where your data is kept',
     text:
-      'Your data is stored and processed on secure servers located outside India. Your account and ' +
-      'farm records are held in Singapore. Crash reports are processed in the European Union, and ' +
-      'product analytics — only if you have opted in — in the United States. We rely on ' +
-      'contractual safeguards with our providers for those transfers, and we choose providers who ' +
-      'commit to appropriate security and confidentiality standards.\n\n' +
+      'Your data is stored and processed on secure servers located outside India. Your account, ' +
+      'farm and log records are held in Singapore (Supabase, Render). Photos are stored with ' +
+      'Cloudflare R2 in the Asia-Pacific region. Crash reports are processed in the European Union, ' +
+      'and product analytics — only if you have opted in — in the United States. Push notifications ' +
+      'and app updates are delivered through Expo in the United States, and transactional email ' +
+      'through Brevo in the European Union. We rely on contractual safeguards with our providers for ' +
+      'those transfers, and we choose providers who commit to appropriate security and ' +
+      'confidentiality standards.\n\n' +
       'We protect data in transit with encryption (HTTPS), store passwords only as salted hashes, ' +
       'use signed session tokens, and restrict access to the small number of people who need it to ' +
-      'operate the Service. No system is perfectly secure, and we will not pretend otherwise; if a ' +
-      'breach affects your personal data we will notify you and the relevant authority as the law ' +
-      'requires.',
+      'operate the Service. No system is perfectly secure, and we will not pretend otherwise.\n\n' +
+      'If a breach affects your personal data, we notify affected users and the Data Protection ' +
+      'Board of India without delay, following our internal breach-response runbook. Our internal ' +
+      'target is to complete that notification within 72 hours of confirming the breach.',
   },
   {
     heading: '8. How long we keep it',
     text:
-      'We keep your account and farm data for as long as your account is active.\n\n' +
+      'How long depends on what it is:\n' +
+      '• Account and profile data — while your account is active.\n' +
+      '• Farm logs and records (ponds, cycles, water quality, feeding, sampling, mortality, ' +
+      'chemical, plankton, microbiology, disease, treatment, harvest, inventory, expenses, ' +
+      'transactions, tasks) — while the farm they belong to exists.\n' +
+      '• Photos — while the record they are attached to exists. Deleting a record, a farm, or your ' +
+      'account queues its photos for removal from storage; a short periodic clean-up job then ' +
+      'deletes them, so removal follows shortly after rather than instantly.\n' +
+      '• Email verification codes — 10 minutes, then they expire and cannot be reused.\n' +
+      '• Photo links (the signed URLs used to view a photo) — 1 hour, then they stop working and a ' +
+      'new one is generated on demand.\n' +
+      `• Routine encrypted backups — rotated out within ${LEGAL_META.deletionGraceDays} days.\n\n` +
       'When you delete your account, deletion is immediate and cannot be undone. Your sign-in ' +
       'identity is removed first, then your profile and every farm, pond, cycle and log you own. We ' +
       'cannot recover any of it afterwards, so export anything you want to keep BEFORE you delete. ' +
       'Because the action is irreversible, we ask you to re-enter your password (or type a ' +
       'confirmation, where your account has no password) before it proceeds.\n\n' +
-      `Residual copies in our routine encrypted backups are rotated out within ` +
-      `${LEGAL_META.deletionGraceDays} days of deletion. They are not accessible as an account and ` +
-      `cannot be used to restore one.\n\n` +
+      'Residual copies in our routine encrypted backups are not accessible as an account and cannot ' +
+      'be used to restore one.\n\n' +
       'Two things survive deletion, and you should know it: records we are legally required to ' +
       'retain, kept only for as long as the law requires; and data belonging to a farm you were a ' +
       'member of but did not own, which remains with that farm\'s owner. Deleting your account ' +
@@ -201,10 +235,14 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       '• Turn product analytics on or off.\n' +
       '• Withdraw any device permission in your phone\'s settings.\n' +
       '• Delete your account from Profile → Delete Account (immediate and irreversible — export first).\n\n' +
-      'You also have the right to ask us for a copy of the personal data we hold about you, to have ' +
-      'inaccurate data corrected, to ask us to erase it, and to nominate someone to exercise these ' +
-      'rights on your behalf if you are unable to. Write to us and we will respond within the period ' +
-      'the law allows.\n\n' +
+      'Under India\'s Digital Personal Data Protection Act, you also have the right to: access a ' +
+      'summary of the personal data we hold about you and how we process it; have inaccurate or ' +
+      'incomplete data corrected or updated; have your data erased once it is no longer needed for ' +
+      'the purpose it was collected for; know who else we have shared your data with; get a way to ' +
+      'raise a grievance with us; and nominate someone to exercise these rights on your behalf if ' +
+      'you become incapacitated or die.\n\n' +
+      `Write to ${LEGAL_META.contactEmail} to exercise any of these. We aim to respond promptly, ` +
+      'and in any case no later than 90 days.\n\n' +
       'If you are unhappy with how we have handled your data, tell us first — we would rather fix it ' +
       `than have you escalate. Contact ${LEGAL_META.contactEmail}. You also retain the right to ` +
       'complain to the Data Protection Board of India.',

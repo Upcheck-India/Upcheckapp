@@ -9,7 +9,7 @@ Upcheck Technologies Private Limited ("we", "us", "our") operates the Neerani mo
 
 This policy explains what personal data we collect, why we collect it, who we share it with, where it is kept, and the control you have over it. It is written to be read, not to be survived.
 
-Effective 5 September 2026. Last updated 20 September 2026.
+Effective 5 September 2026. Last updated 21 September 2026.
 
 ## 1. Who this applies to
 
@@ -25,7 +25,7 @@ Sign-in provider data — if you choose Google, we receive the email address, na
 
 Farm records you enter — farms, ponds and culture cycles, pond location if you provide it, water-quality readings, feeding, sampling, mortality, chemical, plankton, microbiology, disease and treatment logs, harvests, inventory, expenses, transactions, tasks and simulations. This is the substance of the app and most of it is entered by you.
 
-Photos and voice notes — only files you choose to attach to a record. We do not access your gallery, camera or microphone in the background.
+Photos — only images you choose to attach to a record (a health check, disease log, mortality log or your profile picture are the current uses), either taken with the camera or picked from your library. We do not access your gallery or camera in the background. Photos are converted to WebP format and their embedded metadata — including any location tag your device recorded — is stripped before storage; a small thumbnail is generated alongside the full image. A photo is visible to members of the farm the record belongs to, per their role, and is used only for that record and for exports you generate from it — never to train any model, ours or anyone else's. If we ever build a feature that analyses a photo automatically (for example, image-based disease detection), we will ask for your separate, specific consent before turning it on, and this policy will describe it before it launches.
 
 Team and attendance — who belongs to a farm, their role, and attendance or task records an owner or manager keeps.
 
@@ -37,11 +37,13 @@ Connected Neerani devices — where you use Neerani hardware, the readings it ta
 
 We use your data to create and secure your account and confirm who you are; to run the features you came for — storing your records, producing calculations, reports and alerts; to send you transactional messages such as email verification and password resets, and the reminders and alerts you have switched on; to keep the Service working, diagnose faults and improve it; and to meet legal obligations.
 
+The legal basis for each of these: your consent, given when you create an account and accept this policy, covers account creation, sign-in, storing the records you enter, and (separately) product analytics, which needs its own opt-in. Performing our contract with you covers running the features you use day to day and sending transactional messages. Our legitimate interest in keeping the Service secure and working covers crash reporting, fraud prevention and diagnostic logs. Legal obligation covers anything we are required to retain or disclose by law.
+
 What we do NOT do, and will not start doing quietly:
 • We do not sell your personal data. Not to anyone, for any price.
 • We do not use your data for third-party advertising, and we carry no ad networks.
 • We do not share your farm records, harvest volumes, expenses, transactions or prices with other users, buyers, traders or competitors.
-• We do not read your photos, contacts, messages or call history for any purpose beyond the specific feature you invoked, described in section 4.
+• We do not access your photo library, camera or call/phone state for any purpose beyond the specific feature you invoked, described in section 4. We do not read your contacts or messages — the app has no feature that accesses either.
 • We do not build advertising or credit profiles about you.
 
 ## 4. Permissions, and exactly why each one exists
@@ -54,24 +56,22 @@ Camera — to photograph a pond, a diseased animal or a document and attach it t
 
 Photos and files — to attach an existing image, and to save exports (PDF, CSV, Excel) you ask the app to produce.
 
-Microphone — to record a voice note against a pond or a problem report. Many of our users find speaking easier than typing. Recording only ever starts when you press record.
+Approximate location — only for the optional "Detect my district" shortcut when filling in your farm's district, to pre-fill local weather and prices. We ask for coarse (approximate) location, never precise location, only when you tap that shortcut, and never in the background. You can always pick your district from a list instead and skip this entirely.
 
-Location — to set a farm or pond location, and to provide regionally relevant guidance. Used when you ask for it. We do not track your movements in the background.
-
-Contacts — only to let you pick someone to invite to your farm, instead of typing their number. We read the entry you select. We do not upload your address book.
-
-Notifications — to deliver the reminders and alerts you configure.
+Notifications — to deliver the reminders and alerts you configure. A notification's title and body are generated by us but delivered through our push provider (Expo) and your device's operating system (Google or Apple push services), which is how any app delivers a notification. They may appear on your lock screen depending on your device settings.
 
 Other apps on your device — the app checks whether certain apps (such as WhatsApp, a mail app, a dialler or maps) are installed, so that sharing a report or calling a worker opens something that actually exists. We check for a short, specific list. We do not request the ability to see everything installed on your phone.
 
 ## 5. Who else is involved
 
-We use service providers who process data on our behalf, under contract, and only on our instructions. By function:
-• Cloud hosting, database and caching providers — running the Service and storing your data.
-• An email delivery provider — verification, password reset and notification emails.
-• A push-notification service — delivering alerts to your device.
-• A crash-reporting service — see section 6.
-• A product-analytics service — see section 6, and only with your consent.
+We use service providers who process data on our behalf, under contract, and only on our instructions. Named, with what they handle and where:
+• Supabase — authentication and our primary database (account, farm and log records). Singapore.
+• Render — hosts our backend servers. Singapore.
+• Cloudflare R2 — stores the photos you attach to records. Asia-Pacific region.
+• Sentry — crash and error reporting; see section 6. European Union (Germany).
+• PostHog — product analytics, only with your consent; see section 6. United States.
+• Expo — delivers push notifications and app updates to your device. United States.
+• Brevo — sends verification, password-reset and notification emails on our behalf. European Union.
 
 Two providers are involved only because you chose them, and their own terms and privacy policies also apply to that choice:
 • Google — if you sign in with Google.
@@ -89,17 +89,25 @@ Declining either one does not reduce your access to any feature.
 
 ## 7. Where your data is kept
 
-Your data is stored and processed on secure servers located outside India. Your account and farm records are held in Singapore. Crash reports are processed in the European Union, and product analytics — only if you have opted in — in the United States. We rely on contractual safeguards with our providers for those transfers, and we choose providers who commit to appropriate security and confidentiality standards.
+Your data is stored and processed on secure servers located outside India. Your account, farm and log records are held in Singapore (Supabase, Render). Photos are stored with Cloudflare R2 in the Asia-Pacific region. Crash reports are processed in the European Union, and product analytics — only if you have opted in — in the United States. Push notifications and app updates are delivered through Expo in the United States, and transactional email through Brevo in the European Union. We rely on contractual safeguards with our providers for those transfers, and we choose providers who commit to appropriate security and confidentiality standards.
 
-We protect data in transit with encryption (HTTPS), store passwords only as salted hashes, use signed session tokens, and restrict access to the small number of people who need it to operate the Service. No system is perfectly secure, and we will not pretend otherwise; if a breach affects your personal data we will notify you and the relevant authority as the law requires.
+We protect data in transit with encryption (HTTPS), store passwords only as salted hashes, use signed session tokens, and restrict access to the small number of people who need it to operate the Service. No system is perfectly secure, and we will not pretend otherwise.
+
+If a breach affects your personal data, we notify affected users and the Data Protection Board of India without delay, following our internal breach-response runbook. Our internal target is to complete that notification within 72 hours of confirming the breach.
 
 ## 8. How long we keep it
 
-We keep your account and farm data for as long as your account is active.
+How long depends on what it is:
+• Account and profile data — while your account is active.
+• Farm logs and records (ponds, cycles, water quality, feeding, sampling, mortality, chemical, plankton, microbiology, disease, treatment, harvest, inventory, expenses, transactions, tasks) — while the farm they belong to exists.
+• Photos — while the record they are attached to exists. Deleting a record, a farm, or your account queues its photos for removal from storage; a short periodic clean-up job then deletes them, so removal follows shortly after rather than instantly.
+• Email verification codes — 10 minutes, then they expire and cannot be reused.
+• Photo links (the signed URLs used to view a photo) — 1 hour, then they stop working and a new one is generated on demand.
+• Routine encrypted backups — rotated out within 30 days.
 
 When you delete your account, deletion is immediate and cannot be undone. Your sign-in identity is removed first, then your profile and every farm, pond, cycle and log you own. We cannot recover any of it afterwards, so export anything you want to keep BEFORE you delete. Because the action is irreversible, we ask you to re-enter your password (or type a confirmation, where your account has no password) before it proceeds.
 
-Residual copies in our routine encrypted backups are rotated out within 30 days of deletion. They are not accessible as an account and cannot be used to restore one.
+Residual copies in our routine encrypted backups are not accessible as an account and cannot be used to restore one.
 
 Two things survive deletion, and you should know it: records we are legally required to retain, kept only for as long as the law requires; and data belonging to a farm you were a member of but did not own, which remains with that farm's owner. Deleting your account removes you, not their farm.
 
@@ -115,7 +123,9 @@ You can, at any time:
 • Withdraw any device permission in your phone's settings.
 • Delete your account from Profile → Delete Account (immediate and irreversible — export first).
 
-You also have the right to ask us for a copy of the personal data we hold about you, to have inaccurate data corrected, to ask us to erase it, and to nominate someone to exercise these rights on your behalf if you are unable to. Write to us and we will respond within the period the law allows.
+Under India's Digital Personal Data Protection Act, you also have the right to: access a summary of the personal data we hold about you and how we process it; have inaccurate or incomplete data corrected or updated; have your data erased once it is no longer needed for the purpose it was collected for; know who else we have shared your data with; get a way to raise a grievance with us; and nominate someone to exercise these rights on your behalf if you become incapacitated or die.
+
+Write to admin@upcheck.in to exercise any of these. We aim to respond promptly, and in any case no later than 90 days.
 
 If you are unhappy with how we have handled your data, tell us first — we would rather fix it than have you escalate. Contact admin@upcheck.in. You also retain the right to complain to the Data Protection Board of India.
 
