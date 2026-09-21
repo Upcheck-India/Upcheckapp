@@ -67,6 +67,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
 import { FeaturesModule } from './features/features.module';
 import { DailyBriefModule } from './daily-brief/daily-brief.module';
 import { HealthObservationsModule } from './health-observations/health-observations.module';
+import { ConsentsModule } from './consents/consents.module';
 import { StorageModule } from './storage/storage.module';
 import { AvatarsModule } from './avatars/avatars.module';
 
@@ -250,6 +251,7 @@ import { AvatarsModule } from './avatars/avatars.module';
     FeaturesModule,
     DailyBriefModule,
     HealthObservationsModule,
+    ConsentsModule,
   ],
   controllers: [AppController],
   providers: [
