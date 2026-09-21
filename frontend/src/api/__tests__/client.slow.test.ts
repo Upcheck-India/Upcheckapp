@@ -23,7 +23,7 @@ jest.mock('../../i18n', () => ({
     default: { t: (key: string) => key },
 }));
 
-import apiClient, { SLOW_REQUEST_MS } from '../client';
+import apiClient, { SLOW_REQUEST_MS, __resetLastAnswer } from '../client';
 
 /** An adapter that answers `data` only when `release()` is called. */
 const respondLater = (data: unknown) => {
@@ -39,6 +39,7 @@ const respondLater = (data: unknown) => {
 beforeEach(async () => {
     await clearOfflineCache();
     useUIStore.setState({ slowRequests: 0 });
+    __resetLastAnswer();
     jest.spyOn(queryClient, 'invalidateQueries').mockResolvedValue(undefined as any);
     jest.useFakeTimers();
 });
@@ -63,13 +64,27 @@ it('answers a slow GET from the last-known copy and flags the server as waking',
     expect(result?.data).toEqual([{ id: 'old' }]);
     expect(useUIStore.getState().slowRequests).toBe(1);
 
-    // The real answer lands later: the flag clears, the cache and the screen
-    // on display catch up.
+    // The real answer lands later: the flag clears and the cache catches up —
+    // WITHOUT refetching every active query (that re-triggered slow requests
+    // and kept spinners going on every screen).
     release();
     await jest.advanceTimersByTimeAsync(600);
     expect(useUIStore.getState().slowRequests).toBe(0);
     expect((await readCached('/ponds'))?.data).toEqual([{ id: 'fresh' }]);
-    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ type: 'active' });
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
+});
+
+it('does not raise the waking banner for one slow request while the server is answering others', async () => {
+    // The server just answered something.
+    apiClient.defaults.adapter = (async (config: any) => ({ data: 'ok', status: 200, statusText: 'OK', headers: {}, config })) as any;
+    await apiClient.get('/health');
+
+    const release = respondLater([{ id: 'fresh' }]);
+    void apiClient.get('/slow-endpoint');
+    await jest.advanceTimersByTimeAsync(SLOW_REQUEST_MS + 100);
+    expect(useUIStore.getState().slowRequests).toBe(0);
+    release();
+    await jest.advanceTimersByTimeAsync(0);
 });
 
 it('keeps waiting (flagged) when there is nothing cached, then returns the real answer', async () => {
@@ -112,7 +127,7 @@ it('serves the last-known copy on a gateway 503 (a sleeping server), GET only', 
     await expect(apiClient.post('/ponds', {})).rejects.toMatchObject({ response: { status: 503 } });
 });
 
-it('retries a timed-out GET once before giving up', async () => {
+it('does not retry a timed-out GET at the HTTP layer (no doubled wait)', async () => {
     let calls = 0;
     apiClient.defaults.adapter = (async (config: any) => {
         calls += 1;
@@ -126,6 +141,6 @@ it('retries a timed-out GET once before giving up', async () => {
         return { data: 'second', status: 200, statusText: 'OK', headers: {}, config };
     }) as any;
 
-    expect((await apiClient.get('/farms')).data).toBe('second');
-    expect(calls).toBe(2);
+    await expect(apiClient.get('/farms')).rejects.toBeTruthy();
+    expect(calls).toBe(1);
 });
