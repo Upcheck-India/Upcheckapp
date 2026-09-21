@@ -18,7 +18,7 @@ import {
   type UploadedImage,
 } from './feedback-storage.service';
 import { UPLOAD_THROTTLE } from '../storage/r2-storage.service';
-import { CreateFeedbackDto } from './dto/feedback.dto';
+import { CreateFeedbackDto, ReportPhotoDto } from './dto/feedback.dto';
 
 /**
  * The farmer's side of feedback. Every route is scoped to the caller — there
@@ -52,6 +52,13 @@ export class FeedbackController {
   @Post()
   create(@Body() dto: CreateFeedbackDto, @CurrentUser() user) {
     return this.feedback.create(user.id, dto);
+  }
+
+  /** F7.8: report a farm photo someone else uploaded (path referenced, not copied). */
+  @Post('report-photo')
+  @Throttle(UPLOAD_THROTTLE)
+  reportPhoto(@Body() dto: ReportPhotoDto, @CurrentUser() user) {
+    return this.feedback.reportPhoto(user.id, dto);
   }
 
   @Get()

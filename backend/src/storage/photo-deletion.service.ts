@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import { R2StorageService, type PhotoNamespace } from './r2-storage.service';
+import { NOT_PENDING, PhotoLedgerService } from './photo-ledger.service';
+import { FULL_RETENTION_DAYS, NOTICE_LEAD_DAYS, retentionDropAt } from './retention';
 
 export type PhotoDeletionReason =
   | 'record_deleted'
@@ -22,6 +24,8 @@ export interface PhotoRef {
 /** Automatic retries stop here; the row stays, surfaced to staff. */
 export const MAX_AUTO_ATTEMPTS = 5;
 const LAZY_DRAIN_EVERY_MS = 60_000;
+/** F3: the retention pass rides the same lazy hook, at most daily per instance. */
+const RETENTION_EVERY_MS = 24 * 3_600_000;
 /** An upload still on no record after this long was abandoned (F1 orphans). */
 export const ORPHAN_AFTER_HOURS = 24;
 
@@ -44,6 +48,7 @@ interface Row {
   id: string;
   namespace: PhotoNamespace;
   path: string;
+  reason?: PhotoDeletionReason;
 }
 
 /**
@@ -62,10 +67,12 @@ export class PhotoDeletionService {
   private migrated = false;
   private draining = false;
   private lastLazyDrain = 0;
+  private lastRetention = 0;
 
   constructor(
     private readonly db: DataSource,
     private readonly storage: R2StorageService,
+    @Optional() private readonly ledger?: PhotoLedgerService,
   ) {}
 
   /**
@@ -153,12 +160,18 @@ export class PhotoDeletionService {
     }
   }
 
-  /** Fire-and-forget orphan sweep + drain, at most once a minute per instance. */
+  /**
+   * Fire-and-forget orphan sweep + drain, at most once a minute per instance;
+   * the F3 retention pass joins it at most once a day.
+   */
   drainSoon(): void {
     const now = Date.now();
     if (now - this.lastLazyDrain < LAZY_DRAIN_EVERY_MS) return;
     this.lastLazyDrain = now;
+    const retention = now - this.lastRetention >= RETENTION_EVERY_MS;
+    if (retention) this.lastRetention = now;
     void this.sweepOrphans()
+      .then(() => (retention ? this.retentionPass() : 0))
       .then(() => this.drain())
       .catch((err: any) =>
       this.logger.warn(`Lazy photo drain failed: ${err?.message ?? err}`),
@@ -185,9 +198,9 @@ export class PhotoDeletionService {
       try {
         rows = await this.db.query(
           includeFailed
-            ? `SELECT id, namespace, path FROM photo_deletions
+            ? `SELECT id, namespace, path, reason FROM photo_deletions
                WHERE done_at IS NULL ORDER BY requested_at LIMIT $1`
-            : `SELECT id, namespace, path FROM photo_deletions
+            : `SELECT id, namespace, path, reason FROM photo_deletions
                WHERE done_at IS NULL AND attempts < ${MAX_AUTO_ATTEMPTS} AND next_attempt_at <= now()
                ORDER BY requested_at LIMIT $1`,
           [limit],
@@ -200,8 +213,13 @@ export class PhotoDeletionService {
       // into DeleteObjects (1000 keys) if a drain of 100 ever gets slow.
       for (const row of rows) {
         try {
-          await this.deleteRef(row);
-          await this.forgetLedger(row);
+          if (row.reason === 'retention_full') {
+            // F3: the full size goes; the thumbnail and the ledger row stay.
+            await this.storage.deleteFull(row.namespace, row.path);
+          } else {
+            await this.deleteRef(row);
+            await this.forgetLedger(row);
+          }
           await this.db.query(
             `UPDATE photo_deletions SET done_at = now(), attempts = attempts + 1, last_error = NULL WHERE id = $1`,
             [row.id],
@@ -258,6 +276,60 @@ export class PhotoDeletionService {
     if (!rows.length) return 0;
     await this.enqueue(rows.map((r) => ({ namespace: r.namespace, path: r.path })), 'orphan');
     return rows.length;
+  }
+
+  /**
+   * F3 retention: farm photos whose full size has passed its clock
+   * (`retentionDropAt`: 12 months after upload, never within 30 days of the
+   * owner's notice, never for an owner who has had no notice) get
+   * `full_dropped_at` and a `retention_full` queue row — one transaction.
+   * The drain then deletes the full-size object only; the thumbnail stays
+   * forever and the photo keeps counting at its thumbnail size.
+   * Protected photos are included on purpose (§F2.4: retention still applies,
+   * the thumbnail is kept). Returns how many were downgraded; 0 before the
+   * migrations (42P01/42703 — the safe direction: nothing is dropped).
+   */
+  async retentionPass(now = new Date(), limit = 500): Promise<number> {
+    let rows: { path: string; uploaded_at: Date; notice_at: Date }[];
+    try {
+      rows = await this.db.query(
+        `SELECT o.path, o.uploaded_at, n.notice_at FROM photo_objects o
+         JOIN photo_retention_notices n ON n.owner_user_id = o.owner_user_id
+         WHERE o.namespace = 'health' AND o.full_dropped_at IS NULL AND o.path LIKE '%.webp'
+           AND o.uploaded_at < $1::timestamptz - interval '${FULL_RETENTION_DAYS} days'
+           AND n.notice_at < $1::timestamptz - interval '${NOTICE_LEAD_DAYS} days'
+           AND ${NOT_PENDING}
+         ORDER BY o.uploaded_at LIMIT $2`,
+        [now.toISOString(), limit],
+      );
+    } catch (err) {
+      if (isMissingSchema(err)) return 0;
+      throw err;
+    }
+    // The SQL narrows; this is the rule (the same one the notice uses).
+    const due = rows
+      .filter((r) => {
+        const at = retentionDropAt(r.uploaded_at, r.notice_at);
+        return !!at && at.getTime() <= now.getTime();
+      })
+      .map((r) => r.path);
+    if (!due.length) return 0;
+    await this.db.transaction(async (m) => {
+      await m.query(
+        `UPDATE photo_objects SET full_dropped_at = $2
+         WHERE namespace = 'health' AND path = ANY($1::text[]) AND full_dropped_at IS NULL`,
+        [due, now.toISOString()],
+      );
+      await this.enqueue(
+        due.map((path) => ({ namespace: 'health' as const, path })),
+        'retention_full',
+        null,
+        m,
+      );
+    });
+    this.ledger?.markDropped();
+    this.logger.log(`Retention: ${due.length} photo(s) downgraded to thumbnail`);
+    return due.length;
   }
 
   /** Rows automatic retries gave up on — for the staff dashboard. */

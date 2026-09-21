@@ -9,6 +9,9 @@ import { PhotoLedgerService } from '../storage/photo-ledger.service';
 
 export type { UploadedImage } from '../storage/r2-storage.service';
 
+/** F7.8: marks a report attachment that is a farm photo referenced in place. */
+export const REPORTED_PHOTO_PREFIX = 'health/';
+
 /** 5 MB per image after the picker's on-device compression. */
 export const MAX_ATTACHMENT_BYTES = MAX_IMAGE_BYTES;
 
@@ -44,10 +47,28 @@ export class FeedbackStorageService {
   /**
    * Signed, short-lived full + thumbnail URLs for a report's attachments.
    *
+   * F7.8: an attachment starting `health/` is a REPORTED farm photo,
+   * referenced in place (never copied). Only staff (`includeReported`) get it
+   * signed; the reporter's own view leaves it out, so a member later removed
+   * from the farm cannot keep reading the photo through their report.
+   * Own screenshots first, then reported photos.
+   *
    * Degrades to empty lists rather than throwing: a farmer must still be able
    * to read the team's reply when storage is having a bad day.
    */
-  signAttachments(paths: string[]): Promise<{ full: string[]; thumb: string[] }> {
-    return this.storage.sign('feedback', paths ?? []);
+  async signAttachments(
+    paths: string[],
+    includeReported = false,
+  ): Promise<{ full: string[]; thumb: string[] }> {
+    const all = paths ?? [];
+    const own = all.filter((p) => !p.startsWith(REPORTED_PHOTO_PREFIX));
+    const reported = includeReported
+      ? all.filter((p) => p.startsWith(REPORTED_PHOTO_PREFIX)).map((p) => p.slice(REPORTED_PHOTO_PREFIX.length))
+      : [];
+    const [a, b] = await Promise.all([
+      this.storage.sign('feedback', own),
+      reported.length ? this.storage.sign('health', reported) : { full: [], thumb: [] },
+    ]);
+    return { full: [...a.full, ...b.full], thumb: [...a.thumb, ...b.thumb] };
   }
 }
