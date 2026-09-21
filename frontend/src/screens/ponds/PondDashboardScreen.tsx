@@ -391,6 +391,8 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         const params: Record<string, any> = { pondId, pondName };
         if (cycle) params.cropId = cycle.id;
         if (pond?.farmId) params.farmId = pond.farmId;
+        // Screens that serve both tiles (HealthCheck) need to know which one was tapped.
+        if (mode !== 'log') params.view = 'history';
         navigation.navigate(mode === 'log' ? action.logRoute : action.historyRoute, params);
     };
 
