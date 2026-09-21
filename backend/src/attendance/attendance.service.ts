@@ -239,7 +239,7 @@ export class AttendanceService {
       await this.push
         .sendToUser(record.userId, {
           title: 'Check-out recorded',
-          body: `Your check-out at ${farm.name} was recorded at ${istTime(at)} by ${displayName(saved.checkedOutBy)} (${REASON_TEXT[dto.reason!]})`,
+          body: 'Your check-out was recorded. Open the app for details.',
           data: {
             type: 'attendance_checkout',
             farmId: record.farmId,

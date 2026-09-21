@@ -38,7 +38,10 @@ import {
   HealthPhotoStorageService,
   farmIdOfCrop,
 } from '../health-observations/health-photo-storage.service';
-import { removedPhotoTombstone } from '../health-observations/photo-removal.util';
+import {
+  enqueueRemovedPhotos,
+  removedPhotoTombstone,
+} from '../health-observations/photo-removal.util';
 import { toIstDateString } from '../common/ist-date';
 
 // Library text must never recommend antibiotics (spec 2026-09-19 D0/S3) —
@@ -432,10 +435,8 @@ export class DiseaseService {
 
     // P2: a dropped photo path is deleted, not just untracked, and leaves a
     // tombstone line on `notes` rather than vanishing silently.
-    const tombstone = await removedPhotoTombstone(
+    const { removed, tombstone } = await removedPhotoTombstone(
       this.diseaseRecordRepository.manager,
-      this.photos,
-      this.logger,
       record.photoUrls,
       dto.photoUrls,
       userId,
@@ -453,6 +454,7 @@ export class DiseaseService {
       ...(flagHistory ? { flagHistory: flagHistory as any } : {}),
       ...(notes !== undefined ? { notes } : {}),
     });
+    await enqueueRemovedPhotos(this.photos, this.logger, removed, userId);
     if (flagHistory) {
       await this.compliance?.escalate(
         {
@@ -471,10 +473,14 @@ export class DiseaseService {
     }) as Promise<DiseaseRecord>;
   }
 
-  async removeRecord(id: string): Promise<{ message: string }> {
+  /** F1: the record's photos are queued for R2 deletion in the same transaction. */
+  async removeRecord(id: string, userId?: string): Promise<{ message: string }> {
     const record = await this.diseaseRecordRepository.findOneBy({ id });
     if (!record) throw new NotFoundException(`Disease record ${id} not found`);
-    await this.diseaseRecordRepository.delete(id);
+    await this.diseaseRecordRepository.manager.transaction(async (m) => {
+      await this.photos.remove(record.photoUrls, 'record_deleted', userId, m);
+      await m.delete(DiseaseRecord, id);
+    });
     return { message: 'Disease record deleted' };
   }
 }

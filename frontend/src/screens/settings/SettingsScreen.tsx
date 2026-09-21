@@ -56,6 +56,8 @@ import { alertCenterApi } from '../../api/alertCenter';
 import { pondsApi } from '../../api/ponds';
 import type { PondContext } from '../../api/pondContext';
 import { pushApi } from '../../api/push';
+import { profilesApi } from '../../api/profiles';
+import { Avatar } from '../../components/ui/Avatar';
 import { useAuthStore } from '../../store/authStore';
 import { useMembershipStore } from '../../store/membershipStore';
 
@@ -176,6 +178,15 @@ export const SettingsScreen = ({ navigation }: any) => {
     );
 
     useFocusEffect(useCallback(() => { loadMemberships(); }, [loadMemberships]));
+
+    // The uploaded picture lives on the profile (signed, 1 h), not in the auth
+    // session, so read it on focus — a change on the Profile screen shows on return.
+    const [avatarUri, setAvatarUri] = useState<string | null>(null);
+    useFocusEffect(useCallback(() => {
+        profilesApi.getMine()
+            .then(({ data }) => setAvatarUri(data?.avatarThumbUrl ?? data?.avatarUrl ?? null))
+            .catch(() => { /* keep the initials */ });
+    }, []));
 
     const ownedCount = useMemo(
         () => memberships.filter((m) => m.role === 'owner').length,
@@ -341,9 +352,7 @@ export const SettingsScreen = ({ navigation }: any) => {
                     onPress={() => navigation.navigate('Profile')}
                     accessibilityRole="button"
                 >
-                    <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{initials}</Text>
-                    </View>
+                    <Avatar uri={avatarUri} initials={initials} seed={user?.id ?? displayName} size={44} testID="settings-avatar" />
                     <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={styles.identityName} numberOfLines={1}>
                             {displayName || t('settings.profile')}
@@ -641,15 +650,6 @@ const styles = StyleSheet.create({
         borderBottomColor: c.borderDefault,
         minHeight: 44,
     },
-    avatar: {
-        width: 44,
-        height: 44,
-        borderRadius: theme.radius.sm,
-        backgroundColor: c.infoBg,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    avatarText: { ...theme.typeScale.h3, color: c.infoText },
     identityName: { ...theme.typeScale.h2, color: c.textPrimary },
     identityMeta: { ...theme.typeScale.bodySmall, color: c.textTertiary },
     editLink: { ...theme.typeScale.labelMedium, color: c.textLink },

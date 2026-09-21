@@ -69,3 +69,43 @@ describe('HealthCheckScreen — recent checks with photos (P1)', () => {
         expect(queryByLabelText('View photo')).toBeNull();
     });
 });
+
+describe('HealthCheckScreen — opened from the pond History tile', () => {
+    beforeEach(() => jest.clearAllMocks());
+    const historyRoute = { params: { pondId: 'pond-1', pondName: 'Pond 1', view: 'history' } };
+    const renderHistory = () =>
+        render(
+            <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+                <HealthCheckScreen navigation={navigation} route={historyRoute} />
+            </SafeAreaProvider>,
+        );
+    const row = (over: object) => ({
+        id: 'h', pondId: 'pond-1', cropId: null, observedOn: '2026-09-18',
+        sign: 'white_feces', level: 'few', sampleSize: null, count: null, moltDeaths: null,
+        source: 'quick', windowKey: null, photoUrls: [], photoSignedUrls: [], photoThumbUrls: [],
+        createdAt: '2026-09-18T10:00:00Z', ...over,
+    });
+
+    it('shows past checks, not the input form, and asks for 90 days', async () => {
+        (healthObservationsApi.listForPond as jest.Mock).mockResolvedValue({ data: [row({})] });
+        const { findByTestId, queryByTestId, getByText } = renderHistory();
+        expect(await findByTestId('health-check-day-2026-09-18')).toBeTruthy();
+        expect(queryByTestId('sign-white_feces')).toBeNull();
+        expect(getByText('Health Check History')).toBeTruthy();
+        expect(healthObservationsApi.listForPond).toHaveBeenCalledWith('pond-1', 90);
+    });
+
+    it('lists a check that has no photo', async () => {
+        (healthObservationsApi.listForPond as jest.Mock).mockResolvedValue({
+            data: [row({ observedOn: '2026-09-17', level: 'none' })],
+        });
+        const { findByText } = renderHistory();
+        expect(await findByText('No signs seen')).toBeTruthy();
+    });
+
+    it('says so when there are no checks', async () => {
+        (healthObservationsApi.listForPond as jest.Mock).mockResolvedValue({ data: [] });
+        const { findByTestId } = renderHistory();
+        expect(await findByTestId('health-check-empty')).toBeTruthy();
+    });
+});

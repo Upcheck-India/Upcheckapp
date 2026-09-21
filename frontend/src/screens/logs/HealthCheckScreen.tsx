@@ -48,7 +48,9 @@ const LEVELS: HealthLevel[] = ['none', 'few', 'many'];
 export const HealthCheckScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondId, pondName, cropId, reason } = route.params ?? {};
+    const { pondId, pondName, cropId, reason, view } = route.params ?? {};
+    // The pond's History tile opens this screen too; there it is a read-only list.
+    const historyOnly = view === 'history';
     const [levels, setLevels] = useState<Partial<Record<HealthSign, HealthLevel>>>({});
     const [photos, setPhotos] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
@@ -63,12 +65,14 @@ export const HealthCheckScreen = ({ route, navigation }: any) => {
     const loadRecent = useCallback(async () => {
         if (!pondId) return;
         try {
-            const { data } = await healthObservationsApi.listForPond(pondId, 7);
+            // 90 is the backend's ceiling for this endpoint.
+            const { data } = await healthObservationsApi.listForPond(pondId, historyOnly ? 90 : 7);
             setRecent(data);
         } catch {
             // History is a nice-to-have here; a failed read must not block logging.
         }
-    }, [pondId]);
+    }, [pondId, historyOnly]);
+    const days = groupByDay(recent);
     useFocusEffect(useCallback(() => { void loadRecent(); }, [loadRecent]));
 
     const save = async () => {
@@ -104,11 +108,15 @@ export const HealthCheckScreen = ({ route, navigation }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel={t('common.back')}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>{t('health.checkTitle')}</Text>
+                <Text style={styles.title}>{historyOnly ? t('history.healthCheckHistoryTitle') : t('health.checkTitle')}</Text>
                 <View style={{ width: 40 }} />
             </View>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                {!!pondName && <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>}
+                {!!pondName && !historyOnly && <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>}
+                {historyOnly && !days.length && (
+                    <Text style={styles.hint} testID="health-check-empty">{t('history.healthCheckEmptyText')}</Text>
+                )}
+                {!historyOnly && (<>
                 {reason === 'spike' && <Text style={styles.reason}>{t('health.spikeReason')}</Text>}
                 <Text style={styles.hint}>{t('health.checkHint')}</Text>
                 <Card style={styles.card}>
@@ -128,15 +136,19 @@ export const HealthCheckScreen = ({ route, navigation }: any) => {
                     <HealthPhotoPicker pondId={pondId} value={photos} onChange={setPhotos} />
                 </Card>
                 <Button title={t('logs.saveRecord')} onPress={save} loading={saving} disabled={!signs.length} />
-                {groupByDay(recent).some((d) => d.photoThumbUrls.length > 0) && (
-                    <Card style={[styles.card, styles.recentCard]}>
-                        <Text style={styles.recentTitle}>{t('history.healthCheckRecentTitle')}</Text>
-                        {groupByDay(recent).map((d) => (
+                </>)}
+                {/* Every check counts as history, with or without a photo. */}
+                {days.length > 0 && (
+                    <Card style={[styles.card, !historyOnly && styles.recentCard]}>
+                        {!historyOnly && <Text style={styles.recentTitle}>{t('history.healthCheckRecentTitle')}</Text>}
+                        {days.map((d) => (
                             <View key={d.observedOn} style={styles.recentRow} testID={`health-check-day-${d.observedOn}`}>
-                                <Text style={styles.dateText}>{formatDate(d.observedOn, { day: 'numeric', month: 'short' })}</Text>
-                                {!!d.signs.length && (
-                                    <Text style={styles.metaText}>{d.signs.map((s) => t(`health.sign.${s.sign}`)).join(' · ')}</Text>
-                                )}
+                                <Text style={styles.dateText}>{formatDate(d.observedOn, { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+                                <Text style={styles.metaText}>
+                                    {d.signs.length
+                                        ? d.signs.map((s) => `${t(`health.sign.${s.sign}`)} (${t(`health.level.${s.level}`)})`).join(' · ')
+                                        : t('history.healthCheckAllClear')}
+                                </Text>
                                 {!!d.photoThumbUrls.length && (
                                     <PhotoStrip full={d.photoSignedUrls} thumbs={d.photoThumbUrls} />
                                 )}

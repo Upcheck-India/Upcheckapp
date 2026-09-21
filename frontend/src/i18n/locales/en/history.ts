@@ -30,6 +30,9 @@ const history = {
 
   // ── HealthCheckScreen (recent checks with photos, P1) ────────────────────
   healthCheckRecentTitle: 'Recent checks',
+  healthCheckHistoryTitle: "Health Check History",
+  healthCheckEmptyText: "No health checks recorded in the last 90 days.",
+  healthCheckAllClear: "No signs seen",
 
   // ── DiseaseHistoryScreen ──────────────────────────────────────────────────
   diseaseTitle: 'Disease History',

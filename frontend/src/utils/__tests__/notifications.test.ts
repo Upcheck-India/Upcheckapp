@@ -27,6 +27,15 @@ jest.mock('expo-notifications', () => ({
 }));
 jest.mock('expo-device', () => ({ isDevice: true }));
 
+const mockCaptureError = jest.fn();
+jest.mock('../sentry', () => ({ captureError: (...args: unknown[]) => mockCaptureError(...args) }));
+
+jest.mock('expo-constants', () => ({
+    __esModule: true,
+    default: { expoConfig: { extra: { eas: { projectId: 'proj-1' } } } },
+}));
+
+import * as Notifications from 'expo-notifications';
 import type { PondContext } from '../../api/pondContext';
 import {
     syncReminders,
@@ -37,6 +46,7 @@ import {
     MOLT_REMINDER_TAG,
     BRIEF_REMINDER_TAG,
     DEFAULT_REMINDER_TIMES,
+    registerForPushNotificationsAsync,
 } from '../notifications';
 
 const ctx = (over: Partial<PondContext>): PondContext =>
@@ -66,6 +76,37 @@ beforeEach(() => {
     mockGetAll.mockResolvedValue([]);
     mockGetPermissions.mockResolvedValue({ status: 'granted' });
     mockRequestPermissions.mockResolvedValue({ status: 'granted' });
+    mockCaptureError.mockClear();
+});
+
+describe('registerForPushNotificationsAsync', () => {
+    /**
+     * getExpoPushTokenAsync() THROWS on failure (e.g. Android missing the
+     * Firebase config) rather than resolving with an error. This used to be
+     * caught and the stringified error assigned to `token`, which the
+     * caller then happily sent to the backend as if it were a real Expo
+     * token — that error text is exactly what ended up in production's
+     * `users.push_token` column.
+     */
+    it('sends nothing and reports once to Sentry when the token fetch fails', async () => {
+        (Notifications.getExpoPushTokenAsync as jest.Mock).mockRejectedValue(
+            new Error(
+                'Make sure to complete the guide at https://docs.expo.dev/push-notifications/fcm-credentials/',
+            ),
+        );
+        const token = await registerForPushNotificationsAsync();
+        expect(token).toBeUndefined();
+        expect(mockCaptureError).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns the token on success without reporting to Sentry', async () => {
+        (Notifications.getExpoPushTokenAsync as jest.Mock).mockResolvedValue({
+            data: 'ExponentPushToken[abc]',
+        });
+        const token = await registerForPushNotificationsAsync();
+        expect(token).toBe('ExponentPushToken[abc]');
+        expect(mockCaptureError).not.toHaveBeenCalled();
+    });
 });
 
 /**

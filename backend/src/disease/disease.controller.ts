@@ -117,7 +117,7 @@ export class DiseaseController {
     'crop.pond.farm.userId',
     'WRITE_MANAGEMENT',
   )
-  removeRecord(@Param('id') id: string) {
-    return this.diseaseService.removeRecord(id);
+  removeRecord(@Param('id') id: string, @CurrentUser() user) {
+    return this.diseaseService.removeRecord(id, user?.id);
   }
 }

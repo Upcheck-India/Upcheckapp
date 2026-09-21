@@ -9,6 +9,7 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import { validateSync } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { UpdateFarmDto } from './dto/update-farm.dto';
+import { PhotoDeletionService } from '../storage/photo-deletion.service';
 import {
   NotFoundException,
   InternalServerErrorException,
@@ -23,6 +24,8 @@ describe('FarmsService', () => {
   let repository: any;
   let cropsRepo: any;
   let module: TestingModule;
+  let txManager: { update: jest.Mock };
+  let photoDeletions: { enqueue: jest.Mock };
 
   const mockFarm: Partial<Farm> = {
     id: 'farm-1',
@@ -55,7 +58,12 @@ describe('FarmsService', () => {
     cropsRepo = { count: jest.fn().mockResolvedValue(0) };
     // remove() reaches the crops table through the farm repository's manager,
     // so it needs no extra constructor dependency.
-    repository.manager = { getRepository: jest.fn(() => cropsRepo) };
+    txManager = { update: jest.fn().mockResolvedValue(undefined) };
+    repository.manager = {
+      getRepository: jest.fn(() => cropsRepo),
+      transaction: jest.fn(async (cb: (m: any) => unknown) => cb(txManager)),
+    };
+    photoDeletions = { enqueue: jest.fn().mockResolvedValue(true) };
 
     module = await Test.createTestingModule({
       providers: [
@@ -79,6 +87,7 @@ describe('FarmsService', () => {
             getRoleOnFarm: jest.fn().mockResolvedValue('owner'),
           },
         },
+        { provide: PhotoDeletionService, useValue: photoDeletions },
       ],
     }).compile();
 
@@ -558,16 +567,32 @@ describe('FarmsService', () => {
   describe('remove', () => {
     it('should soft-delete a farm with no crop history', async () => {
       repository.findOneBy.mockResolvedValue(mockFarm);
-      repository.update.mockResolvedValue(undefined);
 
       const result = await service.remove('farm-1', 'user-1');
-      expect(repository.update).toHaveBeenCalledWith(
+      expect(txManager.update).toHaveBeenCalledWith(
+        Farm,
         'farm-1',
         expect.objectContaining({
           deletedAt: expect.any(Date),
         }),
       );
       expect(result.message).toContain('deleted');
+    });
+
+    it("F1: queues the farm's whole health/<farmId>/ prefix in the delete's transaction", async () => {
+      const order: string[] = [];
+      photoDeletions.enqueue.mockImplementation(async () => { order.push('enqueue'); return true; });
+      txManager.update.mockImplementation(async () => { order.push('soft-delete'); });
+
+      await service.remove('farm-1', 'user-1');
+
+      expect(photoDeletions.enqueue).toHaveBeenCalledWith(
+        [{ namespace: 'health', path: 'farm-1/' }],
+        'farm_deleted',
+        'user-1',
+        txManager,
+      );
+      expect(order).toEqual(['enqueue', 'soft-delete']);
     });
 
     // Mirrors the pond rule: deleting a farm that has held crops takes the
@@ -578,7 +603,8 @@ describe('FarmsService', () => {
       await expect(service.remove('farm-1', 'user-1')).rejects.toThrow(
         ConflictException,
       );
-      expect(repository.update).not.toHaveBeenCalled();
+      expect(txManager.update).not.toHaveBeenCalled();
+      expect(photoDeletions.enqueue).not.toHaveBeenCalled();
     });
 
     it('asserts OWNER_ONLY before deleting', async () => {
@@ -589,7 +615,7 @@ describe('FarmsService', () => {
         ForbiddenException,
       );
       expect(cropsRepo.count).not.toHaveBeenCalled();
-      expect(repository.update).not.toHaveBeenCalled();
+      expect(txManager.update).not.toHaveBeenCalled();
     });
   });
 

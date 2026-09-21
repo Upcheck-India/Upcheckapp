@@ -20,7 +20,10 @@ describe('DiseaseService — D6 record fields', () => {
       update: jest.fn().mockResolvedValue({ affected: 1 }),
       manager: { query: jest.fn().mockResolvedValue([{ farm_id: FARM_A }]) },
     };
-    const photos = new HealthPhotoStorageService(new R2StorageService({ get: () => undefined } as any));
+    const photos = new HealthPhotoStorageService(
+      new R2StorageService({ get: () => undefined } as any),
+      { enqueue: jest.fn().mockResolvedValue(true) } as any,
+    );
     service = new DiseaseService({} as any, {} as any, repo, photos);
   });
 

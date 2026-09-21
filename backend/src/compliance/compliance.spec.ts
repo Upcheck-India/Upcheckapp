@@ -119,9 +119,12 @@ describe('D3 escalation', () => {
     expect(a).toMatchObject({ type: 'compliance', severity: 'critical', pondId: 'p1' });
     expect(a.data.titleKey.key).toBe('compliance.alert.bannedTitle');
     expect(a.data.bodyKey.params).toMatchObject({ pond: 'Pond 3', substances: 'Chloramphenicol', name: 'Ravi', date: '19/09/2026' });
-    // The manager reads Telugu.
+    // C5.2: the push itself carries no pond name, substance name or logger name,
+    // even though the alert-center row (asserted above) does.
     const toManager = push.sendToUser.mock.calls.find((c) => c[0] === MANAGER)![1];
-    expect(toManager.body).toContain('Pond 3');
+    expect(toManager.body).not.toContain('Pond 3');
+    expect(toManager.body).not.toContain('Chloramphenicol');
+    expect(toManager.body).not.toContain('Ravi');
     expect(toManager.title).not.toBe('Banned substance logged');
   });
 

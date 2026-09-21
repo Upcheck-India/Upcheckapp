@@ -22,6 +22,7 @@ import { TruecallerAuth } from '../../native/TruecallerAuth';
 import { authApi } from '../../api/auth';
 import { useAuthStore } from '../authStore';
 import { queryClient } from '../../query/client';
+import { readCached, writeCached } from '../../api/offlineCache';
 
 describe('authStore.logout (#33)', () => {
     beforeEach(() => jest.clearAllMocks());
@@ -46,6 +47,18 @@ describe('authStore.logout (#33)', () => {
 
         expect(queryClient.getQueryData(['farms'])).toBeUndefined();
         expect(queryClient.getQueryData(['home', 'all'])).toBeUndefined();
+    });
+
+    // C5.4: the HTTP-layer offline cache (AsyncStorage, unencrypted) is the
+    // previous user's responses too.
+    it('wipes the HTTP-layer offline cache on sign-out', async () => {
+        await writeCached('/ponds/mine', [{ id: 'pond-a' }]);
+        expect(await readCached('/ponds/mine')).not.toBeNull();
+
+        await useAuthStore.getState().logout();
+        await new Promise((r) => setTimeout(r, 0)); // clearOfflineCache is fire-and-forget
+
+        expect(await readCached('/ponds/mine')).toBeNull();
     });
 
     it('still clears the local session even if GoogleSignin.signOut() throws', async () => {

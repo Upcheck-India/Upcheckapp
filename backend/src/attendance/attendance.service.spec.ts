@@ -201,10 +201,11 @@ describe('AttendanceService', () => {
       expect(farmAccess.assertCanAccessFarm).toHaveBeenCalledWith('manager-1', 'farm-1', 'MANAGE_WORKERS');
       expect(rec).toEqual(expect.objectContaining({ checkedOutById: 'manager-1', checkOutReason: 'forgot' }));
       expect(result.checkedOutBy).toEqual({ firstName: 'Ravi' });
+      // C5.2: the push body carries no farm name, person name or reason text.
       expect(push.sendToUser).toHaveBeenCalledWith(
         'worker-2',
         expect.objectContaining({
-          body: expect.stringMatching(/^Your check-out at Kovalam East was recorded at \d\d:\d\d by Ravi \(forgot to check out\)$/),
+          body: 'Your check-out was recorded. Open the app for details.',
         }),
       );
     });

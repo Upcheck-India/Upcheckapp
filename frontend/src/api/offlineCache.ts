@@ -23,6 +23,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  *   answering, and replacing a real error with stale data would hide it.
  * - Per user. `clearCachedReads()` wipes this on sign-out; without that, the
  *   next user on a shared phone would read the previous one's responses.
+ * - Never other people's personal data (C5.4). AsyncStorage is an unencrypted
+ *   SQLite file on Android; see `isPersonalDataUrl`.
  */
 const PREFIX = 'upcheck-http-cache:';
 const INDEX_KEY = 'upcheck-http-cache-index';
@@ -48,6 +50,43 @@ export interface CachedResponse {
 
 const keyFor = (url: string) => `${PREFIX}${url}`;
 
+/**
+ * Endpoints whose responses are other people's personal data — member lists,
+ * pending joiners, invites, user lookup by phone/email, attendance, leave
+ * (with reasons), feedback, and the Team overview that aggregates attendance
+ * and leave. These are never written here (C5.4): those screens are
+ * online-first anyway, unlike pond logs, and this store is not encrypted.
+ *
+ * Matched on the cache key, which is the request path with any params JSON
+ * appended (see `cacheKeyFor` in client.ts) — hence `{` as a terminator.
+ *
+ * `/farm-members/mine` is deliberately NOT here: it is the caller's own roles
+ * and capabilities, which permission checks need on an offline cold start.
+ */
+const PERSONAL_DATA =
+    /^\/(?:farms\/[^/?{]+\/(?:members|pending|invites)|farm-members\/users\/lookup|attendance|leave-requests|feedback|team\/overview)(?:[/?{]|$)/;
+
+export const isPersonalDataUrl = (url: string): boolean => PERSONAL_DATA.test(url);
+
+/**
+ * One-time cleanup for installs that cached person data before the exclusion
+ * existed. Runs once per app start (module load) at the head of the write
+ * chain, so no index write can race it.
+ */
+export async function purgePersonalData(): Promise<void> {
+    try {
+        const doomed = (await AsyncStorage.getAllKeys()).filter(
+            (k) => k.startsWith(PREFIX) && isPersonalDataUrl(k.slice(PREFIX.length)),
+        );
+        if (!doomed.length) return;
+        await AsyncStorage.multiRemove(doomed);
+        const index = await readIndex();
+        await AsyncStorage.setItem(INDEX_KEY, JSON.stringify(index.filter((u) => !isPersonalDataUrl(u))));
+    } catch {
+        // Best effort; `readCached` refuses these keys regardless.
+    }
+}
+
 /** Oldest-first list of cached urls. Kept separately so eviction is one read. */
 async function readIndex(): Promise<string[]> {
     try {
@@ -72,9 +111,10 @@ async function readIndex(): Promise<string[]> {
  * A one-line promise chain is enough: the reads and writes are already async
  * and cheap, and this is the only writer of the index.
  */
-let writeChain: Promise<void> = Promise.resolve();
+let writeChain: Promise<void> = purgePersonalData();
 
 export function writeCached(url: string, data: unknown): Promise<void> {
+    if (isPersonalDataUrl(url)) return writeChain;
     writeChain = writeChain.then(() => writeCachedSerially(url, data));
     return writeChain;
 }
@@ -102,6 +142,7 @@ async function writeCachedSerially(url: string, data: unknown): Promise<void> {
 }
 
 export async function readCached(url: string): Promise<CachedResponse | null> {
+    if (isPersonalDataUrl(url)) return null;
     try {
         const raw = await AsyncStorage.getItem(keyFor(url));
         if (!raw) return null;

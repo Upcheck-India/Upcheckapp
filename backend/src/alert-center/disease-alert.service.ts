@@ -27,6 +27,20 @@ export const DISEASE_PUSH: Record<string, { title: string; body: string }> = {
   or: { title: '{pond}: {disease} ବିପଦ ଅଧିକ', body: 'ଆଜି ପୋଖରୀ ଯାଞ୍ଚ କରନ୍ତୁ। କାରଣ ଓ କରଣୀୟ ଦେଖିବାକୁ ରୋଗ ବିପଦ ଖୋଲନ୍ତୁ।' },
 };
 
+/**
+ * C5.2: the push notification itself must not carry the pond name or disease
+ * name — those land on a lock screen. `DISEASE_PUSH` above stays as the
+ * (English, detailed) alert-center row text for after the tap.
+ */
+export const DISEASE_PUSH_TITLE: Record<string, string> = {
+  en: 'Disease risk alert',
+  hi: 'रोग जोखिम चेतावनी',
+  te: 'వ్యాధి ప్రమాద హెచ్చరిక',
+  ta: 'நோய் அபாய எச்சரிக்கை',
+  bn: 'রোগের ঝুঁকি সতর্কতা',
+  or: 'ରୋଗ ବିପଦ ସତର୍କତା',
+};
+
 const fill = (tpl: string, p: Record<string, string>) =>
   tpl.replace(/\{(\w+)\}/g, (_, k) => p[k] ?? '');
 
@@ -108,9 +122,10 @@ export class DiseaseAlertService {
         if (!p) continue;
         const params = { pond: p.pondName ?? '', disease: SHORT[c.disease] };
         for (const userId of recipientsOf(p.farmId, p.ownerId)) {
-          const text = DISEASE_PUSH[langOf.get(userId) ?? 'en'] ?? DISEASE_PUSH.en;
+          const lang = langOf.get(userId) ?? 'en';
+          const text = DISEASE_PUSH[lang] ?? DISEASE_PUSH.en;
           const ok = await this.push.sendToUser(userId, {
-            title: fill(text.title, params),
+            title: DISEASE_PUSH_TITLE[lang] ?? DISEASE_PUSH_TITLE.en,
             body: text.body,
             data: { type: 'disease', pondId: c.pondId, disease: c.disease },
           });

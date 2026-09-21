@@ -35,6 +35,23 @@ export const COMPLIANCE_PUSH: Record<
   },
 };
 
+/**
+ * C5.2: the push notification itself must not carry the pond name, the
+ * substance name, the logger's name or the date — `COMPLIANCE_PUSH` above
+ * stays as the (localised, detailed) alert-center row text for after the tap.
+ */
+export const COMPLIANCE_PUSH_GENERIC: Record<
+  string,
+  { title: string; body: string }
+> = {
+  en: { title: 'Compliance alert', body: 'A compliance item needs your attention. Open the app for details.' },
+  hi: { title: 'अनुपालन चेतावनी', body: 'एक अनुपालन मामले पर ध्यान देना है। विवरण के लिए ऐप खोलें।' },
+  te: { title: 'కంప్లయన్స్ హెచ్చరిక', body: 'ఒక కంప్లయన్స్ అంశానికి మీ దృష్టి అవసరం. వివరాల కోసం యాప్ తెరవండి.' },
+  ta: { title: 'இணக்கம் எச்சரிக்கை', body: 'ஒரு இணக்கக் கூறுக்கு உங்கள் கவனம் தேவை. விவரங்களுக்கு ஆப்பைத் திறக்கவும்.' },
+  bn: { title: 'সম্মতি সতর্কতা', body: 'একটি সম্মতি বিষয়ে আপনার মনোযোগ প্রয়োজন। বিস্তারিত জানতে অ্যাপ খুলুন।' },
+  or: { title: 'ଅନୁପାଳନ ସତର୍କତା', body: 'ଏକ ଅନୁପାଳନ ବିଷୟରେ ଆପଣଙ୍କ ଧ୍ୟାନ ଆବଶ୍ୟକ। ବିବରଣୀ ପାଇଁ ଆପ୍ ଖୋଲନ୍ତୁ।' },
+};
+
 /** English alert text persisted beside the keys (older app bundles show it). */
 export const COMPLIANCE_ALERT_EN = {
   bannedTitle: '{pond}: banned substance logged',
