@@ -24,7 +24,7 @@ jest.mock('@react-navigation/native', () => {
 });
 
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { HealthCheckScreen } from '../HealthCheckScreen';
 import { healthObservationsApi } from '../../../api/healthObservations';
@@ -107,5 +107,45 @@ describe('HealthCheckScreen — opened from the pond History tile', () => {
         (healthObservationsApi.listForPond as jest.Mock).mockResolvedValue({ data: [] });
         const { findByTestId } = renderHistory();
         expect(await findByTestId('health-check-empty')).toBeTruthy();
+    });
+});
+
+/**
+ * Owner report: "Showing as no past data when not fetched or internet is slow
+ * in health check history." Loading, failed and empty are three answers.
+ */
+describe('HealthCheckScreen history — loading is not empty, failed is not empty', () => {
+    beforeEach(() => jest.clearAllMocks());
+    const historyRoute = { params: { pondId: 'pond-1', pondName: 'Pond 1', view: 'history' } };
+    const renderHistory = () =>
+        render(
+            <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+                <HealthCheckScreen navigation={navigation} route={historyRoute} />
+            </SafeAreaProvider>,
+        );
+    const check = {
+        id: 'h', pondId: 'pond-1', cropId: null, observedOn: '2026-09-18',
+        sign: 'white_feces', level: 'few', sampleSize: null, count: null, moltDeaths: null,
+        source: 'quick', windowKey: null, photoUrls: [], photoSignedUrls: [], photoThumbUrls: [],
+        createdAt: '2026-09-18T10:00:00Z',
+    };
+
+    it('shows a skeleton, not "no checks", while the read is outstanding', () => {
+        (healthObservationsApi.listForPond as jest.Mock).mockReturnValue(new Promise(() => {}));
+        const { getByTestId, queryByTestId } = renderHistory();
+        expect(getByTestId('health-check-loading')).toBeTruthy();
+        expect(queryByTestId('health-check-empty')).toBeNull();
+    });
+
+    it('shows an error with retry, not "no checks", when the read fails', async () => {
+        (healthObservationsApi.listForPond as jest.Mock)
+            .mockRejectedValueOnce(new Error('Network Error'))
+            .mockResolvedValueOnce({ data: [check] });
+        const { findByText, queryByTestId, getByText, findByTestId } = renderHistory();
+        expect(await findByText("Couldn't Load Records")).toBeTruthy();
+        expect(queryByTestId('health-check-empty')).toBeNull();
+
+        fireEvent.press(getByText('Retry'));
+        expect(await findByTestId('health-check-day-2026-09-18')).toBeTruthy();
     });
 });

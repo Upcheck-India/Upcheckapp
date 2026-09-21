@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import { StaleNotice } from '../../../components/ui/CacheNotice';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { SkeletonList } from '../../../components/ui/Skeleton';
 import { FAB } from '../../../components/ui/FAB';
@@ -115,7 +116,7 @@ export const WeeklyChemistryHistoryScreen = ({ route, navigation }: any) => {
     const chartWidth = Dimensions.get('window').width - theme.spacing[4] * 2 - theme.spacing[8];
 
     const body = () => {
-        if (isLoading) return <SkeletonList count={3} style={styles.padded} />;
+        if (isLoading && records.length === 0) return <SkeletonList count={3} style={styles.padded} />;
         if (error && records.length === 0) {
             return <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={handleRetry} />;
         }
@@ -220,6 +221,7 @@ export const WeeklyChemistryHistoryScreen = ({ route, navigation }: any) => {
                     />
                 }
             >
+                <StaleNotice visible={!!error && records.length > 0} />
                 {body()}
             </ScrollView>
 

@@ -43,7 +43,7 @@ import { pondsApi, type Pond } from '../../api/ponds';
 import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { useMembershipStore } from '../../store/membershipStore';
-import { qk } from '../../query/client';
+import { qk, queryClient, orPrevious } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import {
     buildPondRows,
@@ -128,12 +128,20 @@ export const FarmsListScreen = ({ navigation }: any) => {
      * on a flaky connection should still see their farms with the numbers
      * missing rather than an error page.
      */
+    const detailKey = [...qk.farms(), 'rollup', farms.map((f) => f.id).join(',')];
     const detail = useAppQuery({
-        queryKey: [...qk.farms(), 'rollup', farms.map((f) => f.id).join(',')],
+        queryKey: detailKey,
         enabled: farms.length > 0,
         queryFn: async () => {
-            const [pondsRes, briefingRes, ctxs] = await Promise.all([
-                pondsApi.getMine().catch(() => ({ data: [] as Pond[] })),
+            // A slow or failed sub-read keeps the last copy — an empty pond
+            // list here painted every farm as having no stocked ponds.
+            const prev = queryClient.getQueryData<{
+                ponds: Pond[];
+                briefing: BriefingItem[];
+                contexts: PondContext[];
+            }>(detailKey);
+            const [ponds, briefing, contexts] = await Promise.all([
+                orPrevious(pondsApi.getMine().then((r) => r.data), prev?.ponds ?? []),
                 // LIVE, merged with the persisted stream — not persisted alone.
                 // The live briefing is recomputed from each pond's latest
                 // reading, so it is the only one that describes the pond NOW;
@@ -141,27 +149,23 @@ export const FarmsListScreen = ({ navigation }: any) => {
                 // empty for a pond that is currently in a watch band. Reading
                 // only the second is why this screen said "2/2 good" while
                 // Today showed one of the two ponds amber.
-                Promise.all([
-                    alertCenterApi.liveBriefing().catch(() => ({ data: [] as BriefingItem[] })),
-                    alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
-                ]).then(([live, persisted]) => ({ data: mergeBriefings(live.data, persisted.data) })),
+                orPrevious(
+                    Promise.all([alertCenterApi.liveBriefing(), alertCenterApi.briefing()]).then(
+                        ([live, persisted]) => mergeBriefings(live.data, persisted.data),
+                    ),
+                    prev?.briefing ?? [],
+                ),
                 // One batched call per farm for the standing biomass. Each is a
                 // whole farm's ponds server-side, so this is farms-many
                 // requests, not ponds-many.
-                Promise.all(
-                    farms.map((f) =>
-                        pondContextApi
-                            .forFarm(f.id)
-                            .then((r) => r.data)
-                            .catch(() => [] as PondContext[]),
+                orPrevious(
+                    Promise.all(farms.map((f) => pondContextApi.forFarm(f.id).then((r) => r.data))).then((c) =>
+                        c.flat(),
                     ),
+                    prev?.contexts ?? [],
                 ),
             ]);
-            return {
-                ponds: pondsRes.data,
-                briefing: briefingRes.data,
-                contexts: ctxs.flat(),
-            };
+            return { ponds, briefing, contexts };
         },
     });
 

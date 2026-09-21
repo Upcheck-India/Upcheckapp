@@ -1,12 +1,13 @@
 import 'server-only';
+import { getAdminKey } from './admin-key';
 
 /**
  * The only place this app talks to the Upcheck API.
  *
  * `server-only` is the enforcement, not a convention: importing this file from
- * a Client Component is a build error, so ADMIN_API_KEY cannot end up in a
- * browser bundle by accident. Every export here runs on the server — Server
- * Components and Server Actions.
+ * a Client Component is a build error, so the signed-in staffer's admin key
+ * cannot end up in a browser bundle by accident. Every export here runs on
+ * the server — Server Components and Server Actions.
  */
 
 export type FeedbackStatus = 'new' | 'seen' | 'in_review' | 'done' | 'closed';
@@ -44,8 +45,18 @@ export interface FeedbackReport {
     adminResponse: string | null;
     respondedAt: string | null;
     respondedBy: string | null;
+    /** null until the backend migration runs, or when nobody is assigned. */
+    assignee: string | null;
     createdAt: string;
     updatedAt: string;
+}
+
+export interface FeedbackNote {
+    id: string;
+    reportId: string;
+    author: string | null;
+    note: string;
+    createdAt: string;
 }
 
 /** Carries the HTTP status so the page can tell refused from unreachable. */
@@ -56,22 +67,19 @@ export class ApiError extends Error {
     }
 }
 
-function config() {
-    const baseUrl = process.env.UPCHECK_API_URL;
-    const key = process.env.ADMIN_API_KEY;
-    if (!baseUrl || !key) {
+function baseUrl() {
+    const url = process.env.UPCHECK_API_URL;
+    if (!url) {
         // Fail loudly at request time rather than rendering an empty inbox that
         // looks like "no farmer has ever reported anything".
-        throw new Error(
-            'UPCHECK_API_URL and ADMIN_API_KEY must both be set on this deployment.',
-        );
+        throw new Error('UPCHECK_API_URL must be set on this deployment.');
     }
-    return { baseUrl: baseUrl.replace(/\/$/, ''), key };
+    return url.replace(/\/$/, '');
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-    const { baseUrl, key } = config();
-    const res = await fetch(`${baseUrl}${path}`, {
+    const key = await getAdminKey();
+    const res = await fetch(`${baseUrl()}${path}`, {
         ...init,
         headers: {
             'content-type': 'application/json',
@@ -114,10 +122,12 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 export function listReports(filter: {
     status?: string;
     category?: string;
+    q?: string;
 }): Promise<FeedbackReport[]> {
     const params = new URLSearchParams();
     if (filter.status) params.set('status', filter.status);
     if (filter.category) params.set('category', filter.category);
+    if (filter.q) params.set('q', filter.q);
     params.set('limit', '200');
     return call<FeedbackReport[]>(`/admin/feedback?${params}`);
 }
@@ -128,10 +138,24 @@ export function getReport(id: string): Promise<FeedbackReport> {
 
 export function updateReport(
     id: string,
-    body: { status?: string; adminResponse?: string; respondedBy?: string },
+    body: { status?: string; adminResponse?: string; respondedBy?: string; assignee?: string },
 ): Promise<FeedbackReport> {
     return call<FeedbackReport>(`/admin/feedback/${id}`, {
         method: 'PATCH',
+        body: JSON.stringify(body),
+    });
+}
+
+export function listNotes(reportId: string): Promise<FeedbackNote[]> {
+    return call<FeedbackNote[]>(`/admin/feedback/${reportId}/notes`);
+}
+
+export function addNote(
+    reportId: string,
+    body: { note: string; author?: string },
+): Promise<FeedbackNote> {
+    return call<FeedbackNote>(`/admin/feedback/${reportId}/notes`, {
+        method: 'POST',
         body: JSON.stringify(body),
     });
 }

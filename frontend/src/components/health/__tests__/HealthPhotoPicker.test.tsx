@@ -12,6 +12,9 @@ jest.mock('../../../api/healthObservations', () => ({
     },
 }));
 jest.mock('../../../features/healthPhoto', () => ({ pickHealthPhoto: jest.fn() }));
+jest.mock('../../../api/photos', () => ({
+    photosApi: { quotaForPond: jest.fn(), usage: jest.fn() },
+}));
 
 import React from 'react';
 import { Alert } from 'react-native';
@@ -20,6 +23,10 @@ import { HealthPhotoPicker } from '../HealthPhotoPicker';
 import { healthObservationsApi } from '../../../api/healthObservations';
 import { pickHealthPhoto } from '../../../features/healthPhoto';
 import { useSyncStore } from '../../../store/syncStore';
+import { photosApi } from '../../../api/photos';
+
+const LIMITS = { photos: 1000, bytes: 1.5 * 1024 ** 3 };
+const pool = (photos: number) => ({ data: { photos, bytes: 0, limits: LIMITS } });
 
 /** Press the Alert button labelled `label` on the next Alert.alert. */
 const pressAlertButton = (label: string) =>
@@ -32,6 +39,7 @@ describe('HealthPhotoPicker — remove (P2)', () => {
         jest.clearAllMocks();
         useSyncStore.setState({ isConnected: true } as any);
         (healthObservationsApi.removePhoto as jest.Mock).mockResolvedValue({ data: { removed: true } });
+        (photosApi.quotaForPond as jest.Mock).mockResolvedValue(pool(0));
     });
 
     it('adding one picks, uploads, and the picker offers a ✕ for it', async () => {
@@ -97,5 +105,41 @@ describe('HealthPhotoPicker — remove (P2)', () => {
 
         await act(async () => fireEvent.press(getByLabelText('Remove photo')));
         expect(onChange).toHaveBeenLastCalledWith([]);
+    });
+});
+
+describe('HealthPhotoPicker — account photo pool (F2)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        useSyncStore.setState({ isConnected: true } as any);
+    });
+
+    it('shows nothing below 80%, a quiet line from 80%', async () => {
+        (photosApi.quotaForPond as jest.Mock).mockResolvedValue(pool(850));
+        const { findByText } = render(<HealthPhotoPicker pondId="pond1" value={[]} onChange={jest.fn()} />);
+        expect(await findByText('Photo storage is 85% full.')).toBeTruthy();
+        expect(photosApi.quotaForPond).toHaveBeenCalledWith('pond1');
+    });
+
+    it('at 100% the add button is off and says Storage full', async () => {
+        (photosApi.quotaForPond as jest.Mock).mockResolvedValue(pool(1000));
+        const { findByText, getByTestId } = render(<HealthPhotoPicker pondId="pond1" value={[]} onChange={jest.fn()} />);
+        expect(await findByText('Storage full — free up space')).toBeTruthy();
+        expect(getByTestId('health-photo-btn').props.accessibilityState).toMatchObject({ disabled: true });
+    });
+
+    it('a server STORAGE_FULL refusal explains it instead of a generic error, and adds nothing', async () => {
+        (photosApi.quotaForPond as jest.Mock).mockResolvedValue(pool(10));
+        (pickHealthPhoto as jest.Mock).mockResolvedValue('file:///local.jpg');
+        (healthObservationsApi.uploadPhoto as jest.Mock).mockRejectedValue({ response: { status: 403, data: { code: 'STORAGE_FULL' } } });
+        const onChange = jest.fn();
+        pressAlertButton('Take a photo');
+        const alert = jest.spyOn(Alert, 'alert');
+        const { getByTestId } = render(<HealthPhotoPicker pondId="pond1" value={[]} onChange={onChange} />);
+        await act(async () => fireEvent.press(getByTestId('health-photo-btn')));
+        await waitFor(() =>
+            expect(alert).toHaveBeenLastCalledWith('Storage full — free up space', 'Storage full — free up space to add photos.', expect.any(Array)),
+        );
+        expect(onChange).not.toHaveBeenCalled();
     });
 });

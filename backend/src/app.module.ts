@@ -70,6 +70,8 @@ import { HealthObservationsModule } from './health-observations/health-observati
 import { ConsentsModule } from './consents/consents.module';
 import { StorageModule } from './storage/storage.module';
 import { AvatarsModule } from './avatars/avatars.module';
+import { AdminModule } from './admin/admin.module';
+import { AdminAccessLogModule } from './admin-access-log/admin-access-log.module';
 
 @Module({
   imports: [
@@ -252,6 +254,8 @@ import { AvatarsModule } from './avatars/avatars.module';
     DailyBriefModule,
     HealthObservationsModule,
     ConsentsModule,
+    AdminModule,
+    AdminAccessLogModule,
   ],
   controllers: [AppController],
   providers: [

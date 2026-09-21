@@ -1,8 +1,9 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosAdapter, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
 import i18n from '../i18n';
 import { readCached, writeCached } from './offlineCache';
-import { invalidateForEntity, resolveEntityForUrl } from '../query/client';
+import { invalidateForEntity, resolveEntityForUrl, queryClient } from '../query/client';
+import { useUIStore } from '../store/uiStore';
 
 const API_URL = Constants.expoConfig?.extra?.apiBaseUrl
     || process.env.EXPO_PUBLIC_API_URL
@@ -60,6 +61,100 @@ const cacheKeyFor = (config?: InternalAxiosRequestConfig): string | null => {
     return `${url}${params}`;
 };
 
+/**
+ * A request with no answer after this long is, almost always, the backend
+ * cold-starting (Render's free plan sleeps after 15 idle minutes and takes
+ * 30–60 s to wake). Waiting out the full timeout before painting anything is
+ * what made every screen look empty for a minute.
+ */
+export const SLOW_REQUEST_MS = 8_000;
+
+/** Axios' own settled-response shape for a last-known copy. */
+const fromCache = (cached: { data: unknown; at: number }, config: InternalAxiosRequestConfig): any => ({
+    data: cached.data,
+    status: 200,
+    statusText: 'OK (offline cache)',
+    // Screens that care can show the age; the rest just render.
+    headers: { 'x-upcheck-cached-at': String(cached.at) },
+    config,
+    request: null,
+});
+
+/** Late real answers that arrived after a cached one was served, coalesced. */
+let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+const refreshActiveSoon = () => {
+    if (refreshTimer) return;
+    refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        // The screen on display painted the cached copy; now the server is
+        // awake, bring it up to date. Only ACTIVE queries refetch.
+        void queryClient.invalidateQueries({ type: 'active' });
+    }, 500);
+};
+
+const SLOW_AWARE = Symbol('slowAware');
+
+/**
+ * Wraps whatever adapter the request would use (so tests' stub adapters are
+ * wrapped too) with the slow-server behaviour:
+ *
+ * - after SLOW_REQUEST_MS, flag the server as slow (OfflineIndicator shows
+ *   "Server is waking up…") until the request settles;
+ * - for a GET with a last-known copy, resolve with that copy at that point
+ *   instead of making the farmer wait. The real request keeps going; when it
+ *   lands it refreshes the cache and the screen on display.
+ */
+const slowAware = (inner: AxiosAdapter): AxiosAdapter => {
+    if ((inner as any)[SLOW_AWARE]) return inner;
+    const wrapped: AxiosAdapter = (config) =>
+        new Promise((resolve, reject) => {
+            const key = cacheKeyFor(config);
+            let settled = false;
+            let slow = false;
+            const timer = setTimeout(() => {
+                slow = true;
+                useUIStore.getState().markSlowRequest(1);
+                if (!key) return;
+                void readCached(key).then((cached) => {
+                    if (cached && !settled) {
+                        settled = true;
+                        resolve(fromCache(cached, config));
+                    }
+                });
+            }, SLOW_REQUEST_MS);
+            const done = () => {
+                clearTimeout(timer);
+                if (slow) useUIStore.getState().markSlowRequest(-1);
+            };
+            inner(config).then(
+                (res) => {
+                    done();
+                    if (!settled) {
+                        settled = true;
+                        resolve(res);
+                    } else if (key && res.status >= 200 && res.status < 300) {
+                        void writeCached(key, res.data);
+                        refreshActiveSoon();
+                    }
+                },
+                (err) => {
+                    done();
+                    if (!settled) {
+                        settled = true;
+                        reject(err);
+                    }
+                },
+            );
+        });
+    (wrapped as any)[SLOW_AWARE] = true;
+    return wrapped;
+};
+
+apiClient.interceptors.request.use((config) => {
+    config.adapter = slowAware(axios.getAdapter(config.adapter ?? axios.defaults.adapter));
+    return config;
+});
+
 /** The request path, no query string — what URL_ENTITY_MAP matches against. */
 const pathFor = (config?: InternalAxiosRequestConfig): string => {
     const url = config?.url ?? '';
@@ -73,6 +168,9 @@ apiClient.interceptors.response.use(
         const config = response.config as InternalAxiosRequestConfig;
         const key = cacheKeyFor(config);
         if (key) {
+            // A last-known copy served by slowAware is not a new answer —
+            // re-writing it would reset its age.
+            if (response.headers?.['x-upcheck-cached-at']) return response;
             // Remember successful GETs so the same read survives losing signal.
             // Fire-and-forget: a cache write must never delay a response that
             // has already arrived.
@@ -100,8 +198,20 @@ apiClient.interceptors.response.use(
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-        // No response at all — timeout or no connectivity.
-        if (!error.response) {
+        const isGet = (originalRequest?.method ?? 'get').toLowerCase() === 'get';
+
+        // A GET that timed out with nothing cached (slowAware would already
+        // have answered from the cache) is most likely a server still waking
+        // up: give it one more window before calling it unreachable.
+        if (!error.response && error.code === 'ECONNABORTED' && isGet && originalRequest && !(originalRequest as any)._timeoutRetry) {
+            (originalRequest as any)._timeoutRetry = true;
+            return apiClient(originalRequest);
+        }
+
+        // No response at all — timeout or no connectivity. A 502/503/504 is
+        // the proxy in front of a sleeping/restarting server, not the app
+        // answering, so it gets the same last-known copy.
+        if (!error.response || (isGet && [502, 503, 504].includes(error.response.status))) {
             /**
              * Serve the last-known-good copy rather than an error screen.
              *
@@ -118,17 +228,7 @@ apiClient.interceptors.response.use(
             const key = cacheKeyFor(originalRequest);
             if (key) {
                 const cached = await readCached(key);
-                if (cached) {
-                    return {
-                        data: cached.data,
-                        status: 200,
-                        statusText: 'OK (offline cache)',
-                        // Screens that care can show the age; the rest just render.
-                        headers: { 'x-upcheck-cached-at': String(cached.at) },
-                        config: originalRequest,
-                        request: null,
-                    } as any;
-                }
+                if (cached) return fromCache(cached, originalRequest);
             }
             // Nothing cached — surface a friendly message instead of axios
             // internals like "timeout of 15000ms exceeded".

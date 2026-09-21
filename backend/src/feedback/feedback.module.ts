@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FeedbackReport } from './feedback.entity';
+import { FeedbackNote } from './feedback-note.entity';
 import { FeedbackService } from './feedback.service';
 import { FeedbackStorageService } from './feedback-storage.service';
 import { FeedbackController } from './feedback.controller';
@@ -12,7 +13,7 @@ import { PushModule } from '../push/push.module';
 import { EmailService } from '../email.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FeedbackReport]), PushModule],
+  imports: [TypeOrmModule.forFeature([FeedbackReport, FeedbackNote]), PushModule],
   controllers: [FeedbackController, FeedbackAdminController],
   providers: [
     FeedbackService,

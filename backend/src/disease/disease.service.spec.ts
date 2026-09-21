@@ -83,7 +83,7 @@ describe('DiseaseService', () => {
           useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
         },
         DiseaseService,
-        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn() } },
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), attach: jest.fn() } },
         {
           provide: getRepositoryToken(DiseaseLibrary),
           useValue: createMockRepository(),

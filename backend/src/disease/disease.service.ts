@@ -361,6 +361,7 @@ export class DiseaseService {
       flagHistory,
     });
     const saved = await this.diseaseRecordRepository.save(record);
+    await this.photos.attach(saved.photoUrls, 'disease', saved.id, saved.cropId);
     // Never blocks (D3): escalate swallows its own errors.
     await this.compliance?.escalate(
       { id: saved.id, cropId: saved.cropId, date: String(dto.recordedDate).slice(0, 10), flag, matches },
@@ -455,6 +456,7 @@ export class DiseaseService {
       ...(notes !== undefined ? { notes } : {}),
     });
     await enqueueRemovedPhotos(this.photos, this.logger, removed, userId);
+    await this.photos.attach(dto.photoUrls, 'disease', id, record.cropId);
     if (flagHistory) {
       await this.compliance?.escalate(
         {

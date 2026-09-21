@@ -7,10 +7,12 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FeedbackReport } from './feedback.entity';
+import { FeedbackNote } from './feedback-note.entity';
 import { FeedbackStorageService } from './feedback-storage.service';
 import { PushService } from '../push/push.service';
 import { EmailService } from '../email.service';
 import {
+  AddFeedbackNoteDto,
   CreateFeedbackDto,
   ListFeedbackDto,
   UpdateFeedbackDto,
@@ -28,11 +30,23 @@ function isMissingTable(err: any): boolean {
   return (err?.code ?? err?.driverError?.code) === '42P01';
 }
 
+/**
+ * Postgres "undefined_column" (42703) — `assignee` (migration 1780702600000)
+ * is read/written with raw SQL, not a mapped entity column (see
+ * feedback.entity.ts), so this is the column-level twin of isMissingTable:
+ * degrade instead of 500ing every existing feedback read over one new field.
+ */
+function isMissingColumn(err: any): boolean {
+  return (err?.code ?? err?.driverError?.code) === '42703';
+}
+
 /** What the app and the dashboard see — the entity plus signed image URLs. */
 export interface FeedbackView extends FeedbackReport {
   attachmentUrls: string[];
   /** 400px thumbnails, same order as attachmentUrls. */
   attachmentThumbUrls: string[];
+  /** null until migration 1780702600000 runs, or when nobody is assigned. */
+  assignee: string | null;
 }
 
 @Injectable()
@@ -42,6 +56,8 @@ export class FeedbackService {
   constructor(
     @InjectRepository(FeedbackReport)
     private readonly repo: Repository<FeedbackReport>,
+    @InjectRepository(FeedbackNote)
+    private readonly notesRepo: Repository<FeedbackNote>,
     private readonly storage: FeedbackStorageService,
     private readonly push: PushService,
     private readonly email: EmailService,
@@ -63,6 +79,7 @@ export class FeedbackService {
       status: 'new',
     });
     const saved = await this.repo.save(report);
+    await this.storage.attach(paths, saved.id);
 
     // Alert the team, or the report sits in a table nobody is watching.
     // Best-effort by the same rule as update()'s push: the farmer was shown a
@@ -97,8 +114,15 @@ export class FeedbackService {
       });
       // The list does not sign attachments: it renders a paperclip count, not
       // thumbnails, so signing N reports × 3 images on every pull-to-refresh
-      // would be wasted signing for pixels nobody looks at.
-      return rows.map((r) => ({ ...r, attachmentUrls: [], attachmentThumbUrls: [] }));
+      // would be wasted signing for pixels nobody looks at. assignee is an
+      // admin-only concept — the farmer's own list never needs it, so it is
+      // left null here rather than spending a query on it.
+      return rows.map((r) => ({
+        ...r,
+        attachmentUrls: [],
+        attachmentThumbUrls: [],
+        assignee: null,
+      }));
     } catch (err) {
       if (isMissingTable(err)) {
         this.logger.warn('feedback_reports is missing — returning no reports.');
@@ -130,17 +154,27 @@ export class FeedbackService {
 
   async findAll(query: ListFeedbackDto): Promise<FeedbackView[]> {
     try {
-      const where: Record<string, unknown> = {};
-      if (query.status) where.status = query.status;
-      if (query.category) where.category = query.category;
+      const qb = this.repo
+        .createQueryBuilder('f')
+        .orderBy('f.createdAt', 'DESC')
+        .take(query.limit ?? 50)
+        .skip(query.offset ?? 0);
+      if (query.status) qb.andWhere('f.status = :status', { status: query.status });
+      if (query.category) qb.andWhere('f.category = :category', { category: query.category });
+      if (query.q) {
+        qb.andWhere('(f.subject ILIKE :q OR f.message ILIKE :q)', {
+          q: `%${query.q}%`,
+        });
+      }
 
-      const rows = await this.repo.find({
-        where,
-        order: { createdAt: 'DESC' },
-        take: query.limit ?? 50,
-        skip: query.offset ?? 0,
-      });
-      return rows.map((r) => ({ ...r, attachmentUrls: [], attachmentThumbUrls: [] }));
+      const rows = await qb.getMany();
+      const assignees = await this.assigneesFor(rows.map((r) => r.id));
+      return rows.map((r) => ({
+        ...r,
+        attachmentUrls: [],
+        attachmentThumbUrls: [],
+        assignee: assignees.get(r.id) ?? null,
+      }));
     } catch (err) {
       if (isMissingTable(err)) {
         this.logger.warn('feedback_reports is missing — returning no reports.');
@@ -156,7 +190,8 @@ export class FeedbackService {
       throw err;
     });
     if (!report) throw new NotFoundException('Report not found');
-    return this.withUrls(report);
+    const assignees = await this.assigneesFor([id]);
+    return { ...(await this.withUrls(report)), assignee: assignees.get(id) ?? null };
   }
 
   /**
@@ -190,6 +225,28 @@ export class FeedbackService {
 
     const saved = await this.repo.save(report);
 
+    // assignee lives outside the mapped entity (see feedback.entity.ts) —
+    // written with raw SQL, guarded the same way as every other pre-migration
+    // read/write in this file.
+    let assignee: string | null = null;
+    if (dto.assignee !== undefined) {
+      const value = dto.assignee.trim() || null;
+      try {
+        await this.repo.query(
+          `UPDATE feedback_reports SET assignee = $1 WHERE id = $2`,
+          [value, id],
+        );
+        assignee = value;
+      } catch (err) {
+        if (!isMissingColumn(err)) throw err;
+        this.logger.warn(
+          `feedback_reports.assignee is missing — assignee not saved for ${id}.`,
+        );
+      }
+    } else {
+      assignee = (await this.assigneesFor([id])).get(id) ?? null;
+    }
+
     // Tell the farmer, rather than making them reopen the report to find out.
     // Best-effort by design: sendToUser never throws into its caller, and an
     // admin's reply must save whether or not delivery succeeds.
@@ -203,10 +260,56 @@ export class FeedbackService {
         .catch(() => undefined);
     }
 
-    return this.withUrls(saved);
+    return { ...(await this.withUrls(saved)), assignee };
+  }
+
+  // ──────────────────────────────── notes ──────────────────────────────────
+
+  /** Every staff note on a report, oldest first (append-only, never edited). */
+  async listNotes(reportId: string): Promise<FeedbackNote[]> {
+    try {
+      return await this.notesRepo.find({
+        where: { reportId },
+        order: { createdAt: 'ASC' },
+      });
+    } catch (err) {
+      if (isMissingTable(err)) return [];
+      throw err;
+    }
+  }
+
+  async addNote(reportId: string, dto: AddFeedbackNoteDto): Promise<FeedbackNote> {
+    const report = await this.repo.findOne({ where: { id: reportId } });
+    if (!report) throw new NotFoundException('Report not found');
+    const note = this.notesRepo.create({
+      reportId,
+      author: dto.author?.trim() || null,
+      note: dto.note.trim(),
+    });
+    return this.notesRepo.save(note);
   }
 
   // ──────────────────────────────── helpers ───────────────────────────────
+
+  /**
+   * report id → assignee, for the ids given. Empty/omitted map entries mean
+   * "no assignee or the column isn't migrated yet" — callers already treat
+   * `?? null` as the same thing either way.
+   */
+  private async assigneesFor(ids: string[]): Promise<Map<string, string | null>> {
+    const map = new Map<string, string | null>();
+    if (ids.length === 0) return map;
+    try {
+      const rows: { id: string; assignee: string | null }[] = await this.repo.query(
+        `SELECT id, assignee FROM feedback_reports WHERE id = ANY($1::uuid[])`,
+        [ids],
+      );
+      for (const r of rows) map.set(r.id, r.assignee);
+    } catch (err) {
+      if (!isMissingColumn(err)) throw err;
+    }
+    return map;
+  }
 
   /**
    * Attachment paths come back from the client on create, so re-check they are
@@ -225,6 +328,13 @@ export class FeedbackService {
     const { full, thumb } = await this.storage.signAttachments(
       report.attachmentPaths ?? [],
     );
-    return { ...report, attachmentUrls: full, attachmentThumbUrls: thumb };
+    return {
+      ...report,
+      attachmentUrls: full,
+      attachmentThumbUrls: thumb,
+      // Overwritten by callers that actually looked assignee up; farmer-facing
+      // callers (findOneMine) leave it null, same as findMine's list.
+      assignee: null,
+    };
   }
 }

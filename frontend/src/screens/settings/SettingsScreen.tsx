@@ -61,6 +61,7 @@ import { profilesApi } from '../../api/profiles';
 import { Avatar } from '../../components/ui/Avatar';
 import { useAuthStore } from '../../store/authStore';
 import { useMembershipStore } from '../../store/membershipStore';
+import { PhotoPoolNote } from '../../components/photos/PhotoPool';
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
@@ -483,6 +484,8 @@ export const SettingsScreen = ({ navigation }: any) => {
                 {farmLinks.map((row) => (
                     <Row key={row.key} row={row} />
                 ))}
+                <Row row={{ key: 'photoStorage', icon: 'add_a_photo', label: t('storage.title'), route: 'PhotoStorage' }} />
+                <PhotoPoolNote />
 
                 {/*
                   * Privacy — deliberately immediately above "About", so the

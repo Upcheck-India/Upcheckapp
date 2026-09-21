@@ -49,6 +49,23 @@ export const CacheNotice: React.FC<CacheNoticeProps> = ({ updatedAt, stale }) =>
     );
 };
 
+/**
+ * "Couldn't refresh — showing saved data", for screens that keep their rows in
+ * `useState` and so have no `dataUpdatedAt` to hand CacheNotice. Show it when
+ * the latest read failed but earlier rows are still on screen: a failed
+ * refresh must not look like fresh data.
+ */
+export const StaleNotice: React.FC<{ visible: boolean }> = ({ visible }) => {
+    const { t } = useTranslation();
+    if (!visible) return null;
+    return (
+        <View style={styles.row} testID="stale-notice">
+            <Icon name="schedule" size={16} color={c.warningText} />
+            <Text style={styles.text}>{t('common.refreshFailed')}</Text>
+        </View>
+    );
+};
+
 const styles = StyleSheet.create({
     row: {
         flexDirection: 'row',
