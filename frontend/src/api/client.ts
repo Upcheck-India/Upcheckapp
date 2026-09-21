@@ -2,7 +2,7 @@ import axios, { AxiosAdapter, AxiosError, InternalAxiosRequestConfig } from 'axi
 import Constants from 'expo-constants';
 import i18n from '../i18n';
 import { readCached, writeCached } from './offlineCache';
-import { invalidateForEntity, resolveEntityForUrl, queryClient } from '../query/client';
+import { invalidateForEntity, resolveEntityForUrl } from '../query/client';
 import { useUIStore } from '../store/uiStore';
 
 const API_URL = Constants.expoConfig?.extra?.apiBaseUrl
@@ -80,17 +80,16 @@ const fromCache = (cached: { data: unknown; at: number }, config: InternalAxiosR
     request: null,
 });
 
-/** Late real answers that arrived after a cached one was served, coalesced. */
-let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-const refreshActiveSoon = () => {
-    if (refreshTimer) return;
-    refreshTimer = setTimeout(() => {
-        refreshTimer = null;
-        // The screen on display painted the cached copy; now the server is
-        // awake, bring it up to date. Only ACTIVE queries refetch.
-        void queryClient.invalidateQueries({ type: 'active' });
-    }, 500);
-};
+/**
+ * When the server last answered anything. The "waking up" banner is only true
+ * when NOTHING is coming back: one slow endpoint (or a weak mobile signal on a
+ * single request) while others answer fine is not a sleeping server, and
+ * flagging it spammed the banner on every screen.
+ */
+let lastAnswerAt = 0;
+export const SERVER_QUIET_MS = 15_000;
+/** Test hook. */
+export const __resetLastAnswer = () => { lastAnswerAt = 0; };
 
 const SLOW_AWARE = Symbol('slowAware');
 
@@ -112,8 +111,10 @@ const slowAware = (inner: AxiosAdapter): AxiosAdapter => {
             let settled = false;
             let slow = false;
             const timer = setTimeout(() => {
-                slow = true;
-                useUIStore.getState().markSlowRequest(1);
+                if (Date.now() - lastAnswerAt > SERVER_QUIET_MS) {
+                    slow = true;
+                    useUIStore.getState().markSlowRequest(1);
+                }
                 if (!key) return;
                 void readCached(key).then((cached) => {
                     if (cached && !settled) {
@@ -128,16 +129,22 @@ const slowAware = (inner: AxiosAdapter): AxiosAdapter => {
             };
             inner(config).then(
                 (res) => {
+                    lastAnswerAt = Date.now();
                     done();
                     if (!settled) {
                         settled = true;
                         resolve(res);
                     } else if (key && res.status >= 200 && res.status < 300) {
+                        // The screen already painted the cached copy. Update the
+                        // cache only: the next focus/refetch shows it. Refetching
+                        // every active query here re-triggered slow requests and
+                        // kept spinners going on every screen (a refetch storm).
                         void writeCached(key, res.data);
-                        refreshActiveSoon();
                     }
                 },
                 (err) => {
+                    // Any HTTP response (even an error status) means the server is awake.
+                    if ((err as AxiosError)?.response) lastAnswerAt = Date.now();
                     done();
                     if (!settled) {
                         settled = true;
@@ -199,14 +206,6 @@ apiClient.interceptors.response.use(
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
         const isGet = (originalRequest?.method ?? 'get').toLowerCase() === 'get';
-
-        // A GET that timed out with nothing cached (slowAware would already
-        // have answered from the cache) is most likely a server still waking
-        // up: give it one more window before calling it unreachable.
-        if (!error.response && error.code === 'ECONNABORTED' && isGet && originalRequest && !(originalRequest as any)._timeoutRetry) {
-            (originalRequest as any)._timeoutRetry = true;
-            return apiClient(originalRequest);
-        }
 
         // No response at all — timeout or no connectivity. A 502/503/504 is
         // the proxy in front of a sleeping/restarting server, not the app
