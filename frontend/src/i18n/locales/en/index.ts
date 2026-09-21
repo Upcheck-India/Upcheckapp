@@ -47,6 +47,7 @@ import reports from './reports';
 import biosecurity from './biosecurity';
 import consent from './consent';
 import storage from './storage';
+import photos from './photos';
 
 export default {
   common,
@@ -90,4 +91,5 @@ export default {
   biosecurity,
   consent,
   storage,
+  photos,
 };

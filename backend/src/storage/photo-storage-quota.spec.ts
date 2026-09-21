@@ -234,7 +234,7 @@ function photosService(answer: (q: string, p: any[]) => any[]) {
   const deletions = { enqueue: jest.fn(async () => true), drainSoon: jest.fn() };
   const storage = { sign: jest.fn(async (_ns: string, paths: string[]) => ({ full: paths, thumb: paths })) };
   const ledger = { quotaFor: async () => ({ maxPhotos: PHOTO_QUOTA.photos, maxBytes: PHOTO_QUOTA.bytes }) };
-  const svc = new PhotosService(db as any, storage as any, ledger as any, deletions as any);
+  const svc = new PhotosService(db as any, storage as any, ledger as any, deletions as any, {} as any);
   jest.spyOn((svc as any).logger, 'warn').mockImplementation(() => undefined);
   return { svc, calls, deletions };
 }
@@ -365,7 +365,7 @@ describe('F1 orphan sweep', () => {
 
   it('a drained object leaves the ledger, so it stops counting', async () => {
     const query = jest.fn(async (q: string, _p?: any[]) =>
-      /^SELECT id, namespace, path FROM photo_deletions/.test(q) ? [{ id: 'd1', namespace: 'health', path: P1 }] : [],
+      /^SELECT id, namespace, path, reason FROM photo_deletions/.test(q) ? [{ id: 'd1', namespace: 'health', path: P1 }] : [],
     );
     const storage = { configured: true, deleteImages: jest.fn(async () => undefined) };
     const svc = new PhotoDeletionService({ query } as any, storage as any);

@@ -9,6 +9,8 @@ export interface CreateFeedingTrayCheck {
   trayNumber: number;
   remainingFeedStatus: TrayResidue;
   feedRecordId?: string;
+  /** F5: tray photo (cap 1). */
+  photoPath?: string | null;
 }
 
 export interface FeedingTrayCheck {

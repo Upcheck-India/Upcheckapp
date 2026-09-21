@@ -1,3 +1,4 @@
+import { ResponseCacheService } from '../common/response-cache';
 import { DataSource } from 'typeorm';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -32,6 +33,8 @@ describe('FarmsController', () => {
         },
         { provide: FarmsService, useValue: farmsService },
         { provide: DataSource, useValue: {} },
+        // @CachedRead routes resolve the cache interceptor.
+        { provide: ResponseCacheService, useValue: {} },
         {
           provide: FarmAccessService,
           useValue: {

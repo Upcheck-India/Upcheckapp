@@ -1,6 +1,6 @@
-import React, { useCallback, useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../query/hooks';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -33,14 +33,10 @@ export const CycleListScreen = ({ route, navigation }: any) => {
     const { pondId, pondName, farmId, farmName } = route.params ?? {};
     const { canViewFinancials } = usePermissions(farmId);
 
-    const [rows, setRows] = useState<CycleRow[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [error, setError] = useState<any>(null);
-
-    const fetchRows = useCallback(async () => {
-        setError(null);
-        try {
+    // Paints the last list instantly and revalidates on every focus.
+    const { data, isInitialLoading: isLoading, isRefreshing, error, refresh } = useCachedFetch(
+        ['cycleList', pondId ?? null, farmId ?? null],
+        async (): Promise<CycleRow[]> => {
             if (pondId) {
                 const [cropsRes, harvestsRes] = await Promise.all([
                     cropsApi.getAll(pondId),
@@ -48,16 +44,12 @@ export const CycleListScreen = ({ route, navigation }: any) => {
                     // "nothing harvested". Failure keeps the rows already shown.
                     harvestsApi.getByPond(pondId),
                 ]);
-                setRows(summariseCycles(
+                return summariseCycles(
                     list<Crop>(cropsRes.data).map((crop) => ({ crop })),
                     list<Harvest>(harvestsRes.data),
-                ));
-                return;
+                );
             }
-            if (!farmId) {
-                setRows([]);
-                return;
-            }
+            if (!farmId) return [];
             // Farm scope fans out over the farm's ponds: `GET /crops` is
             // pond-scoped, there is no farm-wide crop list. Ponds are capped at
             // 100 by the same read FarmDetail uses, so this stays bounded.
@@ -75,22 +67,15 @@ export const CycleListScreen = ({ route, navigation }: any) => {
                     harvests: list<Harvest>(h.data),
                 };
             }));
-            setRows(summariseCycles(
+            return summariseCycles(
                 per.flatMap((x) => x.entries),
                 per.flatMap((x) => x.harvests),
-            ));
-        } catch (err) {
-            setError(err);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [pondId, farmId]);
-
-    useFocusEffect(useCallback(() => { fetchRows(); }, [fetchRows]));
-
-    const onRefresh = useCallback(() => { setIsRefreshing(true); fetchRows(); }, [fetchRows]);
-    const onRetry = useCallback(() => { setIsLoading(true); fetchRows(); }, [fetchRows]);
+            );
+        },
+    );
+    const rows = data ?? [];
+    const onRefresh = refresh;
+    const onRetry = refresh;
 
     const renderItem = ({ item }: { item: CycleRow }) => {
         const { crop } = item;

@@ -16,6 +16,7 @@ import { feedApi } from '../../api/feedRecords';
 import { pondsApi } from '../../api/ponds';
 import { inventoryApi, type InventoryItem } from '../../api/inventory';
 import { apiErrorMessage } from '../../api/errors';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 
 export const FeedLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -45,6 +46,8 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
     );
     const [feedType, setFeedType] = useState(editRecord?.feedType ?? 'Starter');
     const [notes, setNotes] = useState(editRecord?.notes ?? '');
+    // F5: input label + batch (cap 2).
+    const [photoPaths, setPhotoPaths] = useState<string[]>(editRecord?.photoPaths ?? []);
 
     /*
      * Which sack this feeding came out of. The whole deduct / compensate /
@@ -101,6 +104,7 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
             feedingTime: date,
             notes: combinedNotes || undefined,
             inventoryItemId: inventoryItemId ?? undefined,
+            photoPaths,
         };
 
         try {
@@ -263,6 +267,13 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                         multiline
                         numberOfLines={3}
                         style={styles.textArea}
+                    />
+                    <PhotoAttach
+                        surface="feed_label"
+                        scope={{ pondId }}
+                        value={photoPaths}
+                        onChange={setPhotoPaths}
+                        max={2}
                     />
                 </Card>
 

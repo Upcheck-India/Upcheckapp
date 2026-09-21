@@ -81,6 +81,7 @@ const ponds = {
   actionHarvest: 'அறுவடை',
   actionDailyRoutine: 'தினசரி வழக்கம்',
   actionWeeklyChem: 'வாராந்திர வேதியியல்',
+  actionPhotos: 'புகைப்படங்கள்',
   actionMeasurements: 'அளவீடுகள்',
   actionAdvisor: 'ஆலோசகர்',
   showMore: 'மேலும் ({{count}})',

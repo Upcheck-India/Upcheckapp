@@ -14,6 +14,7 @@ import { Transaction } from '../transactions/transaction.entity';
 import { FeedRecord } from '../feed-records/feed-record.entity';
 import { Pond } from '../ponds/pond.entity';
 import { isLowStock } from './inventory.constants';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 const FARM = { id: 'farm-1', userId: 'owner-1', rolePolicy: null } as any;
 
@@ -134,6 +135,7 @@ describe('InventoryService', () => {
         { provide: getRepositoryToken(Transaction), useValue: txRepo },
         { provide: getRepositoryToken(FeedRecord), useValue: feedRepo },
         { provide: getRepositoryToken(Pond), useValue: pondRepo },
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } },
       ],
     }).compile();
 

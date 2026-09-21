@@ -9,7 +9,7 @@ Upcheck Technologies Private Limited ("we", "us", "our") operates the Neerani mo
 
 This policy explains what personal data we collect, why we collect it, who we share it with, where it is kept, and the control you have over it. It is written to be read, not to be survived.
 
-Effective 5 September 2026. Last updated 21 September 2026.
+Effective 5 September 2026. Last updated 22 September 2026.
 
 ## 1. Who this applies to
 
@@ -25,7 +25,7 @@ Sign-in provider data — if you choose Google, we receive the email address, na
 
 Farm records you enter — farms, ponds and culture cycles, pond location if you provide it, water-quality readings, feeding, sampling, mortality, chemical, plankton, microbiology, disease and treatment logs, harvests, inventory, expenses, transactions, tasks and simulations. This is the substance of the app and most of it is entered by you.
 
-Photos — only images you choose to attach to a record (a health check, disease log, mortality log or your profile picture are the current uses), either taken with the camera or picked from your library. We do not access your gallery or camera in the background. Photos are converted to WebP format and their embedded metadata — including any location tag your device recorded — is stripped before storage; a small thumbnail is generated alongside the full image. A photo is visible to members of the farm the record belongs to, per their role, and is used only for that record and for exports you generate from it. It is never used to train any model unless you switch on photos under "Help improve Neerani's advice" (section 3), and never to train anyone else's. If we ever build a feature that analyses a photo automatically (for example, image-based disease detection), we will ask for your separate, specific consent before turning it on, and this policy will describe it before it launches.
+Photos — only images you choose to attach to a record (a health check, disease log, mortality log or your profile picture are the current uses), either taken with the camera or picked from your library. We do not access your gallery or camera in the background. Photos are converted to WebP format and their embedded metadata — including any location tag your device recorded — is stripped before storage; a small thumbnail is generated alongside the full image. A photo is visible to members of the farm the record belongs to, per their role, and is used only for that record and for exports you generate from it. The full-size photo is kept for 12 months; after that we keep only the small version (see section 8). You can save your photos to your phone at any time from the app. If a farm member reports a photo as not belonging in the app, our staff may view that photo to handle the report, and only then. It is never used to train any model unless you switch on photos under "Help improve Neerani's advice" (section 3), and never to train anyone else's. If we ever build a feature that analyses a photo automatically (for example, image-based disease detection), we will ask for your separate, specific consent before turning it on, and this policy will describe it before it launches.
 
 Team and attendance — who belongs to a farm, their role, and attendance or task records an owner or manager keeps.
 
@@ -102,7 +102,7 @@ If a breach affects your personal data, we notify affected users and the Data Pr
 How long depends on what it is:
 • Account and profile data — while your account is active.
 • Farm logs and records (ponds, cycles, water quality, feeding, sampling, mortality, chemical, plankton, microbiology, disease, treatment, harvest, inventory, expenses, transactions, tasks) — while the farm they belong to exists.
-• Photos — while the record they are attached to exists. Deleting a record, a farm, or your account queues its photos for removal from storage; a short periodic clean-up job then deletes them, so removal follows shortly after rather than instantly.
+• Photos — the full-size photo for 12 months from when it was added; after that only the small version is kept, for as long as the record it is attached to exists. The app tells you at least 30 days before any of your photos are reduced, and you can save them at any time before or after. Deleting a record, a farm, or your account queues its photos (both sizes) for removal from storage; a short periodic clean-up job then deletes them, so removal follows shortly after rather than instantly.
 • Email verification codes — 10 minutes, then they expire and cannot be reused.
 • Photo links (the signed URLs used to view a photo) — 1 hour, then they stop working and a new one is generated on demand.
 • Routine encrypted backups — rotated out within 30 days.

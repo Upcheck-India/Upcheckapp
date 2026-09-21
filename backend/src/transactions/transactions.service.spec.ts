@@ -11,6 +11,7 @@ import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { Transaction } from './transaction.entity';
 import { Pond } from '../ponds/pond.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 const USER_ID = 'user-1';
 const OTHER_UUID = '22222222-2222-4222-8222-222222222222';
@@ -86,6 +87,7 @@ describe('TransactionsService', () => {
           },
         },
         { provide: FarmAccessService, useValue: mockFarmAccess },
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } },
       ],
     }).compile();
 
@@ -687,6 +689,7 @@ describe('TransactionsService.findAll — pond scoping', () => {
       transactionsRepository as any,
       pondsRepository as any,
       farmAccess as any,
+      { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } as any,
     );
     return { service, farmAccess };
   };

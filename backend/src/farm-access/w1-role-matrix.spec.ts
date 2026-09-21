@@ -76,6 +76,7 @@ function chainFor(role: FarmRole | null) {
     ownerMembershipRepo as any,
     farmAccess,
     {} as any, // PhotoDeletionService: no delete path exercised here
+    {} as any, // HealthPhotoStorageService: no photo path exercised here
   );
 
   // PondsService only needs its own repo + FarmsService for this path.

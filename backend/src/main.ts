@@ -11,6 +11,10 @@ import { useGlobalExceptionFilters } from './common/filters';
 import { assertSchemaReady } from './common/schema-guard';
 import { assertCorsOriginAllowed } from './common/cors-guard';
 import { initSentry, Sentry } from './common/sentry';
+import {
+  QueryCounterSubscriber,
+  requestTimingMiddleware,
+} from './common/request-timing';
 
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -20,6 +24,10 @@ async function bootstrap() {
   const sentryOn = initSentry();
 
   const app = await NestFactory.create(AppModule);
+
+  // First middleware, so its clock covers everything else (common/request-timing).
+  app.use(requestTimingMiddleware());
+  app.get(DataSource).subscribers.push(new QueryCounterSubscriber());
 
   // Security response headers (HSTS, X-Content-Type-Options, frameguard, …).
   // Defaults are safe for a JSON API — no HTML is served, so CSP is a no-op.

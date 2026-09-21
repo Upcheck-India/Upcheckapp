@@ -11,6 +11,7 @@ import {
   type PhotoDeletionReason,
 } from '../storage/photo-deletion.service';
 import { PhotoLedgerService } from '../storage/photo-ledger.service';
+import { readPhotoPaths, writePhotoPaths } from '../storage/entity-photo-paths.util';
 
 /** The app compresses to ≤1600 px JPEG q0.7, well under this. */
 export const MAX_HEALTH_PHOTO_BYTES = MAX_IMAGE_BYTES;
@@ -113,6 +114,52 @@ export class HealthPhotoStorageService {
       (p) => PATH_RE.test(p) && p.startsWith(`${farmId}/`),
     );
     return this.storage.sign('health', own);
+  }
+
+  /**
+   * F5: the one call every new-surface entity makes on create/update — foreign-
+   * farm paths 403, the array is written to `<table>.photo_paths` (guarded,
+   * no-op before migration 1780702800000), and the photos are attached in the
+   * ledger so F2's breakdown and F6's tab can find them. `manager` should be
+   * the same transaction the record itself saved in, when there is one.
+   */
+  async applyRecordPhotos(
+    manager: EntityManager,
+    table: string,
+    entity: string,
+    farmId: string,
+    recordId: string,
+    paths: string[] | null | undefined,
+    cropId?: string | null,
+  ): Promise<void> {
+    this.assertFarmPaths(farmId, paths);
+    await writePhotoPaths(manager, table, recordId, paths);
+    await this.attach(paths, entity as any, recordId, cropId);
+  }
+
+  /**
+   * F5 single-photo surfaces (pond/farm identity): validates the new path,
+   * writes it, and enqueues the OLD one for deletion — replace, never
+   * accumulate, same as avatars. `photoPath` undefined = leave unchanged.
+   */
+  async applySinglePhoto(
+    manager: EntityManager,
+    table: string,
+    entity: string,
+    farmId: string,
+    recordId: string,
+    photoPath: string | null | undefined,
+    requestedBy: string,
+  ): Promise<void> {
+    if (photoPath === undefined) return;
+    const paths = photoPath ? [photoPath] : [];
+    this.assertFarmPaths(farmId, paths);
+    const [current] = await readPhotoPaths(manager, table, recordId);
+    await writePhotoPaths(manager, table, recordId, paths);
+    if (current && current !== photoPath) {
+      await this.remove([current], 'photo_removed', requestedBy, manager);
+    }
+    if (paths.length) await this.attach(paths, entity as any, recordId);
   }
 
   /** `photoSignedUrls` + `photoThumbUrls` on each record (signed locally). */

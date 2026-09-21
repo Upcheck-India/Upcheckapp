@@ -18,6 +18,7 @@ import {
 } from '../transactions/dto/money-query.dto';
 import { HarvestsService } from '../harvests/harvests.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 import { istDayRangeUtc, toIstDateString } from '../common/ist-date';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -44,6 +45,7 @@ export class ExpensesService {
     private readonly farmAccess: FarmAccessService,
     @InjectRepository(Transaction)
     private transactionsRepository: Repository<Transaction>,
+    private readonly healthPhotoStorage: HealthPhotoStorageService,
   ) {}
 
   /**
@@ -105,7 +107,23 @@ export class ExpensesService {
       userId,
     });
 
-    return this.expensesRepository.save(expense);
+    const saved = await this.expensesRepository.save(expense);
+
+    // F5 receipt / bill (cap 2). Financial data — already gated behind
+    // VIEW_FINANCIALS on every read of this table (assertCropFinancials /
+    // findAll's farm scoping above), so no separate mask is needed here.
+    if (createDto.photoPaths !== undefined) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.expensesRepository.manager,
+        'expenses',
+        'expense',
+        pond.farmId,
+        saved.id,
+        createDto.photoPaths,
+        expense.cropId,
+      );
+    }
+    return saved;
   }
 
   /**

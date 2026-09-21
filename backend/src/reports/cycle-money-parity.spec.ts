@@ -47,6 +47,7 @@ describe('one profit per cycle: Cycle Result = Crop P&L = Cycle financials', () 
       harvestsService as any,
       farmAccess as any,
       { createQueryBuilder: () => qb } as any,
+      { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } as any,
     );
     const pnl = new PnlService(
       { count: jest.fn().mockResolvedValue(1) } as any,

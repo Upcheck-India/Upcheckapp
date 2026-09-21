@@ -19,6 +19,12 @@ export class UpdateFarmDto extends PartialType(CreateFarmDto) {
   @IsString()
   @MaxLength(60)
   caaRegistrationNo?: string | null;
+
+  /** F5 identity photo (cap 1, replaces). `null` clears it; omit to leave unchanged. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  photoPath?: string | null;
 }
 
 /** Fields a manager may change; everything else on a farm stays owner-only. */

@@ -34,6 +34,7 @@ import { useMembershipStore } from '../../store/membershipStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { capture, EVENTS, sizeBand } from '../../features/analytics';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 
 /** ~1.1km at the equator, per farm-location-strategy.md Option B — a farm's
  *  district is the precision the app needs; a coordinate captured at all is a
@@ -98,6 +99,10 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
     const canEditCaa = isEdit && editRole === 'owner';
     const [caaNo, setCaaNo] = useState('');
     const [loadedCaa, setLoadedCaa] = useState('');
+    // F5 farm identity photo (cap 1) — owner only, matching FarmsService.update()
+    // (every non-shift field is owner-only). Edit-only: needs a farmId to scope
+    // the upload to. `undefined` = leave unchanged.
+    const [photoPath, setPhotoPath] = useState<string | undefined>(undefined);
     const [shiftHours, setShiftHours] = useState(DEFAULT_SHIFT_HOURS);
     /** As loaded, so only a CHANGE is sent — an older backend never sees the fields. */
     const [loadedShift, setLoadedShift] = useState<{ end: string; hours: number }>({ end: '', hours: DEFAULT_SHIFT_HOURS });
@@ -281,7 +286,8 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                 // never silently drop an owner's name/address edits.
                 // CAA only when changed, so an older backend never sees it.
                 const caa = canEditCaa && caaNo.trim() !== loadedCaa ? { caaRegistrationNo: caaNo.trim() || null } : {};
-                await farmsApi.update(editFarmId!, editRole === 'manager' ? shift : { ...editable, ...shift, ...caa });
+                const photo = canEditCaa && photoPath !== undefined ? { photoPath } : {};
+                await farmsApi.update(editFarmId!, editRole === 'manager' ? shift : { ...editable, ...shift, ...caa, ...photo });
                 showToast({ message: t('farms.farmSavedToast', { name: name.trim() }), type: 'success' });
                 navigation.goBack();
                 return;
@@ -343,6 +349,16 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                     error={errors.name}
                     required
                 />
+
+                {canEditCaa && (
+                    <PhotoAttach
+                        surface="farm_identity"
+                        scope={{ farmId: editFarmId! }}
+                        value={photoPath ? [photoPath] : []}
+                        onChange={(paths) => setPhotoPath(paths[paths.length - 1])}
+                        max={1}
+                    />
+                )}
 
                 <Input
                     label={t('farms.fieldAreaHectares')}

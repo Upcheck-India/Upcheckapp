@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
   Min,
   Max,
@@ -52,6 +53,20 @@ export class CreateFeedbackDto {
   @IsString({ each: true })
   @MaxLength(300, { each: true })
   attachmentPaths?: string[];
+}
+
+/**
+ * F7.8 "Report this photo": a farm photo someone else uploaded. The path is
+ * referenced by the report, never copied (`health/<farmId>/<uuid>.webp`).
+ */
+export class ReportPhotoDto {
+  @Matches(/^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp|heic)$/)
+  path: string;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(1000)
+  message?: string;
 }
 
 /** Admin: set status, write or edit the response. Every field optional. */

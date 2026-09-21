@@ -78,6 +78,8 @@ export interface CreateCropDto {
     hatcheryId?: string;
     speciesId?: string;
     broodstockId?: string;
+    /** F5: seed PCR certificate (cap 2, protected). */
+    photoPaths?: string[];
 }
 
 export interface UpdateCropDto extends Partial<Omit<CreateCropDto, 'pondId'>> {

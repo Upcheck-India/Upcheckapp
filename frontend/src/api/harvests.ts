@@ -27,6 +27,8 @@ export interface Harvest {
     piecesEstimated?: boolean;
     createdAt: string;
     updatedAt: string;
+    /** F5: buyer's weighing slip (cap 2, protected 12mo). [] without VIEW_FINANCIALS. */
+    photoPaths?: string[];
 }
 
 export type RejectedReason = 'soft_shell' | 'broken' | 'dead' | 'other';
@@ -65,6 +67,8 @@ export interface CreateHarvestDto {
     harvestType: HarvestType;
     status?: HarvestStatus;
     notes?: string | null;
+    /** F5: buyer's weighing slip (cap 2, protected 12mo). VIEW_FINANCIALS gated. */
+    photoPaths?: string[];
 }
 
 export const harvestsApi = {

@@ -135,4 +135,9 @@ export class CreateWaterQualityRecordDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  /** F5: water colour (cap 1). Optional; the reading saves without it. */
+  @IsString()
+  @IsOptional()
+  photoPath?: string | null;
 }

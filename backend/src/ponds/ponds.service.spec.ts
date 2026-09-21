@@ -17,6 +17,7 @@ import { PondDimensionService } from './pond-dimension.service';
 import { PondNamingService } from './pond-naming.service';
 import { CreatePondDto } from './dto/create-pond.dto';
 import { PhotoDeletionService } from '../storage/photo-deletion.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 describe('PondsService', () => {
   let service: PondsService;
@@ -169,6 +170,7 @@ describe('PondsService', () => {
         { provide: DataSource, useValue: dataSource },
         { provide: FarmAccessService, useValue: farmAccess },
         { provide: PhotoDeletionService, useValue: photoDeletions },
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), applySinglePhoto: jest.fn() } },
       ],
     }).compile();
 

@@ -30,6 +30,8 @@ export interface CreateWaterQualityRecordDto {
     hardness?: number;
     transparency?: number;
     notes?: string;
+    /** F5: water colour (cap 1). */
+    photoPath?: string | null;
 }
 
 export interface UpdateWaterQualityRecordDto {
@@ -44,6 +46,8 @@ export interface UpdateWaterQualityRecordDto {
     hardness?: number;
     transparency?: number;
     notes?: string;
+    /** F5: water colour (cap 1). */
+    photoPath?: string | null;
 }
 
 /**

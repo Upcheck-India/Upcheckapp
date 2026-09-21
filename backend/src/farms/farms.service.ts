@@ -23,6 +23,7 @@ import {
   invalidPolicyKey,
 } from '../farm-access/farm-capability';
 import { PhotoDeletionService } from '../storage/photo-deletion.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 /**
  * Roles that see a farm's district but never its raw coordinates (spec
@@ -41,6 +42,7 @@ export class FarmsService {
     private readonly farmMembersRepository: Repository<FarmMember>,
     private readonly farmAccess: FarmAccessService,
     private readonly photoDeletions: PhotoDeletionService,
+    private readonly healthPhotoStorage: HealthPhotoStorageService,
   ) {}
 
   /**
@@ -251,14 +253,14 @@ export class FarmsService {
         : { id: In(farmIds), archivedAt: IsNull() },
     });
     // Per-farm role: the same user can own one farm and only work another.
-    // farmIds is typically small (a person's own farm list), so one role
-    // lookup per farm is fine here; getFarmIdsWithCapability's batch pattern
-    // is worth reaching for only if this list grows large in practice.
-    return Promise.all(
-      farms.map(async (farm) => {
-        const role = await this.farmAccess.getRoleOnFarm(userId, farm.id);
-        return this.stripCoordinatesForRole(farm, role);
-      }),
+    // Resolved in one batch — this was two queries per farm on the Home and
+    // Farms screens' most frequent read.
+    const grants = await this.farmAccess.getMembershipsOnFarms(
+      userId,
+      farms.map((f) => f.id),
+    );
+    return farms.map((farm) =>
+      this.stripCoordinatesForRole(farm, grants.get(farm.id)?.role ?? null),
     );
   }
 
@@ -330,7 +332,22 @@ export class FarmsService {
     // so an unapplied migration refuses the whole edit instead of
     // half-saving it — includes "clear location", which is this same path
     // with stateCode/districtCode/latitude/longitude sent as null.
-    const { caaRegistrationNo, stateCode, districtCode, ...entityFields } = updateFarmDto;
+    const { caaRegistrationNo, stateCode, districtCode, photoPath, ...entityFields } =
+      updateFarmDto;
+    // F5 farm identity photo (cap 1, replaces — see applySinglePhoto). Written
+    // before entityFields so a rejected path (foreign farm) refuses the whole
+    // edit rather than half-saving it, matching the CAA/location fields above.
+    if (photoPath !== undefined) {
+      await this.healthPhotoStorage.applySinglePhoto(
+        this.farmsRepository.manager,
+        'farms',
+        'farm',
+        id,
+        id,
+        photoPath,
+        callerId,
+      );
+    }
     if (caaRegistrationNo !== undefined) {
       await this.farmsRepository
         .query(`UPDATE farms SET caa_registration_no = $2 WHERE id = $1`, [

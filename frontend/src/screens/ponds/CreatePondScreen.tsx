@@ -18,6 +18,7 @@ import { apiErrorMessage } from '../../api/errors';
 import { confirm } from '../../utils/confirm';
 import { usePermissions } from '../../hooks/usePermissions';
 import { capture, EVENTS, sizeBand } from '../../features/analytics';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 
 type GeometryType = 'rectangular' | 'circular' | 'irregular' | 'raceway';
 type ConstructionType = 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
@@ -75,6 +76,9 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
     const [installedAeratorHp, setInstalledAeratorHp] = useState('');
     const [aeratorCount, setAeratorCount] = useState('');
     const [displayName, setDisplayName] = useState('');
+    // F5 pond identity photo (cap 1) — edit-only, the picker needs a pondId
+    // to scope the upload to. `undefined` = leave unchanged on save.
+    const [photoPath, setPhotoPath] = useState<string | undefined>(undefined);
 
     const [overrideAreaM2, setOverrideAreaM2] = useState('');
     const [showOverride, setShowOverride] = useState(false);
@@ -320,6 +324,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 await pondsApi.update(editPondId, {
                     ...shaped,
                     ...(dimensionsChanged ? { changeReason: t('ponds.resizeReason') } : {}),
+                    ...(photoPath !== undefined ? { photoPath } : {}),
                 } as any);
                 navigation.goBack();
                 return;
@@ -378,6 +383,16 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                     error={errors.displayName}
                     required
                 />
+
+                {isEdit && (
+                    <PhotoAttach
+                        surface="pond_identity"
+                        scope={{ pondId: editPondId }}
+                        value={photoPath ? [photoPath] : []}
+                        onChange={(paths) => setPhotoPath(paths[paths.length - 1])}
+                        max={1}
+                    />
+                )}
 
                 <Text style={styles.label}>{t('ponds.labelPondShape')}</Text>
                 <View style={styles.toggleRow}>

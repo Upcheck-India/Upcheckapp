@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../../query/hooks';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
@@ -34,31 +34,17 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
     const { pondId, pondName, cropId, farmId } = route.params;
     // Edit, delete and outcome changes are WRITE_MANAGEMENT on the server (403 otherwise).
     const perms = usePermissions(farmId);
-    const [records, setRecords] = useState<DiseaseRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [error, setError] = useState<any>(null);
-
-    const fetchRecords = useCallback(async (forceRefresh = false) => {
-        if (!forceRefresh) setIsLoading(true);
-        setError(null);
-        try {
-            if (cropId) {
-                const { data } = await diseaseApi.getByCrop(cropId);
-                setRecords([...data].sort((a, b) => new Date(b.recordedDate).getTime() - new Date(a.recordedDate).getTime()));
-            } else {
-                setRecords([]);
-            }
-        } catch (err) {
-            setError(err);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [cropId]);
-
-    // Refetch on focus — this screen stays mounted in the stack.
-    useFocusEffect(useCallback(() => { fetchRecords(); }, [fetchRecords]));
+    // Paints the last list instantly and revalidates on every focus.
+    const { data, isInitialLoading: isLoading, isRefreshing, error, refresh: handleRefresh, setData } = useCachedFetch(
+        ['diseaseHistory', cropId ?? null],
+        async (): Promise<DiseaseRecord[]> => {
+            if (!cropId) return [];
+            const { data } = await diseaseApi.getByCrop(cropId);
+            return [...data].sort((a, b) => new Date(b.recordedDate).getTime() - new Date(a.recordedDate).getTime());
+        },
+    );
+    const records = data ?? [];
+    const setRecords = (fn: (prev: DiseaseRecord[]) => DiseaseRecord[]) => setData((prev) => fn(prev ?? []));
 
     const handleDelete = useCallback((item: DiseaseRecord) => {
         Alert.alert(
@@ -188,7 +174,7 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
             {isLoading && records.length === 0 ? (
                 <View style={styles.center}><ActivityIndicator size="large" color={c.primary} /></View>
             ) : error && records.length === 0 ? (
-                <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={() => fetchRecords(true)} />
+                <ErrorState title={t('history.couldNotLoad')} error={error} onRetry={handleRefresh} />
             ) : (
                 <FlatList
                     data={records}
@@ -196,7 +182,7 @@ export const DiseaseHistoryScreen = ({ route, navigation }: any) => {
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContent}
                     refreshControl={
-                        <RefreshControl refreshing={isRefreshing} onRefresh={() => { setIsRefreshing(true); fetchRecords(true); }} colors={[c.primary]} tintColor={c.primary} />
+                        <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[c.primary]} tintColor={c.primary} />
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyState}>

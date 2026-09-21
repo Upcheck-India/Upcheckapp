@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useState } from 'react';
+import { useCachedFetch } from '../../query/hooks';
+import { StaleNotice } from '../../components/ui/CacheNotice';
 import {
     View,
     Text,
@@ -28,6 +29,7 @@ import {
 } from '../../api/expenses';
 import { cropsApi } from '../../api/crops';
 import { apiErrorMessage } from '../../api/errors';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 
 const CATEGORY_OPTIONS = Object.values(ExpenseCategory);
 
@@ -39,12 +41,28 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { cropId, pondName } = route.params as { cropId: string; pondName?: string };
 
-    // Data state
-    const [expenses, setExpenses] = useState<Expense[]>([]);
-    const [financials, setFinancials] = useState<CycleFinancials | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    // Data: the last copy paints instantly, every focus revalidates (figures
+    // move when something is logged elsewhere).
+    const query = useCachedFetch(['expenses', cropId], async () => {
+        const [expensesRes, financialsRes, cropRes] = await Promise.all([
+            expensesApi.findByCycle(cropId),
+            expensesApi.getCycleFinancials(cropId),
+            cropsApi.getById(cropId),
+        ]);
+        return {
+            expenses: expensesRes.data as Expense[],
+            financials: financialsRes.data as CycleFinancials,
+            // ponytail: a crop belongs to exactly one pond, so pondId is derived from the crop, not typed.
+            pondId: cropRes.data.pondId as string | null,
+        };
+    });
+    const expenses = query.data?.expenses ?? [];
+    const financials = query.data?.financials ?? null;
+    const pondId = query.data?.pondId ?? null;
+    const isLoading = query.isInitialLoading;
+    const isRefreshing = query.isRefreshing;
+    const hasData = query.data !== undefined;
+    const error = query.error ? apiErrorMessage(query.error, 'Failed to load expenses') : null;
 
     // Form state
     const [showForm, setShowForm] = useState(false);
@@ -52,46 +70,12 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
     const [formCategory, setFormCategory] = useState<ExpenseCategory>(ExpenseCategory.FEED);
     const [formDescription, setFormDescription] = useState('');
     const [formDate, setFormDate] = useState(todayISO());
-    // ponytail: a crop belongs to exactly one pond, so pondId is derived from the crop, not typed.
-    const [pondId, setPondId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    // F5: receipt / bill (cap 2). This screen is only reachable with
+    // VIEW_FINANCIALS already, so no extra role gate is needed here.
+    const [photoPaths, setPhotoPaths] = useState<string[]>([]);
 
-    const loadData = useCallback(async (showRefreshIndicator = false) => {
-        if (showRefreshIndicator) {
-            setIsRefreshing(true);
-        } else {
-            setIsLoading(true);
-        }
-        setError(null);
-
-        try {
-            const [expensesRes, financialsRes, cropRes] = await Promise.all([
-                expensesApi.findByCycle(cropId),
-                expensesApi.getCycleFinancials(cropId),
-                cropsApi.getById(cropId),
-            ]);
-            setExpenses(expensesRes.data);
-            setFinancials(financialsRes.data);
-            setPondId(cropRes.data.pondId);
-        } catch (err: any) {
-            setError(apiErrorMessage(err, 'Failed to load expenses'));
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [cropId]);
-
-    // Load on mount
-    // Refetch on FOCUS, not on mount. React Navigation keeps a screen mounted
-    // once opened, so a mount-only effect never ran again — the page kept
-    // showing figures from before whatever was just logged elsewhere.
-    useFocusEffect(React.useCallback(() => {
-        void loadData();
-    }, [loadData]));
-
-    const handleRefresh = useCallback(() => {
-        void loadData(true);
-    }, [loadData]);
+    const handleRefresh = query.refresh;
 
     const handleAddExpense = async () => {
         if (!formAmount.trim() || isNaN(parseFloat(formAmount))) {
@@ -116,15 +100,17 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
                 category: formCategory,
                 amount: parseFloat(formAmount),
                 description: formDescription.trim() || undefined,
+                photoPaths: photoPaths.length ? photoPaths : undefined,
             });
             // Reset form
             setFormAmount('');
             setFormDescription('');
             setFormDate(todayISO());
             setFormCategory(ExpenseCategory.FEED);
+            setPhotoPaths([]);
             setShowForm(false);
             // Refresh data
-            void loadData(true);
+            void query.refetch();
         } catch (err: any) {
             Alert.alert(t('common.error'), apiErrorMessage(err, t('finance.saveError')));
         } finally {
@@ -347,6 +333,16 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
                 numberOfLines={2}
             />
 
+            {pondId && (
+                <PhotoAttach
+                    surface="expense_receipt"
+                    scope={{ pondId }}
+                    value={photoPaths}
+                    onChange={setPhotoPaths}
+                    max={2}
+                />
+            )}
+
             <View style={styles.formActions}>
                 <Button
                     title={t('common.cancel')}
@@ -395,12 +391,13 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
             </View>
 
             {/* Loading state */}
+            <StaleNotice visible={!!error && hasData} />
             {isLoading ? (
                 <View style={styles.centered}>
                     <ActivityIndicator size="large" color={theme.roles.light.primary} />
                     <Text style={styles.loadingText}>{t('finance.loadingExpenses')}</Text>
                 </View>
-            ) : error ? (
+            ) : error && !hasData ? (
                 <View style={styles.centered}>
                     <MaterialCommunityIcons
                         name="alert-circle-outline"
@@ -410,7 +407,7 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
                     <Text style={styles.errorText}>{error}</Text>
                     <Button
                         title={t('common.retry')}
-                        onPress={() => void loadData()}
+                        onPress={() => void query.refresh()}
                         variant="outlined"
                         style={styles.retryBtn}
                     />

@@ -35,4 +35,10 @@ export class CreateFeedingTrayCheckDto {
 
   @IsIn(['empty', 'few_left', 'a_lot_left'])
   remainingFeedStatus: string;
+
+  /** F5: tray photo (cap 1). Optional; the check saves without it. */
+  @IsString()
+  @IsOptional()
+  @MaxLength(200)
+  photoPath?: string | null;
 }

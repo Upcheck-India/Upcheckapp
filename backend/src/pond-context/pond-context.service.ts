@@ -515,14 +515,15 @@ export class PondContextService {
    */
   async getMyContexts(userId: string): Promise<PondContext[]> {
     const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
-    // One farm at a time. getFarmContexts already caps itself at 6 concurrent
-    // contexts; fanning the farms out on top of that would multiply through it
-    // and put far more than the pool's 5 connections' worth of work in flight.
-    const out: PondContext[] = [];
-    for (const farmId of farmIds) {
-      out.push(...(await this.getFarmContexts(farmId, userId)));
-    }
-    return out;
+    if (farmIds.length === 0) return [];
+    // One set-based pass over every farm's readable ponds. This was a
+    // sequential per-farm loop: ~13 queries and ~4 round trips per farm.
+    const pondIds = await this.farmAccess.getAccessiblePondIdsForFarms(
+      userId,
+      farmIds,
+      'READ',
+    );
+    return this.buildContextsFor(pondIds);
   }
 
   /**

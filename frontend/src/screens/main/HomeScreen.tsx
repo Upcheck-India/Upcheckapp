@@ -47,6 +47,7 @@ import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { useFlag } from '../../features/remoteFlags';
 import { isTodayIST } from '../../features/attendance/shiftState';
 import { YourDayCard } from '../../components/brief/YourDayCard';
+import { PhotoRetentionNotice } from '../../components/photos/PhotoRetention';
 import Svg, { Ellipse, Path } from 'react-native-svg';
 
 /** Stable empty fallbacks — a fresh `[]` each render would break the memos. */
@@ -776,6 +777,9 @@ export const HomeScreen = ({ navigation }: any) => {
                     onPress={() => goRoot('SyncStatus')}
                 />
             )}
+
+            {/* F3: the one in-app notice 30 days before photos shrink to small copies. */}
+            <PhotoRetentionNotice onBackup={() => goRoot('PhotoStorage')} />
 
             {/* The farm switcher the header's "Filter" opens. 1b puts the
                 current scope in the TITLE, so a permanent second bar restating

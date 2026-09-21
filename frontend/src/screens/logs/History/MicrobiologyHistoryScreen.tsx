@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../../query/hooks';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
@@ -35,44 +35,18 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
         if (tvc > 100) return { label: t('history.microbiologyLevelWarning'), color: theme.roles.light.warningText };
         return { label: t('history.microbiologyLevelSafe'), color: theme.roles.light.successText };
     };
-    const [records, setRecords] = useState<MicrobiologyRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [error, setError] = useState<any>(null);
-
-    const fetchRecords = useCallback(async (forceRefresh = false) => {
-        if (!forceRefresh) setIsLoading(true);
-        setError(null);
-
-        try {
-            if (cropId) {
-                const { data } = await logResourcesApi.getMicrobiologyByCrop(cropId);
-                const sorted = [...data].sort((a, b) => new Date(b.measurementDate).getTime() - new Date(a.measurementDate).getTime());
-                setRecords(sorted);
-            } else {
-                setRecords([]);
-            }
-        } catch (err) {
-            setError(err);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [cropId]);
-
-    // Refetch on focus, not just mount — this screen stays mounted in the
-    // stack, so logging a new reading and navigating back never showed it.
-    useFocusEffect(useCallback(() => { fetchRecords(); }, [fetchRecords]));
-
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
-
-    const handleRetry = useCallback(() => {
-        setIsLoading(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
+    // Paints the last list instantly and revalidates on every focus.
+    const { data, isInitialLoading: isLoading, isRefreshing, error, refresh: handleRefresh, refetch: fetchRecords, setData } = useCachedFetch(
+        ['microbiologyHistory', cropId ?? null],
+        async (): Promise<MicrobiologyRecord[]> => {
+            if (!cropId) return [];
+            const { data } = await logResourcesApi.getMicrobiologyByCrop(cropId);
+            return [...data].sort((a, b) => new Date(b.measurementDate).getTime() - new Date(a.measurementDate).getTime());
+        },
+    );
+    const records = data ?? [];
+    const handleRetry = handleRefresh;
+    const setRecords = (fn: (prev: MicrobiologyRecord[]) => MicrobiologyRecord[]) => setData((prev) => fn(prev ?? []));
 
     const handleDelete = useCallback((item: MicrobiologyRecord) => {
         Alert.alert(
@@ -88,12 +62,13 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
                         try {
                             await logResourcesApi.removeMicrobiology(item.id);
                         } catch {
-                            fetchRecords(true);
+                            void fetchRecords();
                         }
                     },
                 },
             ],
         );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fetchRecords]);
 
     const renderItem = ({ item }: { item: MicrobiologyRecord }) => {

@@ -40,6 +40,45 @@ const storage = {
   deleted: 'Photo deleted',
   actionFailed: 'Could not delete. Please try again.',
   pickerFull: 'Storage full — free up space to add photos.',
+  // F3 — retention (12 months full size, then a small copy)
+  olderThanYear: 'Older than 12 months',
+  olderThanYearNote: 'Photos added more than a year ago',
+  smallCopy: 'Small copy — full size kept until {{date}}',
+  retention: {
+    hint: 'Full-size photos are kept for 12 months. After that we keep a small version. You can save your photos any time.',
+    rule: 'Full-size photos are kept for 12 months, then a small version is kept.',
+    oldest: 'Oldest full-size photo: {{date}}.',
+    notice: '{{photos}} from {{month}} shrink to small copies on {{date}}. Back them up first.',
+    backupNow: 'Back up photos',
+  },
+  // F4 — backup
+  backup: {
+    button: 'Back up my photos',
+    intro: 'Pick a cycle. Its photos are saved as one zip file, with a list of what each photo belongs to.',
+    saveThese: 'Save these photos',
+    saveCycle: 'Save this cycle\'s photos',
+    shareOne: 'Share',
+    preparing: 'Getting your photos ready…',
+    progress: 'Saving photo {{done}} of {{total}}…',
+    progressPart: 'Part {{part}} of {{parts}} · photo {{done}} of {{total}}…',
+    splitTitle: 'Save in parts?',
+    splitBody: 'That is {{photos}} ({{bytes}}), more than one zip file holds. Save it as {{parts}} zip files, month by month?',
+    splitOk: 'Save in parts',
+    done: 'Photos saved',
+    someMissing_one: '{{count}} photo could not be downloaded and was left out.',
+    someMissing_other: '{{count}} photos could not be downloaded and were left out.',
+    nothing: 'No photos to save here.',
+    failed: 'Could not save the photos. Check your connection and try again.',
+  },
+  // F7.8 — report a photo someone else added
+  report: {
+    action: 'Report',
+    title: 'Report this photo?',
+    body: 'Our team will look at it. Report a photo that is not a farm record or should not be here.',
+    confirm: 'Report',
+    sent: 'Reported. Thank you — our team will look at it.',
+    failed: 'Could not send the report. Please try again.',
+  },
 };
 
 export default storage;
