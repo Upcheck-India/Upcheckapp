@@ -30,6 +30,9 @@ const history = {
 
   // ── HealthCheckScreen (recent checks with photos, P1) ────────────────────
   healthCheckRecentTitle: 'ସାମ୍ପ୍ରତିକ ଯାଞ୍ଚ',
+  healthCheckHistoryTitle: "ସ୍ୱାସ୍ଥ୍ୟ ଯାଞ୍ଚ ଇତିହାସ",
+  healthCheckEmptyText: "ଗତ 90 ଦିନରେ କୌଣସି ସ୍ୱାସ୍ଥ୍ୟ ଯାଞ୍ଚ ରେକର୍ଡ ହୋଇନାହିଁ।",
+  healthCheckAllClear: "କୌଣସି ଲକ୍ଷଣ ଦେଖାଯାଇନାହିଁ",
 
   // ── DiseaseHistoryScreen ──────────────────────────────────────────────────
   diseaseTitle: 'ରୋଗ ଇତିହାସ',
