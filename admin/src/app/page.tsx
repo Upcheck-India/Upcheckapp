@@ -1,52 +1,37 @@
-import Link from 'next/link';
-import {
-    ApiError,
-    listReports,
-    headline,
-    formatWhen,
-    STATUSES,
-    STATUS_LABEL,
-    CATEGORY_LABEL,
-} from '@/lib/feedback';
+import { ApiError, formatBytes, getOverview } from '@/lib/overview';
 
 /**
- * The inbox.
- *
- * A Server Component: the fetch (and therefore ADMIN_API_KEY) happens on the
- * server and only rendered HTML reaches the staffer's browser. Filters are
- * plain links with a query string rather than client state — it makes a
- * filtered inbox a shareable URL, and there is no JavaScript to ship.
+ * The dashboard home page — read-only aggregate numbers, no per-user data.
+ * A Server Component, same reasoning as the reports inbox: the fetch (and
+ * ADMIN_API_KEY) stays on the server.
  */
 export const dynamic = 'force-dynamic';
 
-export default async function InboxPage({
-    searchParams,
-}: {
-    searchParams: Promise<{ status?: string }>;
-}) {
-    const { status } = await searchParams;
+function Stat({ label, value }: { label: string; value: string | number | null }) {
+    return (
+        <div className="row" style={{ cursor: 'default' }}>
+            <div className="grow">
+                <strong>{value === null ? '—' : value}</strong>
+                <small>{label}{value === null ? ' (not migrated yet)' : ''}</small>
+            </div>
+        </div>
+    );
+}
 
-    let reports;
+export default async function OverviewPage() {
+    let overview;
     try {
-        reports = await listReports({ status });
+        overview = await getOverview();
     } catch (err) {
-        // Never render a failed read as an empty inbox — that reads as "no
-        // farmer has ever reported anything" and the reports go unanswered.
-        //
-        // Point at the right end. A 401 is the API answering, not failing to
-        // answer, so telling someone to check UPCHECK_API_URL sends them to
-        // audit a setting that was never wrong. Refused and unreachable are
-        // different faults with different fixes.
         const refused = err instanceof ApiError && err.status === 401;
         return (
             <>
-                <h1>Feedback</h1>
+                <h1>Overview</h1>
                 <p className="error">
                     {refused ? (
                         <>
                             The Upcheck API refused this dashboard. Set <code>ADMIN_API_KEY</code>{' '}
-                            on the backend (Render) and here, to the same value — the message
-                            below says which side is unhappy.
+                            on the backend (Render) and here, to the same value.
                         </>
                     ) : (
                         <>
@@ -61,43 +46,57 @@ export default async function InboxPage({
         );
     }
 
+    const maxLogs = Math.max(1, ...overview.logsPerDay.map((d) => d.count));
+
     return (
         <>
-            <h1>Feedback</h1>
-            <p className="sub">
-                {reports.length} report{reports.length === 1 ? '' : 's'}
-                {status ? ` · ${STATUS_LABEL[status as keyof typeof STATUS_LABEL] ?? status}` : ''}
-            </p>
+            <h1>Overview</h1>
+            <p className="sub">Aggregate numbers only — nothing here is scoped to one farmer.</p>
 
-            <div className="filters">
-                <Link href="/" data-active={!status}>
-                    All
-                </Link>
-                {STATUSES.map((s) => (
-                    <Link key={s} href={`/?status=${s}`} data-active={status === s}>
-                        {STATUS_LABEL[s]}
-                    </Link>
-                ))}
-            </div>
+            <h2>Sign-ups</h2>
+            <Stat label="Today" value={overview.signups?.today ?? null} />
+            <Stat label="Last 7 days" value={overview.signups?.last7d ?? null} />
+            <Stat label="Last 30 days" value={overview.signups?.last30d ?? null} />
+            <Stat label="Total" value={overview.signups?.total ?? null} />
 
-            {reports.length === 0 ? (
-                <p className="empty">Nothing here.</p>
+            <h2>Farms &amp; ponds</h2>
+            <Stat label="Active farms (of total)" value={overview.farms ? `${overview.farms.active} / ${overview.farms.total}` : null} />
+            <Stat label="Active ponds (of total)" value={overview.ponds ? `${overview.ponds.active} / ${overview.ponds.total}` : null} />
+            <Stat label="Active cycles" value={overview.cycles?.active ?? null} />
+
+            <h2>Logs per day (last 14 days)</h2>
+            {overview.logsPerDay.length === 0 ? (
+                <p className="empty">No log data yet (or not migrated).</p>
             ) : (
-                reports.map((r) => (
-                    <Link key={r.id} href={`/reports/${r.id}`} className="row">
-                        <div className="grow">
-                            <strong>{headline(r)}</strong>
-                            <small>
-                                {CATEGORY_LABEL[r.category] ?? r.category} · {formatWhen(r.createdAt)}
-                                {r.attachmentPaths.length > 0 && ` · ${r.attachmentPaths.length} photo(s)`}
-                                {r.adminResponse && ' · replied'}
-                            </small>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {overview.logsPerDay.map((d) => (
+                        <div key={d.date} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                            <span style={{ width: 88, color: 'var(--muted)' }}>{d.date}</span>
+                            <div
+                                style={{
+                                    background: 'var(--text)',
+                                    height: 12,
+                                    borderRadius: 2,
+                                    width: `${Math.max(2, (d.count / maxLogs) * 100)}%`,
+                                }}
+                            />
+                            <span>{d.count}</span>
                         </div>
-                        <span className="pill" data-status={r.status}>
-                            {STATUS_LABEL[r.status] ?? r.status}
-                        </span>
-                    </Link>
-                ))
+                    ))}
+                </div>
+            )}
+
+            <h2>Support &amp; storage</h2>
+            <Stat label="Open feedback reports" value={overview.feedback?.open ?? null} />
+            <Stat label="Pending photo deletions" value={overview.photoDeletions?.pending ?? null} />
+            <Stat label="Failed photo deletions (≥5 attempts)" value={overview.photoDeletions?.failed ?? null} />
+            {overview.storage ? (
+                <>
+                    <Stat label="Stored photo objects" value={overview.storage.objectCount} />
+                    <Stat label="Total storage used" value={formatBytes(overview.storage.totalBytes)} />
+                </>
+            ) : (
+                <p className="empty"><small>Storage totals show up once the photo-storage table exists.</small></p>
             )}
         </>
     );
