@@ -28,7 +28,7 @@ function makeService(rows: any[], farmIds = ['f1']) {
   const farmAccess = {
     getFarmIdsWithCapability: jest.fn().mockResolvedValue(farmIds),
   };
-  const svc = new HarvestsService(repo as any, {} as any, farmAccess as any, {} as any);
+  const svc = new HarvestsService(repo as any, {} as any, farmAccess as any, {} as any, {} as any);
   return { svc, qb, farmAccess };
 }
 
@@ -142,7 +142,7 @@ function makeFindAllService(farmIds = ['f1']) {
     getAccessiblePondIds: jest.fn().mockResolvedValue(['p1', 'p2']),
     getFarmIdsWithCapability: jest.fn().mockResolvedValue(farmIds),
   };
-  const svc = new HarvestsService(repo as any, {} as any, farmAccess as any, {} as any);
+  const svc = new HarvestsService(repo as any, {} as any, farmAccess as any, {} as any, {} as any);
   return { svc, qb, farmAccess, repo };
 }
 
@@ -310,6 +310,7 @@ function makeGateService(
     cropsService as any,
     farmAccess as any,
     dataSource as any,
+    { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } as any,
   );
   return { svc, repo, farmAccess, cropsService, manager };
 }

@@ -68,7 +68,7 @@ export class InventoryController {
       // (positive-only, which farm is billed, whether that farm was
       // authorized) so the route stays a pass-through.
       ...(dto.amount !== undefined
-        ? { purchase: { amount: dto.amount, farmId: dto.billToFarmId } }
+        ? { purchase: { amount: dto.amount, farmId: dto.billToFarmId, photoPaths: dto.photoPaths } }
         : {}),
     });
   }

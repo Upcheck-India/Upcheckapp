@@ -17,6 +17,7 @@ import { apiErrorMessage } from '../../api/errors';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 import { saveRecord } from '../../sync/recordSync';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 
 export const CATEGORIES = ['mineral', 'lime_alkalinity', 'probiotic', 'disinfectant', 'oxidiser_oxygen', 'water_conditioner', 'feed_additive', 'antiparasitic', 'antimicrobial', 'other'];
 export const REASONS = ['molt_prep', 'water_quality', 'disease', 'prevention', 'pond_prep', 'other'];
@@ -41,7 +42,7 @@ const doseUnitOf = (unit?: string) => {
 export const TreatmentLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondName, cropId, farmId, prefill, diseaseRecordId } = route.params;
+    const { pondId, pondName, cropId, farmId, prefill, diseaseRecordId } = route.params;
     const editRecord: Treatment | undefined = route.params.editRecord;
     const isEditing = !!editRecord;
 
@@ -58,6 +59,8 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
         editRecord?.reason ?? (prefill === 'molt' ? 'molt_prep' : diseaseRecordId ? 'disease' : null),
     );
     const [notes, setNotes] = useState(editRecord?.notes ?? '');
+    // F5: input label + batch (cap 2).
+    const [photoPaths, setPhotoPaths] = useState<string[]>(editRecord?.photoPaths ?? []);
     const [stock, setStock] = useState<InventoryItem[]>([]);
     const [stockItemId, setStockItemId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -103,6 +106,7 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
             ...(Number.isFinite(doseNum) ? { doseValue: doseNum, doseUnit } : {}),
             notes: notes.trim(),
             ...(diseaseRecordId ? { diseaseRecordId } : {}),
+            photoPaths,
         };
 
         try {
@@ -250,6 +254,15 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
                         numberOfLines={3}
                         style={styles.textArea}
                     />
+                    {pondId && (
+                        <PhotoAttach
+                            surface="treatment_label"
+                            scope={{ pondId }}
+                            value={photoPaths}
+                            onChange={setPhotoPaths}
+                            max={2}
+                        />
+                    )}
                 </Card>
 
                 <Button

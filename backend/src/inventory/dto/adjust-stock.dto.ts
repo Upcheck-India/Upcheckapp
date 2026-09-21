@@ -1,4 +1,6 @@
 import {
+  IsArray,
+  ArrayMaxSize,
   IsNumber,
   IsOptional,
   IsString,
@@ -52,4 +54,11 @@ export class AdjustStockDto {
   @IsUUID()
   @IsOptional()
   idempotencyKey?: string;
+
+  /** F5: purchase receipt / bill (cap 2). Only meaningful with `amount`. */
+  @IsArray()
+  @ArrayMaxSize(2)
+  @IsString({ each: true })
+  @IsOptional()
+  photoPaths?: string[];
 }

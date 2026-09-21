@@ -377,6 +377,7 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
       { find: jest.fn().mockResolvedValue([]) } as any,
       { find: jest.fn().mockResolvedValue([]) } as any,
       { find: jest.fn().mockResolvedValue([]) } as any,
+      { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } as any,
     );
 
     const args: Record<string, unknown[]> = {
@@ -451,6 +452,7 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
         { find: jest.fn().mockResolvedValue([]) } as any,
         { find: jest.fn().mockResolvedValue([]) } as any,
         { find: jest.fn().mockResolvedValue([]) } as any,
+        { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } as any,
       );
       return { service, assertCanAccessFarm };
     };
@@ -504,6 +506,7 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
       // belongs to the farm. update/remove never touch it.
       { findOne: jest.fn() } as any,
       { assertCanAccessFarm } as any,
+      { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } as any,
     );
 
     const args: Record<string, unknown[]> = {

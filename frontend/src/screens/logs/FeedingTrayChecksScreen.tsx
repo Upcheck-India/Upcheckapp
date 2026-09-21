@@ -15,6 +15,8 @@ import { apiErrorMessage } from '../../api/errors';
 import { useUIStore } from '../../store/uiStore';
 import { toLocalISODate } from '../../utils/localDate';
 import { saveRecord } from '../../sync/recordSync';
+import { cropsApi } from '../../api/crops';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 
 const c = theme.roles.light;
 const RESIDUE_LABEL: Record<TrayResidue, string> = {
@@ -39,6 +41,14 @@ export const FeedingTrayChecksScreen = ({ route, navigation }: any) => {
     );
     const checks = data ?? [];
     const load = () => void refetch();
+    // F5: tray photo (cap 1). Not in route params — resolved from the crop.
+    const [pondId, setPondId] = useState<string | undefined>(route.params?.pondId);
+    const [photoPath, setPhotoPath] = useState<string | undefined>(undefined);
+
+    React.useEffect(() => {
+        if (pondId || !cropId) return;
+        cropsApi.getById(cropId).then(({ data }) => setPondId(data.pondId)).catch(() => undefined);
+    }, [cropId, pondId]);
 
     const save = async () => {
         setSaving(true);
@@ -53,8 +63,10 @@ export const FeedingTrayChecksScreen = ({ route, navigation }: any) => {
                     checkTime: now.toTimeString().slice(0, 5),
                     trayNumber,
                     remainingFeedStatus: residue,
+                    ...(photoPath !== undefined ? { photoPath } : {}),
                 },
             });
+            setPhotoPath(undefined);
             showToast({
                 message: res.queued
                     ? t('common.savedOffline', 'Saved — will sync when online')
@@ -103,6 +115,15 @@ export const FeedingTrayChecksScreen = ({ route, navigation }: any) => {
                         onChange={(v) => v && setResidue(v as TrayResidue)}
                         options={(Object.keys(RESIDUE_LABEL) as TrayResidue[]).map((r) => ({ value: r, label: t(`logs.feedingTray_${r}`, RESIDUE_LABEL[r]) }))}
                     />
+                    {pondId && (
+                        <PhotoAttach
+                            surface="feed_tray"
+                            scope={{ pondId }}
+                            value={photoPath ? [photoPath] : []}
+                            onChange={(paths) => setPhotoPath(paths[paths.length - 1])}
+                            max={1}
+                        />
+                    )}
                     <Button title={t('logs.saveRecord')} onPress={save} loading={saving} style={styles.saveBtn} />
                 </Card>
 

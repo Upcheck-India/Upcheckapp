@@ -6,6 +6,7 @@ import { TreatmentsService } from '../treatments/treatments.service';
 import { Treatment } from '../treatments/treatment.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { InventoryService } from '../inventory/inventory.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 import { bannedKeyOf, evaluateRecord, nextFlagHistory } from './compliance-eval';
 import { ComplianceService } from './compliance.service';
 
@@ -202,6 +203,7 @@ describe('D3 never block: a flagged treatment always saves', () => {
         { provide: FarmAccessService, useValue: {} },
         { provide: ComplianceService, useValue: compliance },
         { provide: InventoryService, useValue: {} },
+        { provide: HealthPhotoStorageService, useValue: {} },
       ],
     }).compile();
     const saved = await module.get(TreatmentsService).create(

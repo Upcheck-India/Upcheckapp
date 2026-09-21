@@ -23,6 +23,7 @@ describe('WaterQualityService alert limits (shared thresholds)', () => {
       {} as any,
       { supersedeOpenAlerts: jest.fn(), createAutoAlert } as any,
       {} as any,
+      {} as any,
     );
     await (service as any).checkAndGenerateAlerts(
       { id: 'r1', ...record },
@@ -63,6 +64,7 @@ function makeService(records: any[]) {
   const service = new WaterQualityService(
     repo as any,
     ponds as any,
+    {} as any,
     {} as any,
     {} as any,
   );

@@ -27,6 +27,7 @@ import { CreateTransactionDto } from '../transactions/dto/create-transaction.dto
 import { Transaction } from '../transactions/transaction.entity';
 import { FeedRecord } from '../feed-records/feed-record.entity';
 import { Pond } from '../ponds/pond.entity';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 /** Options for a stock adjustment. */
 export interface AdjustStockOptions {
@@ -63,7 +64,12 @@ export interface AdjustStockOptions {
    * hole (Task 9 review finding 1): a farmId that is not in that set is a
    * 400, never a bill.
    */
-  purchase?: { amount: number; farmId?: string };
+  purchase?: {
+    amount: number;
+    farmId?: string;
+    /** F5: receipt / bill (cap 2) — tagged entity 'inventory_purchase' (Phase 5's MONEY_PHOTO_ENTITIES). */
+    photoPaths?: string[];
+  };
   /**
    * Client-minted UUID (F1). Becomes the movement row's PRIMARY KEY and the
    * linked transaction's id, so replaying the same request writes one
@@ -101,6 +107,7 @@ export class InventoryService {
     private feedRepo: Repository<FeedRecord>,
     @InjectRepository(Pond)
     private pondRepo: Repository<Pond>,
+    private readonly healthPhotoStorage: HealthPhotoStorageService,
   ) {}
 
   async create(createDto: CreateInventoryItemDto, userId: string) {
@@ -136,7 +143,7 @@ export class InventoryService {
     // finally types their store into the app. Money is opt-in and explicit,
     // through the purchase path on PATCH /inventory/:id/adjust (`amount`),
     // which is also where the idempotency key and the bill-to farm live.
-    const { farmIds: _drop, ...rest } = createDto;
+    const { farmIds: _drop, photoPaths, ...rest } = createDto;
     const item = this.itemsRepository.create({ ...rest, farmId: farmIds[0] });
 
     // ONE transaction, same as setPairing and adjustStock: an item saved
@@ -150,6 +157,18 @@ export class InventoryService {
       );
       return row;
     });
+
+    // F5 input label + batch (cap 2). After the pairing transaction commits.
+    if (photoPaths !== undefined) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.itemsRepository.manager,
+        'inventory',
+        'inventory',
+        farmIds[0],
+        saved.id,
+        photoPaths,
+      );
+    }
 
     // The THIRD writer of stock level, and it was the one still not telling the
     // alerts (`update` was fixed, `adjustStock` always did). An item typed in
@@ -390,9 +409,22 @@ export class InventoryService {
   }
 
   async update(id: string, updateDto: UpdateInventoryItemDto, userId: string) {
-    const { farms } = await this.loadItem(id, userId, 'MANAGE_INVENTORY');
+    const { item, farms } = await this.loadItem(id, userId, 'MANAGE_INVENTORY');
+    // photoPaths is not an entity column (F5) — handled separately below, or
+    // `.update()` would throw on an unmapped property.
+    const { photoPaths, ...columns } = updateDto;
     // farmId is not on the DTO (D14) — an item cannot change farms.
-    await this.itemsRepository.update(id, updateDto);
+    await this.itemsRepository.update(id, columns);
+    if (photoPaths !== undefined) {
+      await this.healthPhotoStorage.applyRecordPhotos(
+        this.itemsRepository.manager,
+        'inventory',
+        'inventory',
+        item.farmId!,
+        id,
+        photoPaths,
+      );
+    }
     const saved = await this.itemsRepository.findOneBy({ id });
 
     /**
@@ -681,7 +713,7 @@ export class InventoryService {
       // id (different tables, so one key serves both), which makes the write
       // deterministic even if this ever runs outside the replay guard above.
       if (options.purchase) {
-        await this.transactionsService.createInternal(
+        const tx = await this.transactionsService.createInternal(
           {
             ...(options.idempotencyKey ? { id: options.idempotencyKey } : {}),
             farmId: billTo!.id,
@@ -694,6 +726,19 @@ export class InventoryService {
           userId,
           manager,
         );
+        // F5 receipt / bill (cap 2). Tagged 'inventory_purchase', distinct
+        // from a plain 'transaction' entry, per Phase 5 coordination — the
+        // photo viewer's money filter keys off this exact entity name.
+        if (options.purchase.photoPaths !== undefined) {
+          await this.healthPhotoStorage.applyRecordPhotos(
+            manager,
+            'transactions',
+            'inventory_purchase',
+            billTo!.id,
+            tx.id,
+            options.purchase.photoPaths,
+          );
+        }
       }
     });
 

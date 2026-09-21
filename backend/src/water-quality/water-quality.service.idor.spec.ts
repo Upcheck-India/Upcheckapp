@@ -25,6 +25,7 @@ describe('WaterQualityService — idempotency access guard (IDOR-1)', () => {
       pondsService as any,
       alertsService as any,
       farmAccess as any,
+      { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } as any,
     );
   });
 

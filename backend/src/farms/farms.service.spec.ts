@@ -10,6 +10,7 @@ import { validateSync } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { UpdateFarmDto } from './dto/update-farm.dto';
 import { PhotoDeletionService } from '../storage/photo-deletion.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 import {
   NotFoundException,
   InternalServerErrorException,
@@ -92,6 +93,7 @@ describe('FarmsService', () => {
           },
         },
         { provide: PhotoDeletionService, useValue: photoDeletions },
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), applySinglePhoto: jest.fn() } },
       ],
     }).compile();
 

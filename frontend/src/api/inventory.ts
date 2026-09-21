@@ -155,11 +155,15 @@ export interface CreateInventoryItemDto {
     expiryDate?: string;
     notes?: string;
     ingredientKeys?: string[];
+    /** F5: input label + batch (cap 2). */
+    photoPaths?: string[];
 }
 
 /** `farmId` is deliberately absent — an item cannot change farms (D14). */
 export interface UpdateInventoryItemDto {
     ingredientKeys?: string[];
+    /** F5: input label + batch (cap 2). */
+    photoPaths?: string[];
     name?: string;
     category?: string;
     icon?: string;
@@ -211,7 +215,13 @@ export const inventoryApi = {
         id: string,
         adjustment: number,
         reason?: string,
-        opts?: { amount?: number; billToFarmId?: string; idempotencyKey?: string },
+        opts?: {
+            amount?: number;
+            billToFarmId?: string;
+            idempotencyKey?: string;
+            /** F5: purchase receipt / bill (cap 2). Only meaningful with `amount`. */
+            photoPaths?: string[];
+        },
     ) =>
         apiClient.patch(`/inventory/${id}/adjust`, { adjustment, reason, ...opts }),
 

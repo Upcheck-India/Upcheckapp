@@ -30,6 +30,7 @@ import {
 import { pondsApi, type Pond } from '../../api/ponds';
 import { apiErrorMessage } from '../../api/errors';
 import { formatDate } from '../../utils/formatDate';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 
 type FilterKey = 'all' | 'income' | 'expense';
 
@@ -60,6 +61,8 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
     const [formError, setFormError] = useState<string | null>(null);
     /** Null means "whole farm" — the default, and what every older row is. */
     const [formPondId, setFormPondId] = useState<string | null>(null);
+    // F5: receipt / bill (cap 2). Only reachable with VIEW_FINANCIALS.
+    const [formPhotoPaths, setFormPhotoPaths] = useState<string[]>([]);
     const [ponds, setPonds] = useState<Pond[]>([]);
 
     // The farm's ponds, for the optional attribution picker. Archived included:
@@ -123,6 +126,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
         setFormType('income');
         setFormDate(toISODate(new Date()));
         setFormPondId(null);
+        setFormPhotoPaths([]);
         setFormError(null);
     };
 
@@ -153,6 +157,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
             amount: parsedAmount,
             description: formDescription.trim() || undefined,
             pondId: formPondId ?? undefined,
+            photoPaths: formPhotoPaths.length ? formPhotoPaths : undefined,
         };
 
         try {
@@ -449,6 +454,17 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
                     />
                 </View>
             </View>
+
+            {/* F5: receipt / bill (cap 2) */}
+            {farmId && (
+                <PhotoAttach
+                    surface="transaction_receipt"
+                    scope={{ farmId }}
+                    value={formPhotoPaths}
+                    onChange={setFormPhotoPaths}
+                    max={2}
+                />
+            )}
 
             {/* Date */}
             <View style={styles.fieldGroup}>

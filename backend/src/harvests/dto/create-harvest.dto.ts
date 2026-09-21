@@ -103,4 +103,11 @@ export class CreateHarvestDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  /** F5: buyer's weighing slip (cap 2, protected 12mo). VIEW_FINANCIALS gated. */
+  @IsArray()
+  @ArrayMaxSize(2)
+  @IsString({ each: true })
+  @IsOptional()
+  photoPaths?: string[];
 }

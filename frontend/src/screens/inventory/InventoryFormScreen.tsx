@@ -44,6 +44,7 @@ import { useMembershipStore } from '../../store/membershipStore';
 import { roleCan } from '../../permissions/capabilities';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useUIStore } from '../../store/uiStore';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 
 /** Two farm-id arrays are the same pairing, regardless of order. */
 const sameFarmSet = (a: string[], b: string[]): boolean =>
@@ -112,6 +113,8 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
     const [expiry, setExpiry] = useState<Date | null>(null);
     const [notes, setNotes] = useState('');
     const [ingredientKeys, setIngredientKeys] = useState<string[]>([]);
+    // F5: input label + batch (cap 2).
+    const [photoPaths, setPhotoPaths] = useState<string[]>([]);
     // Medicine / chemical stock can carry active ingredients: a banned one warns at entry (D2).
     const takesIngredients = category === 'medicine' || category === 'chemical';
     const flagged = useFlaggedSubstances(takesIngredients ? ingredientKeys : [], takesIngredients ? name : '');
@@ -206,6 +209,7 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
             expiryDate: expiry ? expiry.toISOString() : undefined,
             notes: notes.trim() || undefined,
             ...(takesIngredients ? { ingredientKeys } : {}),
+            ...(photoPaths.length ? { photoPaths } : {}),
         };
 
         setSaving(true);
@@ -425,6 +429,15 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
                         numberOfLines={3}
                         style={styles.textArea}
                     />
+                    {(contextFarmId || farmIds[0]) && (
+                        <PhotoAttach
+                            surface="inventory_label"
+                            scope={{ farmId: contextFarmId ?? farmIds[0] }}
+                            value={photoPaths}
+                            onChange={setPhotoPaths}
+                            max={2}
+                        />
+                    )}
                 </Card>
 
                 <Button

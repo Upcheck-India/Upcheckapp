@@ -18,6 +18,7 @@ import { capture, EVENTS } from '../../features/analytics';
 import { confirm } from '../../utils/confirm';
 import { biosecurityApi, seedWarning, type SeedHealth } from '../../api/biosecurity';
 import { EMPTY_SEED, SeedHealthFields } from '../../components/biosecurity/SeedHealthFields';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 
 /** Parse a non-empty numeric string, else undefined (so the column default applies). */
 const num = (s: string) => (s.trim() ? Number(s) : undefined);
@@ -69,6 +70,8 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
     const [targetSr, setTargetSr] = useState('75');
 
     const [seed, setSeed] = useState<SeedHealth>(EMPTY_SEED);
+    // F5: seed PCR certificate (cap 2, protected).
+    const [photoPaths, setPhotoPaths] = useState<string[]>([]);
     const [seedOpen, setSeedOpen] = useState(false);
 
     const [isLoading, setIsLoading] = useState(false);
@@ -181,6 +184,7 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
                 targetCultivationDays: num(targetDays),
                 targetSize: num(targetSize),
                 targetSrPercent: num(targetSr),
+                ...(photoPaths.length ? { photoPaths } : {}),
             });
             // Seed health is optional and editable later from CycleDetail, so a
             // failure here (e.g. backend not migrated yet) never fails the cycle.
@@ -345,7 +349,21 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
                         color={theme.roles.light.textSecondary}
                     />
                 </TouchableOpacity>
-                {seedOpen && <SeedHealthFields value={seed} onChange={setSeed} />}
+                {seedOpen && (
+                    <>
+                        <SeedHealthFields value={seed} onChange={setSeed} />
+                        {pondId && (
+                            <PhotoAttach
+                                surface="seed_pcr"
+                                scope={{ pondId }}
+                                value={photoPaths}
+                                onChange={setPhotoPaths}
+                                max={2}
+                                equalWeight
+                            />
+                        )}
+                    </>
+                )}
 
                 <Button
                     title={t('cycles.startCycle')}

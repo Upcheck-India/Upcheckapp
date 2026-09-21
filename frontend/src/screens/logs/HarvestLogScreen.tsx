@@ -24,6 +24,7 @@ import { pondsApi } from '../../api/ponds';
 import { usePermissions } from '../../hooks/usePermissions';
 import { groupIndian } from '../../features/inrFormat';
 import { parseGroupedNumber } from '../../features/parseNumericInput';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 import {
     GradeDraft, MAX_GRADES, REJECTED_REASONS, countFromAbw, draftsFor, parseGrades, priceOutOfBand, summarize,
 } from '../../features/harvestGrades';
@@ -98,6 +99,11 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
     const [rejectedKg, setRejectedKg] = useState(editRecord?.rejectedKg != null ? String(editRecord.rejectedKg) : '');
     const [rejectedReason, setRejectedReason] = useState<RejectedReason | null>(editRecord?.rejectedReason ?? null);
     const [buyerName, setBuyerName] = useState(editRecord?.buyerName ?? '');
+    // F5: buyer's weighing slip (cap 2, protected 12mo). Money like the price
+    // and buyer name above — same canViewFinancials gate, not just at write
+    // time (the server also masks it, but showing the picker to someone
+    // whose upload will be silently dropped would be a confusing UX).
+    const [photoPaths, setPhotoPaths] = useState<string[]>(editRecord?.photoPaths ?? []);
     const [notes, setNotes] = useState(editRecord?.notes ?? '');
     const [isSubmitting, setIsSubmitting] = useState(false);
     // One id per form: a retry after a failed online save replays the SAME
@@ -243,6 +249,7 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                 rejectedReason: rejected != null ? rejectedReason : null,
                 buyerName: canViewFinancials ? buyerName.trim() || null : undefined,
                 notes: notes.trim() || null,
+                ...(canViewFinancials ? { photoPaths } : {}),
             };
 
             if (isEditing) {
@@ -481,6 +488,16 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                                 onChangeText={setBuyerName}
                                 placeholder={t('logs.harvest_placeholderBuyerName')}
                             />
+                            {pondId && (
+                                <PhotoAttach
+                                    surface="harvest_slip"
+                                    scope={{ pondId }}
+                                    value={photoPaths}
+                                    onChange={setPhotoPaths}
+                                    max={2}
+                                    equalWeight
+                                />
+                            )}
                         </>
                     )}
                     <Input label={t('logs.harvest_labelNotes')} value={notes} onChangeText={setNotes} multiline />

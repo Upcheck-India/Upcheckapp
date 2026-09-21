@@ -29,6 +29,7 @@ import {
 } from '../../api/expenses';
 import { cropsApi } from '../../api/crops';
 import { apiErrorMessage } from '../../api/errors';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 
 const CATEGORY_OPTIONS = Object.values(ExpenseCategory);
 
@@ -70,6 +71,9 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
     const [formDescription, setFormDescription] = useState('');
     const [formDate, setFormDate] = useState(todayISO());
     const [isSaving, setIsSaving] = useState(false);
+    // F5: receipt / bill (cap 2). This screen is only reachable with
+    // VIEW_FINANCIALS already, so no extra role gate is needed here.
+    const [photoPaths, setPhotoPaths] = useState<string[]>([]);
 
     const handleRefresh = query.refresh;
 
@@ -96,12 +100,14 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
                 category: formCategory,
                 amount: parseFloat(formAmount),
                 description: formDescription.trim() || undefined,
+                photoPaths: photoPaths.length ? photoPaths : undefined,
             });
             // Reset form
             setFormAmount('');
             setFormDescription('');
             setFormDate(todayISO());
             setFormCategory(ExpenseCategory.FEED);
+            setPhotoPaths([]);
             setShowForm(false);
             // Refresh data
             void query.refetch();
@@ -326,6 +332,16 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
                 multiline
                 numberOfLines={2}
             />
+
+            {pondId && (
+                <PhotoAttach
+                    surface="expense_receipt"
+                    scope={{ pondId }}
+                    value={photoPaths}
+                    onChange={setPhotoPaths}
+                    max={2}
+                />
+            )}
 
             <View style={styles.formActions}>
                 <Button

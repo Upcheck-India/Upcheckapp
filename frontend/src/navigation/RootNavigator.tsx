@@ -118,6 +118,8 @@ export type RootStackParamList = {
     MicrobiologyHistory: { pondId: string; cropId?: string };
     DiseaseHistory: { pondId: string; cropId?: string };
     MortalityHistory: { pondId: string; cropId?: string };
+    // F6 (photos spec 2026-09-20): the pond Photos tab — a view over records.
+    PondPhotos: { pondId: string; pondName?: string };
 
     // Measurement pipeline (PRD §6.2 keystone)
     Measurements: { pondId: string; pondName?: string; cropId?: string };
@@ -485,6 +487,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="MicrobiologyHistory" getComponent={() => require('../screens/logs/History/MicrobiologyHistoryScreen').MicrobiologyHistoryScreen} />
                     <Stack.Screen name="DiseaseHistory" getComponent={() => require('../screens/logs/History/DiseaseHistoryScreen').DiseaseHistoryScreen} />
                     <Stack.Screen name="MortalityHistory" getComponent={() => require('../screens/logs/History/MortalityHistoryScreen').MortalityHistoryScreen} />
+                    <Stack.Screen name="PondPhotos" getComponent={() => require('../screens/ponds/PondPhotosScreen').PondPhotosScreen} />
                     <Stack.Screen
                         name="Measurements"
                         getComponent={() => require('../screens/measurements/MeasurementsScreen').MeasurementsScreen}

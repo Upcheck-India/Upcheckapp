@@ -81,6 +81,7 @@ const ponds = {
   actionHarvest: 'Harvest',
   actionDailyRoutine: 'Daily Routine',
   actionWeeklyChem: 'Weekly Chem',
+  actionPhotos: 'Photos',
   actionMeasurements: 'Measurements',
   actionAdvisor: 'Advisor',
   showMore: 'More ({{count}})',

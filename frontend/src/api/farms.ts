@@ -75,6 +75,8 @@ export interface UpdateFarmDto extends Partial<CreateFarmDto> {
     shiftHours?: number;
     /** D4. Owner only; null clears. */
     caaRegistrationNo?: string | null;
+    /** F5: identity photo (cap 1, replaces). Owner only; null clears. */
+    photoPath?: string | null;
 }
 
 export const farmsApi = {

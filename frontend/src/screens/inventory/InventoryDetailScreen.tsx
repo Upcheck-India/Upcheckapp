@@ -15,6 +15,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { confirm } from '../../utils/confirm';
 import { formatAge, formatDate, formatNumber } from '../../utils/formatDate';
 import { useFocusEffect } from '@react-navigation/native';
+import { PhotoAttach } from '../../components/photos/PhotoAttach';
 
 /** Same shape the finance screens use — one rupee formatter, no new util. */
 const formatMoney = (value: number) => `₹${Number(value).toFixed(2)}`;
@@ -41,6 +42,9 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
     const [totalCost, setTotalCost] = useState('');
     const [billToFarmId, setBillToFarmId] = useState<string | null>(null);
     const [farmNames, setFarmNames] = useState<Record<string, string>>({});
+    // F5: inventory purchase receipt / bill (cap 2). Only shown for a purchase
+    // (cost > 0), and only once a bill-to farm is picked to scope the upload.
+    const [purchasePhotoPaths, setPurchasePhotoPaths] = useState<string[]>([]);
 
     // Editing lives on InventoryForm now — the same screen that creates an item,
     // so the two can never drift into offering different fields again (D4).
@@ -180,9 +184,16 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
             // makes the replay a no-op instead of buying the feed twice (F1).
             await inventoryApi.adjustStock(inventoryId, signedAmount, adjustReason.trim() || undefined, {
                 idempotencyKey: Crypto.randomUUID(),
-                ...(isPurchase ? { amount: cost, billToFarmId: billToFarmId! } : {}),
+                ...(isPurchase
+                    ? {
+                          amount: cost,
+                          billToFarmId: billToFarmId!,
+                          ...(purchasePhotoPaths.length ? { photoPaths: purchasePhotoPaths } : {}),
+                      }
+                    : {}),
             });
             setAdjustMode(null);
+            setPurchasePhotoPaths([]);
             await fetchItem();
             if (isPurchase) {
                 // Name the money row that was just written, so the expense is
@@ -506,6 +517,16 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                                             ))}
                                         </View>
                                     </>
+                                )}
+                                {billToFarmId && (
+                                    <PhotoAttach
+                                        surface="inventory_purchase_receipt"
+                                        scope={{ farmId: billToFarmId }}
+                                        value={purchasePhotoPaths}
+                                        onChange={setPurchasePhotoPaths}
+                                        max={2}
+                                        equalWeight
+                                    />
                                 )}
                             </>
                         )}

@@ -13,6 +13,7 @@ import {
 import { PondsService } from '../ponds/ponds.service';
 import { Pond } from '../ponds/pond.entity';
 import { PhotoDeletionService } from '../storage/photo-deletion.service';
+import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
 
 describe('CropsService', () => {
   let service: CropsService;
@@ -118,6 +119,7 @@ describe('CropsService', () => {
           },
         },
         { provide: PhotoDeletionService, useValue: photoDeletions },
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } },
       ],
     }).compile();
 
