@@ -3,7 +3,8 @@
  * it is picked and the record keeps only its private storage path. Offline
  * the button is disabled with a reason — the record itself still saves.
  */
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
+import { NavigationContext } from '@react-navigation/native';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +15,8 @@ import { pickHealthPhoto } from '../../features/healthPhoto';
 import { apiErrorMessage } from '../../api/errors';
 import { photoErrorMessage } from '../../features/photoErrors';
 import { PhotoStrip } from '../ui/PhotoStrip';
+import { PhotoPoolLine, usePhotoPool } from '../photos/PhotoPool';
+import { poolLevel } from '../../features/photoStorage';
 
 const c = theme.roles.light;
 
@@ -34,6 +37,12 @@ export const HealthPhotoPicker: React.FC<Props> = ({ pondId, value, onChange, ex
     const online = useSyncStore((s) => s.isConnected);
     const [local, setLocal] = useState<string[]>([]);
     const [busy, setBusy] = useState(false);
+    const navigation = useContext(NavigationContext);
+    // F2: the pond owner's pool. At 100% the button is off and the line links
+    // to Photos & storage; the record itself always saves.
+    const pool = usePhotoPool(pondId);
+    const [refusedFull, setRefusedFull] = useState(false);
+    const poolFull = refusedFull || (!!pool && poolLevel(pool, pool.limits) === 'full');
 
     const add = async (from: 'camera' | 'library') => {
         setBusy(true);
@@ -44,6 +53,14 @@ export const HealthPhotoPicker: React.FC<Props> = ({ pondId, value, onChange, ex
             setLocal((l) => [...l, uri]);
             onChange([...value, data.path]);
         } catch (e) {
+            if ((e as any)?.response?.data?.code === 'STORAGE_FULL') {
+                setRefusedFull(true);
+                Alert.alert(t('storage.full'), t('storage.pickerFull'), [
+                    { text: t('common.cancel'), style: 'cancel' },
+                    ...(navigation ? [{ text: t('storage.freeUp'), onPress: () => navigation.navigate('PhotoStorage') }] : []),
+                ]);
+                return;
+            }
             Alert.alert(t('common.error'), photoErrorMessage(e, t, apiErrorMessage(e, t('health.photoFailed'))));
         } finally {
             setBusy(false);
@@ -84,7 +101,7 @@ export const HealthPhotoPicker: React.FC<Props> = ({ pondId, value, onChange, ex
     // Local picks are their own thumbnails.
     const thumbUrls = [...existingUrls.map((u, i) => existingThumbs[i] || u), ...local];
     const full = value.length >= max;
-    const disabled = !online || busy || full;
+    const disabled = !online || busy || full || poolFull;
     return (
         <View>
             {fullUrls.length > 0 && (
@@ -108,6 +125,7 @@ export const HealthPhotoPicker: React.FC<Props> = ({ pondId, value, onChange, ex
                 <Text style={[styles.btnText, disabled && { color: c.textDisabled }]}>{t('health.addPhoto')}</Text>
             </TouchableOpacity>
             {!online && <Text style={styles.note}>{t('health.photosNeedConnection')}</Text>}
+            {online && <PhotoPoolLine pool={refusedFull && pool ? { ...pool, photos: pool.limits.photos } : pool} />}
         </View>
     );
 };
