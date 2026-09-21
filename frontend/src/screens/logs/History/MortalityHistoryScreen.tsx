@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated, Alert } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../../query/hooks';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
@@ -17,81 +17,28 @@ import { formatDate } from '../../../utils/formatDate';
 export const MortalityHistoryScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { pondId, cropId } = route.params;
-    const [records, setRecords] = useState<MortalityRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [error, setError] = useState<any>(null);
-    const [isOffline, setIsOffline] = useState(false);
-
     const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
-    const cacheRef = React.useRef<{ data: MortalityRecord[]; timestamp: number } | null>(null);
-    const CACHE_TTL = 30000;
-
-    const fadeIn = useCallback(() => {
-        Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-        }).start();
-    }, [fadeAnim]);
-
-    const fetchRecords = useCallback(async (forceRefresh = false) => {
-        if (!forceRefresh && cacheRef.current) {
-            const { data, timestamp } = cacheRef.current;
-            if (Date.now() - timestamp < CACHE_TTL) {
-                setRecords(data);
-                setIsLoading(false);
-                fadeIn();
-                return;
-            }
-        }
-
-        setError(null);
-        setIsOffline(false);
-
-        try {
-            if (cropId) {
-                const { data } = await mortalityApi.getByCrop(cropId);
-                const sorted = [...data].sort((a, b) => new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime());
-                setRecords(sorted);
-                cacheRef.current = { data: sorted, timestamp: Date.now() };
-                fadeIn();
-            } else {
-                setRecords([]);
-                setIsLoading(false);
-            }
-        } catch (err: any) {
-            const statusCode = err?.response?.status;
-            if (statusCode === 0 || err?.code === 'NETWORK_ERROR' || !err?.response) {
-                setIsOffline(true);
-            }
-            setError(err);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [cropId, fadeIn]);
-
-    // Refetch on focus, not just mount — React Navigation keeps this screen
-    // mounted in the stack, so a mount-only effect never saw records logged
-    // after navigating away and back (the same stale-list bug fixed
-    // elsewhere in the app). The 30s cacheRef above keeps this cheap.
-    useFocusEffect(
-        useCallback(() => {
-            fetchRecords();
-        }, [fetchRecords]),
+    // Paints the last list instantly and revalidates on every focus (this
+    // replaces the old per-mount 30s cacheRef).
+    const { data, isInitialLoading: isLoading, isRefreshing, error, refresh: handleRefresh, setData } = useCachedFetch(
+        ['mortalityHistory', cropId ?? null],
+        async (): Promise<MortalityRecord[]> => {
+            if (!cropId) return [];
+            const { data } = await mortalityApi.getByCrop(cropId);
+            return [...data].sort((a, b) => new Date(b.recordDate).getTime() - new Date(a.recordDate).getTime());
+        },
     );
+    const records = data ?? [];
+    const handleRetry = handleRefresh;
+    const err: any = error;
+    const isOffline = !!err && (err?.response?.status === 0 || err?.code === 'NETWORK_ERROR' || !err?.response);
 
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
-
-    const handleRetry = useCallback(() => {
-        setIsLoading(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
+    useEffect(() => {
+        if (data !== undefined) {
+            Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+        }
+    }, [data, fadeAnim]);
 
     const handleDelete = useCallback((item: MortalityRecord) => {
         Alert.alert(
@@ -105,11 +52,7 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
                     onPress: async () => {
                         try {
                             await mortalityApi.remove(item.id);
-                            setRecords((prev) => {
-                                const next = prev.filter((r) => r.id !== item.id);
-                                cacheRef.current = { data: next, timestamp: Date.now() };
-                                return next;
-                            });
+                            setData((prev) => (prev ?? []).filter((r) => r.id !== item.id));
                         } catch (err) {
                             Alert.alert(t('common.error'), t('history.mortalityDeleteError'));
                         }

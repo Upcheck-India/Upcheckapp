@@ -10,6 +10,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Dimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../../query/hooks';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
@@ -61,30 +62,20 @@ export const WeeklyChemistryHistoryScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { pondId, pondName, cropId } = route.params ?? {};
 
-    const [records, setRecords] = useState<WaterQualityRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [error, setError] = useState<any>(null);
-    const [species, setSpecies] = useState<ThresholdSpecies>('vannamei');
-
-    const fetchRecords = useCallback(async () => {
-        setError(null);
-        try {
+    // Paints the last list instantly and revalidates on every focus: logging a
+    // test and coming back must show it.
+    const { data, isInitialLoading: isLoading, isRefreshing, error, refresh: handleRefresh } = useCachedFetch(
+        ['weeklyChemistryHistory', pondId ?? null],
+        async (): Promise<WaterQualityRecord[]> => {
             const response = await waterQualityApi.getAll(pondId, { take: 100, chemistryOnly: true });
             const result = response.data;
             const rows: WaterQualityRecord[] = Array.isArray(result) ? result : (result as any)?.data || [];
-            rows.sort((a, b) => new Date(b.recordedAt || '').getTime() - new Date(a.recordedAt || '').getTime());
-            setRecords(rows);
-        } catch (err) {
-            setError(err);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [pondId]);
-
-    // Refetch on focus: logging a test and coming back must show it.
-    useFocusEffect(useCallback(() => { fetchRecords(); }, [fetchRecords]));
+            return rows.sort((a, b) => new Date(b.recordedAt || '').getTime() - new Date(a.recordedAt || '').getTime());
+        },
+    );
+    const records = data ?? [];
+    const handleRetry = handleRefresh;
+    const [species, setSpecies] = useState<ThresholdSpecies>('vannamei');
 
     useFocusEffect(
         useCallback(() => {
@@ -101,16 +92,6 @@ export const WeeklyChemistryHistoryScreen = ({ route, navigation }: any) => {
             return () => { active = false; };
         }, [cropId]),
     );
-
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchRecords();
-    }, [fetchRecords]);
-
-    const handleRetry = useCallback(() => {
-        setIsLoading(true);
-        fetchRecords();
-    }, [fetchRecords]);
 
     const chronological = [...records].reverse();
     const chartWidth = Dimensions.get('window').width - theme.spacing[4] * 2 - theme.spacing[8];
