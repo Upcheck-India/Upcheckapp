@@ -79,7 +79,8 @@ export const recordConsent = (
 
 /** Set BEFORE an account exists, when the data notice is acknowledged. */
 const NOTICE_ACK_KEY = 'upcheck-data-notice-ack';
-const acceptedKey = (userId: string) => `upcheck-legal-accepted:${userId}`;
+/** Per user AND per version: another account on this phone is never settled by it. */
+const acceptedKey = (userId: string) => `upcheck-legal-accepted:${userId}:${LEGAL_VERSION}`;
 
 /** The pre-account data notice was read (C2.2). Remembers its language. */
 export async function acknowledgeDataNotice(locale: string): Promise<void> {
@@ -90,48 +91,69 @@ export async function acknowledgeDataNotice(locale: string): Promise<void> {
     }
 }
 
+/** What the signed-in user must see: nothing, the full data notice, or "what changed". */
+export type LegalSheet = 'none' | 'notice' | 'update';
+
 /**
- * Run once a user is signed in. Returns true when the "what changed" sheet
- * must be shown.
+ * Run once a user is signed in.
  *
- * - Already accepted this version on this device → nothing.
- * - Came through the data notice in the sign-up flow → record terms + privacy
- *   with source 'signup', in the language the notice was shown in.
- * - Otherwise (an existing account, or a sign-in path that skips the notice)
- *   → show the sheet.
+ * 1. This user accepted this version on this device → 'none'.
+ * 2. Ask the server (GET /consents/me):
+ *    - terms + privacy already at LEGAL_VERSION (reinstall, other phone) → 'none'.
+ *    - NO terms/privacy rows at all → a new account. If it came through the
+ *      data notice just now, record 'signup' rows silently → 'none';
+ *      otherwise (Login → email OTP / Truecaller) → 'notice'.
+ *    - rows for an older version → 'update'.
+ * 3. Offline / server unreachable → notice just read ? record 'signup' : 'update'.
  *
- * Local only, so it works offline. Unreadable storage returns false: a
- * broken disk must never trap anyone behind a sheet.
- *
- * ponytail: the "already accepted" check is per device, so a second phone
- * shows the sheet once more (one tap, one more row). Consult GET /consents/me
- * here if that ever matters.
+ * Unreadable storage returns 'none': a broken disk must never trap anyone.
  */
-export async function settleLegalConsent(userId: string): Promise<boolean> {
+export async function settleLegalConsent(userId: string): Promise<LegalSheet> {
     try {
-        if ((await AsyncStorage.getItem(acceptedKey(userId))) === LEGAL_VERSION) return false;
+        if ((await AsyncStorage.getItem(acceptedKey(userId))) === '1') return 'none';
         const raw = await AsyncStorage.getItem(NOTICE_ACK_KEY);
         const ack = raw ? JSON.parse(raw) : null;
-        if (ack?.version === LEGAL_VERSION) {
-            await AsyncStorage.setItem(acceptedKey(userId), LEGAL_VERSION);
+        const noticeJustRead = ack?.version === LEGAL_VERSION;
+
+        let server: Array<{ kind: string; docVersion: string }> | null = null;
+        try {
+            server = (await apiClient.get('/consents/me')).data ?? [];
+        } catch {
+            server = null; // offline — decide from the device alone
+        }
+        const legal = server?.filter((r) => r.kind === 'terms' || r.kind === 'privacy') ?? null;
+        if (legal && ['terms', 'privacy'].every((k) => legal.some((r) => r.kind === k && r.docVersion === LEGAL_VERSION))) {
+            await AsyncStorage.setItem(acceptedKey(userId), '1');
+            return 'none';
+        }
+        const isNewAccount = legal !== null && legal.length === 0;
+        if (noticeJustRead && (isNewAccount || legal === null)) {
+            await AsyncStorage.setItem(acceptedKey(userId), '1');
             await AsyncStorage.removeItem(NOTICE_ACK_KEY);
             void recordConsents(buildConsentRows(['terms', 'privacy'], true, 'signup', ack.locale || 'en'));
-            return false;
+            return 'none';
         }
-        return true;
+        return isNewAccount ? 'notice' : 'update';
     } catch {
-        return false;
+        return 'none';
     }
 }
 
-/** Continue on the "what changed" sheet. `locale` = language the changes were shown in. */
-export async function acceptPolicyUpdate(userId: string, locale: string): Promise<void> {
+/**
+ * Continue on the sheet. `locale` = language the legal text was shown in;
+ * the notice variant is a sign-up consent, the update variant a reconsent.
+ */
+export async function acceptPolicyUpdate(
+    userId: string,
+    locale: string,
+    source: ConsentSource = 'reconsent',
+): Promise<void> {
     try {
-        await AsyncStorage.setItem(acceptedKey(userId), LEGAL_VERSION);
+        await AsyncStorage.setItem(acceptedKey(userId), '1');
     } catch {
         /* recorded server-side below regardless */
     }
-    await recordConsents(buildConsentRows(['terms', 'privacy'], true, 'reconsent', locale));
+    await recordConsents(buildConsentRows(['terms', 'privacy'], true, source, locale));
 }
 
 // ── Model training opt-in (C3) ────────────────────────────────────────────────

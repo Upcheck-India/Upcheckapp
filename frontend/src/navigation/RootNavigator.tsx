@@ -13,7 +13,7 @@ import {
     loadTelemetryPrefs,
     shouldAskAnalyticsConsent,
 } from '../features/telemetryPrefs';
-import { acceptPolicyUpdate, settleLegalConsent } from '../features/consent';
+import { acceptPolicyUpdate, settleLegalConsent, type LegalSheet } from '../features/consent';
 import { PolicyUpdateSheet } from '../components/PolicyUpdateSheet';
 
 // EAGER — only what the app can actually paint on first frame.
@@ -314,16 +314,15 @@ const RootNavigator = () => {
 
     /**
      * Terms + privacy for the current LEGAL_VERSION (compliance C2.1). Runs
-     * AFTER sign-in, reads only device storage, and never holds the splash:
-     * a new account that came through the data notice is recorded silently,
-     * anyone else gets the "what changed" sheet over whatever screen they are
-     * on. Sign-in itself is untouched.
+     * AFTER sign-in (per user; asks GET /consents/me, falls back to device
+     * storage offline) and never holds the splash. A sheet, if needed, opens
+     * over whatever screen the user is on. Sign-in itself is untouched.
      */
     const userId = useAuthStore((s) => s.user?.id);
-    const [policySheet, setPolicySheet] = useState(false);
+    const [policySheet, setPolicySheet] = useState<LegalSheet>('none');
     useEffect(() => {
         if (!isAuthenticated || !userId) {
-            setPolicySheet(false);
+            setPolicySheet('none');
             return;
         }
         let live = true;
@@ -579,10 +578,13 @@ const RootNavigator = () => {
         {/* Over the navigator, not a route: it changes no initial route and
             no auth transition, and cannot be navigated away from. */}
         <PolicyUpdateSheet
-            visible={policySheet}
+            visible={policySheet !== 'none'}
+            variant={policySheet === 'notice' ? 'notice' : 'update'}
             onContinue={(locale) => {
-                if (userId) void acceptPolicyUpdate(userId, locale);
-                setPolicySheet(false);
+                if (userId) {
+                    void acceptPolicyUpdate(userId, locale, policySheet === 'notice' ? 'signup' : 'reconsent');
+                }
+                setPolicySheet('none');
             }}
         />
         </>

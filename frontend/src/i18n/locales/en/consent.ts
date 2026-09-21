@@ -3,6 +3,7 @@
 // src/legal/content.ts) until human legal translations arrive.
 const consent = {
   "noticeTitle": "Your data — before you create an account",
+  "noticeSheetTitle": "How Neerani uses your data",
   "noticeIntro": "Before you create an account, here is what happens to your data.",
   "englishOnly": "Shown in English until a checked translation is ready. The English text is the authoritative version.",
   "noticeContinue": "I understand — continue",

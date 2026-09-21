@@ -8,8 +8,8 @@
  * expands it inline rather than navigating, so the sheet cannot be lost
  * behind another screen.
  *
- * The change list is legal text and English-only, so the recorded locale is
- * 'en' whatever the UI language.
+ * The recorded locale is the language the legal text actually rendered in
+ * ('en' for the change list; the notice's own fallback for the notice).
  */
 import React, { useState } from 'react';
 import { Modal, View, Text, StyleSheet, ScrollView } from 'react-native';
@@ -18,31 +18,50 @@ import { useTranslation } from 'react-i18next';
 import { Button } from './ui/Button';
 import { theme } from '../theme';
 import { POLICY_CHANGES, PRIVACY_POLICY } from '../legal/content';
+import { dataNoticeFor } from '../legal/dataNotice';
 
 const c = theme.roles.light;
 
 interface Props {
     visible: boolean;
+    /**
+     * 'update' — an account that accepted an older version: what changed.
+     * 'notice' — an account with no consent at all (created via a path that
+     * skips DataNoticeScreen): the full short data notice.
+     */
+    variant: 'notice' | 'update';
     onContinue: (locale: string) => void;
 }
 
-export const PolicyUpdateSheet: React.FC<Props> = ({ visible, onContinue }) => {
+export const PolicyUpdateSheet: React.FC<Props> = ({ visible, variant, onContinue }) => {
     const { t, i18n } = useTranslation();
     const [full, setFull] = useState(false);
     const [busy, setBusy] = useState(false);
-    const notEnglish = !(i18n.language || 'en').startsWith('en');
+    const notice = dataNoticeFor(i18n.language);
+    // The update list is English-only; the notice may be translated one day.
+    const shownLocale = variant === 'notice' ? notice.locale : 'en';
+    const fellBack = shownLocale !== (i18n.language || 'en').split('-')[0];
 
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={() => undefined}>
             <View style={styles.scrim}>
-                <View style={styles.sheet} testID="policy-update-sheet">
-                    <Text style={styles.title}>{t('consent.updateTitle')}</Text>
-                    <Text style={styles.intro}>{t('consent.updateIntro')}</Text>
-                    {notEnglish ? <Text style={styles.note}>{t('consent.englishOnly')}</Text> : null}
+                <View style={styles.sheet} testID={`policy-sheet-${variant}`}>
+                    <Text style={styles.title}>
+                        {t(variant === 'notice' ? 'consent.noticeSheetTitle' : 'consent.updateTitle')}
+                    </Text>
+                    {variant === 'update' ? <Text style={styles.intro}>{t('consent.updateIntro')}</Text> : null}
+                    {fellBack ? <Text style={styles.note}>{t('consent.englishOnly')}</Text> : null}
                     <ScrollView style={styles.scroll}>
-                        {POLICY_CHANGES.map((line) => (
-                            <Text key={line} style={styles.bullet}>{`• ${line}`}</Text>
-                        ))}
+                        {variant === 'notice'
+                            ? notice.sections.map((s) => (
+                                  <View key={s.heading} style={styles.block}>
+                                      <Text style={styles.heading}>{s.heading}</Text>
+                                      <Text style={styles.body}>{s.text}</Text>
+                                  </View>
+                              ))
+                            : POLICY_CHANGES.map((line) => (
+                                  <Text key={line} style={styles.bullet}>{`• ${line}`}</Text>
+                              ))}
                         {full ? (
                             PRIVACY_POLICY.map((b, i) => (
                                 <View key={i} style={styles.block}>
@@ -62,7 +81,7 @@ export const PolicyUpdateSheet: React.FC<Props> = ({ visible, onContinue }) => {
                         disabled={busy}
                         onPress={() => {
                             setBusy(true);
-                            onContinue('en');
+                            onContinue(shownLocale);
                         }}
                     />
                 </View>

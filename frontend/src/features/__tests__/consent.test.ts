@@ -22,54 +22,109 @@ import {
 const save = saveRecord as jest.Mock;
 const rowsOf = (call: number) => save.mock.calls[call][0].payload.consents;
 
+const get = apiClient.get as jest.Mock;
+/** What GET /consents/me returns for the signed-in user. */
+const serverHas = (rows: Array<{ kind: string; docVersion: string }>) => get.mockResolvedValue({ data: rows });
+const OLD = [
+    { kind: 'terms', docVersion: '2026-01-01' },
+    { kind: 'privacy', docVersion: '2026-01-01' },
+];
+const CURRENT = [
+    { kind: 'terms', docVersion: LEGAL_VERSION },
+    { kind: 'privacy', docVersion: LEGAL_VERSION },
+];
+
 beforeEach(async () => {
     await AsyncStorage.clear();
     save.mockClear();
     save.mockResolvedValue({ queued: false });
+    get.mockReset();
+    serverHas([]);
 });
 
 describe('sign-up consent (C2.1)', () => {
-    it('writes terms + privacy with the version and the language the notice was shown in', async () => {
+    it('a new account that read the notice: terms + privacy recorded silently, with version and locale', async () => {
         await acknowledgeDataNotice('en');
-        expect(await settleLegalConsent('u1')).toBe(false); // no sheet for a new account
-        await Promise.resolve();
+        expect(await settleLegalConsent('u1')).toBe('none');
         expect(save).toHaveBeenCalledTimes(1);
         expect(save.mock.calls[0][0].endpoint).toBe('/consents');
         expect(rowsOf(0)).toEqual([
             expect.objectContaining({ kind: 'terms', granted: true, docVersion: LEGAL_VERSION, locale: 'en', source: 'signup' }),
             expect.objectContaining({ kind: 'privacy', granted: true, docVersion: LEGAL_VERSION, locale: 'en', source: 'signup' }),
         ]);
-        // Settled: a relaunch neither re-records nor shows the sheet.
-        expect(await settleLegalConsent('u1')).toBe(false);
+        // Settled: a relaunch neither re-records nor shows anything.
+        expect(await settleLegalConsent('u1')).toBe('none');
         expect(save).toHaveBeenCalledTimes(1);
+    });
+
+    it('a new account that skipped the notice (Login → OTP/Truecaller) gets the NOTICE sheet, recorded as signup', async () => {
+        expect(await settleLegalConsent('otp-user')).toBe('notice');
+        await acceptPolicyUpdate('otp-user', 'en', 'signup');
+        expect(rowsOf(0).map((r: any) => [r.kind, r.source])).toEqual([
+            ['terms', 'signup'],
+            ['privacy', 'signup'],
+        ]);
+        expect(await settleLegalConsent('otp-user')).toBe('none');
+    });
+
+    it('a NEW account on a phone where another user already accepted still gets the sheet', async () => {
+        serverHas(CURRENT);
+        expect(await settleLegalConsent('first')).toBe('none');
+        serverHas([]);
+        expect(await settleLegalConsent('second')).toBe('notice');
     });
 });
 
 describe('"what changed" sheet', () => {
-    it('shows for an existing user once per version, and Continue records reconsent rows', async () => {
-        expect(await settleLegalConsent('u2')).toBe(true);
+    it('an account with older-version rows gets "update"; Continue records reconsent; then settled', async () => {
+        serverHas(OLD);
+        expect(await settleLegalConsent('u2')).toBe('update');
         await acceptPolicyUpdate('u2', 'en');
         expect(rowsOf(0).map((r: any) => [r.kind, r.source, r.docVersion])).toEqual([
             ['terms', 'reconsent', LEGAL_VERSION],
             ['privacy', 'reconsent', LEGAL_VERSION],
         ]);
-        expect(await settleLegalConsent('u2')).toBe(false);
+        expect(await settleLegalConsent('u2')).toBe('none');
     });
 
-    it('shows again after the version is bumped', async () => {
-        await AsyncStorage.setItem('upcheck-legal-accepted:u3', '2000-01-01');
-        expect(await settleLegalConsent('u3')).toBe(true);
+    it('the server already has current-version rows (reinstall, second phone) → nothing shown, nothing written', async () => {
+        serverHas(CURRENT);
+        expect(await settleLegalConsent('u3')).toBe('none');
+        expect(save).not.toHaveBeenCalled();
+    });
+
+    it('only ONE current-version kind on the server is not enough', async () => {
+        serverHas([OLD[0], CURRENT[1]]);
+        expect(await settleLegalConsent('u3b')).toBe('update');
+    });
+
+    it('acceptance of an older version on this device does not settle the new one', async () => {
+        await AsyncStorage.setItem('upcheck-legal-accepted:u5:2000-01-01', '1');
+        serverHas(OLD);
+        expect(await settleLegalConsent('u5')).toBe('update');
     });
 
     it('is per user: one user accepting does not settle another on the same device', async () => {
         await acceptPolicyUpdate('a', 'en');
-        expect(await settleLegalConsent('b')).toBe(true);
+        serverHas(OLD);
+        expect(await settleLegalConsent('b')).toBe('update');
     });
+});
 
-    it('works offline — accepting only needs device storage, the rows queue', async () => {
+describe('offline', () => {
+    beforeEach(() => get.mockRejectedValue(new Error('Network Error')));
+
+    it('falls back to the per-user device flag', async () => {
+        expect(await settleLegalConsent('u4')).toBe('update');
         save.mockResolvedValue({ queued: true });
         await acceptPolicyUpdate('u4', 'en');
-        expect(await settleLegalConsent('u4')).toBe(false);
+        expect(await settleLegalConsent('u4')).toBe('none');
+    });
+
+    it('a sign-up that just read the notice is still recorded, queued', async () => {
+        await acknowledgeDataNotice('en');
+        expect(await settleLegalConsent('u6')).toBe('none');
+        expect(rowsOf(0)[0].source).toBe('signup');
     });
 });
 

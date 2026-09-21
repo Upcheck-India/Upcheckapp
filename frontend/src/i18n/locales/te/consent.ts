@@ -3,6 +3,7 @@
 // src/legal/content.ts) until human legal translations arrive.
 const consent = {
   "noticeTitle": "మీ డేటా — ఖాతా సృష్టించే ముందు",
+  "noticeSheetTitle": "Neerani మీ డేటాను ఎలా ఉపయోగిస్తుంది",
   "noticeIntro": "ఖాతా సృష్టించే ముందు, మీ డేటాకు ఏమి జరుగుతుందో చూడండి.",
   "englishOnly": "తనిఖీ చేసిన అనువాదం సిద్ధమయ్యే వరకు ఇది ఆంగ్లంలో చూపబడుతుంది. ఆంగ్ల పాఠమే అధికారికం.",
   "noticeContinue": "అర్థమైంది — కొనసాగించండి",
