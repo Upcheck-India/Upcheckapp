@@ -42,7 +42,7 @@ import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { useMembershipStore } from '../../store/membershipStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
-import { qk } from '../../query/client';
+import { qk, queryClient, orPrevious } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { useFlag } from '../../features/remoteFlags';
 import {
@@ -90,7 +90,14 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
     const query = useAppQuery({
         queryKey: qk.farm(farmId),
         queryFn: async () => {
-            const [pondsRes, ctxRes, briefingRes, farmRes] = await Promise.all([
+            // A slow or failed sub-read keeps the last copy rather than
+            // becoming "no contexts / no alerts / no farm" — see orPrevious.
+            const prev = queryClient.getQueryData<{
+                contexts: PondContext[];
+                briefing: BriefingItem[];
+                farm: Farm | null;
+            }>(qk.farm(farmId));
+            const [pondsRes, contexts, briefing, farm] = await Promise.all([
                 // Archived ponds ride along on the SAME read and are split out
                 // below. They used to be a second, opt-in query that only ran
                 // once the toggle was pressed, which meant the screen could not
@@ -99,7 +106,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 // indistinguishable from a broken toggle.
                 pondsApi.getAll(farmId, { take: 100, includeArchived: true }),
                 // One request for every pond's snapshot — see pondContextApi.forFarm.
-                pondContextApi.forFarm(farmId).catch(() => ({ data: [] as PondContext[] })),
+                orPrevious(pondContextApi.forFarm(farmId).then((r) => r.data), prev?.contexts ?? []),
                 // LIVE, merged with the persisted stream — not persisted alone.
                 // The live briefing is recomputed from each pond's latest
                 // reading, so it is the only one that describes the pond NOW;
@@ -107,11 +114,13 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 // empty for a pond that is currently in a watch band. Reading
                 // only the second is why this screen said "2/2 good" while
                 // Today showed one of the two ponds amber.
-                Promise.all([
-                    alertCenterApi.liveBriefing().catch(() => ({ data: [] as BriefingItem[] })),
-                    alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
-                ]).then(([live, persisted]) => ({ data: mergeBriefings(live.data, persisted.data) })),
-                farmsApi.getById(farmId).catch(() => ({ data: null as Farm | null })),
+                orPrevious(
+                    Promise.all([alertCenterApi.liveBriefing(), alertCenterApi.briefing()]).then(
+                        ([live, persisted]) => mergeBriefings(live.data, persisted.data),
+                    ),
+                    prev?.briefing ?? [],
+                ),
+                orPrevious<Farm | null>(farmsApi.getById(farmId).then((r) => r.data), prev?.farm ?? null),
             ]);
             const result: any = pondsRes.data;
             const all = (Array.isArray(result) ? result : (result?.data ?? [])) as Pond[];
@@ -120,9 +129,9 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 // pond table — they are split off here, once.
                 ponds: all.filter((p) => p.status !== 'archived'),
                 archivedPonds: all.filter((p) => p.status === 'archived'),
-                contexts: ctxRes.data,
-                briefing: briefingRes.data,
-                farm: farmRes.data,
+                contexts,
+                briefing,
+                farm,
             };
         },
         enabled: !!farmId,

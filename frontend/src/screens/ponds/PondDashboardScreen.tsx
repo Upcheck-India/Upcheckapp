@@ -47,7 +47,7 @@ import { treatmentsApi } from '../../api/treatments';
 import { useMembershipStore } from '../../store/membershipStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { prefetchDiseaseLibrary } from '../../features/diseaseLibrary';
-import { qk } from '../../query/client';
+import { qk, queryClient, orPrevious } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { usePendingRecords } from '../../sync/pending';
 import { formatTime, formatAge, formatDate } from '../../utils/formatDate';
@@ -206,21 +206,42 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         enabled: !!pondId,
         queryFn: async () => {
             const { data: pondData } = await pondsApi.getById(pondId);
+            const prev = queryClient.getQueryData<{
+                context: PondContext | null;
+                cycle: Crop | null;
+                alert: BriefingItem | null;
+            }>(qk.pond(pondId));
+            const cycleId = pondData.activeCycleId;
             // Everything below needs only the pond (and its cycle id), so it all
             // goes out at once rather than in a chain.
-            const [ctxRes, cycleRes, briefRes] = await Promise.all([
-                pondContextApi.get(pondId).catch(() => ({ data: null as PondContext | null })),
-                pondData.activeCycleId
-                    ? cropsApi.getById(pondData.activeCycleId).catch(() => ({ data: null as Crop | null }))
-                    : Promise.resolve({ data: null as Crop | null }),
-                alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
+            //
+            // A slow or failed sub-read keeps the last copy (`orPrevious`) —
+            // it used to become `null`, and a null cycle on a stocked pond
+            // rendered "Pond is Idle". The cycle has NO empty fallback: with
+            // nothing cached the query fails and the screen says so.
+            const [context, cycle, alert] = await Promise.all([
+                orPrevious(pondContextApi.get(pondId).then((r) => r.data), prev?.context ?? null),
+                cycleId
+                    ? orPrevious(
+                          cropsApi
+                              .getById(cycleId)
+                              .then((r) => r.data)
+                              // A cycle the server no longer has is really gone.
+                              .catch((e) => {
+                                  if (e?.response?.status === 404) return null;
+                                  throw e;
+                              }),
+                          prev?.cycle?.id === cycleId ? prev.cycle : undefined,
+                      )
+                    : Promise.resolve(null),
+                orPrevious(
+                    alertCenterApi
+                        .briefing()
+                        .then((r) => r.data.find((b) => b.pondId === pondId && b.topSeverity !== 'info') ?? null),
+                    prev ? prev.alert : null,
+                ),
             ]);
-            return {
-                pond: pondData,
-                context: ctxRes.data,
-                cycle: cycleRes.data,
-                alert: briefRes.data.find((b) => b.pondId === pondId && b.topSeverity !== 'info') ?? null,
-            };
+            return { pond: pondData, context, cycle, alert };
         },
     });
 
@@ -918,8 +939,12 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                         )}
 
                     </>
+                ) : pond?.activeCycleId && query.isFetching ? (
+                    // The pond HAS a cycle we have not loaded yet — that is
+                    // "loading", never "idle".
+                    <Skeleton testID="pond-cycle-loading" width="100%" height={72} style={styles.mb} />
                 ) : (
-                    <View style={styles.idle}>
+                    <View style={styles.idle} testID="pond-idle">
                         <Icon name="waves" size={40} color={theme.roles.light.textDisabled} />
                         <Text style={styles.idleTitle}>{t('ponds.idleTitle')}</Text>
                         <Text style={styles.idleSub}>{t('ponds.idleSubtitle')}</Text>

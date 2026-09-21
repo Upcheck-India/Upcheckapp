@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Card } from '../ui/Card';
+import { ErrorState } from '../ui/ErrorState';
+import { orPrevious } from '../../query/client';
 import { theme } from '../../theme';
 import { pondsApi } from '../../api/ponds';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
@@ -54,7 +56,8 @@ interface GlanceData {
   chosen: ChosenPond | null;
   lastFeedKg: number | null;
   lastFeedAt: string | null;
-  feedStockKg: number;
+  /** null = not known (the inventory read has never succeeded). */
+  feedStockKg: number | null;
   feedLowStock: boolean;
   tx: TransactionSummary | null;
   pnl: CropPnl | null;
@@ -76,6 +79,11 @@ export const FarmGlanceCards: React.FC<Props> = ({ farmId, farmName, navigation 
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<GlanceData | null>(null);
+  const [failed, setFailed] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0);
+  // The last good answer. A failed read keeps it instead of turning the
+  // cards into "no feed / 0 kg in stock / no money".
+  const prevRef = useRef<GlanceData | null>(null);
 
   // Root-stack screens live above the tab navigator — navigate via the parent.
   const goRoot = (screen: string, params?: any) =>
@@ -85,6 +93,7 @@ export const FarmGlanceCards: React.FC<Props> = ({ farmId, farmName, navigation 
     let cancelled = false;
     (async () => {
       setLoading(true);
+      const prev = prevRef.current;
       try {
         const ponds = (await pondsApi.getMine()).data.filter((p) => p.farmId === farmId);
         const active = ponds.filter((p) => p.activeCycleId);
@@ -99,58 +108,68 @@ export const FarmGlanceCards: React.FC<Props> = ({ farmId, farmName, navigation 
                 .catch(() => null),
             ),
           )
-        ).filter(Boolean) as { pond: (typeof active)[number]; ctx: PondContext }[];
+        );
+        // Every context read failing is a failed read, not "no active pond".
+        if (active.length && ctxs.every((c) => c === null)) throw new Error('pond contexts unavailable');
+        const ctxsOk = ctxs.filter(Boolean) as { pond: (typeof active)[number]; ctx: PondContext }[];
 
-        const best = ctxs.length
-          ? ctxs.reduce((a, b) => (recencyOf(b.ctx) > recencyOf(a.ctx) ? b : a))
+        const best = ctxsOk.length
+          ? ctxsOk.reduce((a, b) => (recencyOf(b.ctx) > recencyOf(a.ctx) ? b : a))
           : null;
         const chosen: ChosenPond | null = best
           ? { id: best.pond.id, name: best.pond.displayName || best.pond.name, cropId: best.ctx.cropId, ctx: best.ctx }
           : null;
 
-        const [lastFeed, inv, tx, pnl] = await Promise.all([
+        const [lastFeed, stock, tx, pnl] = await Promise.all([
           chosen
-            ? feedApi
+            ? orPrevious(
+                feedApi
                 .getAll(chosen.id)
                 .then((r) => {
                   // getAll returns a PageDto envelope ({ data, meta }), not a
                   // bare array — spreading the object threw and left this card
                   // permanently blank. Unwrap like the other feed callers.
                   const items = Array.isArray(r.data) ? r.data : (r.data as any).data ?? [];
-                  return (
-                    [...items].sort(
-                      (a, b) => Date.parse(b.recordedAt || '') - Date.parse(a.recordedAt || ''),
-                    )[0] ?? null
-                  );
-                })
-                .catch(() => null)
+                  const latest = [...items].sort(
+                    (a, b) => Date.parse(b.recordedAt || '') - Date.parse(a.recordedAt || ''),
+                  )[0];
+                  return latest ? { kg: latest.quantityKg ?? null, at: latest.recordedAt ?? null } : null;
+                }),
+                prev?.chosen?.id === chosen.id ? { kg: prev.lastFeedKg, at: prev.lastFeedAt } : null,
+              )
             : Promise.resolve(null),
-          inventoryApi.getAll(farmId).then((r) => r.data).catch(() => []),
-          transactionsApi.getSummary(farmId).then((r) => r.data).catch(() => null),
+          orPrevious(
+            inventoryApi.getAll(farmId).then((r) => {
+              const feedItems = r.data.filter((i) => i.category?.toLowerCase().includes('feed'));
+              return {
+                feedStockKg: feedItems.reduce((s, i) => s + (i.quantity || 0), 0),
+                feedLowStock: feedItems.some((i) => i.reorderLevel != null && i.quantity <= i.reorderLevel),
+              };
+            }),
+            prev ? { feedStockKg: prev.feedStockKg, feedLowStock: prev.feedLowStock } : { feedStockKg: null, feedLowStock: false },
+          ),
+          orPrevious(transactionsApi.getSummary(farmId).then((r) => r.data), prev?.tx ?? null),
           chosen?.cropId
-            ? pnlApi.cropPnl(chosen.cropId).then((r) => r.data).catch(() => null)
+            ? orPrevious(pnlApi.cropPnl(chosen.cropId).then((r) => r.data), prev?.pnl ?? null)
             : Promise.resolve(null),
         ]);
-
-        const feedItems = inv.filter((i) => i.category?.toLowerCase().includes('feed'));
-        const feedStockKg = feedItems.reduce((s, i) => s + (i.quantity || 0), 0);
-        const feedLowStock = feedItems.some(
-          (i) => i.reorderLevel != null && i.quantity <= i.reorderLevel,
-        );
+        const { feedStockKg, feedLowStock } = stock;
 
         if (!cancelled) {
+          setFailed(null);
           setData({
             chosen,
-            lastFeedKg: lastFeed?.quantityKg ?? null,
-            lastFeedAt: lastFeed?.recordedAt ?? chosen?.ctx.lastFeedAt ?? null,
+            lastFeedKg: lastFeed?.kg ?? null,
+            lastFeedAt: lastFeed?.at ?? chosen?.ctx.lastFeedAt ?? null,
             feedStockKg,
             feedLowStock,
             tx,
             pnl,
           });
         }
-      } catch {
-        if (!cancelled) setData(null);
+      } catch (err) {
+        // Keep whatever was on screen; say so only when there is nothing.
+        if (!cancelled) setFailed(err);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -158,16 +177,22 @@ export const FarmGlanceCards: React.FC<Props> = ({ farmId, farmName, navigation 
     return () => {
       cancelled = true;
     };
-  }, [farmId]);
+  }, [farmId, attempt]);
 
-  if (loading) {
+  useEffect(() => {
+    prevRef.current = data;
+  }, [data]);
+
+  if (loading && !data) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={theme.roles.light.primary} />
       </View>
     );
   }
-  if (!data) return null;
+  if (!data) {
+    return failed ? <ErrorState error={failed} onRetry={() => setAttempt((n) => n + 1)} /> : null;
+  }
 
   const wq = data.chosen?.ctx.waterQuality ?? null;
   const doVal = wq?.dissolvedOxygen;
@@ -244,7 +269,7 @@ export const FarmGlanceCards: React.FC<Props> = ({ farmId, farmName, navigation 
               style={[styles.foot, data.feedLowStock && { color: theme.roles.light.dangerText }]}
               numberOfLines={1}
             >
-              {t('home.inStock', { kg: Math.round(data.feedStockKg) })}
+              {data.feedStockKg != null ? t('home.inStock', { kg: Math.round(data.feedStockKg) }) : '—'}
               {data.feedLowStock ? ` · ${t('home.low')}` : ''}
             </Text>
           </View>

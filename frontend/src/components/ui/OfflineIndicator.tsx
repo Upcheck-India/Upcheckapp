@@ -6,6 +6,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { useTranslation } from 'react-i18next';
 import { useSyncStore } from '../../store/syncStore';
 import { useAuthStore } from '../../store/authStore';
+import { useUIStore } from '../../store/uiStore';
 import { drainRecordQueue } from '../../sync/recordSync';
 import { queryClient } from '../../query/client';
 import { theme } from '../../theme';
@@ -15,6 +16,10 @@ export const OfflineIndicator = () => {
     const isConnected = useSyncStore((s) => s.isConnected);
     const setConnected = useSyncStore((s) => s.setConnected);
     const pending = useSyncStore((s) => s.queue.length + s.failedOperations.length);
+    // Connected, but a request has had no answer for 8 s — the free-plan
+    // server waking up. Say so, so a slow screen does not read as an empty one.
+    const waking = useUIStore((s) => s.slowRequests > 0) && isConnected;
+    const visible = !isConnected || waking;
     const slideAnim = useRef(new Animated.Value(0)).current;
     const insets = useSafeAreaInsets();
 
@@ -56,19 +61,20 @@ export const OfflineIndicator = () => {
     // Animate the banner in (slide down) when offline, out (slide up) when back online.
     useEffect(() => {
         Animated.timing(slideAnim, {
-            toValue: isConnected ? 0 : 1,
+            toValue: visible ? 1 : 0,
             duration: 250,
             useNativeDriver: true,
         }).start();
-    }, [isConnected, slideAnim]);
+    }, [visible, slideAnim]);
 
-    // Don't render at all when connected (opacity 0 + translated away).
-    // Using pointerEvents="none" when connected prevents accidental touch captures.
+    // Don't render at all when hidden (opacity 0 + translated away).
+    // Using pointerEvents="none" when hidden prevents accidental touch captures.
     return (
         <Animated.View
-            pointerEvents={isConnected ? 'none' : 'box-none'}
+            pointerEvents={visible ? 'box-none' : 'none'}
             style={[
                 styles.container,
+                waking && styles.waking,
                 {
                     top: insets.top,
                     opacity: slideAnim,
@@ -84,13 +90,15 @@ export const OfflineIndicator = () => {
             ]}
         >
             <MaterialCommunityIcons
-                name="wifi-off"
+                name={waking ? 'timer-sand' : 'wifi-off'}
                 size={16}
                 color={theme.roles.light.surface}
             />
             <Text style={styles.text}>
-                {t('common.offlineBanner', 'Offline — changes will sync')}
-                {pending > 0 ? ` (${pending})` : ''}
+                {waking
+                    ? t('common.serverWaking')
+                    : t('common.offlineBanner', 'Offline — changes will sync')}
+                {!waking && pending > 0 ? ` (${pending})` : ''}
             </Text>
         </Animated.View>
     );
@@ -164,6 +172,9 @@ const styles = StyleSheet.create({
         paddingVertical: theme.spacing[1.5],
         zIndex: 999,
         elevation: 10,
+    },
+    waking: {
+        backgroundColor: theme.roles.light.infoText,
     },
     text: {
         ...theme.typeScale.labelMedium,

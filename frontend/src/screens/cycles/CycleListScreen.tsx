@@ -8,6 +8,7 @@ import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { StaleNotice } from '../../components/ui/CacheNotice';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { SkeletonList } from '../../components/ui/Skeleton';
 import { theme } from '../../theme';
@@ -43,7 +44,9 @@ export const CycleListScreen = ({ route, navigation }: any) => {
             if (pondId) {
                 const [cropsRes, harvestsRes] = await Promise.all([
                     cropsApi.getAll(pondId),
-                    harvestsApi.getByPond(pondId).catch(() => ({ data: [] as Harvest[] })),
+                    // No swallowing: a failed harvest read would print '—' as
+                    // "nothing harvested". Failure keeps the rows already shown.
+                    harvestsApi.getByPond(pondId),
                 ]);
                 setRows(summariseCycles(
                     list<Crop>(cropsRes.data).map((crop) => ({ crop })),
@@ -62,8 +65,10 @@ export const CycleListScreen = ({ route, navigation }: any) => {
             const ponds = list<Pond>(pondsRes.data);
             const per = await Promise.all(ponds.map(async (p) => {
                 const [c, h] = await Promise.all([
-                    cropsApi.getAll(p.id).catch(() => ({ data: [] as Crop[] })),
-                    harvestsApi.getByPond(p.id).catch(() => ({ data: [] as Harvest[] })),
+                    // A pond whose reads fail must not silently drop its
+                    // cycles from the farm list — fail the whole read instead.
+                    cropsApi.getAll(p.id),
+                    harvestsApi.getByPond(p.id),
                 ]);
                 return {
                     entries: list<Crop>(c.data).map((crop) => ({ crop, pondName: pondLabel(p) })),
@@ -152,7 +157,8 @@ export const CycleListScreen = ({ route, navigation }: any) => {
                 />
             </View>
 
-            {isLoading ? (
+            <StaleNotice visible={!!error && rows.length > 0} />
+            {isLoading && rows.length === 0 ? (
                 <View style={styles.listContent}><SkeletonList count={4} /></View>
             ) : error && rows.length === 0 ? (
                 <ErrorState title={t('cycles.listErrorTitle')} error={error} onRetry={onRetry} />

@@ -8,9 +8,12 @@
  * cannot honour.
  */
 
-// The export feature is owned by another layer and is mocked wholesale here —
-// virtual so this suite does not depend on that module's build state.
-jest.mock('../../../features/export', () => ({ runExport: jest.fn() }), { virtual: true });
+// The export feature is owned by another layer and is mocked wholesale here.
+// NOT `virtual`: the module exists, and a virtual mock registers the literal
+// directory path rather than the resolved `features/export/index.ts` the screen
+// imports — so depending on the run's module map the screen got the REAL
+// runExport and every "was runExport called" assertion failed.
+jest.mock('../../../features/export', () => ({ runExport: jest.fn() }));
 
 jest.mock('../../../api/farms', () => ({ farmsApi: { getAll: jest.fn() } }));
 jest.mock('../../../api/ponds', () => ({ pondsApi: { getAll: jest.fn() } }));

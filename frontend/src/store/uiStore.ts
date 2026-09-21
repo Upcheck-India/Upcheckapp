@@ -15,7 +15,10 @@ export interface Toast {
 interface UIState {
     isNetworkOnline: boolean;
     toasts: Toast[];
+    /** Requests past SLOW_REQUEST_MS with no answer yet (see api/client.ts). */
+    slowRequests: number;
 
+    markSlowRequest: (delta: 1 | -1) => void;
     setNetworkOnline: (online: boolean) => void;
     showToast: (toast: Omit<Toast, 'id'>) => void;
     dismissToast: (id: string) => void;
@@ -24,7 +27,9 @@ interface UIState {
 export const useUIStore = create<UIState>()((set, get) => ({
     isNetworkOnline: true,
     toasts: [],
+    slowRequests: 0,
 
+    markSlowRequest: (delta) => set((state) => ({ slowRequests: Math.max(0, state.slowRequests + delta) })),
     setNetworkOnline: (isNetworkOnline) => set({ isNetworkOnline }),
 
     showToast: (toast) => {
