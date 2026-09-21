@@ -54,6 +54,7 @@ const common = {
   savedSuccess: 'Saved',
   networkError: 'Cannot reach the server. Check your internet connection and try again.',
   serverWaking: 'Server is waking up… this can take up to a minute',
+  refreshFailed: 'Couldn’t refresh — showing saved data',
   noInternet: 'No Internet Connection',
   checkConnection: 'Please check your network connection and try again.',
   serverErrorTitle: 'Server Error',

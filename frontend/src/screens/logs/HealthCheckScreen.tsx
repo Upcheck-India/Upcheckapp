@@ -13,6 +13,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { PhotoStrip } from '../../components/ui/PhotoStrip';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { StaleNotice } from '../../components/ui/CacheNotice';
 import { SkeletonList } from '../../components/ui/Skeleton';
 import { ChoiceChips } from '../../components/health/ChoiceChips';
 import { HealthPhotoPicker } from '../../components/health/HealthPhotoPicker';
@@ -127,9 +128,7 @@ export const HealthCheckScreen = ({ route, navigation }: any) => {
                 {historyOnly && recent === null && !!loadError && (
                     <ErrorState title={t('history.couldNotLoad')} error={loadError} onRetry={() => { setLoadError(null); void loadRecent(); }} />
                 )}
-                {historyOnly && recent !== null && !!loadError && (
-                    <Text style={styles.reason} testID="health-check-stale">{t('common.networkError')}</Text>
-                )}
+                {historyOnly && <StaleNotice visible={recent !== null && !!loadError} />}
                 {historyOnly && recent !== null && !days.length && (
                     <Text style={styles.hint} testID="health-check-empty">{t('history.healthCheckEmptyText')}</Text>
                 )}

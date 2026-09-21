@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
 import { SkeletonList } from '../../../components/ui/Skeleton';
+import { StaleNotice } from '../../../components/ui/CacheNotice';
 import { ErrorState, NetworkError } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
 import { PhotoStrip } from '../../../components/ui/PhotoStrip';
@@ -180,6 +181,7 @@ export const MortalityHistoryScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
+            <StaleNotice visible={!!error && records.length > 0} />
             {isLoading && records.length === 0 ? (
                 renderSkeleton()
             ) : isOffline ? (
