@@ -24,6 +24,9 @@ export const MAX_AUTO_ATTEMPTS = 5;
 const LAZY_DRAIN_EVERY_MS = 60_000;
 /** An upload still on no record after this long was abandoned (F1 orphans). */
 export const ORPHAN_AFTER_HOURS = 24;
+/** C6: a done row is the proof a deletion happened; kept this long, then pruned. */
+export const DONE_RETENTION_MONTHS = 24;
+const PRUNE_EVERY_MS = 24 * 3600_000;
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 // A prefix is exactly one owner segment. Never '' or '/': that would be the
@@ -62,6 +65,7 @@ export class PhotoDeletionService {
   private migrated = false;
   private draining = false;
   private lastLazyDrain = 0;
+  private lastPrune = 0;
 
   constructor(
     private readonly db: DataSource,
@@ -153,22 +157,47 @@ export class PhotoDeletionService {
     }
   }
 
-  /** Fire-and-forget orphan sweep + drain, at most once a minute per instance. */
+  /**
+   * Fire-and-forget orphan sweep + drain, at most once a minute per instance;
+   * plus the C6 done-row prune, at most once a day.
+   */
   drainSoon(): void {
     const now = Date.now();
     if (now - this.lastLazyDrain < LAZY_DRAIN_EVERY_MS) return;
     this.lastLazyDrain = now;
+    const prune = now - this.lastPrune >= PRUNE_EVERY_MS;
+    if (prune) this.lastPrune = now;
     void this.sweepOrphans()
       .then(() => this.drain())
+      .then(() => (prune ? this.pruneDone() : undefined))
       .catch((err: any) =>
       this.logger.warn(`Lazy photo drain failed: ${err?.message ?? err}`),
     );
   }
 
   /**
+   * C6 retention: remove DONE rows older than DONE_RETENTION_MONTHS. Pending
+   * and failed rows (done_at IS NULL) are never touched — they are work, not
+   * history. Missing table = nothing to do.
+   */
+  async pruneDone(): Promise<void> {
+    try {
+      await this.db.query(
+        `DELETE FROM photo_deletions
+         WHERE done_at IS NOT NULL AND done_at < now() - interval '${DONE_RETENTION_MONTHS} months'`,
+      );
+    } catch (err: any) {
+      if (!isMissingTable(err)) {
+        this.logger.warn(`Failed to prune photo_deletions: ${err?.message ?? err}`);
+      }
+    }
+  }
+
+  /**
    * Delete up to `limit` queued objects from R2. Success stamps `done_at`;
    * failure bumps `attempts`, keeps `last_error` and backs off exponentially
-   * (1 min · 2^attempts, capped at a day). A row is never removed.
+   * (1 min · 2^attempts, capped at a day). A row is never removed here (only
+   * `pruneDone`, for done rows past the retention horizon).
    *
    * `includeFailed` (staff sweep) also retries rows past MAX_AUTO_ATTEMPTS and
    * ignores the backoff.
