@@ -16,8 +16,13 @@ export function initSentry(): boolean {
   Sentry.init({
     dsn,
     environment: process.env.NODE_ENV ?? 'development',
-    // Error tracking only for now — no perf tracing overhead.
-    tracesSampleRate: 0,
+    // Performance tracing at a low default rate (5% of requests) so slow
+    // endpoints show up in Sentry. SENTRY_TRACES_SAMPLE_RATE=0 turns it off.
+    // Only the http-level span is guaranteed: init runs after Nest and pg are
+    // imported, so their auto-instrumentation may not attach — the
+    // Server-Timing header / slow-request log (common/request-timing) carries
+    // the per-request DB breakdown.
+    tracesSampleRate: tracesSampleRate(),
     // Never let the SDK attach IPs, cookies, headers or bodies on its own.
     sendDefaultPii: false,
     ignoreErrors: IGNORE_ERRORS,
@@ -27,6 +32,14 @@ export function initSentry(): boolean {
     beforeBreadcrumb: (crumb) => scrubBreadcrumb(crumb),
   });
   return true;
+}
+
+/** 0..1 from SENTRY_TRACES_SAMPLE_RATE; 0.05 when unset or out of range. */
+export function tracesSampleRate(
+  raw = process.env.SENTRY_TRACES_SAMPLE_RATE,
+): number {
+  const n = raw == null || raw === '' ? NaN : Number(raw);
+  return Number.isFinite(n) && n >= 0 && n <= 1 ? n : 0.05;
 }
 
 export { Sentry };
