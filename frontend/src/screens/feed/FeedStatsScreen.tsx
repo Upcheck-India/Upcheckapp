@@ -5,6 +5,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
+import { ErrorState } from '../../components/ui/ErrorState';
+import { StaleNotice } from '../../components/ui/CacheNotice';
 import { LineChart } from '../../components/charts/LineChart';
 import { theme } from '../../theme';
 import { feedApi, type FeedRecord } from '../../api/feedRecords';
@@ -47,10 +49,19 @@ export const FeedStatsScreen = ({ route }: any) => {
   const [totalKg, setTotalKg] = useState<number | null>(null);
   const [feedStockKg, setFeedStockKg] = useState<number | null>(null);
   const [feedLowStock, setFeedLowStock] = useState(false);
+  /** At least one read has come back, so the figures on screen are real. */
+  const [loadedOnce, setLoadedOnce] = useState(false);
+  /** The latest refresh had a read fail; what is shown is the previous copy. */
+  const [failed, setFailed] = useState<unknown>(null);
+  const [attempt, setAttempt] = useState(0);
 
   // Refetch on FOCUS, not on mount. React Navigation keeps a screen mounted
   // once opened, so a mount-only effect never ran again: log a feed, come
   // back here, and the totals were still the pre-log ones.
+  //
+  // Each read is settled on its own. A failed one keeps its PREVIOUS value
+  // rather than becoming [] / 0 — "0 kg in stock" or "no feed logged" for a
+  // read that simply timed out is a wrong answer, not a missing one.
   useFocusEffect(useCallback(() => {
     let cancelled = false;
     (async () => {
@@ -62,22 +73,31 @@ export const FeedStatsScreen = ({ route }: any) => {
         // strings, so every arithmetic use below needs a Number() coercion.
         const toRecords = (data: any): FeedRecord[] => (Array.isArray(data) ? data : data?.data || []);
 
-        const [recRes, ctxRes, totalRes, invRes] = await Promise.all([
-          feedApi.getAll(pondId, { take: 100 }).then((r) => toRecords(r.data)).catch(() => [] as FeedRecord[]),
-          pondContextApi.get(pondId).then((r) => r.data).catch(() => null),
-          (cropId
+        const [recRes, ctxRes, totalRes, invRes] = await Promise.allSettled([
+          feedApi.getAll(pondId, { take: 100 }).then((r) => toRecords(r.data)),
+          pondContextApi.get(pondId).then((r) => r.data),
+          cropId
             ? feedApi.getByCrop(cropId, { take: 100 }).then((r) => toRecords(r.data).reduce((s, x) => s + (Number(x.quantityKg) || 0), 0))
-            : feedApi.getTotalByPond(pondId).then((r) => Number(r.data))
-          ).catch(() => null),
-          farmId ? inventoryApi.getAll(farmId).then((r) => r.data).catch(() => []) : Promise.resolve([]),
+            : feedApi.getTotalByPond(pondId).then((r) => Number(r.data)),
+          farmId ? inventoryApi.getAll(farmId).then((r) => r.data) : Promise.resolve([]),
         ]);
         if (cancelled) return;
-        setRecords([...recRes].sort((a, b) => Date.parse(b.recordedAt || '') - Date.parse(a.recordedAt || '')));
-        setCtx(ctxRes);
-        setTotalKg(typeof totalRes === 'number' && !Number.isNaN(totalRes) ? totalRes : null);
-        const feedItems = invRes.filter((i) => i.category?.toLowerCase().includes('feed'));
-        setFeedStockKg(feedItems.reduce((s, i) => s + (Number(i.quantity) || 0), 0));
-        setFeedLowStock(feedItems.some((i) => i.reorderLevel != null && Number(i.quantity) <= Number(i.reorderLevel)));
+        const all = [recRes, ctxRes, totalRes, invRes];
+        if (recRes.status === 'fulfilled') {
+          setRecords([...recRes.value].sort((a, b) => Date.parse(b.recordedAt || '') - Date.parse(a.recordedAt || '')));
+        }
+        if (ctxRes.status === 'fulfilled') setCtx(ctxRes.value);
+        if (totalRes.status === 'fulfilled') {
+          setTotalKg(!Number.isNaN(totalRes.value) ? totalRes.value : null);
+        }
+        if (invRes.status === 'fulfilled') {
+          const feedItems = invRes.value.filter((i) => i.category?.toLowerCase().includes('feed'));
+          setFeedStockKg(feedItems.reduce((s, i) => s + (Number(i.quantity) || 0), 0));
+          setFeedLowStock(feedItems.some((i) => i.reorderLevel != null && Number(i.quantity) <= Number(i.reorderLevel)));
+        }
+        if (all.some((r) => r.status === 'fulfilled')) setLoadedOnce(true);
+        const rejected = all.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+        setFailed(rejected ? rejected.reason ?? new Error('failed') : null);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -85,7 +105,7 @@ export const FeedStatsScreen = ({ route }: any) => {
     return () => {
       cancelled = true;
     };
-  }, [pondId, cropId, farmId]));
+  }, [pondId, cropId, farmId, attempt]));
 
   const last = records[0] ?? null;
   const series = dailySeries(records);
@@ -100,12 +120,15 @@ export const FeedStatsScreen = ({ route }: any) => {
         </View>
       </View>
 
-      {loading ? (
+      {loading && !loadedOnce ? (
         <View style={styles.loading}>
           <ActivityIndicator size="large" color={theme.roles.light.primary} />
         </View>
+      ) : failed && !loadedOnce ? (
+        <ErrorState error={failed} onRetry={() => setAttempt((n) => n + 1)} />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}>
+          <StaleNotice visible={!!failed} />
           {/* Inventory remaining banner */}
           {feedStockKg != null && (
             <Card

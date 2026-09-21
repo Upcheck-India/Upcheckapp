@@ -41,10 +41,15 @@ export const fetchTodaySnapshot = async (
 ): Promise<TodaySnapshot> => {
     // The persisted stream is a separate, cheap read either way: it lists
     // unread alerts and computes no contexts.
-    const persisted = alertCenterApi
-        .briefing()
-        .then((r) => r.data)
-        .catch(() => [] as BriefingItem[]);
+    //
+    // NOT swallowed. It used to fall back to [], so a timed-out read dropped
+    // those alerts and Today looked calmer than it was — and that thinner
+    // answer replaced the good cached one. A failure now fails the snapshot:
+    // TanStack keeps the previous copy on screen and CacheNotice marks it.
+    const persisted = alertCenterApi.briefing().then((r) => r.data);
+    // Settled here so a failure while `/today` is still in flight is not an
+    // unhandled rejection; the awaits below re-raise it.
+    persisted.catch(() => undefined);
 
     try {
         const [fast, persistedItems] = await Promise.all([
@@ -67,7 +72,7 @@ export const fetchTodaySnapshot = async (
         // complete one. Any failure and the whole snapshot fails, which the
         // caller renders as absent rather than as a confident total.
         const [live, persistedItems, perFarm] = await Promise.all([
-            alertCenterApi.liveBriefing().then((r) => r.data).catch(() => [] as BriefingItem[]),
+            alertCenterApi.liveBriefing().then((r) => r.data),
             persisted,
             Promise.all(
                 farmIds.map((id) =>
