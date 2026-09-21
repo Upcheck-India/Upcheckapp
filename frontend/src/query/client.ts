@@ -60,12 +60,12 @@ export const PERSISTED_ROOTS = new Set([
     'pond',
     'home',
     'briefing',
-    // Team and Money were memory-only, which meant they were the two screens
-    // that ALWAYS showed an error with no signal — the app looked online-only
-    // exactly where a farmer checks who is on duty and what was spent. The
-    // storage argument for excluding them was never measured; both are lists
-    // of small rows, far smaller than the pond contexts already persisted.
-    'team',
+    // Money was memory-only, which meant it ALWAYS showed an error with no
+    // signal. It is a list of small rows, far smaller than the pond contexts.
+    //
+    // 'team' is deliberately NOT here (C5.4): it is other people's names,
+    // attendance and leave, and AsyncStorage is unencrypted on Android. The
+    // Team tab is online-first. See PERSIST_BUSTER for dropping old copies.
     'money',
     // The disease picker must work with no signal (D6 / H2): a disease is
     // often logged at the pond edge. A few KB of library rows per language.
@@ -162,9 +162,17 @@ export const persister = createAsyncStoragePersister({
 export const shouldDehydrateQuery = (query: Query): boolean =>
     defaultShouldDehydrateQuery(query) && PERSISTED_ROOTS.has(String(query.queryKey[0]));
 
+/**
+ * Bump to discard every install's persisted query cache once on next launch.
+ * 'c54' drops the Team data older builds wrote (C5.4). The one-time loss is
+ * cheap: offline reads still fall back to the HTTP-layer cache.
+ */
+export const PERSIST_BUSTER = 'c54';
+
 export const persistOptions = {
     persister,
     maxAge: CACHE_MAX_AGE_MS,
+    buster: PERSIST_BUSTER,
     dehydrateOptions: { shouldDehydrateQuery },
 };
 

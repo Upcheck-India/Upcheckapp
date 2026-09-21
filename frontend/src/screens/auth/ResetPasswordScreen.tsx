@@ -6,7 +6,9 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
+import Constants from 'expo-constants';
 import { supabase } from '../../lib/supabase';
+import { parseRecoveryLink } from '../../features/recoveryLink';
 import { authApi } from '../../api/auth';
 import { passwordPolicyError } from '../../features/passwordPolicy';
 
@@ -26,21 +28,16 @@ export const ResetPasswordScreen = ({ navigation }: any) => {
     const [busy, setBusy] = useState(false);
 
     // Supabase puts the recovery tokens in the URL fragment (#access_token=...).
+    // C5.5: any app can fire this deep link, so only a recovery token for THIS
+    // project that has not expired may become a session. Anything else is
+    // ignored and the screen keeps its "link expired" hint.
     const establishFromUrl = (url: string | null) => {
-        if (!url) return;
-        const fragment = url.split('#')[1] ?? '';
-        const grab = (key: string) => {
-            const m = fragment.match(new RegExp(`(?:^|&)${key}=([^&]+)`));
-            return m ? decodeURIComponent(m[1]) : null;
-        };
-        const access_token = grab('access_token');
-        const refresh_token = grab('refresh_token');
-        if (access_token && refresh_token) {
-            supabase.auth
-                .setSession({ access_token, refresh_token })
-                .then(({ error }) => setSessionReady(!error))
-                .catch(() => setSessionReady(false));
-        }
+        const tokens = parseRecoveryLink(url, Constants.expoConfig?.extra?.supabaseUrl as string | undefined);
+        if (!tokens) return;
+        supabase.auth
+            .setSession(tokens)
+            .then(({ error }) => setSessionReady(!error))
+            .catch(() => setSessionReady(false));
     };
 
     useEffect(() => {
