@@ -104,6 +104,15 @@ function makeService(
   const farmAccess = {
     getAccessiblePondIds: jest.fn().mockResolvedValue(over.accessiblePonds ?? []),
     getAccessibleFarmIds: jest.fn().mockResolvedValue(over.accessibleFarms ?? []),
+    // The batched call answers exactly as the per-farm one would.
+    getAccessiblePondIdsForFarms: jest.fn(
+      async (u: string, farmIds: string[], cap: string): Promise<string[]> =>
+        (
+          await Promise.all(
+            farmIds.map((f) => farmAccess.getAccessiblePondIds(u, f, cap)),
+          )
+        ).flat(),
+    ),
   };
   const svc = new PondContextService(
     samplingRepo as any,
@@ -472,7 +481,7 @@ describe('PondContextService.getContext — access', () => {
 
 /** `?scope=mine` — every readable pond across every farm, one request. */
 describe('PondContextService.getMyContexts', () => {
-  it('covers every accessible farm, one farm at a time', async () => {
+  it('covers every accessible farm in one batched access call', async () => {
     const { svc, farmAccess, pondsService } = makeService({
       accessibleFarms: ['farm-1', 'farm-2'],
     });

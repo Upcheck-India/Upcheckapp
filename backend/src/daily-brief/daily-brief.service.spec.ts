@@ -45,6 +45,13 @@ function build(opts: {
     assertCanAccessFarm: jest.fn().mockResolvedValue({}),
     getMembershipOnFarm: jest.fn(async (_u: string, f: string) => ({ role: roleOf(f), overrides: null, policy: null })),
     getAccessiblePondIds: jest.fn(async (_u: string, f: string) => pondMap[f] ?? []),
+    getMembershipsOnFarms: jest.fn(
+      async (_u: string, fs: string[]) =>
+        new Map(fs.map((f) => [f, { role: roleOf(f), overrides: null, policy: null }])),
+    ),
+    getAccessiblePondIdsForFarms: jest.fn(async (_u: string, fs: string[]) =>
+      fs.flatMap((f) => pondMap[f] ?? []),
+    ),
   };
   const molt = { checklistsFor: jest.fn().mockResolvedValue(new Map()) };
   const svc = new DailyBriefService(
