@@ -330,6 +330,29 @@ export const clearCachedReads = (): void => {
     void clearOfflineCache();
 };
 
+/**
+ * One sub-read of a composite queryFn: on failure, keep what the cache last had
+ * for this slot; with nothing to keep, fail the whole query.
+ *
+ * The pattern this replaces was `.catch(() => ({ data: null }))`. That turns a
+ * slow or dropped request into a SUCCESSFUL query whose slot is empty — so the
+ * pond's cycle came back `null` and the dashboard said "Pond is Idle", a farm's
+ * alerts came back `[]` and the briefing said "all clear" — and because it was
+ * a success, TanStack replaced the good cached copy with it and persisted the
+ * empty one to disk. "Didn't load" must never be stored as "nothing there".
+ *
+ * A slot that may legitimately render empty on a first load passes its own
+ * fallback: `orPrevious(p, prev?.x ?? [])`. Pass `undefined` to fail instead.
+ */
+export const orPrevious = async <T>(read: Promise<T>, previous: T | undefined): Promise<T> => {
+    try {
+        return await read;
+    } catch (err) {
+        if (previous !== undefined) return previous;
+        throw err;
+    }
+};
+
 export const invalidateForEntity = (entity: string): void => {
     const keys = ENTITY_QUERY_KEYS[entity] ?? DEFAULT_QUERY_KEYS;
     for (const key of keys) {

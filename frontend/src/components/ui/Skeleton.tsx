@@ -7,6 +7,7 @@ interface SkeletonProps {
     height?: number;
     borderRadius?: number;
     style?: StyleProp<ViewStyle>;
+    testID?: string;
 }
 
 export const Skeleton: React.FC<SkeletonProps> = ({
@@ -14,9 +15,11 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     height = 20,
     borderRadius = 4,
     style,
+    testID,
 }) => {
     return (
         <View
+            testID={testID}
             style={[
                 styles.skeleton,
                 { width, height, borderRadius },
