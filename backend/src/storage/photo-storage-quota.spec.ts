@@ -32,7 +32,7 @@ function ledgerWith(used: { photos: number; bytes: number } | 'unmigrated') {
     }
     return [];
   });
-  const ledger = new PhotoLedgerService({ query } as any);
+  const ledger = new PhotoLedgerService({ query, transaction: async (fn: any) => fn({ query }) } as any);
   jest.spyOn((ledger as any).logger, 'warn').mockImplementation(() => undefined);
   jest.spyOn((ledger as any).logger, 'error').mockImplementation(() => undefined);
   return { ledger, query };
@@ -98,6 +98,107 @@ describe('F2 quota is enforced server-side, at upload', () => {
   });
 });
 
+/**
+ * A stateful photo_objects behind a fake DataSource whose transactions honour
+ * pg_advisory_xact_lock (a real per-key mutex, released at commit/rollback).
+ * A usage read INSIDE a transaction waits for a second reader (or 300 ms),
+ * so two uploads' read-then-insert windows are forced to overlap unless the
+ * lock serialises them. Removing the lock makes both read 999 and both insert.
+ */
+function racingLedger(existingPhotos: number) {
+  const rows: { owner: string; bytes: number }[] = Array.from({ length: existingPhotos }, () => ({ owner: OWNER, bytes: 1 }));
+  const locks = new Map<string, Promise<void>>();
+  let waiting: (() => void)[] = [];
+  const barrier = () =>
+    new Promise<void>((resolve) => {
+      waiting.push(resolve);
+      if (waiting.length >= 2) {
+        waiting.forEach((r) => r());
+        waiting = [];
+      } else {
+        setTimeout(() => {
+          waiting = waiting.filter((r) => r !== resolve);
+          resolve();
+        }, 300);
+      }
+    });
+  const base = async (q: string, p: any[] = [], inTx = false): Promise<any[]> => {
+    if (/count\(\*\)::int AS photos/.test(q)) {
+      if (inTx) await barrier();
+      const mine = rows.filter((r) => r.owner === p[0]);
+      return [{ photos: mine.length, bytes: mine.reduce((s, r) => s + r.bytes, 0) }];
+    }
+    if (/^\s*INSERT INTO photo_objects/.test(q)) {
+      rows.push({ owner: p[2], bytes: p[7] + p[8] });
+      return [];
+    }
+    return [];
+  };
+  const transaction = async (fn: (m: any) => Promise<unknown>) => {
+    const held: (() => void)[] = [];
+    const m = {
+      query: async (q: string, p: any[] = []) => {
+        if (/pg_advisory_xact_lock/.test(q)) {
+          const key = p[0];
+          const prev = locks.get(key) ?? Promise.resolve();
+          let release!: () => void;
+          const mine = new Promise<void>((r) => (release = r));
+          locks.set(key, prev.then(() => mine));
+          held.push(release);
+          await prev;
+          return [{}];
+        }
+        return base(q, p, true);
+      },
+    };
+    try {
+      return await fn(m);
+    } finally {
+      held.forEach((r) => r());
+    }
+  };
+  const ledger = new PhotoLedgerService({ query: (q: string, p?: any[]) => base(q, p), transaction } as any);
+  return { ledger, rows };
+}
+
+describe('F2 the last slot is admitted atomically per account', () => {
+  it('two concurrent uploads with one slot left: exactly one lands, the other gets STORAGE_FULL and its pair is deleted', async () => {
+    const { ledger, rows } = racingLedger(PHOTO_QUOTA.photos - 1);
+    const { svc, send } = r2(ledger);
+    const img = await jpeg();
+    const owner = { ownerUserId: OWNER, uploadedBy: WORKER };
+
+    const results = await Promise.allSettled([
+      svc.putImage('health', `${FARM}/a`, file(img), owner),
+      svc.putImage('health', `${FARM}/b`, file(img), owner),
+    ]);
+
+    const ok = results.filter((r) => r.status === 'fulfilled');
+    const refused = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+    expect(ok).toHaveLength(1);
+    expect(refused).toHaveLength(1);
+    expect(refused[0].reason).toMatchObject({ response: { code: 'STORAGE_FULL' } });
+    expect(rows).toHaveLength(PHOTO_QUOTA.photos);
+
+    const loser = (ok[0] as PromiseFulfilledResult<string>).value === `${FARM}/a.webp` ? 'b' : 'a';
+    const deleted = send.mock.calls
+      .map(([c]) => c)
+      .filter((c) => c.constructor.name === 'DeleteObjectsCommand')
+      .flatMap((c) => c.input.Delete.Objects.map((o: any) => o.Key))
+      .sort();
+    expect(deleted).toEqual([`health/${FARM}/${loser}.thumb.webp`, `health/${FARM}/${loser}.webp`]);
+  });
+
+  it('the limit is read through quotaFor (the one hook for per-user overrides)', async () => {
+    const { ledger, rows } = racingLedger(5);
+    jest.spyOn(ledger, 'quotaFor').mockResolvedValue({ maxPhotos: 5, maxBytes: PHOTO_QUOTA.bytes });
+    await expect(ledger.record('health', `${FARM}/c.webp`, { ownerUserId: OWNER, uploadedBy: OWNER }, 10, 5)).rejects.toMatchObject({
+      response: { code: 'STORAGE_FULL' },
+    });
+    expect(rows).toHaveLength(5);
+  });
+});
+
 describe('F2: a full pool refuses the photo but ALWAYS saves the record', () => {
   it('mortality create saves (and attaches its photos) with the pool at 100%', async () => {
     const { ledger } = ledgerWith({ photos: PHOTO_QUOTA.photos, bytes: PHOTO_QUOTA.bytes });
@@ -132,7 +233,8 @@ function photosService(answer: (q: string, p: any[]) => any[]) {
   const db = { query, transaction: jest.fn(async (fn: any) => fn(manager)) };
   const deletions = { enqueue: jest.fn(async () => true), drainSoon: jest.fn() };
   const storage = { sign: jest.fn(async (_ns: string, paths: string[]) => ({ full: paths, thumb: paths })) };
-  const svc = new PhotosService(db as any, storage as any, {} as any, deletions as any);
+  const ledger = { quotaFor: async () => ({ maxPhotos: PHOTO_QUOTA.photos, maxBytes: PHOTO_QUOTA.bytes }) };
+  const svc = new PhotosService(db as any, storage as any, ledger as any, deletions as any);
   jest.spyOn((svc as any).logger, 'warn').mockImplementation(() => undefined);
   return { svc, calls, deletions };
 }
@@ -166,7 +268,7 @@ describe('F2 usage', () => {
       },
     ]);
     expect(u.account).toEqual({ photos: 1, bytes: 500 });
-    expect(u.limits).toBe(PHOTO_QUOTA);
+    expect(u.limits).toEqual(PHOTO_QUOTA);
     expect(deletions.drainSoon).toHaveBeenCalled();
   });
 

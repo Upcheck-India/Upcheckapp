@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  HttpException,
   Injectable,
   Logger,
   Optional,
@@ -181,11 +182,12 @@ export class R2StorageService {
    * carry, which is exactly the bug this closes. A photo stored here has
    * always been decoded, rotated and re-encoded, which is what strips EXIF.
    *
-   * F2: with an `owner`, the pool is checked BEFORE anything is stored (a
-   * full pool refuses the photo with STORAGE_FULL) and the `photo_objects`
-   * ledger row is written right after both objects land, with their byte
-   * counts. A ledger failure removes the pair rather than leave an object no
-   * quota or orphan sweep can see.
+   * F2: with an `owner`, a cheap pool check runs BEFORE anything is stored
+   * (a full account never uploads), then the `photo_objects` row is admitted
+   * atomically per account after both objects land (`ledger.record`: lock,
+   * re-sum, insert). If a concurrent upload took the last slot, or the ledger
+   * write fails, the pair is deleted — STORAGE_FULL / 503 respectively — so
+   * no object exists that the quota or the orphan sweep cannot see.
    */
   async putImage(
     namespace: PhotoNamespace,
@@ -248,10 +250,16 @@ export class R2StorageService {
       try {
         await this.ledger.record(namespace, path, owner, full.length, thumb.length);
       } catch (err: any) {
-        this.logger.error(`Ledger write failed for ${namespace}/${path}, removing the upload: ${err?.message ?? err}`);
+        // Lost the race for the last slot (atomic re-check in `record`), or
+        // the ledger write failed: either way this pair must not stay behind.
+        const full = err instanceof HttpException && (err.getResponse() as any)?.code === 'STORAGE_FULL';
+        if (!full) {
+          this.logger.error(`Ledger write failed for ${namespace}/${path}, removing the upload: ${err?.message ?? err}`);
+        }
         await this.deleteImages(namespace, [path]).catch((cleanupErr: any) =>
           this.logger.error(`Could not clean up untracked ${namespace}/${path}: ${cleanupErr?.message ?? cleanupErr}`),
         );
+        if (full) throw err;
         throw new ServiceUnavailableException('Could not store the image');
       }
     }

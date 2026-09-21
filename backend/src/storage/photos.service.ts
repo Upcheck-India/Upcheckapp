@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import { R2StorageService } from './r2-storage.service';
 import { PhotoDeletionService, type PhotoDeletionReason } from './photo-deletion.service';
-import { LIVE_BYTES, NOT_PENDING, PHOTO_QUOTA, PhotoLedgerService } from './photo-ledger.service';
+import { LIVE_BYTES, NOT_PENDING, PhotoLedgerService } from './photo-ledger.service';
 import { removedPhotoTombstone } from '../health-observations/photo-removal.util';
 
 const isMissingSchema = (err: any) =>
@@ -75,7 +75,7 @@ export class PhotosService {
       );
     } catch (err) {
       if (!isMissingSchema(err)) throw err;
-      return { photos: 0, bytes: 0, limits: PHOTO_QUOTA, incomplete: true, farms: [], account: { photos: 0, bytes: 0 } };
+      return { photos: 0, bytes: 0, limits: await this.limits(userId), incomplete: true, farms: [], account: { photos: 0, bytes: 0 } };
     }
 
     const farms = new Map<string, FarmUsage>();
@@ -98,7 +98,7 @@ export class PhotosService {
     return {
       photos: all.reduce((s, f) => s + f.photos, account.photos),
       bytes: all.reduce((s, f) => s + f.bytes, account.bytes),
-      limits: PHOTO_QUOTA,
+      limits: await this.limits(userId),
       incomplete: await this.incomplete(userId),
       farms: all,
       account,
@@ -111,8 +111,15 @@ export class PhotosService {
       `SELECT f.user_id FROM ponds p JOIN farms f ON f.id = p.farm_id WHERE p.id = $1`,
       [pondId],
     );
-    const used = row ? await this.ledger.usageOf(row.user_id) : null;
-    return { photos: used?.photos ?? 0, bytes: used?.bytes ?? 0, limits: PHOTO_QUOTA };
+    if (!row) return { photos: 0, bytes: 0, limits: await this.limits(null) };
+    const used = await this.ledger.usageOf(row.user_id);
+    return { photos: used?.photos ?? 0, bytes: used?.bytes ?? 0, limits: await this.limits(row.user_id) };
+  }
+
+  /** The API shape of the account limit — always via `ledger.quotaFor`. */
+  private async limits(ownerUserId: string | null) {
+    const q = await this.ledger.quotaFor(ownerUserId ?? '');
+    return { photos: q.maxPhotos, bytes: q.maxBytes };
   }
 
   /**

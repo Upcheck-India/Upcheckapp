@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, type EntityManager } from 'typeorm';
 // Type-only: r2-storage.service imports this file; a value import would be circular.
 import type { PhotoNamespace } from './r2-storage.service';
 
@@ -25,6 +25,14 @@ export interface Usage {
   photos: number;
   bytes: number;
 }
+
+export interface Quota {
+  maxPhotos: number;
+  maxBytes: number;
+}
+
+const storageFull = () =>
+  new ForbiddenException({ statusCode: 403, code: 'STORAGE_FULL', message: 'Storage full — free up space' });
 
 /**
  * Bytes a ledger row costs right now: after F3 drops the full size only the
@@ -62,10 +70,18 @@ export class PhotoLedgerService {
     return row?.user_id ?? null;
   }
 
+  /**
+   * The ONE place an account's limit is read. Today the flat PHOTO_QUOTA for
+   * everyone; per-user overrides / plans plug in here.
+   */
+  async quotaFor(_ownerUserId: string): Promise<Quota> {
+    return { maxPhotos: PHOTO_QUOTA.photos, maxBytes: PHOTO_QUOTA.bytes };
+  }
+
   /** Live photos + bytes in `ownerUserId`'s pool. Null before the migration. */
-  async usageOf(ownerUserId: string): Promise<Usage | null> {
+  async usageOf(ownerUserId: string, manager?: EntityManager): Promise<Usage | null> {
     try {
-      const [row] = await this.db.query(
+      const [row] = await (manager ?? this.db).query(
         `SELECT count(*)::int AS photos, COALESCE(sum(${LIVE_BYTES}), 0)::bigint AS bytes
          FROM photo_objects o WHERE o.owner_user_id = $1 AND ${NOT_PENDING}`,
         [ownerUserId],
@@ -78,24 +94,26 @@ export class PhotoLedgerService {
   }
 
   /**
-   * Server-side quota (F2): refuse the PHOTO once the pool is full. Never
-   * called on a record save, so a full pool can never block logging.
-   * ponytail: count-then-put is not atomic; two racing uploads can land one
-   * photo over the line. Harmless at this size; a row lock if it ever matters.
+   * Server-side quota (F2), the cheap pre-check before anything is uploaded:
+   * a full account does not upload at all. Never called on a record save, so
+   * a full pool can never block logging. The guarantee is `record`, not this.
    */
   async assertRoom(ownerUserId: string): Promise<void> {
     const used = await this.usageOf(ownerUserId);
     if (!used) return;
-    if (used.photos >= PHOTO_QUOTA.photos || used.bytes >= PHOTO_QUOTA.bytes) {
-      throw new ForbiddenException(
-        { statusCode: 403, code: 'STORAGE_FULL', message: 'Storage full — free up space' },
-      );
-    }
+    const q = await this.quotaFor(ownerUserId);
+    if (used.photos >= q.maxPhotos || used.bytes >= q.maxBytes) throw storageFull();
   }
 
   /**
-   * Ledger row for a just-stored photo. Returns false (logged) when the table
-   * is not migrated; any other failure throws so the caller can undo the put.
+   * Ledger row for a just-stored photo, admitted ATOMICALLY per account: a
+   * transaction-scoped advisory lock on the owner serialises concurrent
+   * uploads, usage is re-summed under it, and the row goes in only if this
+   * photo still fits. Otherwise 403 STORAGE_FULL with nothing written, and
+   * the caller deletes the objects it just put.
+   *
+   * Returns false (logged) when the table is not migrated; any other failure
+   * throws so the caller can undo the put.
    */
   async record(
     namespace: PhotoNamespace,
@@ -104,25 +122,35 @@ export class PhotoLedgerService {
     bytesFull: number,
     bytesThumb: number,
   ): Promise<boolean> {
+    const q = await this.quotaFor(owner.ownerUserId);
     try {
-      await this.db.query(
-        `INSERT INTO photo_objects
-           (path, namespace, owner_user_id, farm_id, pond_id, entity, record_id, bytes_full, bytes_thumb, uploaded_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-         ON CONFLICT (path) DO NOTHING`,
-        [
-          path,
-          namespace,
+      await this.db.transaction(async (m) => {
+        await m.query(`SELECT pg_advisory_xact_lock(hashtextextended('photo_quota:' || $1, 0))`, [
           owner.ownerUserId,
-          owner.farmId ?? null,
-          owner.pondId ?? null,
-          owner.entity ?? null,
-          owner.recordId ?? null,
-          bytesFull,
-          bytesThumb,
-          owner.uploadedBy,
-        ],
-      );
+        ]);
+        const used = await this.usageOf(owner.ownerUserId, m);
+        if (used && (used.photos + 1 > q.maxPhotos || used.bytes + bytesFull + bytesThumb > q.maxBytes)) {
+          throw storageFull();
+        }
+        await m.query(
+          `INSERT INTO photo_objects
+             (path, namespace, owner_user_id, farm_id, pond_id, entity, record_id, bytes_full, bytes_thumb, uploaded_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           ON CONFLICT (path) DO NOTHING`,
+          [
+            path,
+            namespace,
+            owner.ownerUserId,
+            owner.farmId ?? null,
+            owner.pondId ?? null,
+            owner.entity ?? null,
+            owner.recordId ?? null,
+            bytesFull,
+            bytesThumb,
+            owner.uploadedBy,
+          ],
+        );
+      });
       return true;
     } catch (err: any) {
       if (isMissingSchema(err)) {
