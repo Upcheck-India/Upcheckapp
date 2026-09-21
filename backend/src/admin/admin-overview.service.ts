@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { isMissingSchema } from '../health-observations/health.constants';
+import { R2AnalyticsService } from '../storage/r2-analytics.service';
 
 export interface AdminOverview {
   signups: { today: number; last7d: number; last30d: number; total: number } | null;
@@ -12,6 +13,13 @@ export interface AdminOverview {
   photoDeletions: { failed: number; pending: number } | null;
   /** Only present once F2's photo_objects table exists. */
   storage: { objectCount: number; totalBytes: number } | null;
+  /**
+   * Admin photo-quota management (item 3): the real R2 bucket, from
+   * Cloudflare's GraphQL analytics — null whenever CLOUDFLARE_ANALYTICS_TOKEN
+   * / CLOUDFLARE_ACCOUNT_ID are unset or the API call fails. Each photo is 2
+   * R2 objects (full + thumb), so this is roughly 2x `storage.objectCount`.
+   */
+  r2Bucket: { objectCount: number; totalBytes: number } | null;
 }
 
 /**
@@ -27,10 +35,13 @@ export interface AdminOverview {
 export class AdminOverviewService {
   private readonly logger = new Logger(AdminOverviewService.name);
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly r2Analytics: R2AnalyticsService,
+  ) {}
 
   async get(): Promise<AdminOverview> {
-    const [signups, farms, ponds, cycles, feedback, photoDeletions, logsPerDay, storage] =
+    const [signups, farms, ponds, cycles, feedback, photoDeletions, logsPerDay, storage, r2Bucket] =
       await Promise.all([
         this.signups(),
         this.farms(),
@@ -40,8 +51,9 @@ export class AdminOverviewService {
         this.photoDeletions(),
         this.logsPerDay(),
         this.storage(),
+        this.r2Analytics.bucketStats(),
       ]);
-    return { signups, farms, ponds, cycles, feedback, photoDeletions, logsPerDay, storage };
+    return { signups, farms, ponds, cycles, feedback, photoDeletions, logsPerDay, storage, r2Bucket };
   }
 
   private async signups(): Promise<AdminOverview['signups']> {

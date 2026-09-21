@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
 import { R2StorageService } from './r2-storage.service';
 import { PhotoDeletionService, type PhotoDeletionReason } from './photo-deletion.service';
-import { LIVE_BYTES, NOT_PENDING, PhotoLedgerService } from './photo-ledger.service';
+import { LIVE_BYTES, NOT_PENDING, PHOTO_QUOTA, PhotoLedgerService } from './photo-ledger.service';
 import { removedPhotoTombstone } from '../health-observations/photo-removal.util';
 
 const isMissingSchema = (err: any) =>
@@ -103,6 +103,48 @@ export class PhotosService {
       farms: all,
       account,
     };
+  }
+
+  /**
+   * Admin "Top storage users" (item 1): the `limit` accounts using the most
+   * bytes, with their email and % of their own limit (override if they have
+   * one). No photo content, no paths — just the numbers, joined against
+   * `users` (scoped select) and `photo_quota_overrides` for the limit.
+   */
+  async topUsers(limit = 50) {
+    let rows: any[];
+    try {
+      rows = await this.db.query(
+        `SELECT o.owner_user_id, u.email,
+                count(*)::int AS photos, sum(${LIVE_BYTES})::bigint AS bytes,
+                ov.max_photos, ov.max_bytes
+         FROM photo_objects o
+         JOIN users u ON u.id = o.owner_user_id
+         LEFT JOIN photo_quota_overrides ov ON ov.user_id = o.owner_user_id
+         WHERE ${NOT_PENDING}
+         GROUP BY o.owner_user_id, u.email, ov.max_photos, ov.max_bytes
+         ORDER BY bytes DESC
+         LIMIT $1`,
+        [limit],
+      );
+    } catch (err) {
+      if (isMissingSchema(err)) return [];
+      throw err;
+    }
+    return rows.map((r) => {
+      const maxBytes = r.max_bytes !== null && r.max_bytes !== undefined ? Number(r.max_bytes) : PHOTO_QUOTA.bytes;
+      const maxPhotos = r.max_photos !== null && r.max_photos !== undefined ? Number(r.max_photos) : PHOTO_QUOTA.photos;
+      const bytes = num(r.bytes);
+      return {
+        userId: r.owner_user_id,
+        email: r.email,
+        photos: num(r.photos),
+        bytes,
+        limits: { photos: maxPhotos, bytes: maxBytes },
+        percentOfLimit: maxBytes > 0 ? Math.round((bytes / maxBytes) * 1000) / 10 : 0,
+        overridden: r.max_bytes !== null && r.max_bytes !== undefined,
+      };
+    });
   }
 
   /** The pool a pond's uploads count against (its farm owner's), for the picker. */

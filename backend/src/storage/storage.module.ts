@@ -6,11 +6,13 @@ import { AdminKeyGuard } from '../feedback/admin-key.guard';
 import { PhotoLedgerService } from './photo-ledger.service';
 import { PhotosService } from './photos.service';
 import { PhotosController } from './photos.controller';
+import { PhotoQuotaAdminController } from './photo-quota-admin.controller';
+import { R2AnalyticsService } from './r2-analytics.service';
 
 @Global()
 @Module({
-  controllers: [PhotosAdminController, PhotosController],
-  providers: [R2StorageService, PhotoDeletionService, PhotoLedgerService, PhotosService, AdminKeyGuard],
-  exports: [R2StorageService, PhotoDeletionService, PhotoLedgerService],
+  controllers: [PhotosAdminController, PhotosController, PhotoQuotaAdminController],
+  providers: [R2StorageService, PhotoDeletionService, PhotoLedgerService, PhotosService, AdminKeyGuard, R2AnalyticsService],
+  exports: [R2StorageService, PhotoDeletionService, PhotoLedgerService, R2AnalyticsService],
 })
 export class StorageModule {}

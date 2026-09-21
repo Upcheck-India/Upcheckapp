@@ -31,6 +31,15 @@ export interface Quota {
   maxBytes: number;
 }
 
+/** Admin photo-quota management: validation ceiling for a per-account override. */
+export const QUOTA_OVERRIDE_LIMITS = { maxPhotos: 100_000, maxBytes: 200 * 1024 ** 3 };
+
+export interface QuotaOverride extends Quota {
+  reason: string;
+  setBy: string;
+  setAt: string;
+}
+
 const storageFull = () =>
   new ForbiddenException({ statusCode: 403, code: 'STORAGE_FULL', message: 'Storage full — free up space' });
 
@@ -71,11 +80,138 @@ export class PhotoLedgerService {
   }
 
   /**
-   * The ONE place an account's limit is read. Today the flat PHOTO_QUOTA for
-   * everyone; per-user overrides / plans plug in here.
+   * The ONE place an account's limit is read — used inside `record()`'s
+   * per-owner advisory lock, so this must stay cheap and never throw for a
+   * missing table. Admin photo-quota management: a row in
+   * `photo_quota_overrides` wins over the flat PHOTO_QUOTA default; no row
+   * (or the table not migrated yet) falls back to the default, logged once
+   * via `isMissingSchema` the same as every other ledger read.
    */
-  async quotaFor(_ownerUserId: string): Promise<Quota> {
+  async quotaFor(ownerUserId: string): Promise<Quota> {
+    try {
+      const [row] = await this.db.query(
+        `SELECT max_photos, max_bytes FROM photo_quota_overrides WHERE user_id = $1`,
+        [ownerUserId],
+      );
+      if (row) return { maxPhotos: Number(row.max_photos), maxBytes: Number(row.max_bytes) };
+    } catch (err) {
+      if (!isMissingSchema(err)) throw err;
+    }
     return { maxPhotos: PHOTO_QUOTA.photos, maxBytes: PHOTO_QUOTA.bytes };
+  }
+
+  /** The override row for one account, or null when it has none / isn't migrated. */
+  async getOverride(ownerUserId: string): Promise<QuotaOverride | null> {
+    try {
+      const [row] = await this.db.query(
+        `SELECT max_photos, max_bytes, reason, set_by, set_at FROM photo_quota_overrides WHERE user_id = $1`,
+        [ownerUserId],
+      );
+      if (!row) return null;
+      return {
+        maxPhotos: Number(row.max_photos),
+        maxBytes: Number(row.max_bytes),
+        reason: row.reason,
+        setBy: row.set_by,
+        setAt: row.set_at,
+      };
+    } catch (err) {
+      if (isMissingSchema(err)) return null;
+      throw err;
+    }
+  }
+
+  /**
+   * Set (insert or replace) an account's override and append the event —
+   * one transaction, so a crash between the two never loses the audit trail
+   * for a limit that did in fact change. Fail-safe: throws ForbiddenException
+   * with a clear message when the table isn't migrated yet, rather than
+   * silently doing nothing (unlike a read, an admin mutation should not look
+   * like it worked when it didn't).
+   */
+  async setOverride(
+    ownerUserId: string,
+    quota: Quota,
+    reason: string,
+    setBy: string,
+  ): Promise<QuotaOverride> {
+    try {
+      return await this.db.transaction(async (m) => {
+        const [row] = await m.query(
+          `INSERT INTO photo_quota_overrides (user_id, max_photos, max_bytes, reason, set_by, set_at)
+           VALUES ($1, $2, $3, $4, $5, now())
+           ON CONFLICT (user_id) DO UPDATE
+             SET max_photos = EXCLUDED.max_photos, max_bytes = EXCLUDED.max_bytes,
+                 reason = EXCLUDED.reason, set_by = EXCLUDED.set_by, set_at = EXCLUDED.set_at
+           RETURNING max_photos, max_bytes, reason, set_by, set_at`,
+          [ownerUserId, quota.maxPhotos, quota.maxBytes, reason, setBy],
+        );
+        await m.query(
+          `INSERT INTO photo_quota_override_events (user_id, action, max_photos, max_bytes, reason, set_by)
+           VALUES ($1, 'set', $2, $3, $4, $5)`,
+          [ownerUserId, quota.maxPhotos, quota.maxBytes, reason, setBy],
+        );
+        return {
+          maxPhotos: Number(row.max_photos),
+          maxBytes: Number(row.max_bytes),
+          reason: row.reason,
+          setBy: row.set_by,
+          setAt: row.set_at,
+        };
+      });
+    } catch (err) {
+      if (isMissingSchema(err)) {
+        this.logger.warn('photo_quota_overrides not migrated; override was not saved.');
+        throw new ForbiddenException(
+          'Photo quota overrides are not available yet (migration not applied).',
+        );
+      }
+      throw err;
+    }
+  }
+
+  /** Back to the flat default — removes the override row, keeps the event trail. */
+  async resetOverride(ownerUserId: string, reason: string, setBy: string): Promise<void> {
+    try {
+      await this.db.transaction(async (m) => {
+        await m.query(`DELETE FROM photo_quota_overrides WHERE user_id = $1`, [ownerUserId]);
+        await m.query(
+          `INSERT INTO photo_quota_override_events (user_id, action, max_photos, max_bytes, reason, set_by)
+           VALUES ($1, 'reset', NULL, NULL, $2, $3)`,
+          [ownerUserId, reason, setBy],
+        );
+      });
+    } catch (err) {
+      if (isMissingSchema(err)) {
+        this.logger.warn('photo_quota_overrides not migrated; reset was a no-op.');
+        return;
+      }
+      throw err;
+    }
+  }
+
+  /** Full history for an account, newest first — the audit trail for §2. */
+  async overrideHistory(ownerUserId: string): Promise<
+    { action: string; maxPhotos: number | null; maxBytes: number | null; reason: string; setBy: string; createdAt: string }[]
+  > {
+    try {
+      const rows = await this.db.query(
+        `SELECT action, max_photos, max_bytes, reason, set_by, created_at
+         FROM photo_quota_override_events WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100`,
+        [ownerUserId],
+      );
+      return rows.map((r: any) => ({
+        action: r.action,
+        maxPhotos: r.max_photos === null ? null : Number(r.max_photos),
+        maxBytes: r.max_bytes === null ? null : Number(r.max_bytes),
+        reason: r.reason,
+        setBy: r.set_by,
+        createdAt: r.created_at,
+      }));
+    } catch (err) {
+      if (isMissingSchema(err)) return [];
+      throw err;
+    }
   }
 
   /** Live photos + bytes in `ownerUserId`'s pool. Null before the migration. */
