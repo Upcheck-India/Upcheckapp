@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
   ServiceUnavailableException,
   Logger,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,6 +15,7 @@ import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { User } from './user.entity';
 import { RedisService } from '../redis/redis.service';
+import { openTotpSecret, sealTotpSecret, totpKeyState } from './totp-secret-cipher';
 
 /**
  * Schema-drift guard: a migration that adds a `User` column/table can land in
@@ -43,7 +45,7 @@ function isSchemaDrift(err: any): boolean {
  *      and flip `is2faEnabled`.
  */
 @Injectable()
-export class TwoFactorService {
+export class TwoFactorService implements OnModuleInit {
   private readonly logger = new Logger(TwoFactorService.name);
   private static readonly PENDING_PREFIX = '2fa:pending:';
   private static readonly PENDING_TTL_SECONDS = 600;
@@ -59,6 +61,49 @@ export class TwoFactorService {
     private readonly usersRepository: Repository<User>,
     private readonly redisService: RedisService,
   ) {}
+
+  /** C5.3: say so at boot when secrets will be written in plaintext. */
+  onModuleInit(): void {
+    const keyState = totpKeyState();
+    if (keyState !== 'ok') {
+      this.logger.warn(
+        keyState === 'missing'
+          ? 'TOTP_ENCRYPTION_KEY is not set — 2FA secrets are stored in plaintext (C5.3).'
+          : 'TOTP_ENCRYPTION_KEY is not 32 bytes of base64 — ignored; 2FA secrets are stored in plaintext (C5.3).',
+      );
+    }
+  }
+
+  /**
+   * C5.3: check `token` against the user's stored (possibly encrypted) secret.
+   * A secret neither key can open fails closed for this user only — their
+   * backup codes still work. A plaintext or previous-key secret that verifies
+   * is re-sealed with the current key in place (lazy migration).
+   */
+  private async checkTotp(user: User, token: string): Promise<boolean> {
+    const stored = user.totpSecret;
+    if (!stored) return false;
+    const { secret, stale } = openTotpSecret(stored);
+    if (secret === null) {
+      this.logger.error(
+        `2FA secret for user ${user.id} could not be decrypted (wrong/missing TOTP_ENCRYPTION_KEY or tampered row) — TOTP refused.`,
+      );
+      return false;
+    }
+    if (!authenticator.verify({ token, secret })) return false;
+    if (stale) {
+      const sealed = sealTotpSecret(secret);
+      try {
+        // Compare-and-swap on the old value: touches only this column and
+        // never overwrites a concurrent enable/disable.
+        await this.usersRepository.update({ id: user.id, totpSecret: stored }, { totpSecret: sealed });
+        user.totpSecret = sealed;
+      } catch (err: any) {
+        this.logger.warn(`Could not re-encrypt 2FA secret for user ${user.id}: ${err?.message ?? err}`);
+      }
+    }
+    return true;
+  }
 
   private async getUser(userId: string): Promise<User> {
     const user = await this.usersRepository.findOneBy({ id: userId });
@@ -141,7 +186,7 @@ export class TwoFactorService {
     }
 
     const user = await this.getUser(userId);
-    user.totpSecret = secret;
+    user.totpSecret = sealTotpSecret(secret);
     user.is2faEnabled = true;
     const backupCodes = await this.generateAndStoreBackupCodes(user); // saves the user
     await this.redisService.del(`${TwoFactorService.PENDING_PREFIX}${userId}`);
@@ -161,7 +206,7 @@ export class TwoFactorService {
     if (!user.is2faEnabled || !user.totpSecret) {
       return { enabled: false };
     }
-    if (!authenticator.verify({ token, secret: user.totpSecret })) {
+    if (!(await this.checkTotp(user, token))) {
       throw new UnauthorizedException('Invalid verification code');
     }
     user.is2faEnabled = false;
@@ -195,7 +240,7 @@ export class TwoFactorService {
         'Two-factor authentication is not enabled.',
       );
     }
-    if (!authenticator.verify({ token, secret: user.totpSecret })) {
+    if (!(await this.checkTotp(user, token))) {
       throw new UnauthorizedException('Invalid verification code');
     }
     const backupCodes = await this.generateAndStoreBackupCodes(user);
@@ -269,7 +314,7 @@ export class TwoFactorService {
   async verifyCode(userId: string, token: string): Promise<boolean> {
     const user = await this.usersRepository.findOneBy({ id: userId });
     if (!user?.is2faEnabled || !user.totpSecret) return false;
-    return authenticator.verify({ token, secret: user.totpSecret });
+    return this.checkTotp(user, token);
   }
 
   /**
@@ -281,7 +326,7 @@ export class TwoFactorService {
   async verifyCodeOrBackup(userId: string, token: string): Promise<boolean> {
     const user = await this.usersRepository.findOneBy({ id: userId });
     if (!user?.is2faEnabled || !user.totpSecret) return false;
-    if (authenticator.verify({ token, secret: user.totpSecret })) return true;
+    if (await this.checkTotp(user, token)) return true;
 
     // Backup-code path: consume the matched code atomically. Two concurrent
     // challenges submitting the SAME code (or two different codes) would

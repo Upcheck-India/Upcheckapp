@@ -38,6 +38,8 @@ You MUST set these variables (they have `sync: false` in render.yaml, meaning th
 | `REDIS_URL` | Redis connection URL (app falls back to in-memory if not set) |
 | `BREVO_API_KEY` | Brevo email API key |
 | `TRUECALLER_CLIENT_ID` | Truecaller SDK client ID |
+| `TOTP_ENCRYPTION_KEY` | Encrypts 2FA secrets at rest (32 bytes, base64). Unset = plaintext, as before. See "2FA secret encryption" below |
+| `TOTP_ENCRYPTION_KEY_PREVIOUS` | Old key, decrypt-only, only while rotating |
 
 ### 3. DATABASE_URL Format
 
@@ -178,3 +180,43 @@ setup section above) before relying on `GET /admin/access-log` or expecting
 rows to actually persist. Until it's applied, admin requests still work
 normally; logging degrades to a warning in the Render logs instead of
 failing anything (see `isMissingTable` in `AdminAccessLogService`).
+
+## 2FA secret encryption (`TOTP_ENCRYPTION_KEY`)
+
+`users.totp_secret` is stored as `enc:v1:<iv>:<tag>:<ciphertext>` (AES-256-GCM)
+once a key is set. Without a key the backend keeps writing plaintext exactly as
+before and logs a warning at boot — a missing key never blocks a 2FA sign-in.
+Reads accept both forms, so the steps below are zero-downtime.
+
+**Keep the key somewhere besides Render** (a password manager). Losing it means
+every enrolled user's TOTP stops working — they can still sign in with a
+backup code and re-enrol, but nobody can recover the secrets.
+
+### 1. Turn it on
+
+1. Generate a key: `openssl rand -base64 32`
+   (or `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`).
+2. Set `TOTP_ENCRYPTION_KEY` on the backend's Render service and deploy.
+   From then on, new enrolments are encrypted, and an existing plaintext
+   secret is re-encrypted the next time its user passes a 2FA check.
+3. Encrypt the rest now, from a machine with the production DB env
+   (`typeorm.config.ts`) and the same key:
+   ```
+   npx ts-node scripts/encrypt-totp-secrets.ts            # dry run: counts only
+   npx ts-node scripts/encrypt-totp-secrets.ts --apply
+   ```
+   A re-run should report 0 to seal. Any row listed as UNREADABLE was not
+   touched — investigate before going further.
+
+### 2. Rotate the key
+
+1. Generate a new key. Set `TOTP_ENCRYPTION_KEY_PREVIOUS` = the current key and
+   `TOTP_ENCRYPTION_KEY` = the new one; deploy. Both keys now decrypt; writes
+   use the new one.
+2. Run `scripts/encrypt-totp-secrets.ts --apply` with both vars set — it
+   re-seals every row still under the old key.
+3. When a dry run reports 0 under the previous key, delete
+   `TOTP_ENCRYPTION_KEY_PREVIOUS` and deploy.
+
+**Never remove the key once rows are encrypted** — those users' TOTP would
+fail (closed, with an error per user in the logs) until it is restored.
