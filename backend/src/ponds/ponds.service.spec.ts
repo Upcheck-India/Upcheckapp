@@ -16,6 +16,7 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import { PondDimensionService } from './pond-dimension.service';
 import { PondNamingService } from './pond-naming.service';
 import { CreatePondDto } from './dto/create-pond.dto';
+import { PhotoDeletionService } from '../storage/photo-deletion.service';
 
 describe('PondsService', () => {
   let service: PondsService;
@@ -26,6 +27,8 @@ describe('PondsService', () => {
   let dimensionService: any;
   let namingService: any;
   let dataSource: any;
+  let mockTransactionManager: any;
+  let photoDeletions: { healthRefs: jest.Mock; enqueue: jest.Mock };
 
   const mockFarm = {
     id: 'farm-1',
@@ -122,8 +125,13 @@ describe('PondsService', () => {
         ]),
     };
 
-    const mockTransactionManager = {
+    mockTransactionManager = {
       save: jest.fn().mockImplementation((entities) => entities),
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    photoDeletions = {
+      healthRefs: jest.fn().mockResolvedValue([]),
+      enqueue: jest.fn().mockResolvedValue(true),
     };
     dataSource = {
       transaction: jest
@@ -160,6 +168,7 @@ describe('PondsService', () => {
         { provide: PondNamingService, useValue: namingService },
         { provide: DataSource, useValue: dataSource },
         { provide: FarmAccessService, useValue: farmAccess },
+        { provide: PhotoDeletionService, useValue: photoDeletions },
       ],
     }).compile();
 
@@ -460,10 +469,27 @@ describe('PondsService', () => {
   describe('remove', () => {
     it('should delete pond', async () => {
       pondsRepository.findOne.mockResolvedValue(mockPond);
-      pondsRepository.delete.mockResolvedValue({ affected: 1 });
 
       const result = await service.remove('pond-1', 'user-1');
+      expect(mockTransactionManager.delete).toHaveBeenCalledWith(Pond, 'pond-1');
       expect(result.message).toContain('deleted');
+    });
+
+    it("F1: queues the pond's health-check photos in the delete's transaction", async () => {
+      pondsRepository.findOne.mockResolvedValue(mockPond);
+      const refs = [{ namespace: 'health', path: 'farm-1/x.webp' }];
+      photoDeletions.healthRefs.mockResolvedValue(refs);
+      const order: string[] = [];
+      photoDeletions.enqueue.mockImplementation(async () => { order.push('enqueue'); return true; });
+      mockTransactionManager.delete.mockImplementation(async () => { order.push('delete'); return { affected: 1 }; });
+
+      await service.remove('pond-1', 'user-1');
+
+      const [sql, params] = photoDeletions.healthRefs.mock.calls[0];
+      expect(sql).toMatch(/FROM health_observations WHERE pond_id = \$1/);
+      expect(params).toEqual(['pond-1']);
+      expect(photoDeletions.enqueue).toHaveBeenCalledWith(refs, 'pond_deleted', 'user-1', mockTransactionManager);
+      expect(order).toEqual(['enqueue', 'delete']);
     });
 
     it('should throw when active cycle exists', async () => {
@@ -484,7 +510,8 @@ describe('PondsService', () => {
       await expect(service.remove('pond-1', 'user-1')).rejects.toThrow(
         ConflictException,
       );
-      expect(pondsRepository.delete).not.toHaveBeenCalled();
+      expect(mockTransactionManager.delete).not.toHaveBeenCalled();
+      expect(photoDeletions.enqueue).not.toHaveBeenCalled();
     });
   });
 

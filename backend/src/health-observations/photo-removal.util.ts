@@ -3,12 +3,11 @@ import type { EntityManager } from 'typeorm';
 import { HealthPhotoStorageService } from './health-photo-storage.service';
 
 /**
- * P2: when an edit drops a photo path from a saved record, delete the
- * object(s) directly (F1's deletion queue doesn't exist yet — logged, not
- * thrown, so a storage hiccup never blocks saving the record) and return a
- * tombstone line for the record's own free-text field, so removing a photo
- * is never a silent gap.
- * // F1: once `photo_deletions` ships, enqueue instead of deleting inline.
+ * P2: which photo paths an edit drops from a saved record, plus a tombstone
+ * line for the record's own free-text field, so removing a photo is never a
+ * silent gap. Deletes nothing: the caller saves the record, THEN calls
+ * `enqueueRemovedPhotos` — the other order could queue the deletion of a
+ * photo the record still points at if the save failed.
  *
  * ponytail: the spec scopes the tombstone to photos already exported into a
  * D4 cycle input record; that record is generated on demand from live rows,
@@ -18,21 +17,13 @@ import { HealthPhotoStorageService } from './health-photo-storage.service';
  */
 export async function removedPhotoTombstone(
   manager: EntityManager,
-  photos: HealthPhotoStorageService,
-  logger: Logger,
   current: string[] | null | undefined,
   next: string[] | undefined,
   userId: string | undefined,
-): Promise<string | null> {
-  if (next === undefined) return null;
+): Promise<{ removed: string[]; tombstone: string | null }> {
+  if (next === undefined) return { removed: [], tombstone: null };
   const removed = (current ?? []).filter((p) => !next.includes(p));
-  if (!removed.length) return null;
-
-  await photos
-    .remove(removed)
-    .catch((err: any) =>
-      logger.warn(`Could not delete removed photo(s) ${removed.join(', ')}: ${err?.message ?? err}`),
-    );
+  if (!removed.length) return { removed, tombstone: null };
 
   let name = 'a team member';
   if (userId) {
@@ -45,5 +36,28 @@ export async function removedPhotoTombstone(
     }
   }
   const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  return `${removed.length} photo${removed.length > 1 ? 's' : ''} removed by ${name} on ${date}`;
+  return {
+    removed,
+    tombstone: `${removed.length} photo${removed.length > 1 ? 's' : ''} removed by ${name} on ${date}`,
+  };
+}
+
+/**
+ * F1: queue the dropped photos after the record saved. Logged, not thrown —
+ * the edit has already committed, and failing it now would only confuse.
+ * ponytail: not in the save's transaction (the repos' plain `update` is
+ * kept); a failed enqueue here leaves an orphan, logged with its keys.
+ */
+export async function enqueueRemovedPhotos(
+  photos: HealthPhotoStorageService,
+  logger: Logger,
+  removed: string[],
+  userId: string | undefined,
+): Promise<void> {
+  if (!removed.length) return;
+  await photos
+    .remove(removed, 'photo_removed', userId)
+    .catch((err: any) =>
+      logger.error(`Could not queue removed photo(s) ${removed.join(', ')}: ${err?.message ?? err}`),
+    );
 }

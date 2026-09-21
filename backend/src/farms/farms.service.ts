@@ -22,6 +22,7 @@ import {
   RolePolicy,
   invalidPolicyKey,
 } from '../farm-access/farm-capability';
+import { PhotoDeletionService } from '../storage/photo-deletion.service';
 
 /**
  * Roles that see a farm's district but never its raw coordinates (spec
@@ -39,6 +40,7 @@ export class FarmsService {
     @InjectRepository(FarmMember)
     private readonly farmMembersRepository: Repository<FarmMember>,
     private readonly farmAccess: FarmAccessService,
+    private readonly photoDeletions: PhotoDeletionService,
   ) {}
 
   /**
@@ -436,8 +438,17 @@ export class FarmsService {
       });
     }
 
-    // Soft delete
-    await this.farmsRepository.update(id, { deletedAt: new Date() });
+    // Soft delete. F1: every photo is keyed `<farmId>/…`, so the farm's whole
+    // `health/<farmId>/` prefix is queued for R2 deletion with it.
+    await this.farmsRepository.manager.transaction(async (m) => {
+      await this.photoDeletions.enqueue(
+        [{ namespace: 'health', path: `${id}/` }],
+        'farm_deleted',
+        callerId,
+        m,
+      );
+      await m.update(Farm, id, { deletedAt: new Date() });
+    });
     return { message: 'Farm deleted successfully' };
   }
 }

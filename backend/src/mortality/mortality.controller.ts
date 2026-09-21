@@ -54,7 +54,7 @@ export class MortalityController {
   @Delete(':id')
   @UseGuards(OwnershipGuard)
   @OwnsResource('MortalityRecord', 'id', 'crop.pond.farm.userId')
-  remove(@Param('id') id: string) {
-    return this.mortalityService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user) {
+    return this.mortalityService.remove(id, user?.id);
   }
 }

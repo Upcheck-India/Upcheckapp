@@ -19,6 +19,7 @@ import { PondDimensionService } from './pond-dimension.service';
 import { PondNamingService } from './pond-naming.service';
 import { PageOptionsDto } from '../common/dto/page-options.dto';
 import { PageMetaDto, PageDto } from '../common/dto/page.dto';
+import { PhotoDeletionService } from '../storage/photo-deletion.service';
 
 @Injectable()
 export class PondsService {
@@ -32,6 +33,7 @@ export class PondsService {
     private namingService: PondNamingService,
     private dataSource: DataSource,
     private farmAccess: FarmAccessService,
+    private readonly photoDeletions: PhotoDeletionService,
   ) {}
 
   /**
@@ -491,7 +493,16 @@ export class PondsService {
       );
     }
 
-    await this.pondsRepository.delete(id);
+    // F1: health checks cascade with the pond (it has no crops, so no
+    // mortality/disease rows); their photos are queued in the same transaction.
+    const photos = await this.photoDeletions.healthRefs(
+      `SELECT unnest(photo_urls) AS path FROM health_observations WHERE pond_id = $1`,
+      [id],
+    );
+    await this.dataSource.transaction(async (m) => {
+      await this.photoDeletions.enqueue(photos, 'pond_deleted', userId, m);
+      await m.delete(Pond, id);
+    });
     return { message: 'Pond deleted successfully' };
   }
 

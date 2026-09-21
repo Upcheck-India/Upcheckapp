@@ -134,7 +134,7 @@ export class HealthObservationsService {
       'WRITE_OPERATIONAL',
     );
     this.photos.assertFarmPaths(pond.farmId, [path]);
-    await this.photos.remove([path]);
+    await this.photos.remove([path], 'photo_removed', userId);
     return { removed: true };
   }
 }

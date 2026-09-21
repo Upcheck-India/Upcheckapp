@@ -3,6 +3,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AlertCenterService } from './alert-center.service';
 import { EngineAlertService } from './engine-alert.service';
 import type { AlertSeverity } from './alert-center.service';
+import { PhotoDeletionService } from '../storage/photo-deletion.service';
 
 interface EmitBody {
   pondId?: string;
@@ -20,6 +21,7 @@ export class AlertCenterController {
   constructor(
     private readonly service: AlertCenterService,
     private readonly engineAlerts: EngineAlertService,
+    private readonly photoDeletions: PhotoDeletionService,
   ) {}
 
   /** Per-pond morning briefing from the caller's unread (persisted) alerts. */
@@ -34,6 +36,7 @@ export class AlertCenterController {
    */
   @Get('live-briefing')
   liveBriefing(@CurrentUser() user) {
+    this.photoDeletions.drainSoon(); // F1: lazy R2 drain, never awaited
     return this.engineAlerts.liveBriefing(user.id);
   }
 
@@ -47,6 +50,7 @@ export class AlertCenterController {
    */
   @Get('today')
   today(@CurrentUser() user) {
+    this.photoDeletions.drainSoon(); // F1: lazy R2 drain, never awaited
     return this.engineAlerts.today(user.id);
   }
 
