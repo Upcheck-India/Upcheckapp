@@ -41,6 +41,11 @@ if (!_existingCrypto || !_existingCrypto.subtle) {
     }
 }
 
+// Defines the background-sync task at module scope so it exists on a
+// headless start (Android waking the JS engine just to run it, no screen
+// ever mounted). See src/sync/backgroundSync.ts.
+import './src/sync/backgroundSync';
+
 import App from './App';
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
