@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../query/hooks';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -203,10 +203,6 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { pondId, pondName, cropId, farmId } = route.params ?? {};
 
-    // List state
-    const [plans, setPlans] = useState<HarvestPlan[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
     const [actioningId, setActioningId] = useState<string | null>(null);
 
     const { canRecordHarvest, canViewFinancials } = usePermissions(farmId);
@@ -244,32 +240,27 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
     // Fetch
     // ------------------------------------------------------------------
 
-    const fetchPlans = useCallback(async (refreshing = false) => {
-        if (!refreshing) setIsLoading(true);
-        try {
-            const { data } = await harvestPlansApi.getAll(pondId);
-            setPlans(data);
-        } catch (err: any) {
+    // Last list paints instantly; every focus revalidates.
+    const query = useCachedFetch(
+        ['harvestPlans', pondId],
+        async (): Promise<HarvestPlan[]> => (await harvestPlansApi.getAll(pondId)).data,
+    );
+    const plans = query.data ?? [];
+    const isLoading = query.isInitialLoading;
+    const isRefreshing = query.isRefreshing;
+    const handleRefresh = query.refresh;
+    const fetchPlans = query.refetch;
+
+    // A failed load still says so, as it always did.
+    useEffect(() => {
+        if (query.error) {
             Alert.alert(
                 t('common.error', 'Error'),
-                apiErrorMessage(err, t('harvestPlans.loadFailed', 'Failed to load harvest plans')),
+                apiErrorMessage(query.error, t('harvestPlans.loadFailed', 'Failed to load harvest plans')),
             );
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
         }
-    }, [pondId, t]);
-
-    useFocusEffect(
-        useCallback(() => {
-            void fetchPlans();
-        }, [fetchPlans]),
-    );
-
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        void fetchPlans(true);
-    }, [fetchPlans]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [query.errorUpdatedAt]);
 
     // ------------------------------------------------------------------
     // Complete

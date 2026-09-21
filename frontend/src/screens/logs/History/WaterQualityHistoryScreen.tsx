@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useCachedFetch } from '../../../query/hooks';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
@@ -80,10 +80,18 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
         { key: 'nitrite', label: t('history.waterQualityMetricNitrite'), color: theme.roles.light.borderBrand, get: (r) => r.nitrite },
         { key: 'alkalinity', label: t('history.waterQualityMetricAlkalinity'), color: '#607D8B', get: (r) => r.alkalinity },
     ];
-    const [records, setRecords] = useState<WaterQualityRecord[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [error, setError] = useState<any>(null);
+    // Paints the last list instantly and revalidates on every focus.
+    const { data, isInitialLoading: isLoading, isRefreshing, error, refresh: handleRefresh, refetch: fetchRecords } = useCachedFetch(
+        ['waterQualityHistory', pondId ?? null],
+        async (): Promise<WaterQualityRecord[]> => {
+            const response = await waterQualityApi.getAll(pondId, { take: 100 });
+            const result = response.data;
+            const pondRecords: WaterQualityRecord[] = Array.isArray(result) ? result : (result as any).data || [];
+            return pondRecords.sort((a, b) => new Date(b.recordedAt || '').getTime() - new Date(a.recordedAt || '').getTime());
+        },
+    );
+    const records = data ?? [];
+    const handleRetry = handleRefresh;
     const [selectedParams, setSelectedParams] = useState<string[]>(['ph', 'do']);
     // Active-crop species drives the per-species five-zone thresholds; defaults to
     // vannamei and falls back gracefully if the crop can't be fetched.
@@ -98,28 +106,6 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
                 : [...prev, key],
         );
     }, []);
-
-    const fetchRecords = useCallback(async (forceRefresh = false) => {
-        if (!forceRefresh) setIsLoading(true);
-        setError(null);
-
-        try {
-            const response = await waterQualityApi.getAll(pondId, { take: 100 });
-            const result = response.data;
-            const pondRecords: WaterQualityRecord[] = Array.isArray(result) ? result : (result as any).data || [];
-            pondRecords.sort((a, b) => new Date(b.recordedAt || '').getTime() - new Date(a.recordedAt || '').getTime());
-            setRecords(pondRecords);
-        } catch (err) {
-            setError(err);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [pondId]);
-
-    // Refetch on focus, not just mount — this screen stays mounted in the
-    // stack, so logging a new reading and navigating back never showed it.
-    useFocusEffect(useCallback(() => { fetchRecords(); }, [fetchRecords]));
 
     useEffect(() => {
         if (!cropId) return;
@@ -141,16 +127,6 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
         };
     }, [cropId]);
 
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
-
-    const handleRetry = useCallback(() => {
-        setIsLoading(true);
-        fetchRecords(true);
-    }, [fetchRecords]);
-
     const handleDelete = useCallback((id: string) => {
         Alert.alert(
             t('common.delete') + ' ' + t('common.date'),
@@ -163,7 +139,7 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
                     onPress: async () => {
                         try {
                             await waterQualityApi.remove(id);
-                            fetchRecords(true);
+                            void fetchRecords();
                         } catch (err: any) {
                             Alert.alert(t('common.error'), apiErrorMessage(err, t('history.waterQualityDeleteError')));
                         }
@@ -171,6 +147,7 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
                 },
             ],
         );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [fetchRecords]);
 
     // Build the overlay from records that have every selected parameter present

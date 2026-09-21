@@ -251,14 +251,14 @@ export class FarmsService {
         : { id: In(farmIds), archivedAt: IsNull() },
     });
     // Per-farm role: the same user can own one farm and only work another.
-    // farmIds is typically small (a person's own farm list), so one role
-    // lookup per farm is fine here; getFarmIdsWithCapability's batch pattern
-    // is worth reaching for only if this list grows large in practice.
-    return Promise.all(
-      farms.map(async (farm) => {
-        const role = await this.farmAccess.getRoleOnFarm(userId, farm.id);
-        return this.stripCoordinatesForRole(farm, role);
-      }),
+    // Resolved in one batch — this was two queries per farm on the Home and
+    // Farms screens' most frequent read.
+    const grants = await this.farmAccess.getMembershipsOnFarms(
+      userId,
+      farms.map((f) => f.id),
+    );
+    return farms.map((farm) =>
+      this.stripCoordinatesForRole(farm, grants.get(farm.id)?.role ?? null),
     );
   }
 

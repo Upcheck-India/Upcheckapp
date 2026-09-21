@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useCachedFetch } from '../../query/hooks';
+import { StaleNotice } from '../../components/ui/CacheNotice';
 import {
     View,
     Text,
@@ -46,10 +47,6 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
         { key: 'expense', label: t('finance.filterExpense') },
     ];
 
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [summary, setSummary] = useState<TransactionSummary | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
     const [filter, setFilter] = useState<FilterKey>('all');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showForm, setShowForm] = useState(false);
@@ -85,50 +82,39 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
         };
     }, [farmId]);
 
-    const fetchAll = useCallback(async (activeFilter: FilterKey = filter) => {
-        try {
-            const typeParam =
-                activeFilter === 'all' ? undefined : (activeFilter as 'income' | 'expense');
+    // Last copy per (farm, filter) paints instantly; every focus revalidates.
+    const query = useCachedFetch(['transactions', farmId ?? null, filter], async () => {
+        const typeParam = filter === 'all' ? undefined : (filter as 'income' | 'expense');
 
-            // "All ›" from the combined Money tab navigates here with NO farm,
-            // deliberately, so the ledger shows every farm. The summary
-            // endpoint is per-farm and was still called — `/transactions/farm/
-            // undefined/summary` — which rejected, took the whole Promise.all
-            // down with it and left the farmer staring at an error alert over
-            // an empty list. No farm, no summary card; the list still loads.
-            const [txRes, sumRes] = await Promise.all([
-                transactionsApi.getAll(farmId, typeParam),
-                farmId ? transactionsApi.getSummary(farmId) : Promise.resolve(null),
-            ]);
-            setTransactions(txRes.data);
-            setSummary(sumRes?.data ?? null);
-        } catch (err: any) {
-            Alert.alert(t('common.error'), apiErrorMessage(err, t('finance.loadError')));
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [farmId, filter]);
+        // "All ›" from the combined Money tab navigates here with NO farm,
+        // deliberately, so the ledger shows every farm. The summary
+        // endpoint is per-farm and was still called — `/transactions/farm/
+        // undefined/summary` — which rejected, took the whole Promise.all
+        // down with it and left the farmer staring at an error alert over
+        // an empty list. No farm, no summary card; the list still loads.
+        const [txRes, sumRes] = await Promise.all([
+            transactionsApi.getAll(farmId, typeParam),
+            farmId ? transactionsApi.getSummary(farmId) : Promise.resolve(null),
+        ]);
+        return {
+            transactions: txRes.data as Transaction[],
+            summary: (sumRes?.data ?? null) as TransactionSummary | null,
+        };
+    });
+    const transactions = query.data?.transactions ?? [];
+    const summary = query.data?.summary ?? null;
+    const isLoading = query.isInitialLoading;
+    const isRefreshing = query.isRefreshing;
 
-    // Initial load
-    // Refetch on FOCUS, not on mount. React Navigation keeps a screen mounted
-    // once opened, so a mount-only effect never ran again — the page kept
-    // showing figures from before whatever was just logged elsewhere.
-    useFocusEffect(React.useCallback(() => {
-        fetchAll();
+    // A failed load still says so, as it always did.
+    useEffect(() => {
+        if (query.error) Alert.alert(t('common.error'), apiErrorMessage(query.error, t('finance.loadError')));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []));
+    }, [query.errorUpdatedAt]);
 
-    const handleFilterChange = useCallback((key: FilterKey) => {
-        setFilter(key);
-        setIsLoading(true);
-        fetchAll(key);
-    }, [fetchAll]);
+    const handleFilterChange = useCallback((key: FilterKey) => setFilter(key), []);
 
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchAll(filter);
-    }, [fetchAll, filter]);
+    const handleRefresh = query.refresh;
 
     const resetForm = () => {
         setFormAmount('');
@@ -173,8 +159,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
             await transactionsApi.create(payload);
             resetForm();
             setShowForm(false);
-            setIsLoading(true);
-            await fetchAll(filter);
+            await query.refetch();
         } catch (err: any) {
             setFormError(apiErrorMessage(err, t('finance.saveTransactionError')));
         } finally {
@@ -573,6 +558,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
                 <View style={styles.headerSpacer} />
             </View>
 
+            <StaleNotice visible={!!query.error && query.data !== undefined} />
             <FlatList
                 data={transactions}
                 keyExtractor={(item) => item.id}

@@ -264,14 +264,11 @@ export class EngineAlertService {
      * contexts are built in bulk: `getAccessiblePondIds` resolves the
      * farm-level capability AND `farm_member_ponds` scoping.
      *
-     * One query per farm (a handful), against the ~300 this replaces.
+     * Set-based across every farm (≤4 queries), not 3–4 per farm.
      */
-    const scoped = await Promise.all(
-      farmIds.map((farmId) =>
-        this.farmAccess.getAccessiblePondIds(userId, farmId, 'READ'),
-      ),
+    const readable = new Set(
+      await this.farmAccess.getAccessiblePondIdsForFarms(userId, farmIds, 'READ'),
     );
-    const readable = new Set(scoped.flat());
     if (readable.size === 0) return [];
 
     const mine = await this.pondRepo.find({

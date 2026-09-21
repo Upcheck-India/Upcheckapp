@@ -178,4 +178,41 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
     await this.client.del(key);
   }
+
+  // ── Hashes (the response cache keeps one hash per user) ──
+  // The memory fallback stores each field as its own `key\0field` entry, so
+  // deleting a hash there means dropping every entry under that prefix.
+
+  async hget(key: string, field: string): Promise<string | null> {
+    if (this.useMemory || !this.client) return this.get(`${key}\0${field}`);
+    return this.client.hget(key, field);
+  }
+
+  /** Set one field and (re)arm the whole hash's expiry, in one round trip. */
+  async hsetWithExpiry(
+    key: string,
+    field: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<void> {
+    if (this.useMemory || !this.client) {
+      await this.set(`${key}\0${field}`, value, 'EX', ttlSeconds);
+      return;
+    }
+    await this.client.multi().hset(key, field, value).expire(key, ttlSeconds).exec();
+  }
+
+  /** Delete whole keys (hashes included) in one round trip. */
+  async delMany(keys: string[]): Promise<void> {
+    if (keys.length === 0) return;
+    if (this.useMemory || !this.client) {
+      for (const stored of [...this.memoryStore.keys()]) {
+        if (keys.some((k) => stored === k || stored.startsWith(`${k}\0`))) {
+          this.memoryStore.delete(stored);
+        }
+      }
+      return;
+    }
+    await this.client.del(...keys);
+  }
 }

@@ -56,3 +56,32 @@ describe('findOneAccessible — pond scope', () => {
     expect(assertCanAccessPond).not.toHaveBeenCalled();
   });
 });
+
+describe('findAllForUser (GET /ponds/mine) — pond scope (#217)', () => {
+  const build = (accessiblePondIds: string[]) => {
+    const qb: any = {};
+    for (const m of ['innerJoin', 'leftJoinAndSelect', 'where', 'andWhere', 'orderBy']) qb[m] = jest.fn(() => qb);
+    qb.getMany = jest.fn().mockResolvedValue([]);
+    const service = Object.create(PondsService.prototype) as PondsService;
+    Object.assign(service, {
+      pondsRepository: { createQueryBuilder: jest.fn(() => qb) },
+      farmAccess: {
+        getAccessibleFarmIds: jest.fn().mockResolvedValue(['farm-1']),
+        getAccessiblePondIdsForFarms: jest.fn().mockResolvedValue(accessiblePondIds),
+      },
+    });
+    return { service, qb };
+  };
+
+  it('lists only the ponds a scoped worker was given, not the whole farm', async () => {
+    const { service, qb } = build(['pond-1', 'pond-2']);
+    await service.findAllForUser('worker-1');
+    expect(qb.where).toHaveBeenCalledWith('pond.id IN (:...pondIds)', { pondIds: ['pond-1', 'pond-2'] });
+  });
+
+  it('returns nothing (and runs no pond query) when no pond is accessible', async () => {
+    const { service, qb } = build([]);
+    expect(await service.findAllForUser('worker-1')).toEqual([]);
+    expect(qb.getMany).not.toHaveBeenCalled();
+  });
+});

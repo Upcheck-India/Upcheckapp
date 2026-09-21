@@ -190,7 +190,7 @@ const buildSvc = (over: any = {}) => {
   };
   const farmAccess = {
     getAccessibleFarmIds: jest.fn().mockResolvedValue(['farm-1']),
-    getAccessiblePondIds: jest
+    getAccessiblePondIdsForFarms: jest
       .fn()
       .mockResolvedValue(over.readablePonds ?? ['p1', 'p2']),
   };

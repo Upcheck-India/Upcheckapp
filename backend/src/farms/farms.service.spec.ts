@@ -85,6 +85,10 @@ describe('FarmsService', () => {
             getAccessibleFarmIds: jest.fn().mockResolvedValue(['farm-1']),
             assertCanAccessFarm: jest.fn().mockResolvedValue(mockFarm),
             getRoleOnFarm: jest.fn().mockResolvedValue('owner'),
+            getMembershipsOnFarms: jest.fn(
+              async (_u: string, ids: string[]) =>
+                new Map(ids.map((id) => [id, { role: 'owner', overrides: null, policy: null }])),
+            ),
           },
         },
         { provide: PhotoDeletionService, useValue: photoDeletions },

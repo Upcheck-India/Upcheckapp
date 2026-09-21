@@ -527,10 +527,11 @@ export class MoltService {
   /** Every readable active pond with its checklist progress (Lunar screen list). */
   async forUser(userId: string, now = new Date()) {
     const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
-    const scoped = await Promise.all(
-      farmIds.map((f) => this.farmAccess.getAccessiblePondIds(userId, f, 'READ')),
-    );
-    const ids = [...new Set(scoped.flat())];
+    const ids = [
+      ...new Set(
+        await this.farmAccess.getAccessiblePondIdsForFarms(userId, farmIds, 'READ'),
+      ),
+    ];
     if (ids.length === 0) return [];
     const ponds = await this.ponds.find({
       where: { id: In(ids), activeCycleId: Not(IsNull()) },

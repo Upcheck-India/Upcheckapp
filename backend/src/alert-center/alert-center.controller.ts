@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
+import { CachedRead } from '../common/response-cache';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AlertCenterService } from './alert-center.service';
 import { EngineAlertService } from './engine-alert.service';
@@ -26,6 +27,7 @@ export class AlertCenterController {
 
   /** Per-pond morning briefing from the caller's unread (persisted) alerts. */
   @Get('briefing')
+  @CachedRead(60)
   briefing(@CurrentUser() user) {
     return this.service.morningBriefing(user.id);
   }
@@ -35,6 +37,7 @@ export class AlertCenterController {
    * logged data. Always current, never duplicated (not persisted).
    */
   @Get('live-briefing')
+  @CachedRead(60)
   liveBriefing(@CurrentUser() user) {
     this.photoDeletions.drainSoon(); // F1: lazy R2 drain, never awaited
     return this.engineAlerts.liveBriefing(user.id);
@@ -49,6 +52,7 @@ export class AlertCenterController {
    * routes stay — other screens use them.
    */
   @Get('today')
+  @CachedRead(60)
   today(@CurrentUser() user) {
     this.photoDeletions.drainSoon(); // F1: lazy R2 drain, never awaited
     return this.engineAlerts.today(user.id);
@@ -56,6 +60,7 @@ export class AlertCenterController {
 
   /** Every alert, one row each: `{ live, saved }` (Today's alerts screen). */
   @Get('all')
+  @CachedRead(60)
   all(@CurrentUser() user) {
     return this.engineAlerts.all(user.id);
   }
