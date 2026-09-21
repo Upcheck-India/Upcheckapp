@@ -110,6 +110,9 @@ const LOG_ACTIONS: LogAction[] = [
     // chemistry values were buried. WeeklyChemistryHistory reads the same table
     // through `chemistryOnly=true`, which drops the probe-only rows.
     { key: 'actionWeeklyChem', icon: 'calendar_month', logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistryHistory' },
+    // F6 (photos spec 2026-09-20): a VIEW over records, not a log of its own —
+    // both modes open the same tab, same convention as DailyRoutine/HealthCheck.
+    { key: 'actionPhotos', icon: 'add_a_photo', logRoute: 'PondPhotos', historyRoute: 'PondPhotos' },
 ];
 
 /**

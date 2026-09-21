@@ -61,6 +61,34 @@ export interface FreeUpOption {
     protected: number;
 }
 
+/** Mirrors backend/src/storage/photo-surfaces.ts (SurfaceKey). */
+export type PhotoSurfaceKey =
+    | 'expense_receipt'
+    | 'transaction_receipt'
+    | 'harvest_slip'
+    | 'treatment_label'
+    | 'feed_label'
+    | 'inventory_label'
+    | 'inventory_purchase_receipt'
+    | 'seed_pcr'
+    | 'pond_identity'
+    | 'farm_identity'
+    | 'water_colour'
+    | 'feed_tray';
+
+/** F6: one row on the pond Photos tab. */
+export interface PondPhoto {
+    path: string;
+    entity: string | null;
+    title: string;
+    recordId: string | null;
+    uploadedAt: string;
+    protected: boolean;
+    money: boolean;
+    url: string | null;
+    thumbUrl: string | null;
+}
+
 export const photosApi = {
     usage: () => apiClient.get<PhotoUsage>('/photos/usage'),
     /** The pool a pond's uploads count against (its farm owner's). */
@@ -73,4 +101,38 @@ export const photosApi = {
         apiClient.post<{ photos: number; bytes: number }>('/photos/free-up', { kind, id }),
     removeItem: (path: string) =>
         apiClient.delete<{ removed: boolean; protected: boolean }>('/photos/item', { data: { path } }),
+
+    // ── F5/F6/F8.1 (photos spec 2026-09-20) ──────────────────────────────
+
+    /** One compressed photo, scoped to a pond, → its private storage path. */
+    uploadForPond: (pondId: string, surface: PhotoSurfaceKey, uri: string) => {
+        const form = new FormData();
+        form.append('file', { uri, name: 'photo.jpg', type: 'image/jpeg' } as any);
+        return apiClient.post<{ path: string }>(`/photos/upload/pond/${pondId}`, form, {
+            params: { surface },
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000,
+        });
+    },
+
+    /** Same, scoped to a farm (farm identity photo, inventory item, transaction). */
+    uploadForFarm: (farmId: string, surface: PhotoSurfaceKey, uri: string) => {
+        const form = new FormData();
+        form.append('file', { uri, name: 'photo.jpg', type: 'image/jpeg' } as any);
+        return apiClient.post<{ path: string }>(`/photos/upload/farm/${farmId}`, form, {
+            params: { surface },
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000,
+        });
+    },
+
+    /** F6: the pond Photos tab — a view over records, never an album. */
+    feedForPond: (pondId: string, opts?: { category?: string; before?: string; limit?: number }) =>
+        apiClient.get<PondPhoto[]>(`/photos/pond/${pondId}`, { params: opts }),
+
+    /** F8.1: has this account acknowledged "Farm records only" yet? */
+    getTermsAck: () => apiClient.get<{ ackedAt: string | null }>('/photos/terms-ack'),
+
+    /** F8.1: acknowledge once; idempotent, safe to retry after coming back online. */
+    postTermsAck: () => apiClient.post<{ ackedAt: string | null }>('/photos/terms-ack'),
 };
