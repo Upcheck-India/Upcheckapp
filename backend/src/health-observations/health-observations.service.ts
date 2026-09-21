@@ -87,6 +87,8 @@ export class HealthObservationsService {
         .orIgnore()
         .execute();
     }
+    // F2: the check's rows share its photos; the first sign's row names them.
+    await this.photos.attach(dto.photoUrls, 'health_observation', ids[0], cropId);
     return this.repo.find({ where: { id: In(ids) } });
   }
 
@@ -119,7 +121,7 @@ export class HealthObservationsService {
       pondId,
       'WRITE_OPERATIONAL',
     );
-    return { path: await this.photos.upload(pond.farmId, file) };
+    return { path: await this.photos.upload(pond.farmId, file, userId, pondId) };
   }
 
   /**

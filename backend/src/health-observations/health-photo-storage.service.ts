@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import type { EntityManager } from 'typeorm';
 import {
@@ -10,6 +10,7 @@ import {
   PhotoDeletionService,
   type PhotoDeletionReason,
 } from '../storage/photo-deletion.service';
+import { PhotoLedgerService } from '../storage/photo-ledger.service';
 
 /** The app compresses to ≤1600 px JPEG q0.7, well under this. */
 export const MAX_HEALTH_PHOTO_BYTES = MAX_IMAGE_BYTES;
@@ -41,10 +42,33 @@ export class HealthPhotoStorageService {
   constructor(
     private readonly storage: R2StorageService,
     private readonly deletions: PhotoDeletionService,
+    @Optional() private readonly ledger?: PhotoLedgerService,
   ) {}
 
-  upload(farmId: string, file: UploadedImage): Promise<string> {
-    return this.storage.putImage('health', `${farmId}/${randomUUID()}`, file);
+  /**
+   * F2: counts against the farm OWNER's pool, whoever uploads it (a worker's
+   * photo is the owner's to keep or clear). Unattached until the record saves.
+   */
+  async upload(
+    farmId: string,
+    file: UploadedImage,
+    uploadedBy?: string,
+    pondId?: string,
+  ): Promise<string> {
+    const base = `${farmId}/${randomUUID()}`;
+    if (!this.ledger || !uploadedBy) return this.storage.putImage('health', base, file);
+    const ownerUserId = (await this.ledger.ownerOfFarm(farmId)) ?? uploadedBy;
+    return this.storage.putImage('health', base, file, { ownerUserId, uploadedBy, farmId, pondId });
+  }
+
+  /** F2: the record using these photos saved — they are no longer orphans. */
+  attach(
+    paths: string[] | null | undefined,
+    entity: 'health_observation' | 'mortality' | 'disease',
+    recordId: string,
+    cropId?: string | null,
+  ): Promise<void> {
+    return this.ledger?.attach('health', paths, { entity, recordId, cropId }) ?? Promise.resolve();
   }
 
   /**

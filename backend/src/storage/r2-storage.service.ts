@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -14,6 +15,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import sharp from 'sharp';
+import { PhotoLedgerService, type LedgerOwner } from './photo-ledger.service';
 
 /** Minimal shape of a multer file — @types/multer is not installed. */
 export interface UploadedImage {
@@ -55,7 +57,8 @@ export type PhotoErrorCode =
   | 'IMAGE_TOO_LARGE'
   | 'UNSUPPORTED_TYPE'
   | 'STORAGE_UNCONFIGURED'
-  | 'AVATAR_NOT_MIGRATED';
+  | 'AVATAR_NOT_MIGRATED'
+  | 'STORAGE_FULL';
 
 export function photoError(
   statusCode: number,
@@ -133,7 +136,11 @@ export class R2StorageService {
   private readonly client: S3Client | null;
   private readonly bucket: string;
 
-  constructor(config: ConfigService) {
+  constructor(
+    config: ConfigService,
+    // Optional so the storage layer still works (untracked) without it.
+    @Optional() private readonly ledger?: PhotoLedgerService,
+  ) {
     const accountId = config.get<string>('R2_ACCOUNT_ID');
     const accessKeyId = config.get<string>('R2_ACCESS_KEY_ID');
     const secretAccessKey = config.get<string>('R2_SECRET_ACCESS_KEY');
@@ -173,11 +180,18 @@ export class R2StorageService {
    * trusting an unverified mime and keeping whatever metadata (GPS) they
    * carry, which is exactly the bug this closes. A photo stored here has
    * always been decoded, rotated and re-encoded, which is what strips EXIF.
+   *
+   * F2: with an `owner`, the pool is checked BEFORE anything is stored (a
+   * full pool refuses the photo with STORAGE_FULL) and the `photo_objects`
+   * ledger row is written right after both objects land, with their byte
+   * counts. A ledger failure removes the pair rather than leave an object no
+   * quota or orphan sweep can see.
    */
   async putImage(
     namespace: PhotoNamespace,
     base: string,
     file: UploadedImage,
+    owner?: LedgerOwner,
   ): Promise<string> {
     if (!this.client) {
       throw new ServiceUnavailableException(
@@ -190,6 +204,7 @@ export class R2StorageService {
     if (file.size > MAX_IMAGE_BYTES || file.buffer.length > MAX_IMAGE_BYTES) {
       throw new BadRequestException(photoError(400, 'IMAGE_TOO_LARGE', 'Image is too large'));
     }
+    if (owner) await this.ledger?.assertRoom(owner.ownerUserId);
     const sniffed = sniffImageType(file.buffer);
     if (!sniffed) {
       throw new BadRequestException(
@@ -228,6 +243,17 @@ export class R2StorageService {
         ),
       );
       throw new ServiceUnavailableException('Could not store the image');
+    }
+    if (owner && this.ledger) {
+      try {
+        await this.ledger.record(namespace, path, owner, full.length, thumb.length);
+      } catch (err: any) {
+        this.logger.error(`Ledger write failed for ${namespace}/${path}, removing the upload: ${err?.message ?? err}`);
+        await this.deleteImages(namespace, [path]).catch((cleanupErr: any) =>
+          this.logger.error(`Could not clean up untracked ${namespace}/${path}: ${cleanupErr?.message ?? cleanupErr}`),
+        );
+        throw new ServiceUnavailableException('Could not store the image');
+      }
     }
     return path;
   }

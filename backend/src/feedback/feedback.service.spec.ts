@@ -18,7 +18,7 @@ describe('FeedbackService', () => {
     create: jest.Mock;
     save: jest.Mock;
   };
-  let storage: { signAttachments: jest.Mock };
+  let storage: { signAttachments: jest.Mock; attach: jest.Mock };
   let push: { sendToUser: jest.Mock };
   let email: { sendFeedbackAlertEmail: jest.Mock };
 
@@ -29,7 +29,7 @@ describe('FeedbackService', () => {
       create: jest.fn((x) => x),
       save: jest.fn((x) => Promise.resolve(x)),
     };
-    storage = { signAttachments: jest.fn().mockResolvedValue({ full: [], thumb: [] }) };
+    storage = { signAttachments: jest.fn().mockResolvedValue({ full: [], thumb: [] }), attach: jest.fn() };
     push = { sendToUser: jest.fn().mockResolvedValue(true) };
     email = { sendFeedbackAlertEmail: jest.fn().mockResolvedValue(undefined) };
 

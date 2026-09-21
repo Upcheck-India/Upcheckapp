@@ -37,7 +37,7 @@ describe('DiseaseService.recordOccurrence/updateRecord — banned-substance flag
         { provide: getRepositoryToken(DiseaseLibrary), useValue: {} },
         { provide: getRepositoryToken(DiseaseRecord), useValue: recordRepo },
         { provide: getRepositoryToken(DiseaseLibraryTranslation), useValue: {} },
-        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn() } },
+        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), attach: jest.fn() } },
       ],
     }).compile();
     service = module.get(DiseaseService);
