@@ -13,8 +13,12 @@ export interface FeedRecord {
     waterTemperature?: number;
     notes?: string;
     recordedAt?: string;
-    /** F5: input label + batch (cap 2). Create only. */
+    /** F5: input label + batch (cap 2). Storage paths; write side. */
     photoPaths?: string[];
+    /** Signed, short-lived; read side (list/get). */
+    photoSignedUrls?: string[];
+    /** 400px thumbnails of `photoSignedUrls`, same order. */
+    photoThumbUrls?: string[];
 }
 
 export interface CreateFeedRecordDto {

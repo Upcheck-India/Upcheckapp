@@ -21,6 +21,7 @@ import { PageOptionsDto } from '../common/dto/page-options.dto';
 import { PageMetaDto, PageDto } from '../common/dto/page.dto';
 import { PhotoDeletionService } from '../storage/photo-deletion.service';
 import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
+import { readPhotoPaths } from '../storage/entity-photo-paths.util';
 
 @Injectable()
 export class PondsService {
@@ -615,6 +616,25 @@ export class PondsService {
       await this.farmAccess.assertCanAccessPond(userId, id, capability);
     }
     return pond;
+  }
+
+  /**
+   * `findOneAccessible` + the F5 identity photo, signed for display —
+   * `GET /ponds/:id` only (edit-form prefill), not the shared write path,
+   * so `findOneAccessible`'s callers keep the plain entity they expect.
+   */
+  async findOneWithPhoto(id: string, userId: string, capability: FarmCapability = 'READ') {
+    const pond = await this.findOneAccessible(id, userId, capability);
+    const photoPaths = await readPhotoPaths(this.pondsRepository.manager, 'ponds', id);
+    const { full: photoSignedUrls, thumb: photoThumbUrls } = await this.healthPhotoStorage.signOne(photoPaths);
+    // Raw path too, so the edit form's `value`/remove flow has it (matches
+    // `UpdatePondDto.photoPath`); `photoUrl`/`photoThumbUrl` are for display.
+    return {
+      ...pond,
+      photoPath: photoPaths[0] ?? null,
+      photoUrl: photoSignedUrls[0] ?? null,
+      photoThumbUrl: photoThumbUrls[0] ?? null,
+    };
   }
 
   /** Member-aware lightweight access check (no entity returned). */

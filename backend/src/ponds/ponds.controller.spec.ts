@@ -33,6 +33,7 @@ describe('PondsController', () => {
       }),
       findOne: jest.fn().mockResolvedValue(mockPond),
       findOneAccessible: jest.fn().mockResolvedValue(mockPond),
+      findOneWithPhoto: jest.fn().mockResolvedValue(mockPond),
       update: jest.fn().mockResolvedValue(mockPond),
       archive: jest
         .fn()
