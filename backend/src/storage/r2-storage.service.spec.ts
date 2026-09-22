@@ -57,6 +57,33 @@ describe('R2StorageService.putImage', () => {
     expect([tm.format, tm.width]).toEqual(['webp', 400]);
   });
 
+  it('refuses a decompression bomb (> ~40 MP) with 400 IMAGE_TOO_LARGE, storing nothing', async () => {
+    const { svc, puts } = make();
+    await expect(svc.putImage('health', 'farm/bomb', file(await jpeg(7000, 6000)))).rejects.toMatchObject({
+      response: { statusCode: 400, code: 'IMAGE_TOO_LARGE' },
+    });
+    expect(puts()).toHaveLength(0);
+  });
+
+  it('refuses a photo whose stored full size would still exceed 600 KB (400 IMAGE_TOO_DETAILED)', async () => {
+    const { svc, puts } = make();
+    const noisy = await sharp({
+      create: {
+        width: 1600,
+        height: 1600,
+        channels: 3,
+        background: { r: 0, g: 0, b: 0 },
+        noise: { type: 'gaussian', mean: 128, sigma: 80 },
+      },
+    })
+      .jpeg({ quality: 60 })
+      .toBuffer();
+    await expect(svc.putImage('health', 'farm/noisy', file(noisy))).rejects.toMatchObject({
+      response: { statusCode: 400, code: 'IMAGE_TOO_DETAILED' },
+    });
+    expect(puts()).toHaveLength(0);
+  });
+
   it('never enlarges a small image', async () => {
     const { svc, puts } = make();
     await svc.putImage('feedback', 'u/x', file(await jpeg(300, 200)));

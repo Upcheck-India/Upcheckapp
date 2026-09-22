@@ -57,7 +57,23 @@ export interface AlertDraft {
   stepKeys?: TextKey[];
   /** Disease alerts only (D7). */
   disease?: DiseaseName;
+  /** Finding + reading; what "Mark done" silences (see AlertsService.dismiss). */
+  dismissKey?: string;
 }
+
+/** Stable finding id: counts in titles ("2 actions pending") change per refresh. */
+const findingKey = (d: AlertDraft) => `${d.source}:${d.pondId}:${d.title.replace(/\d+/g, '#')}`;
+/** Done holds until the reading behind it changes — a new number is a new alert. */
+export const dismissKeyOf = (d: AlertDraft) => `${findingKey(d)}|${d.body}`;
+
+/**
+ * A reading older than this is not "now". Probe values (DO, pH) swing daily;
+ * chemistry (ammonia) is tested less often, so it is allowed longer.
+ */
+const PROBE_MAX_AGE_MS = 2 * 86_400_000;
+const CHEM_MAX_AGE_MS = 7 * 86_400_000;
+const fresh = (asOf: string | null | undefined, maxAge: number, now = Date.now()) =>
+  !asOf || now - new Date(asOf).getTime() <= maxAge;
 
 /** English fallback titles; the app shows `engines.disease.name_*`. */
 const DISEASE_EN: Record<DiseaseName, string> = {
@@ -117,7 +133,9 @@ export class EngineAlertService {
     // Limits come from the shared per-species table (common/wq-thresholds), the
     // same one the Day Score and the app's colours read.
     const nh3Zone =
-      ctx.freeAmmoniaMgL != null ? classify(ctx.freeAmmoniaMgL, FREE_NH3) : null;
+      ctx.freeAmmoniaMgL != null && fresh(wq?.chemistryAsOf, CHEM_MAX_AGE_MS)
+        ? classify(ctx.freeAmmoniaMgL, FREE_NH3)
+        : null;
 
     // Free ammonia (toxic fraction).
     if (nh3Zone) {
@@ -146,7 +164,7 @@ export class EngineAlertService {
 
     // Dissolved oxygen.
     const doZone =
-      wq?.dissolvedOxygen != null
+      wq?.dissolvedOxygen != null && fresh(wq.dissolvedOxygenAsOf, PROBE_MAX_AGE_MS)
         ? classify(wq.dissolvedOxygen, thresholdFor(ctx.species, 'do'))
         : 'optimal';
     if (wq?.dissolvedOxygen != null && doZone !== 'optimal') {
@@ -166,7 +184,7 @@ export class EngineAlertService {
 
     // pH — critical band only (outside the species' critical limits); the
     // caution band is a colour on the log screen, not an alert.
-    if (wq?.ph != null && classify(wq.ph, thresholdFor(ctx.species, 'ph')) === 'critical') {
+    if (wq?.ph != null && fresh(wq.phAsOf, PROBE_MAX_AGE_MS) && classify(wq.ph, thresholdFor(ctx.species, 'ph')) === 'critical') {
       push('critical', 'water', 'pH out of safe range', `pH ${wq.ph}`, [
         'Check the reading again',
         'Partial water exchange',
@@ -180,7 +198,8 @@ export class EngineAlertService {
         'watch',
         'feed',
         'Feed efficiency dropping',
-        `Running FCR ${ctx.runningFcr}`,
+        // One decimal: done holds until the FCR really moves, not every feed log.
+        `Running FCR ${ctx.runningFcr.toFixed(1)}`,
         ['Check feeding-tray residue', 'Trim the ration to avoid overfeeding'],
       );
     }
@@ -302,10 +321,9 @@ export class EngineAlertService {
     contexts: PondContext[],
     molts: Map<string, PondMolt>,
     disease: Map<string, DiseaseRisk[]>,
+    dismissed: Set<string>,
   ): BriefingItem[] {
-    const drafts: AlertDraft[] = contexts.flatMap((ctx) =>
-      this.evaluate(ctx, molts.get(ctx.pondId), disease.get(ctx.pondId)),
-    );
+    const drafts: AlertDraft[] = this.openDrafts(contexts, molts, disease, dismissed);
     return this.alertCenter.buildBriefing(
       drafts.map((d) => ({
         pondId: d.pondId,
@@ -314,6 +332,7 @@ export class EngineAlertService {
         data: {
           source: d.source,
           steps: d.steps,
+          dismissKey: d.dismissKey,
           ...(d.actions ? { actions: d.actions } : {}),
           ...(d.titleKey ? { titleKey: d.titleKey, stepKeys: d.stepKeys } : {}),
         },
@@ -321,14 +340,44 @@ export class EngineAlertService {
     );
   }
 
+  /** Every pond's drafts, minus the ones this user marked done. */
+  private openDrafts(
+    contexts: PondContext[],
+    molts: Map<string, PondMolt>,
+    disease: Map<string, DiseaseRisk[]>,
+    dismissed: Set<string>,
+  ): (AlertDraft & { farmId: string; dismissKey: string })[] {
+    return contexts.flatMap((ctx) =>
+      this.evaluate(ctx, molts.get(ctx.pondId), disease.get(ctx.pondId))
+        .map((d) => ({ ...d, farmId: ctx.farmId, dismissKey: dismissKeyOf(d) }))
+        .filter((d) => !dismissed.has(d.dismissKey)),
+    );
+  }
+
+  /**
+   * Mark live alerts done for the whole farm. Only keys for ponds the caller
+   * can read are kept (the pond id is the key's second part).
+   */
+  async dismiss(userId: string, dismissKeys: string[]) {
+    const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+    const readable = new Set(
+      farmIds.length ? await this.farmAccess.getAccessiblePondIdsForFarms(userId, farmIds, 'READ') : [],
+    );
+    const items = dismissKeys
+      .map((dismissKey) => ({ pondId: dismissKey.split(':')[1], dismissKey }))
+      .filter((i) => readable.has(i.pondId));
+    return this.alertCenter.dismiss(userId, items);
+  }
+
   /** Live per-pond briefing across all of a user's active ponds. */
   async liveBriefing(userId: string): Promise<BriefingItem[]> {
     const contexts = await this.activeContexts(userId);
-    const [molts, disease] = await Promise.all([
+    const [molts, disease, dismissed] = await Promise.all([
       this.moltFor(contexts),
       this.diseaseFor(contexts),
+      this.alertCenter.dismissedKeys(contexts.map((c) => c.pondId)),
     ]);
-    return this.briefingFrom(contexts, molts, disease);
+    return this.briefingFrom(contexts, molts, disease, dismissed);
   }
 
   /**
@@ -341,18 +390,15 @@ export class EngineAlertService {
       this.activeContexts(userId),
       this.alertCenter.savedAlerts(userId),
     ]);
-    const [molts, disease] = await Promise.all([
+    const [molts, disease, dismissed] = await Promise.all([
       contexts.length ? this.moltFor(contexts) : new Map<string, PondMolt>(),
       this.diseaseFor(contexts),
+      this.alertCenter.dismissedKeys(contexts.map((c) => c.pondId)),
     ]);
-    const live: LiveAlert[] = contexts.flatMap((ctx) =>
-      this.evaluate(ctx, molts.get(ctx.pondId), disease.get(ctx.pondId)).map((d) => ({
-        ...d,
-        farmId: ctx.farmId,
-        // Stable across refreshes: counts in titles ("2 actions pending") change.
-        key: `${d.source}:${d.pondId}:${d.title.replace(/\d+/g, '#')}`,
-      })),
-    );
+    const live: LiveAlert[] = this.openDrafts(contexts, molts, disease, dismissed).map((d) => ({
+      ...d,
+      key: findingKey(d),
+    }));
     live.sort(
       (a, b) =>
         rank(b.severity) - rank(a.severity) ||
@@ -377,15 +423,16 @@ export class EngineAlertService {
     moltWindow: MoltWindowSummary;
   }> {
     const contexts = await this.activeContexts(userId);
-    const [molts, disease] = await Promise.all([
+    const [molts, disease, dismissed] = await Promise.all([
       contexts.length ? this.moltFor(contexts) : new Map<string, PondMolt>(),
       this.diseaseFor(contexts),
+      this.alertCenter.dismissedKeys(contexts.map((c) => c.pondId)),
     ]);
     const { window, phase, next } = currentMoltWindow(new Date());
     const all = [...molts.values()];
     return {
       contexts,
-      briefing: this.briefingFrom(contexts, molts, disease),
+      briefing: this.briefingFrom(contexts, molts, disease, dismissed),
       moltWindow: {
         window,
         phase,

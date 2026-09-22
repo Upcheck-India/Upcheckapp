@@ -99,7 +99,7 @@ export class CropsService {
       });
       const savedCrop = await manager.save(crop);
 
-      // F5 seed PCR certificate (cap 2, protected — see photos.service.ts PROTECTED).
+      // F5 seed PCR certificate (cap 3, protected — see photos.service.ts PROTECTED).
       if (createCropDto.photoPaths !== undefined) {
         await this.healthPhotoStorage.applyRecordPhotos(
           manager,

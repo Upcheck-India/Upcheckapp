@@ -27,9 +27,8 @@ import {
     type PhotoRetention,
     type PhotoUsage,
 } from '../../api/photos';
-import { formatBytes, groupByMonth, poolFraction, poolLevel } from '../../features/photoStorage';
+import { formatBytes, groupByMonth, poolFraction, poolLevel, type PoolLevel } from '../../features/photoStorage';
 import { formatDate } from '../../utils/formatDate';
-import { PhotoPoolLine } from '../../components/photos/PhotoPool';
 import { RetentionNoticeCard } from '../../components/photos/PhotoRetention';
 import { useSavePhotos } from '../../components/photos/useSavePhotos';
 
@@ -238,23 +237,23 @@ export const PhotoStorageScreen = ({ navigation, route }: any) => {
                 )
             ) : usage ? (
                 <>
+                    <PoolBanner used={usage.photos} limit={usage.limits.photos} level={poolLevel(usage, usage.limits)} />
                     <Card style={styles.card}>
                         <Text style={styles.value}>
-                            {count(usage.photos)} · {t('storage.ofLimit', { used: formatBytes(usage.bytes), limit: formatBytes(usage.limits.bytes) })}
+                            {t('storage.ofLimit', { used: usage.photos, limit: usage.limits.photos })}
                         </Text>
                         <View style={styles.barTrack}>
                             <View
                                 style={[
                                     styles.barFill,
-                                    { width: `${Math.min(100, Math.round(poolFraction(usage, usage.limits) * 100))}%` },
+                                    {
+                                        width: `${poolLevel(usage, usage.limits) === 'full' ? 100 : Math.min(100, Math.round(poolFraction(usage, usage.limits) * 100))}%`,
+                                    },
                                     poolLevel(usage, usage.limits) !== 'ok' && { backgroundColor: c.warningBorder },
                                 ]}
                             />
                         </View>
-                        <PhotoPoolLine pool={usage} link={false} />
-                        <Text style={styles.note}>
-                            {t('storage.limitRule', { photos: usage.limits.photos, bytes: formatBytes(usage.limits.bytes) })}
-                        </Text>
+                        <Text style={styles.note}>{t('storage.limitRule', { photos: usage.limits.photos })}</Text>
                         {usage.incomplete && <Text style={styles.note}>{t('storage.incomplete')}</Text>}
                         {/* F3: the rule, permanently, with the oldest photo still at full size. */}
                         <Text style={styles.note}>
@@ -388,7 +387,41 @@ export const PhotoStorageScreen = ({ navigation, route }: any) => {
     );
 };
 
+/** 80%: a warning banner; 95% and full: a stronger one (photo count only — no byte limit is shown). */
+const PoolBanner: React.FC<{ used: number; limit: number; level: PoolLevel }> = ({ used, limit, level }) => {
+    const { t } = useTranslation();
+    if (level === 'ok') return null;
+    const strong = level !== 'warn';
+    const text =
+        level === 'full'
+            ? t('storage.full')
+            : t(strong ? 'storage.banner.critical' : 'storage.banner.warn', {
+                  used,
+                  limit,
+                  pct: Math.floor((used / limit) * 100),
+              });
+    return (
+        <View style={[styles.banner, strong && styles.bannerStrong]} accessibilityRole="alert">
+            <MaterialCommunityIcons name="alert-outline" size={20} color={strong ? c.dangerText : c.warningText} />
+            <Text style={[styles.bannerText, { color: strong ? c.dangerText : c.warningText }]}>{text}</Text>
+        </View>
+    );
+};
+
 const styles = StyleSheet.create({
+    banner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[2],
+        padding: theme.spacing[3],
+        marginBottom: theme.spacing[3],
+        borderRadius: 8,
+        borderWidth: 1,
+        backgroundColor: c.warningBg,
+        borderColor: c.warningBorder,
+    },
+    bannerStrong: { backgroundColor: c.dangerBg, borderColor: c.dangerBorder },
+    bannerText: { ...theme.typeScale.bodyMedium, flex: 1 },
     header: {
         flexDirection: 'row',
         alignItems: 'center',

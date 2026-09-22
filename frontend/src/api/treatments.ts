@@ -36,8 +36,12 @@ export interface Treatment {
     doseUnit?: string | null;
     diseaseRecordId?: string | null;
     flagHistory?: FlagHistoryEntry[];
-    /** F5: input label + batch (cap 2). */
+    /** F5: input label + batch (cap 2). Storage paths; write side. */
     photoPaths?: string[];
+    /** Signed, short-lived; read side (list/get). */
+    photoSignedUrls?: string[];
+    /** 400px thumbnails of `photoSignedUrls`, same order. */
+    photoThumbUrls?: string[];
 }
 
 export interface CreateTreatmentDto {

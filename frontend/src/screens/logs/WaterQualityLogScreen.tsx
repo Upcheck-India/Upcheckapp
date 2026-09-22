@@ -39,8 +39,9 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
     const [transparency, setTransparency] = useState(editRecord?.transparency != null ? String(editRecord.transparency) : '');
 
     const [notes, setNotes] = useState(editRecord?.notes ?? '');
-    // F5: water colour (cap 1). Evidence only — no colour-analysis claim.
-    const [photoPath, setPhotoPath] = useState<string | undefined>(undefined);
+    // F5: water colour (cap 2). Evidence only — no colour-analysis claim.
+    // `undefined` = leave unchanged (nothing edited yet); `[]` = explicitly cleared.
+    const [photoPaths, setPhotoPaths] = useState<string[] | undefined>(editRecord?.photoPaths ?? undefined);
     const [isLoading, setIsLoading] = useState(false);
     // Quick-mode: only pH/DO/temperature show by default (the readings a
     // farmer logs every visit); the rest are one tap away, not a wall of
@@ -165,7 +166,8 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
             hardness: hardness ? parseFloat(hardness) : undefined,
             transparency: transparency ? parseFloat(transparency) : undefined,
             notes: notes.trim() || undefined,
-            ...(photoPath !== undefined ? { photoPath } : {}),
+            // Touched only: an edit that clears every photo sends [] to remove them.
+            ...(photoPaths !== undefined ? { photoPaths } : {}),
         };
 
         try {
@@ -327,9 +329,10 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                     <PhotoAttach
                         surface="water_colour"
                         scope={{ pondId }}
-                        value={photoPath ? [photoPath] : []}
-                        onChange={(paths) => setPhotoPath(paths[paths.length - 1])}
-                        max={1}
+                        value={photoPaths ?? []}
+                        onChange={setPhotoPaths}
+                        existingUrls={editRecord?.photoSignedUrls}
+                        existingThumbs={editRecord?.photoThumbUrls}
                     />
                 </Card>
 

@@ -21,6 +21,7 @@ import { HealthObservationsService } from './health-observations.service';
 import { CreateHealthObservationsDto } from './dto/create-health-observations.dto';
 import { MAX_HEALTH_PHOTO_BYTES } from './health-photo-storage.service';
 import { UPLOAD_THROTTLE } from '../storage/r2-storage.service';
+import { DailyUploadCapGuard } from '../storage/daily-upload-cap.guard';
 import type { UploadedImage } from '../feedback/feedback-storage.service';
 
 export class DeletePhotoDto {
@@ -63,7 +64,7 @@ export class HealthObservationsController {
    * Online only — the app disables the button offline.
    */
   @Post('photos/:pondId')
-  @UseGuards(OwnershipGuard)
+  @UseGuards(OwnershipGuard, DailyUploadCapGuard)
   @OwnsResource('Pond', 'pondId', 'farm.userId', 'WRITE_OPERATIONAL')
   @Throttle(UPLOAD_THROTTLE)
   @UseInterceptors(

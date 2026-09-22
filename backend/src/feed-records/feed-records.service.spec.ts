@@ -23,6 +23,9 @@ const createMockRepository = () => ({
   findOneBy: jest.fn().mockResolvedValue(null),
   update: jest.fn().mockResolvedValue({ affected: 1 }),
   delete: jest.fn().mockResolvedValue({ affected: 1 }),
+  // F5 read side: findOne/findAll sign each row's photo_paths via a raw
+  // query on the repository's manager (entity-photo-paths.util.ts).
+  manager: { query: jest.fn().mockResolvedValue([]) },
   createQueryBuilder: jest.fn(() => ({
     select: jest.fn().mockReturnThis(),
     innerJoin: jest.fn().mockReturnThis(),
@@ -73,7 +76,15 @@ describe('FeedRecordsService', () => {
             assertCanAccessPond: jest.fn().mockResolvedValue(undefined),
           },
         },
-        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } },
+        {
+          provide: HealthPhotoStorageService,
+          useValue: {
+            assertFarmPaths: jest.fn(),
+            applyRecordPhotos: jest.fn(),
+            signOne: jest.fn().mockResolvedValue({ full: [], thumb: [] }),
+            signMany: jest.fn().mockImplementation((paths: unknown[]) => Promise.resolve(paths.map(() => ({ full: [], thumb: [] })))),
+          },
+        },
       ],
     }).compile();
 
@@ -252,7 +263,10 @@ describe('FeedRecordsService', () => {
       const result = await service.findAll('user-1');
 
       expect(qb.getManyAndCount).toHaveBeenCalled();
-      expect(result.data).toEqual(mockRecords);
+      // F5 read side: findAll signs each row's photo_paths for display.
+      expect(result.data).toEqual([
+        { ...mockRecords[0], photoPaths: undefined, photoSignedUrls: [], photoThumbUrls: [] },
+      ]);
     });
 
     it('should filter by pondId', async () => {
@@ -288,7 +302,8 @@ describe('FeedRecordsService', () => {
       const result = await service.findOne(recordId);
 
       expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: recordId });
-      expect(result).toEqual(mockRecord);
+      // F5 read side: findOne signs the record's photo_paths for display.
+      expect(result).toEqual({ ...mockRecord, photoPaths: [], photoSignedUrls: [], photoThumbUrls: [] });
     });
   });
 
@@ -304,7 +319,8 @@ describe('FeedRecordsService', () => {
 
       expect(mockRepository.update).toHaveBeenCalledWith(recordId, updateDto);
       expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: recordId });
-      expect(result).toEqual(updatedRecord);
+      // update() re-reads via findOne, which signs photo_paths for display.
+      expect(result).toEqual({ ...updatedRecord, photoPaths: [], photoSignedUrls: [], photoThumbUrls: [] });
     });
 
     it('rejects a fasting PATCH that still carries feed', async () => {

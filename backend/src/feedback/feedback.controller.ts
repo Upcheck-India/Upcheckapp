@@ -6,6 +6,7 @@ import {
   ParseUUIDPipe,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -18,6 +19,7 @@ import {
   type UploadedImage,
 } from './feedback-storage.service';
 import { UPLOAD_THROTTLE } from '../storage/r2-storage.service';
+import { DailyUploadCapGuard } from '../storage/daily-upload-cap.guard';
 import { CreateFeedbackDto, ReportPhotoDto } from './dto/feedback.dto';
 
 /**
@@ -39,6 +41,7 @@ export class FeedbackController {
    */
   @Post('attachment')
   @Throttle(UPLOAD_THROTTLE)
+  @UseGuards(DailyUploadCapGuard)
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: MAX_ATTACHMENT_BYTES } }),
   )

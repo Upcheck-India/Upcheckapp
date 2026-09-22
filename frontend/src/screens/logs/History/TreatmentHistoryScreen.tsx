@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
+import { PhotoStrip } from '../../../components/ui/PhotoStrip';
 import { StaleNotice } from '../../../components/ui/CacheNotice';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
@@ -91,6 +92,11 @@ export const TreatmentHistoryScreen = ({ route, navigation }: any) => {
                 </View>
             )}
             {item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
+            {!!item.photoSignedUrls?.length && (
+                <View style={styles.photos}>
+                    <PhotoStrip full={item.photoSignedUrls} thumbs={item.photoThumbUrls} size={56} />
+                </View>
+            )}
             {/* Every flag change stays visible (D3.3). */}
             {(item.flagHistory ?? []).length > 0 && (
                 <View style={styles.history}>
@@ -170,6 +176,7 @@ const styles = StyleSheet.create({
     dosageRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2], marginBottom: theme.spacing[2] },
     detailText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
     notesText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: theme.spacing[2] },
+    photos: { marginTop: theme.spacing[2] },
     history: { marginTop: theme.spacing[3], borderTopWidth: 1, borderTopColor: theme.roles.light.borderDefault, paddingTop: theme.spacing[2] },
     historyTitle: { ...theme.typeScale.labelSmall, fontWeight: '700', color: theme.roles.light.textSecondary },
     emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },

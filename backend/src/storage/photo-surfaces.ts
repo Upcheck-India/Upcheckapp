@@ -18,25 +18,50 @@ export interface PhotoSurface {
 }
 
 export const PHOTO_SURFACES = {
-  expense_receipt: { entity: 'expense', table: 'expenses', cap: 2, capability: 'VIEW_FINANCIALS', money: true, scope: 'pond' },
-  transaction_receipt: { entity: 'transaction', table: 'transactions', cap: 2, capability: 'VIEW_FINANCIALS', money: true, scope: 'farm' },
-  harvest_slip: { entity: 'harvest', table: 'harvests', cap: 2, capability: 'RECORD_HARVEST', money: true, scope: 'pond' },
-  treatment_label: { entity: 'treatment', table: 'treatments', cap: 2, capability: 'WRITE_OPERATIONAL', money: false, scope: 'pond' },
-  feed_label: { entity: 'feed_record', table: 'feed_records', cap: 2, capability: 'WRITE_OPERATIONAL', money: false, scope: 'pond' },
-  inventory_label: { entity: 'inventory', table: 'inventory', cap: 2, capability: 'MANAGE_INVENTORY', money: false, scope: 'farm' },
+  expense_receipt: { entity: 'expense', table: 'expenses', cap: 3, capability: 'VIEW_FINANCIALS', money: true, scope: 'pond' },
+  transaction_receipt: { entity: 'transaction', table: 'transactions', cap: 3, capability: 'VIEW_FINANCIALS', money: true, scope: 'farm' },
+  harvest_slip: { entity: 'harvest', table: 'harvests', cap: 3, capability: 'RECORD_HARVEST', money: true, scope: 'pond' },
+  treatment_label: { entity: 'treatment', table: 'treatments', cap: 3, capability: 'WRITE_OPERATIONAL', money: false, scope: 'pond' },
+  feed_label: { entity: 'feed_record', table: 'feed_records', cap: 3, capability: 'WRITE_OPERATIONAL', money: false, scope: 'pond' },
+  inventory_label: { entity: 'inventory', table: 'inventory', cap: 3, capability: 'MANAGE_INVENTORY', money: false, scope: 'farm' },
   // The receipt for a stock PURCHASE (PATCH /inventory/:id/adjust with
   // `amount`) — distinct from inventory_label above, which is the product's
   // own input label. Writes to `transactions.photo_paths`, entity
   // 'inventory_purchase' (see InventoryService.adjustStock).
-  inventory_purchase_receipt: { entity: 'inventory_purchase', table: 'transactions', cap: 2, capability: 'MANAGE_INVENTORY', money: true, scope: 'farm' },
-  seed_pcr: { entity: 'crop', table: 'crops', cap: 2, capability: 'WRITE_MANAGEMENT', money: false, scope: 'pond' },
+  inventory_purchase_receipt: { entity: 'inventory_purchase', table: 'transactions', cap: 3, capability: 'MANAGE_INVENTORY', money: true, scope: 'farm' },
+  seed_pcr: { entity: 'crop', table: 'crops', cap: 3, capability: 'WRITE_MANAGEMENT', money: false, scope: 'pond' },
+  // Identity photos stay at 1: the API takes one `photoPath` and REPLACES it
+  // (applySinglePhoto), even though the column is an array.
   pond_identity: { entity: 'pond', table: 'ponds', cap: 1, capability: 'WRITE_MANAGEMENT', money: false, scope: 'pond' },
   // OWNER_ONLY to match FarmsService.update(), which treats every non-shift
   // field (photoPath included) as owner-only, same as the CAA registration no.
   farm_identity: { entity: 'farm', table: 'farms', cap: 1, capability: 'OWNER_ONLY', money: false, scope: 'farm' },
-  water_colour: { entity: 'water_quality', table: 'water_quality_records', cap: 1, capability: 'WRITE_OPERATIONAL', money: false, scope: 'pond' },
-  feed_tray: { entity: 'feeding_tray_check', table: 'feeding_tray_checks', cap: 1, capability: 'WRITE_OPERATIONAL', money: false, scope: 'pond' },
+  water_colour: { entity: 'water_quality', table: 'water_quality_records', cap: 2, capability: 'WRITE_OPERATIONAL', money: false, scope: 'pond' },
+  feed_tray: { entity: 'feeding_tray_check', table: 'feeding_tray_checks', cap: 2, capability: 'WRITE_OPERATIONAL', money: false, scope: 'pond' },
 } as const satisfies Record<string, PhotoSurface>;
+
+/**
+ * F1 orphan safety: EVERY column that can hold a stored photo path. The
+ * orphan sweep never deletes a path found in any of these. A new photo
+ * column anywhere MUST be added here (or to PHOTO_SURFACES).
+ */
+export const PHOTO_REFERENCE_COLUMNS: { table: string; column: string; kind: 'array' | 'text' | 'jsonb' }[] = [
+  { table: 'health_observations', column: 'photo_urls', kind: 'array' },
+  { table: 'mortality_records', column: 'photo_urls', kind: 'array' },
+  { table: 'disease_records', column: 'photo_urls', kind: 'array' },
+  // Legacy baseline photo columns: no writer today, checked anyway.
+  { table: 'mortality_records', column: 'images', kind: 'array' },
+  { table: 'sampling_data', column: 'photo_urls', kind: 'array' },
+  // Every F5 surface table (identity photos included: farms, ponds).
+  ...[...new Set(Object.values(PHOTO_SURFACES).map((s) => s.table))].map((table) => ({
+    table,
+    column: 'photo_paths',
+    kind: 'array' as const,
+  })),
+  { table: 'users', column: 'avatar_path', kind: 'text' },
+  // Own screenshots as-is; a reported farm photo as `health/<path>` (F7.8).
+  { table: 'feedback_reports', column: 'attachment_paths', kind: 'jsonb' },
+];
 
 export type SurfaceKey = keyof typeof PHOTO_SURFACES;
 

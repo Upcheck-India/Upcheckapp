@@ -176,9 +176,11 @@ export class HarvestsService {
           existing.crop.pondId,
           'RECORD_HARVEST',
         );
-        return maskFinancials(
-          await this.withDetails(existing),
-          await this.canViewFinancials(userId, existing.crop.pondId),
+        return this.signed(
+          maskFinancials(
+            await this.withDetails(existing),
+            await this.canViewFinancials(userId, existing.crop.pondId),
+          ),
         );
       }
     }
@@ -255,7 +257,7 @@ export class HarvestsService {
       const row = await manager.save(
         manager.create(Harvest, { ...fields, createdById: userId }),
       );
-      // F5 buyer's weighing slip (cap 2, protected within 12mo — PROTECTED).
+      // F5 buyer's weighing slip (cap 3, protected within 12mo — PROTECTED).
       if (slipPaths !== undefined) {
         await this.healthPhotoStorage.applyRecordPhotos(
           manager,
@@ -308,7 +310,7 @@ export class HarvestsService {
       return { row, planLink };
     });
 
-    const out = maskFinancials(await this.withDetails(saved.row), canView);
+    const out = await this.signed(maskFinancials(await this.withDetails(saved.row), canView));
     // Additive: only when the client sent planId.
     return saved.planLink ? { ...out, planLink: saved.planLink } : out;
   }
@@ -509,6 +511,22 @@ export class HarvestsService {
    * 1780700900000 is applied this degrades to "ungraded, no deductions"
    * instead of 500-ing every harvest read.
    */
+  /**
+   * F5 read side: sign `photoPaths` for display — after `maskFinancials`, so
+   * a masked (empty) array signs to no URLs rather than needing its own mask.
+   * Takes the row as `any`: `HarvestDetails` doesn't declare `photoPaths` in
+   * its static type (only at runtime, from `withDetailsMany`'s raw query), so
+   * a generic constraint on it hits TS's weak-type check.
+   */
+  private async signed(row: any) {
+    const { full, thumb } = await this.healthPhotoStorage.signOne(row.photoPaths);
+    return { ...row, photoSignedUrls: full, photoThumbUrls: thumb };
+  }
+  private async signedMany(rows: any[]) {
+    const signedPhotos = await this.healthPhotoStorage.signMany(rows.map((r) => r.photoPaths));
+    return rows.map((r, i) => ({ ...r, photoSignedUrls: signedPhotos[i].full, photoThumbUrls: signedPhotos[i].thumb }));
+  }
+
   private async withDetails<T extends { id: string }>(
     row: T,
   ): Promise<T & HarvestDetails> {
@@ -622,9 +640,10 @@ export class HarvestsService {
       await this.farmAccess.getFarmIdsWithCapability(userId, 'VIEW_FINANCIALS'),
     );
     const detailed = await this.withDetailsMany(entities);
-    return detailed.map((h, i) =>
+    const masked = detailed.map((h, i) =>
       maskFinancials(h, financialFarmIds.has(raw[i]?.row_farm_id)),
     );
+    return this.signedMany(masked);
   }
 
   /**
@@ -746,9 +765,11 @@ export class HarvestsService {
     }
     // The crop was loaded only to find the pond — keep the response shape.
     const { crop, ...row } = harvest;
-    return maskFinancials(
-      await this.withDetails(row as Harvest),
-      await this.canViewFinancials(userId, crop.pondId),
+    return this.signed(
+      maskFinancials(
+        await this.withDetails(row as Harvest),
+        await this.canViewFinancials(userId, crop.pondId),
+      ),
     );
   }
 

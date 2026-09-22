@@ -37,6 +37,10 @@ export interface Farm {
     archivedAt?: string | null;
     deletedAt?: string | null;
     ponds?: any[];
+    /** F5 identity photo (cap 1). `GET /farms/:id` only; raw + signed. */
+    photoPath?: string | null;
+    photoUrl?: string | null;
+    photoThumbUrl?: string | null;
 }
 
 /**

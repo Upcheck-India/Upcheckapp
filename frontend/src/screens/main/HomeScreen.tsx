@@ -929,17 +929,13 @@ export const HomeScreen = ({ navigation }: any) => {
                             items={nextActions}
                             farmNameForPond={farmNameForPond}
                             onDone={(group) => {
-                                // Recording the reading is what actually clears the
-                                // alert, so send them to the log rather than
-                                // optimistically marking it resolved here. The whole
-                                // GROUP is deferred, not one pond of it: a farm-wide
-                                // finding that reappeared pond by pond after each tap
-                                // would be five heroes for one decision.
+                                // Done closes it, for the whole farm, until the reading
+                                // changes (saved on the server — screen state alone let it
+                                // come back on the next refresh). The whole GROUP, not one
+                                // pond: a farm-wide finding reappearing pond by pond after
+                                // each tap would be five heroes for one decision.
                                 setDeferred((d) => [...d, ...deferKeys(group)]);
-                                const onePond = group.pondIds.length === 1 ? { pondId: group.pondIds[0] } : undefined;
-                                // A molt step is cleared by its checklist (a tick or a
-                                // log dated inside its phase), which Quick Log never shows.
-                                goRoot(group.items[0].source === 'lunar' ? 'Lunar' : 'QuickLog', onePond);
+                                alertCenterApi.dismiss(group.items.map((i) => i.dismissKey ?? '')).catch(() => {});
                             }}
                             onLater={(group) => setDeferred((d) => [...d, ...deferKeys(group)])}
                             onLog={goRoot}

@@ -1,3 +1,4 @@
+import { PHOTO_SURFACES } from '../../storage/photo-surfaces';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -88,10 +89,10 @@ export class UpdateHarvestDto {
   @IsString()
   notes?: string;
 
-  /** F5: buyer's weighing slip (cap 2, protected 12mo). VIEW_FINANCIALS gated. */
+  /** F5: buyer's weighing slip (cap 3, protected 12mo). VIEW_FINANCIALS gated. */
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(2)
+  @ArrayMaxSize(PHOTO_SURFACES.harvest_slip.cap)
   @IsString({ each: true })
   photoPaths?: string[];
 }

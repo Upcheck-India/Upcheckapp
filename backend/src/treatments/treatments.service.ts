@@ -15,6 +15,7 @@ import { evaluateRecord, nextFlagHistory } from '../compliance/compliance-eval';
 import { ComplianceService } from '../compliance/compliance.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
+import { readPhotoPaths, readPhotoPathsMany } from '../storage/entity-photo-paths.util';
 
 /** Fields the banned-substance evaluation reads (D2: ingredients ∪ product ∪ text). */
 const EVALUATED = ['ingredientKeys', 'productName', 'description', 'notes'] as const;
@@ -113,7 +114,7 @@ export class TreatmentsService {
       throw err;
     }
 
-    // F5 input label + batch (cap 2 enforced by the DTO). 403s before anything
+    // F5 input label + batch (cap 3 enforced by the DTO). 403s before anything
     // else if the photo belongs to another farm.
     if (photoPaths !== undefined) {
       await this.healthPhotoStorage.applyRecordPhotos(
@@ -164,14 +165,35 @@ export class TreatmentsService {
       .where('pond.farmId IN (:...farmIds)', { farmIds })
       .orderBy('treatment.treatmentDate', 'DESC');
     if (cropId) qb.andWhere('treatment.cropId = :cropId', { cropId });
-    return qb.getMany();
+    const items = await qb.getMany();
+
+    // F5: input label photo, signed for display (treatment history/edit —
+    // previously write-only, see photos audit 2026-09-22).
+    const pathsById = await readPhotoPathsMany(
+      this.treatmentsRepository.manager,
+      'treatments',
+      items.map((i) => i.id),
+    );
+    const signedPhotos = await this.healthPhotoStorage.signMany(items.map((i) => pathsById[i.id]));
+    return items.map((i, idx) => ({
+      ...i,
+      photoPaths: pathsById[i.id],
+      photoSignedUrls: signedPhotos[idx].full,
+      photoThumbUrls: signedPhotos[idx].thumb,
+    })) as any;
   }
 
   async findOne(id: string): Promise<Treatment> {
     const record = await this.treatmentsRepository.findOneBy({ id });
     if (!record)
       throw new NotFoundException(`Treatment with ID ${id} not found`);
-    return record;
+    const photoPaths = await readPhotoPaths(
+      this.treatmentsRepository.manager,
+      'treatments',
+      id,
+    );
+    const { full, thumb } = await this.healthPhotoStorage.signOne(photoPaths);
+    return { ...record, photoPaths, photoSignedUrls: full, photoThumbUrls: thumb } as any;
   }
 
   async update(

@@ -17,6 +17,7 @@ import { PageMetaDto, PageDto } from '../common/dto/page.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { toIstDateString } from '../common/ist-date';
 import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
+import { readPhotoPaths, readPhotoPathsMany } from '../storage/entity-photo-paths.util';
 
 @Injectable()
 export class FeedRecordsService {
@@ -134,7 +135,7 @@ export class FeedRecordsService {
       throw err;
     }
 
-    // F5 input label + batch (cap 2). After the record + stock deduction are
+    // F5 input label + batch (cap 3). After the record + stock deduction are
     // committed — a rejected (foreign-farm) photo must not unwind either.
     if (createDto.photoPaths !== undefined) {
       await this.healthPhotoStorage.applyRecordPhotos(
@@ -183,18 +184,39 @@ export class FeedRecordsService {
 
     const [items, itemCount] = await qb.getManyAndCount();
 
+    // F5: input label photo, signed for display (feed record history/edit —
+    // previously write-only, see photos audit 2026-09-22).
+    const pathsById = await readPhotoPathsMany(
+      this.recordsRepository.manager,
+      'feed_records',
+      items.map((i) => i.id),
+    );
+    const signedPhotos = await this.healthPhotoStorage.signMany(items.map((i) => pathsById[i.id]));
+    const signed = items.map((i, idx) => ({
+      ...i,
+      photoPaths: pathsById[i.id],
+      photoSignedUrls: signedPhotos[idx].full,
+      photoThumbUrls: signedPhotos[idx].thumb,
+    }));
+
     const pageMetaDto = new PageMetaDto({
       itemCount,
       pageOptionsDto: pageOptionsDto || { page: 1, take },
     });
-    return new PageDto(items, pageMetaDto);
+    return new PageDto(signed as any, pageMetaDto);
   }
 
   async findOne(id: string): Promise<FeedRecord> {
     const record = await this.recordsRepository.findOneBy({ id });
     if (!record)
       throw new NotFoundException(`Feed record with ID ${id} not found`);
-    return record;
+    const photoPaths = await readPhotoPaths(
+      this.recordsRepository.manager,
+      'feed_records',
+      id,
+    );
+    const { full, thumb } = await this.healthPhotoStorage.signOne(photoPaths);
+    return { ...record, photoPaths, photoSignedUrls: full, photoThumbUrls: thumb } as any;
   }
 
   async update(

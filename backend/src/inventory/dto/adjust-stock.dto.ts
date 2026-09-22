@@ -1,3 +1,4 @@
+import { PHOTO_SURFACES } from '../../storage/photo-surfaces';
 import {
   IsArray,
   ArrayMaxSize,
@@ -55,9 +56,9 @@ export class AdjustStockDto {
   @IsOptional()
   idempotencyKey?: string;
 
-  /** F5: purchase receipt / bill (cap 2). Only meaningful with `amount`. */
+  /** F5: purchase receipt / bill (cap 3). Only meaningful with `amount`. */
   @IsArray()
-  @ArrayMaxSize(2)
+  @ArrayMaxSize(PHOTO_SURFACES.inventory_purchase_receipt.cap)
   @IsString({ each: true })
   @IsOptional()
   photoPaths?: string[];

@@ -10,6 +10,7 @@ import { CreateFeedingTrayCheckDto } from './dto/create-feeding-tray-check.dto';
 import { UpdateFeedingTrayCheckDto } from './dto/update-feeding-tray-check.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
+import { photoPathsOf } from '../storage/entity-photo-paths.util';
 
 @Injectable()
 export class FeedingTrayChecksService {
@@ -48,7 +49,8 @@ export class FeedingTrayChecksService {
       }
     }
 
-    const { photoPath, ...fields } = createDto;
+    const { photoPath, photoPaths, ...fields } = createDto;
+    const paths = photoPathsOf({ photoPath, photoPaths });
     const record = this.checksRepository.create({
       ...fields,
       createdById: userId,
@@ -56,15 +58,15 @@ export class FeedingTrayChecksService {
     });
     const saved = await this.checksRepository.save(record);
 
-    // F5 tray photo (cap 1).
-    if (photoPath !== undefined) {
+    // F5 tray photos (cap 2).
+    if (paths !== undefined) {
       await this.healthPhotoStorage.applyRecordPhotos(
         this.checksRepository.manager,
         'feeding_tray_checks',
         'feeding_tray_check',
         await this.farmIdOfCrop(createDto.cropId),
         saved.id,
-        photoPath ? [photoPath] : [],
+        paths,
         createDto.cropId,
       );
     }
@@ -104,19 +106,20 @@ export class FeedingTrayChecksService {
     const existing = await this.findOne(id);
     // photoPath is not an entity column (F5) — handled separately below, or
     // `.update()` would throw on an unmapped property.
-    const { photoPath, ...columns } = updateDto;
+    const { photoPath, photoPaths, ...columns } = updateDto;
+    const paths = photoPathsOf({ photoPath, photoPaths });
     await this.checksRepository.update(id, {
       ...columns,
       ...(userId ? { updatedById: userId } : {}),
     });
-    if (photoPath !== undefined && userId) {
+    if (paths !== undefined && userId) {
       await this.healthPhotoStorage.applyRecordPhotos(
         this.checksRepository.manager,
         'feeding_tray_checks',
         'feeding_tray_check',
         await this.farmIdOfCrop(existing.cropId),
         id,
-        photoPath ? [photoPath] : [],
+        paths,
         existing.cropId,
       );
     }

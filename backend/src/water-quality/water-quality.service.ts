@@ -12,6 +12,7 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import { latestNonNull } from '../pond-context/pond-context.service';
 import { thresholdFor } from '../common/wq-thresholds';
 import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
+import { photoPathsOf, readPhotoPaths, readPhotoPathsMany } from '../storage/entity-photo-paths.util';
 
 /**
  * Critical limits for persisted water-quality alerts, from the shared
@@ -92,7 +93,8 @@ export class WaterQualityService {
       'WRITE_OPERATIONAL',
     );
 
-    const { photoPath, ...fields } = createDto;
+    const { photoPath, photoPaths, ...fields } = createDto;
+    const paths = photoPathsOf({ photoPath, photoPaths });
     const record = this.recordsRepository.create({
       ...fields,
       recordedAt: createDto.recordedAt
@@ -103,15 +105,15 @@ export class WaterQualityService {
     });
     const savedRecord = await this.recordsRepository.save(record);
 
-    // F5 water colour (cap 1). Evidence only — no colour-analysis claim.
-    if (photoPath !== undefined) {
+    // F5 water colour (cap 2). Evidence only — no colour-analysis claim.
+    if (paths !== undefined) {
       await this.healthPhotoStorage.applyRecordPhotos(
         this.recordsRepository.manager,
         'water_quality_records',
         'water_quality',
         pond.farmId,
         savedRecord.id,
-        photoPath ? [photoPath] : [],
+        paths,
       );
     }
 
@@ -332,11 +334,26 @@ export class WaterQualityService {
       skip,
     });
 
+    // F5: water-colour photo, signed for display (water quality history/edit —
+    // previously write-only, see photos audit 2026-09-22).
+    const pathsById = await readPhotoPathsMany(
+      this.recordsRepository.manager,
+      'water_quality_records',
+      items.map((i) => i.id),
+    );
+    const signedPhotos = await this.healthPhotoStorage.signMany(items.map((i) => pathsById[i.id]));
+    const signed = items.map((i, idx) => ({
+      ...i,
+      photoPaths: pathsById[i.id],
+      photoSignedUrls: signedPhotos[idx].full,
+      photoThumbUrls: signedPhotos[idx].thumb,
+    }));
+
     const pageMetaDto = new PageMetaDto({
       itemCount,
       pageOptionsDto: pageOptionsDto || { page: 1, take },
     });
-    return new PageDto(items, pageMetaDto);
+    return new PageDto(signed as any, pageMetaDto);
   }
 
   async findByPond(
@@ -370,7 +387,13 @@ export class WaterQualityService {
     }
     // Verify access via pond (owner or worker)
     await this.pondsService.verifyAccess(record.pondId, userId, 'READ');
-    return record;
+    const photoPaths = await readPhotoPaths(
+      this.recordsRepository.manager,
+      'water_quality_records',
+      id,
+    );
+    const { full, thumb } = await this.healthPhotoStorage.signOne(photoPaths);
+    return { ...record, photoPaths, photoSignedUrls: full, photoThumbUrls: thumb } as any;
   }
 
   async update(
@@ -381,12 +404,13 @@ export class WaterQualityService {
     const existing = await this.findOne(id, userId); // Verify access
     // photoPath is not an entity column (F5) — handled separately below, or
     // `.update()` would throw on an unmapped property.
-    const { photoPath, ...columns } = updateDto;
+    const { photoPath, photoPaths, ...columns } = updateDto;
+    const paths = photoPathsOf({ photoPath, photoPaths });
     await this.recordsRepository.update(id, {
       ...columns,
       updatedById: userId,
     });
-    if (photoPath !== undefined) {
+    if (paths !== undefined) {
       const pond = await this.pondsService.findOneAccessible(existing.pondId, userId, 'WRITE_OPERATIONAL');
       await this.healthPhotoStorage.applyRecordPhotos(
         this.recordsRepository.manager,
@@ -394,7 +418,7 @@ export class WaterQualityService {
         'water_quality',
         pond.farmId,
         id,
-        photoPath ? [photoPath] : [],
+        paths,
       );
     }
     return this.findOne(id, userId);

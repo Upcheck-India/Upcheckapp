@@ -63,7 +63,9 @@ export const PhotoPoolLine: React.FC<{ pool: Pool | null; link?: boolean; hint?:
     const text =
         level === 'full'
             ? t('storage.full')
-            : t('storage.nearlyFull', { pct: Math.floor(poolFraction(pool, pool.limits) * 100) });
+            : t(level === 'critical' ? 'storage.almostFull' : 'storage.nearlyFull', {
+                  pct: Math.floor(poolFraction(pool, pool.limits) * 100),
+              });
     const line = <Text style={styles.line}>{text}</Text>;
     if (!link || !navigation) return <>{line}{retention}</>;
     return (

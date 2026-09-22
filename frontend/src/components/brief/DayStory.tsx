@@ -28,7 +28,7 @@ export const DayStory: React.FC<{ brief: DailyBrief; onHealthCheck?: (pondId: st
             {story.map((item, i) => {
                 const tone = TONE[item.tone] ?? TONE.info;
                 const text = storySentence(item, brief, t);
-                const check = item.code === 'mortality_spike' && !!item.pondId && !!onHealthCheck;
+                const check = item.code === 'mortality_spike' && !item.resolvedAt && !!item.pondId && !!onHealthCheck;
                 return (
                     <View key={i}>
                         <View style={styles.row} accessible accessibilityLabel={`${t(`dailyBrief.story.tone.${item.tone}`)}: ${text}`} testID={`story-${item.code}`}>

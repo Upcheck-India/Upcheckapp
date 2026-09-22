@@ -49,7 +49,11 @@ function r2(ledger: PhotoLedgerService) {
 }
 
 describe('F2 quota is enforced server-side, at upload', () => {
-  it('refuses the photo with STORAGE_FULL at 1,000 photos — nothing is stored', async () => {
+  it('the default pool is 500 photos, with a hidden 300 MB byte backstop', () => {
+    expect(PHOTO_QUOTA).toEqual({ photos: 500, bytes: 300 * 1024 ** 2 });
+  });
+
+  it('refuses the photo with STORAGE_FULL at the photo limit — nothing is stored', async () => {
     const { ledger } = ledgerWith({ photos: PHOTO_QUOTA.photos, bytes: 0 });
     const { svc, puts } = r2(ledger);
     await expect(
@@ -58,7 +62,7 @@ describe('F2 quota is enforced server-side, at upload', () => {
     expect(puts()).toHaveLength(0);
   });
 
-  it('refuses at 1.5 GB even under the photo count', async () => {
+  it('refuses at the byte backstop even under the photo count', async () => {
     const { ledger } = ledgerWith({ photos: 3, bytes: PHOTO_QUOTA.bytes });
     await expect(ledger.assertRoom(OWNER)).rejects.toMatchObject({ response: { code: 'STORAGE_FULL' } });
   });
@@ -66,6 +70,21 @@ describe('F2 quota is enforced server-side, at upload', () => {
   it('allows the upload just under both limits', async () => {
     const { ledger } = ledgerWith({ photos: PHOTO_QUOTA.photos - 1, bytes: PHOTO_QUOTA.bytes - 1 });
     await expect(ledger.assertRoom(OWNER)).resolves.toBeUndefined();
+  });
+
+  it('only farm photos count: usage is scoped to the health namespace', async () => {
+    const { ledger, query } = ledgerWith({ photos: 0, bytes: 0 });
+    await ledger.usageOf(OWNER);
+    expect(query.mock.calls[0][0]).toContain(`o.namespace = 'health'`);
+  });
+
+  it('an avatar or feedback photo is never refused for a full pool, and takes no quota lock', async () => {
+    const { ledger, query } = ledgerWith({ photos: PHOTO_QUOTA.photos, bytes: PHOTO_QUOTA.bytes });
+    const { svc, puts } = r2(ledger);
+    await svc.putImage('avatars', `${OWNER}/x`, file(await jpeg()), { ownerUserId: OWNER, uploadedBy: OWNER, entity: 'avatar' });
+    await svc.putImage('feedback', `${OWNER}/y`, file(await jpeg()), { ownerUserId: OWNER, uploadedBy: OWNER });
+    expect(puts()).toHaveLength(4);
+    expect(query.mock.calls.some(([q]) => /pg_advisory_xact_lock|count\(\*\)::int AS photos/.test(q))).toBe(false);
   });
 
   it('degrades open (no quota) before the migration', async () => {
@@ -241,7 +260,7 @@ function photosService(answer: (q: string, p: any[]) => any[]) {
 
 describe('F2 usage', () => {
   it('equals the sum of the ledger, broken down per farm and pond, and kicks the lazy drain', async () => {
-    const { svc, deletions } = photosService((q) => {
+    const { svc, deletions, calls } = photosService((q) => {
       if (/GROUP BY o.farm_id/.test(q)) {
         return [
           { farm_id: FARM, farm_name: 'Green Acres', pond_id: POND, pond_name: 'Pond 3', photos: 120, bytes: '240000000' },
@@ -270,6 +289,8 @@ describe('F2 usage', () => {
     expect(u.account).toEqual({ photos: 1, bytes: 500 });
     expect(u.limits).toEqual(PHOTO_QUOTA);
     expect(deletions.drainSoon).toHaveBeenCalled();
+    // Avatars and feedback do not count toward the pool.
+    expect(calls.find(({ q }) => /GROUP BY o.farm_id/.test(q))!.q).toContain(`o.namespace = 'health'`);
   });
 
   it('says usage is incomplete until the backfill has run', async () => {
@@ -343,18 +364,7 @@ describe('F1 orphan sweep', () => {
     return { svc, query };
   }
 
-  it('queues unattached uploads older than 24 h as orphans, never referenced ones', async () => {
-    const { svc, query } = deletionService([{ namespace: 'health', path: P1 }]);
-    expect(await svc.sweepOrphans()).toBe(1);
-
-    const select = query.mock.calls.find(([q]) => /WHERE o.record_id IS NULL/.test(q))![0];
-    expect(select).toContain(`interval '24 hours'`);
-    expect(select).toMatch(/mortality_records r WHERE r.photo_urls @> ARRAY\[o.path\]/);
-    expect(select).toMatch(/u.avatar_path = o.path/);
-    const insert = query.mock.calls.find(([q]) => /^INSERT INTO photo_deletions/.test(q))!;
-    expect(insert[1]).toEqual([['health'], [P1], 'orphan', null]);
-  });
-
+  // Selection rules (age, references, queue) live in photo-orphan-sweep.spec.ts.
   it('piggybacks on the lazy drain', async () => {
     const { svc } = deletionService([]);
     const sweep = jest.spyOn(svc, 'sweepOrphans');

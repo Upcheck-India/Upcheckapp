@@ -6,6 +6,7 @@ import {
   Patch,
   Post,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -14,6 +15,7 @@ import { IsBoolean } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { MAX_IMAGE_BYTES, UPLOAD_THROTTLE, type UploadedImage } from '../storage/r2-storage.service';
 import { AvatarService } from './avatar.service';
+import { DailyUploadCapGuard } from '../storage/daily-upload-cap.guard';
 
 export class AvatarVisibilityDto {
   @IsBoolean()
@@ -35,6 +37,7 @@ export class AvatarsController {
 
   @Post('avatar')
   @Throttle(UPLOAD_THROTTLE)
+  @UseGuards(DailyUploadCapGuard)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMAGE_BYTES } }))
   upload(@UploadedFile() file: UploadedImage, @CurrentUser() user) {
     return this.avatars.upload(user.id, file);

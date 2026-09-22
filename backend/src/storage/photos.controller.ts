@@ -23,6 +23,7 @@ import { PhotoTermsAckService } from './photo-terms-ack.service';
 import { HealthPhotoStorageService, MAX_HEALTH_PHOTO_BYTES } from '../health-observations/health-photo-storage.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { UPLOAD_THROTTLE } from './r2-storage.service';
+import { DailyUploadCapGuard } from './daily-upload-cap.guard';
 import { PHOTO_SURFACES, type SurfaceKey } from './photo-surfaces';
 import type { UploadedImage } from '../feedback/feedback-storage.service';
 
@@ -80,7 +81,7 @@ export class PhotosController {
    * that record's own DTO, not here (this just stores one photo).
    */
   @Post('upload/pond/:pondId')
-  @UseGuards(OwnershipGuard)
+  @UseGuards(OwnershipGuard, DailyUploadCapGuard)
   @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
   @Throttle(UPLOAD_THROTTLE)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_HEALTH_PHOTO_BYTES } }))
@@ -96,7 +97,7 @@ export class PhotosController {
   }
 
   @Post('upload/farm/:farmId')
-  @UseGuards(OwnershipGuard)
+  @UseGuards(OwnershipGuard, DailyUploadCapGuard)
   @OwnsResource('Farm', 'farmId', 'userId', 'READ')
   @Throttle(UPLOAD_THROTTLE)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_HEALTH_PHOTO_BYTES } }))
