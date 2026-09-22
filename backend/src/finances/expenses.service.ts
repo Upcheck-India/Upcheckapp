@@ -109,7 +109,7 @@ export class ExpensesService {
 
     const saved = await this.expensesRepository.save(expense);
 
-    // F5 receipt / bill (cap 2). Financial data — already gated behind
+    // F5 receipt / bill (cap 3). Financial data — already gated behind
     // VIEW_FINANCIALS on every read of this table (assertCropFinancials /
     // findAll's farm scoping above), so no separate mask is needed here.
     if (createDto.photoPaths !== undefined) {

@@ -15,7 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 import { useSyncStore } from '../../store/syncStore';
-import { photosApi, type PhotoSurfaceKey } from '../../api/photos';
+import { PHOTO_CAPS, photosApi, type PhotoSurfaceKey } from '../../api/photos';
 import { pickHealthPhoto } from '../../features/healthPhoto';
 import { apiErrorMessage } from '../../api/errors';
 import { photoErrorMessage } from '../../features/photoErrors';
@@ -35,6 +35,7 @@ interface Props {
     onChange: (paths: string[]) => void;
     existingUrls?: string[];
     existingThumbs?: string[];
+    /** Defaults to the surface's cap (PHOTO_CAPS, mirrored from the backend). */
     max?: number;
     /** Receipts/certificates/labels: camera and gallery are equal weight (PD5). */
     equalWeight?: boolean;
@@ -47,7 +48,7 @@ export const PhotoAttach: React.FC<Props> = ({
     onChange,
     existingUrls = [],
     existingThumbs = [],
-    max = 2,
+    max = PHOTO_CAPS[surface],
     equalWeight = false,
 }) => {
     const { t } = useTranslation();

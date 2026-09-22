@@ -3,6 +3,7 @@ import { DataSource, type EntityManager } from 'typeorm';
 import { R2StorageService, type PhotoNamespace } from './r2-storage.service';
 import { NOT_PENDING, PhotoLedgerService } from './photo-ledger.service';
 import { FULL_RETENTION_DAYS, NOTICE_LEAD_DAYS, retentionDropAt } from './retention';
+import { PHOTO_REFERENCE_COLUMNS } from './photo-surfaces';
 
 export type PhotoDeletionReason =
   | 'record_deleted'
@@ -274,34 +275,61 @@ export class PhotoDeletionService {
   /**
    * F1 orphan collection: an upload whose `photo_objects` row is still on no
    * record ORPHAN_AFTER_HOURS later was abandoned (form closed, app killed)
-   * — queue it as `orphan`. Belt and braces: a path some record, avatar or
-   * report still references is never swept, even if its attach was lost.
-   * Returns how many were queued; 0 before the migrations.
+   * — queue it as `orphan`, deleted by the normal drain. SAFETY: a candidate
+   * is dropped if its path appears in ANY `PHOTO_REFERENCE_COLUMNS` column
+   * (any namespace — paths are uuids, so a match is never a false positive),
+   * even if its attach was lost. The age rule is re-checked here, not only
+   * in SQL. If the reference check fails for any reason (an unmigrated
+   * column included), nothing is queued. Bounded: `limit` per pass.
+   * Returns how many were queued.
    */
-  async sweepOrphans(limit = 100): Promise<number> {
-    let rows: Row[];
+  async sweepOrphans(limit = 100, now = new Date()): Promise<number> {
+    const cutoff = new Date(now.getTime() - ORPHAN_AFTER_HOURS * 3_600_000);
+    let rows: (Row & { uploaded_at: Date | string })[];
     try {
       rows = await this.db.query(
-        `SELECT o.namespace, o.path FROM photo_objects o
+        `SELECT o.namespace, o.path, o.uploaded_at FROM photo_objects o
          WHERE o.record_id IS NULL
-           AND o.uploaded_at < now() - interval '${ORPHAN_AFTER_HOURS} hours'
-           AND NOT EXISTS (SELECT 1 FROM photo_deletions d WHERE d.namespace = o.namespace AND d.path = o.path)
-           AND NOT (o.namespace = 'health' AND (
-                 EXISTS (SELECT 1 FROM health_observations h WHERE h.photo_urls @> ARRAY[o.path])
-              OR EXISTS (SELECT 1 FROM mortality_records r WHERE r.photo_urls @> ARRAY[o.path])
-              OR EXISTS (SELECT 1 FROM disease_records r WHERE r.photo_urls @> ARRAY[o.path])))
-           AND NOT (o.namespace = 'avatars' AND EXISTS (SELECT 1 FROM users u WHERE u.avatar_path = o.path))
-           AND NOT (o.namespace = 'feedback' AND EXISTS (SELECT 1 FROM feedback_reports f WHERE f.attachment_paths ? o.path))
-         ORDER BY o.uploaded_at LIMIT $1`,
-        [limit],
+           AND o.uploaded_at < $1::timestamptz
+           AND NOT EXISTS (SELECT 1 FROM photo_deletions d WHERE d.namespace = o.namespace
+             AND (d.path = o.path OR (right(d.path, 1) = '/' AND starts_with(o.path, d.path))))
+         ORDER BY o.uploaded_at LIMIT $2`,
+        [cutoff.toISOString(), limit],
       );
     } catch (err) {
       if (isMissingSchema(err)) return 0;
       throw err;
     }
+    rows = rows.filter((r) => new Date(r.uploaded_at).getTime() < cutoff.getTime());
     if (!rows.length) return 0;
-    await this.enqueue(rows.map((r) => ({ namespace: r.namespace, path: r.path })), 'orphan');
-    return rows.length;
+
+    let referenced: Set<string>;
+    try {
+      referenced = await this.referencedAmong(rows.map((r) => r.path));
+    } catch (err: any) {
+      this.logger.warn(`Orphan sweep skipped: reference check failed (${err?.message ?? err})`);
+      return 0;
+    }
+    const orphans = rows.filter((r) => !referenced.has(r.path));
+    if (!orphans.length) return 0;
+    await this.enqueue(orphans.map((r) => ({ namespace: r.namespace, path: r.path })), 'orphan');
+    return orphans.length;
+  }
+
+  /** Which of `paths` some row in `PHOTO_REFERENCE_COLUMNS` still points at. */
+  private async referencedAmong(paths: string[]): Promise<Set<string>> {
+    const hit = PHOTO_REFERENCE_COLUMNS.map(({ table, column, kind }) => {
+      const on = `FROM ${table} t WHERE t.${column}`;
+      if (kind === 'array') return `EXISTS (SELECT 1 ${on} @> ARRAY[c.p])`;
+      if (kind === 'text') return `EXISTS (SELECT 1 ${on} = c.p)`;
+      // jsonb array: own screenshots as-is, a reported farm photo as `health/<path>` (F7.8).
+      return `EXISTS (SELECT 1 ${on} ?| ARRAY[c.p, 'health/' || c.p])`;
+    });
+    const rows: { p: string }[] = await this.db.query(
+      `SELECT c.p FROM unnest($1::text[]) AS c(p) WHERE ${hit.join('\n OR ')}`,
+      [paths],
+    );
+    return new Set(rows.map((r) => r.p));
   }
 
   /**

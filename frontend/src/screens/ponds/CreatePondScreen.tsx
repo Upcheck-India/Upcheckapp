@@ -390,7 +390,6 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                         scope={{ pondId: editPondId }}
                         value={photoPath ? [photoPath] : []}
                         onChange={(paths) => setPhotoPath(paths[paths.length - 1])}
-                        max={1}
                     />
                 )}
 

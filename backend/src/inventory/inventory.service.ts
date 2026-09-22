@@ -67,7 +67,7 @@ export interface AdjustStockOptions {
   purchase?: {
     amount: number;
     farmId?: string;
-    /** F5: receipt / bill (cap 2) — tagged entity 'inventory_purchase' (Phase 5's MONEY_PHOTO_ENTITIES). */
+    /** F5: receipt / bill (cap 3) — tagged entity 'inventory_purchase' (Phase 5's MONEY_PHOTO_ENTITIES). */
     photoPaths?: string[];
   };
   /**
@@ -158,7 +158,7 @@ export class InventoryService {
       return row;
     });
 
-    // F5 input label + batch (cap 2). After the pairing transaction commits.
+    // F5 input label + batch (cap 3). After the pairing transaction commits.
     if (photoPaths !== undefined) {
       await this.healthPhotoStorage.applyRecordPhotos(
         this.itemsRepository.manager,
@@ -726,7 +726,7 @@ export class InventoryService {
           userId,
           manager,
         );
-        // F5 receipt / bill (cap 2). Tagged 'inventory_purchase', distinct
+        // F5 receipt / bill (cap 3). Tagged 'inventory_purchase', distinct
         // from a plain 'transaction' entry, per Phase 5 coordination — the
         // photo viewer's money filter keys off this exact entity name.
         if (options.purchase.photoPaths !== undefined) {

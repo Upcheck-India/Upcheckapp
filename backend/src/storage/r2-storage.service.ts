@@ -45,6 +45,11 @@ export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
  */
 export const UPLOAD_THROTTLE = { default: { limit: 20, ttl: 600_000 } };
 
+/** Decompression-bomb guard: sharp refuses to decode more pixels than this (~40 MP). */
+export const MAX_INPUT_PIXELS = 40_000_000;
+/** A stored full size (1600 px, q76 WebP) larger than this is refused, not kept. */
+export const MAX_ENCODED_FULL_BYTES = 600 * 1024;
+
 const SIGNED_URL_TTL_SECONDS = 3600;
 // Every object key embeds a fresh uuid, so its bytes never change.
 const CACHE_CONTROL = 'private, max-age=31536000, immutable';
@@ -56,10 +61,12 @@ const CACHE_CONTROL = 'private, max-age=31536000, immutable';
  */
 export type PhotoErrorCode =
   | 'IMAGE_TOO_LARGE'
+  | 'IMAGE_TOO_DETAILED'
   | 'UNSUPPORTED_TYPE'
   | 'STORAGE_UNCONFIGURED'
   | 'AVATAR_NOT_MIGRATED'
-  | 'STORAGE_FULL';
+  | 'STORAGE_FULL'
+  | 'DAILY_UPLOAD_LIMIT';
 
 export function photoError(
   statusCode: number,
@@ -116,7 +123,7 @@ export function thumbPathOf(path: string): string {
  * point (a pond photo's GPS is the farm's location).
  */
 function encode(input: Buffer, max: number, quality: number): Promise<Buffer> {
-  return sharp(input)
+  return sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
     .rotate()
     .resize({ width: max, height: max, fit: 'inside', withoutEnlargement: true })
     .webp({ quality })
@@ -206,7 +213,8 @@ export class R2StorageService {
     if (file.size > MAX_IMAGE_BYTES || file.buffer.length > MAX_IMAGE_BYTES) {
       throw new BadRequestException(photoError(400, 'IMAGE_TOO_LARGE', 'Image is too large'));
     }
-    if (owner) await this.ledger?.assertRoom(owner.ownerUserId);
+    // Only farm photos count toward the pool (avatars/feedback never do).
+    if (owner && namespace === 'health') await this.ledger?.assertRoom(owner.ownerUserId);
     const sniffed = sniffImageType(file.buffer);
     if (!sniffed) {
       throw new BadRequestException(
@@ -222,11 +230,19 @@ export class R2StorageService {
         encode(file.buffer, 1600, 76),
       ]);
     } catch (err: any) {
+      if (/pixel limit/i.test(String(err?.message))) {
+        throw new BadRequestException(photoError(400, 'IMAGE_TOO_LARGE', 'Image has too many pixels'));
+      }
       this.logger.warn(
         `Could not decode a byte-valid ${sniffed} (${err?.message ?? err}); refusing rather than storing unverified/unstrippable bytes`,
       );
       throw new BadRequestException(
         photoError(400, 'UNSUPPORTED_TYPE', `Could not process image type: ${sniffed}`),
+      );
+    }
+    if (full.length > MAX_ENCODED_FULL_BYTES) {
+      throw new BadRequestException(
+        photoError(400, 'IMAGE_TOO_DETAILED', 'Image is still too large after compression'),
       );
     }
 

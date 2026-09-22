@@ -1,3 +1,4 @@
+import { PHOTO_SURFACES } from '../../storage/photo-surfaces';
 import {
   IsString,
   IsOptional,
@@ -16,9 +17,9 @@ import {
 import { CANONICAL_SPECIES, SEED_TYPES } from '../species';
 
 export class CreateCropDto {
-  /** F5: seed PCR certificate (cap 2, protected). Optional; saves without it. */
+  /** F5: seed PCR certificate (cap 3, protected). Optional; saves without it. */
   @IsArray()
-  @ArrayMaxSize(2)
+  @ArrayMaxSize(PHOTO_SURFACES.seed_pcr.cap)
   @IsString({ each: true })
   @IsOptional()
   photoPaths?: string[];

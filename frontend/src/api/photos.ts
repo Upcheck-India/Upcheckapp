@@ -32,7 +32,7 @@ export interface PhotoUsage {
     /** True until the one-off backfill has put pre-F2 photos in the ledger. */
     incomplete: boolean;
     farms: FarmUsage[];
-    /** Profile picture + feedback screenshots. */
+    /** Farm photos not tied to a farm (normally none — avatars and feedback screenshots do not count). */
     account: { photos: number; bytes: number };
 }
 
@@ -122,6 +122,23 @@ export type PhotoSurfaceKey =
     | 'farm_identity'
     | 'water_colour'
     | 'feed_tray';
+
+/** Photos per record — mirrors `cap` in backend/src/storage/photo-surfaces.ts. */
+export const PHOTO_CAPS: Record<PhotoSurfaceKey, number> = {
+    expense_receipt: 3,
+    transaction_receipt: 3,
+    harvest_slip: 3,
+    treatment_label: 3,
+    feed_label: 3,
+    inventory_label: 3,
+    inventory_purchase_receipt: 3,
+    seed_pcr: 3,
+    // Identity photos: one, replaced (the API takes a single path).
+    pond_identity: 1,
+    farm_identity: 1,
+    water_colour: 2,
+    feed_tray: 2,
+};
 
 /** F6: one row on the pond Photos tab. */
 export interface PondPhoto {

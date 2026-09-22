@@ -255,7 +255,7 @@ export class HarvestsService {
       const row = await manager.save(
         manager.create(Harvest, { ...fields, createdById: userId }),
       );
-      // F5 buyer's weighing slip (cap 2, protected within 12mo — PROTECTED).
+      // F5 buyer's weighing slip (cap 3, protected within 12mo — PROTECTED).
       if (slipPaths !== undefined) {
         await this.healthPhotoStorage.applyRecordPhotos(
           manager,

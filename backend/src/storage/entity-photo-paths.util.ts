@@ -44,3 +44,16 @@ export async function writePhotoPaths(
     throw err;
   }
 }
+
+/**
+ * Water colour / tray (cap 2): `photoPaths` from current clients, else the
+ * older single `photoPath`. undefined = neither sent, leave the photos as-is.
+ */
+export function photoPathsOf(dto: {
+  photoPaths?: string[] | null;
+  photoPath?: string | null;
+}): string[] | undefined {
+  if (dto.photoPaths !== undefined) return dto.photoPaths ?? [];
+  if (dto.photoPath !== undefined) return dto.photoPath ? [dto.photoPath] : [];
+  return undefined;
+}

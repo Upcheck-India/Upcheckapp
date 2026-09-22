@@ -356,7 +356,6 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                         scope={{ farmId: editFarmId! }}
                         value={photoPath ? [photoPath] : []}
                         onChange={(paths) => setPhotoPath(paths[paths.length - 1])}
-                        max={1}
                     />
                 )}
 

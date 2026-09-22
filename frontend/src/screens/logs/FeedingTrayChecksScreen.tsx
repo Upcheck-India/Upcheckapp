@@ -41,9 +41,9 @@ export const FeedingTrayChecksScreen = ({ route, navigation }: any) => {
     );
     const checks = data ?? [];
     const load = () => void refetch();
-    // F5: tray photo (cap 1). Not in route params — resolved from the crop.
+    // F5: tray photos (cap 2). Not in route params — resolved from the crop.
     const [pondId, setPondId] = useState<string | undefined>(route.params?.pondId);
-    const [photoPath, setPhotoPath] = useState<string | undefined>(undefined);
+    const [photoPaths, setPhotoPaths] = useState<string[]>([]);
 
     React.useEffect(() => {
         if (pondId || !cropId) return;
@@ -63,10 +63,10 @@ export const FeedingTrayChecksScreen = ({ route, navigation }: any) => {
                     checkTime: now.toTimeString().slice(0, 5),
                     trayNumber,
                     remainingFeedStatus: residue,
-                    ...(photoPath !== undefined ? { photoPath } : {}),
+                    ...(photoPaths.length ? { photoPaths } : {}),
                 },
             });
-            setPhotoPath(undefined);
+            setPhotoPaths([]);
             showToast({
                 message: res.queued
                     ? t('common.savedOffline', 'Saved — will sync when online')
@@ -119,9 +119,8 @@ export const FeedingTrayChecksScreen = ({ route, navigation }: any) => {
                         <PhotoAttach
                             surface="feed_tray"
                             scope={{ pondId }}
-                            value={photoPath ? [photoPath] : []}
-                            onChange={(paths) => setPhotoPath(paths[paths.length - 1])}
-                            max={1}
+                            value={photoPaths}
+                            onChange={setPhotoPaths}
                         />
                     )}
                     <Button title={t('logs.saveRecord')} onPress={save} loading={saving} style={styles.saveBtn} />

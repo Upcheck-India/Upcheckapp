@@ -83,7 +83,7 @@ export class TransactionsService {
     });
     const saved = await this.transactionsRepository.save(transaction);
 
-    // F5 receipt / bill (cap 2). Already VIEW_FINANCIALS-gated on every read
+    // F5 receipt / bill (cap 3). Already VIEW_FINANCIALS-gated on every read
     // of this table, so no separate mask is needed here.
     if (photoPaths !== undefined) {
       await this.healthPhotoStorage.applyRecordPhotos(

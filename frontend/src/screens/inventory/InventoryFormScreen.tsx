@@ -435,7 +435,6 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
                             scope={{ farmId: contextFarmId ?? farmIds[0] }}
                             value={photoPaths}
                             onChange={setPhotoPaths}
-                            max={2}
                         />
                     )}
                 </Card>

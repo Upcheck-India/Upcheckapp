@@ -1,3 +1,4 @@
+import { PHOTO_SURFACES } from '../../storage/photo-surfaces';
 import {
   IsUUID,
   IsString,
@@ -98,9 +99,9 @@ export class CreateTreatmentDto {
   @IsOptional()
   inventoryItemId?: string;
 
-  /** F5: input label + batch (cap 2). Optional; the record saves without it. */
+  /** F5: input label + batch (cap 3). Optional; the record saves without it. */
   @IsArray()
-  @ArrayMaxSize(2)
+  @ArrayMaxSize(PHOTO_SURFACES.treatment_label.cap)
   @IsString({ each: true })
   @IsOptional()
   photoPaths?: string[];

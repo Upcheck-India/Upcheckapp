@@ -113,7 +113,7 @@ export class TreatmentsService {
       throw err;
     }
 
-    // F5 input label + batch (cap 2 enforced by the DTO). 403s before anything
+    // F5 input label + batch (cap 3 enforced by the DTO). 403s before anything
     // else if the photo belongs to another farm.
     if (photoPaths !== undefined) {
       await this.healthPhotoStorage.applyRecordPhotos(

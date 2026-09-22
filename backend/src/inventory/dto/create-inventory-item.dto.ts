@@ -1,3 +1,4 @@
+import { PHOTO_SURFACES } from '../../storage/photo-surfaces';
 import {
   IsArray,
   IsString,
@@ -80,9 +81,9 @@ export class CreateInventoryItemDto {
   @IsOptional()
   ingredientKeys?: string[];
 
-  /** F5: input label + batch (cap 2). Optional; the item saves without it. */
+  /** F5: input label + batch (cap 3). Optional; the item saves without it. */
   @IsArray()
-  @ArrayMaxSize(2)
+  @ArrayMaxSize(PHOTO_SURFACES.inventory_label.cap)
   @IsString({ each: true })
   @IsOptional()
   photoPaths?: string[];
