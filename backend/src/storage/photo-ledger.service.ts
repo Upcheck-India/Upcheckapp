@@ -4,11 +4,17 @@ import { DataSource, type EntityManager } from 'typeorm';
 import type { PhotoNamespace } from './r2-storage.service';
 
 /**
- * F2: the flat per-account pool — whichever limit is reached first.
+ * F2: the flat per-account pool — whichever limit is reached first. The app
+ * shows only the photo count; `bytes` is a hidden backstop (a few oversized
+ * photos cannot run up the bill) enforced the same way, same STORAGE_FULL.
+ * Only farm photos (`health` namespace) count: avatars and feedback do not.
  * ponytail: one number in a constants file, not a column. Becomes a per-plan
  * column the day tiers exist (PD3).
  */
-export const PHOTO_QUOTA = { photos: 1000, bytes: Math.round(1.5 * 1024 ** 3) };
+export const PHOTO_QUOTA = { photos: 500, bytes: 300 * 1024 ** 2 };
+
+/** The one namespace that counts toward the pool (alias `o`). */
+export const COUNTED = `o.namespace = 'health'`;
 
 /** Who an upload counts against, and what it is attached to (if known yet). */
 export interface LedgerOwner {
@@ -255,7 +261,7 @@ export class PhotoLedgerService {
     try {
       const [row] = await (manager ?? this.db).query(
         `SELECT count(*)::int AS photos, COALESCE(sum(${LIVE_BYTES}), 0)::bigint AS bytes
-         FROM photo_objects o WHERE o.owner_user_id = $1 AND ${NOT_PENDING}`,
+         FROM photo_objects o WHERE o.owner_user_id = $1 AND ${COUNTED} AND ${NOT_PENDING}`,
         [ownerUserId],
       );
       return { photos: Number(row?.photos ?? 0), bytes: Number(row?.bytes ?? 0) };
@@ -294,15 +300,19 @@ export class PhotoLedgerService {
     bytesFull: number,
     bytesThumb: number,
   ): Promise<boolean> {
-    const q = await this.quotaFor(owner.ownerUserId);
+    // Avatars and feedback never count, so they are never refused for a full pool.
+    const counted = namespace === 'health';
+    const q = counted ? await this.quotaFor(owner.ownerUserId) : null;
     try {
       await this.db.transaction(async (m) => {
-        await m.query(`SELECT pg_advisory_xact_lock(hashtextextended('photo_quota:' || $1, 0))`, [
-          owner.ownerUserId,
-        ]);
-        const used = await this.usageOf(owner.ownerUserId, m);
-        if (used && (used.photos + 1 > q.maxPhotos || used.bytes + bytesFull + bytesThumb > q.maxBytes)) {
-          throw storageFull();
+        if (q) {
+          await m.query(`SELECT pg_advisory_xact_lock(hashtextextended('photo_quota:' || $1, 0))`, [
+            owner.ownerUserId,
+          ]);
+          const used = await this.usageOf(owner.ownerUserId, m);
+          if (used && (used.photos + 1 > q.maxPhotos || used.bytes + bytesFull + bytesThumb > q.maxBytes)) {
+            throw storageFull();
+          }
         }
         await m.query(
           `INSERT INTO photo_objects

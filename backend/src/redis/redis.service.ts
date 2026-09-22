@@ -179,6 +179,21 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.client.del(key);
   }
 
+  /**
+   * Counter: +1 and return the new value, (re)arming the key's expiry — meant
+   * for keys that embed their own window (e.g. a date). Memory fallback
+   * counts per instance.
+   */
+  async incrWithExpiry(key: string, ttlSeconds: number): Promise<number> {
+    if (this.useMemory || !this.client) {
+      const n = Number((await this.get(key)) ?? 0) + 1;
+      await this.set(key, String(n), 'EX', ttlSeconds);
+      return n;
+    }
+    const res = await this.client.multi().incr(key).expire(key, ttlSeconds).exec();
+    return Number(res?.[0]?.[1]);
+  }
+
   // ── Hashes (the response cache keeps one hash per user) ──
   // The memory fallback stores each field as its own `key\0field` entry, so
   // deleting a hash there means dropping every entry under that prefix.

@@ -135,7 +135,7 @@ export class FeedRecordsService {
       throw err;
     }
 
-    // F5 input label + batch (cap 2). After the record + stock deduction are
+    // F5 input label + batch (cap 3). After the record + stock deduction are
     // committed — a rejected (foreign-farm) photo must not unwind either.
     if (createDto.photoPaths !== undefined) {
       await this.healthPhotoStorage.applyRecordPhotos(

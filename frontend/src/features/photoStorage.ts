@@ -10,15 +10,21 @@ export function formatBytes(bytes: number): string {
     return `${(mb / 1024).toFixed(1).replace(/\.0$/, '')} GB`;
 }
 
-/** Share of the pool used — whichever limit is closer (both apply). */
+/** Share of the photo limit used — all the app shows (the byte backstop is never shown). */
 export function poolFraction(used: { photos: number; bytes: number }, limits: PhotoLimits): number {
-    return Math.max(used.photos / limits.photos, used.bytes / limits.bytes);
+    return used.photos / limits.photos;
 }
 
-/** 80% → a quiet line; 100% → the picker refuses (spec F2). */
-export function poolLevel(used: { photos: number; bytes: number }, limits: PhotoLimits): 'ok' | 'warn' | 'full' {
+export type PoolLevel = 'ok' | 'warn' | 'critical' | 'full';
+
+/**
+ * 80% → warn, 95% → critical (stronger warning), 100% → the picker refuses.
+ * Full also when the hidden byte backstop is hit — the server refuses then too.
+ */
+export function poolLevel(used: { photos: number; bytes: number }, limits: PhotoLimits): PoolLevel {
+    if (used.photos >= limits.photos || used.bytes >= limits.bytes) return 'full';
     const f = poolFraction(used, limits);
-    return f >= 1 ? 'full' : f >= 0.8 ? 'warn' : 'ok';
+    return f >= 0.95 ? 'critical' : f >= 0.8 ? 'warn' : 'ok';
 }
 
 /** Newest month first; items keep their order inside a month. Key is `YYYY-MM`. */

@@ -496,7 +496,6 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                                     onChange={setPhotoPaths}
                                     existingUrls={editRecord?.photoSignedUrls}
                                     existingThumbs={editRecord?.photoThumbUrls}
-                                    max={2}
                                     equalWeight
                                 />
                             )}

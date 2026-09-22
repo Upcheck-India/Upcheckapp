@@ -1,3 +1,4 @@
+import { PHOTO_SURFACES } from '../../storage/photo-surfaces';
 import {
   IsUUID,
   IsDateString,
@@ -33,9 +34,9 @@ export class CreateExpenseDto {
   @IsOptional()
   description?: string;
 
-  /** F5: receipt / bill (cap 2). Financial data — VIEW_FINANCIALS gated. */
+  /** F5: receipt / bill (cap 3). Financial data — VIEW_FINANCIALS gated. */
   @IsArray()
-  @ArrayMaxSize(2)
+  @ArrayMaxSize(PHOTO_SURFACES.expense_receipt.cap)
   @IsString({ each: true })
   @IsOptional()
   photoPaths?: string[];

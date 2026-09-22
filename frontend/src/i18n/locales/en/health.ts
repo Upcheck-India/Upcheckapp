@@ -35,6 +35,8 @@ const health = {
     UNSUPPORTED_TYPE: "That file doesn't look like a photo. Please pick or take a photo instead.",
     STORAGE_UNCONFIGURED: 'Photo storage is unavailable right now. Please try again later.',
     AVATAR_NOT_MIGRATED: 'Profile photos are not available yet — please try again later.',
+    IMAGE_TOO_DETAILED: 'That photo is too detailed to store. Try another photo, or take it again in better light.',
+    DAILY_UPLOAD_LIMIT: 'You have added the most photos allowed for today. Please try again tomorrow.',
   },
   signsSeen: 'Signs seen',
   severity: {

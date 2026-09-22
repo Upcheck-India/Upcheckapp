@@ -524,7 +524,6 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                                         scope={{ farmId: billToFarmId }}
                                         value={purchasePhotoPaths}
                                         onChange={setPurchasePhotoPaths}
-                                        max={2}
                                         equalWeight
                                     />
                                 )}

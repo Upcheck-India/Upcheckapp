@@ -395,7 +395,6 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                         onChange={(paths) => setPhotoPath(paths.length ? paths[paths.length - 1] : null)}
                         existingUrls={existingPhoto.url ? [existingPhoto.url] : undefined}
                         existingThumbs={existingPhoto.thumbUrl ? [existingPhoto.thumbUrl] : undefined}
-                        max={1}
                     />
                 )}
 

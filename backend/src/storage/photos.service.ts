@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { DataSource, type EntityManager } from 'typeorm';
 import { R2StorageService } from './r2-storage.service';
 import { PhotoDeletionService, type PhotoDeletionReason } from './photo-deletion.service';
-import { LIVE_BYTES, NOT_PENDING, PHOTO_QUOTA, PhotoLedgerService } from './photo-ledger.service';
+import { COUNTED, LIVE_BYTES, NOT_PENDING, PHOTO_QUOTA, PhotoLedgerService } from './photo-ledger.service';
 import { removedPhotoTombstone } from '../health-observations/photo-removal.util';
 import { MONEY_ENTITIES } from './photo-surfaces';
 import { FarmAccessService } from '../farm-access/farm-access.service';
@@ -119,7 +119,7 @@ export class PhotosService {
    * full size — `sign()` does that) plus what goes in `photos.csv`.
    * READ on the pond is enough (any member may save what they can see);
    * money photos only with VIEW_FINANCIALS on their farm.
-   * ponytail: capped at 2,000 rows — twice the per-account photo limit.
+   * ponytail: capped at 2,000 rows — four times the default per-account photo limit.
    */
   async backup(userId: string, scope: BackupScope) {
     let where: string;
@@ -299,7 +299,7 @@ export class PhotosService {
          FROM photo_objects o
          LEFT JOIN farms f ON f.id = o.farm_id
          LEFT JOIN ponds p ON p.id = o.pond_id
-         WHERE ${MINE} AND ${NOT_PENDING}
+         WHERE ${MINE} AND ${COUNTED} AND ${NOT_PENDING}
          GROUP BY o.farm_id, f.name, o.pond_id, p.name
          ORDER BY f.name, p.name`,
         [userId],
@@ -352,7 +352,7 @@ export class PhotosService {
          FROM photo_objects o
          JOIN users u ON u.id = o.owner_user_id
          LEFT JOIN photo_quota_overrides ov ON ov.user_id = o.owner_user_id
-         WHERE ${NOT_PENDING}
+         WHERE ${COUNTED} AND ${NOT_PENDING}
          GROUP BY o.owner_user_id, u.email, ov.max_photos, ov.max_bytes
          ORDER BY bytes DESC
          LIMIT $1`,
@@ -372,7 +372,9 @@ export class PhotosService {
         photos: num(r.photos),
         bytes,
         limits: { photos: maxPhotos, bytes: maxBytes },
-        percentOfLimit: maxBytes > 0 ? Math.round((bytes / maxBytes) * 1000) / 10 : 0,
+        // Whichever limit is closer — both are enforced.
+        percentOfLimit:
+          Math.round(Math.max(maxPhotos > 0 ? num(r.photos) / maxPhotos : 0, maxBytes > 0 ? bytes / maxBytes : 0) * 1000) / 10,
         overridden: r.max_bytes !== null && r.max_bytes !== undefined,
       };
     });
@@ -398,7 +400,7 @@ export class PhotosService {
   /**
    * One pond's photos (or a farm's farm-level ones), newest first, with the
    * record each belongs to and a signed thumbnail. Only the caller's pool.
-   * ponytail: capped at 500 rows, no paging — the per-account limit is 1,000.
+   * ponytail: capped at 500 rows, no paging — the default per-account limit is 500.
    */
   async list(userId: string, scope: { pondId?: string; farmId?: string }) {
     const where = scope.pondId ? `o.pond_id = $2` : `o.farm_id = $2 AND o.pond_id IS NULL`;

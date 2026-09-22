@@ -462,7 +462,6 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
                     scope={{ farmId }}
                     value={formPhotoPaths}
                     onChange={setFormPhotoPaths}
-                    max={2}
                 />
             )}
 

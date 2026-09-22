@@ -49,7 +49,7 @@ const MAX_BODY_BYTES = 512 * 1024;
 
 export const userCacheKey = (userId: string) => `rc:u:${userId}`;
 
-const withTimeout = <T>(p: Promise<T>, ms = REDIS_TIMEOUT_MS): Promise<T> =>
+export const withTimeout = <T>(p: Promise<T>, ms = REDIS_TIMEOUT_MS): Promise<T> =>
   Promise.race([
     p,
     new Promise<T>((_, reject) => {

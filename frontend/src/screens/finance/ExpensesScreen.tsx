@@ -339,7 +339,6 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
                     scope={{ pondId }}
                     value={photoPaths}
                     onChange={setPhotoPaths}
-                    max={2}
                 />
             )}
 

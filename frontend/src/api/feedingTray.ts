@@ -9,7 +9,9 @@ export interface CreateFeedingTrayCheck {
   trayNumber: number;
   remainingFeedStatus: TrayResidue;
   feedRecordId?: string;
-  /** F5: tray photo (cap 1). */
+  /** F5: tray photos (cap 2). Current clients send this. */
+  photoPaths?: string[];
+  /** Older single-photo form, still accepted. */
   photoPath?: string | null;
 }
 

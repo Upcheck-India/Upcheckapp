@@ -1,5 +1,8 @@
 import { AtLeastOneOf } from '../../common/validators/at-least-one-of.validator';
+import { PHOTO_SURFACES } from '../../storage/photo-surfaces';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsString,
   IsOptional,
   IsNumber,
@@ -136,7 +139,14 @@ export class CreateWaterQualityRecordDto {
   @IsOptional()
   notes?: string;
 
-  /** F5: water colour (cap 1). Optional; the reading saves without it. */
+  /** F5: water colour (cap 2). Optional; the reading saves without it. Wins over `photoPath`. */
+  @IsArray()
+  @ArrayMaxSize(PHOTO_SURFACES.water_colour.cap)
+  @IsString({ each: true })
+  @IsOptional()
+  photoPaths?: string[];
+
+  /** Pre-cap-2 clients (and their queued offline saves): one photo. */
   @IsString()
   @IsOptional()
   photoPath?: string | null;
