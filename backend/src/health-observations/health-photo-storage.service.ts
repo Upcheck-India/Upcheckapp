@@ -162,6 +162,36 @@ export class HealthPhotoStorageService {
     if (paths.length) await this.attach(paths, entity as any, recordId);
   }
 
+  /**
+   * F5 read side: sign many rows' `photoPaths` in one batch call to R2,
+   * regardless of row count — one `{full,thumb}` pair per input array, same
+   * order/length as `pathsList`. For the 11 `photo_paths` surfaces
+   * (feed/harvest/treatment/water-quality/etc, entity-photo-paths.util.ts) —
+   * `withSigned` above is the older `photoUrls` (health/mortality/disease)
+   * form. No per-path farm check: callers already scoped the read to
+   * farms/ponds the caller can access before this runs.
+   *
+   * Takes plain path arrays rather than merging into the row objects
+   * directly — a generic `T extends { photoPaths?: ... }` constraint hits
+   * TS's "weak type" check (no overlapping required properties) against
+   * entities like `Harvest` that don't declare `photoPaths` themselves.
+   */
+  async signMany(pathsList: (string[] | null | undefined)[]): Promise<{ full: string[]; thumb: string[] }[]> {
+    const lens = pathsList.map((p) => (p ?? []).length);
+    const { full, thumb } = await this.storage.sign('health', pathsList.flatMap((p) => p ?? []));
+    let i = 0;
+    return lens.map((n) => {
+      const out = { full: full.slice(i, i + n), thumb: thumb.slice(i, i + n) };
+      i += n;
+      return out;
+    });
+  }
+
+  /** `signMany` for a single row. */
+  async signOne(paths: string[] | null | undefined): Promise<{ full: string[]; thumb: string[] }> {
+    return (await this.signMany([paths]))[0];
+  }
+
   /** `photoSignedUrls` + `photoThumbUrls` on each record (signed locally). */
   async withSigned<T extends { photoUrls?: string[] | null }>(
     farmId: string,

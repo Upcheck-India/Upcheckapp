@@ -29,6 +29,10 @@ export interface Harvest {
     updatedAt: string;
     /** F5: buyer's weighing slip (cap 2, protected 12mo). [] without VIEW_FINANCIALS. */
     photoPaths?: string[];
+    /** Signed, short-lived; read side. [] without VIEW_FINANCIALS, same as `photoPaths`. */
+    photoSignedUrls?: string[];
+    /** 400px thumbnails of `photoSignedUrls`, same order. */
+    photoThumbUrls?: string[];
 }
 
 export type RejectedReason = 'soft_shell' | 'broken' | 'dead' | 'other';

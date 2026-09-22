@@ -12,6 +12,7 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import { latestNonNull } from '../pond-context/pond-context.service';
 import { thresholdFor } from '../common/wq-thresholds';
 import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
+import { readPhotoPaths, readPhotoPathsMany } from '../storage/entity-photo-paths.util';
 
 /**
  * Critical limits for persisted water-quality alerts, from the shared
@@ -332,11 +333,26 @@ export class WaterQualityService {
       skip,
     });
 
+    // F5: water-colour photo, signed for display (water quality history/edit —
+    // previously write-only, see photos audit 2026-09-22).
+    const pathsById = await readPhotoPathsMany(
+      this.recordsRepository.manager,
+      'water_quality_records',
+      items.map((i) => i.id),
+    );
+    const signedPhotos = await this.healthPhotoStorage.signMany(items.map((i) => pathsById[i.id]));
+    const signed = items.map((i, idx) => ({
+      ...i,
+      photoPaths: pathsById[i.id],
+      photoSignedUrls: signedPhotos[idx].full,
+      photoThumbUrls: signedPhotos[idx].thumb,
+    }));
+
     const pageMetaDto = new PageMetaDto({
       itemCount,
       pageOptionsDto: pageOptionsDto || { page: 1, take },
     });
-    return new PageDto(items, pageMetaDto);
+    return new PageDto(signed as any, pageMetaDto);
   }
 
   async findByPond(
@@ -370,7 +386,13 @@ export class WaterQualityService {
     }
     // Verify access via pond (owner or worker)
     await this.pondsService.verifyAccess(record.pondId, userId, 'READ');
-    return record;
+    const photoPaths = await readPhotoPaths(
+      this.recordsRepository.manager,
+      'water_quality_records',
+      id,
+    );
+    const { full, thumb } = await this.healthPhotoStorage.signOne(photoPaths);
+    return { ...record, photoPaths, photoSignedUrls: full, photoThumbUrls: thumb } as any;
   }
 
   async update(

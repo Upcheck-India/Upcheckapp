@@ -24,6 +24,7 @@ import {
 } from '../farm-access/farm-capability';
 import { PhotoDeletionService } from '../storage/photo-deletion.service';
 import { HealthPhotoStorageService } from '../health-observations/health-photo-storage.service';
+import { readPhotoPaths } from '../storage/entity-photo-paths.util';
 
 /**
  * Roles that see a farm's district but never its raw coordinates (spec
@@ -286,13 +287,22 @@ export class FarmsService {
     if (!farm || farm.deletedAt)
       throw new NotFoundException(`Farm with ID ${id} not found`);
     const role = callerId ? await this.farmAccess.getRoleOnFarm(callerId, id) : null;
-    const [caaRegistrationNo, location] = await Promise.all([
+    const [caaRegistrationNo, location, photoPaths] = await Promise.all([
       this.getCaaRegistrationNo(id),
       this.getLocationDistrict(id),
+      readPhotoPaths(this.farmsRepository.manager, 'farms', id),
     ]);
+    // F5 identity photo (cap 1) — signed for display (previously write-only,
+    // see photos audit 2026-09-22). At most one path.
+    const { full: photoSignedUrls, thumb: photoThumbUrls } = await this.healthPhotoStorage.signOne(photoPaths);
     return {
       ...this.stripCoordinatesForRole(farm, role),
       caaRegistrationNo,
+      // Raw path, so the edit form's `value`/remove flow has it (matches
+      // `UpdateFarmDto.photoPath`); `photoUrl`/`photoThumbUrl` are for display.
+      photoPath: photoPaths[0] ?? null,
+      photoUrl: photoSignedUrls[0] ?? null,
+      photoThumbUrl: photoThumbUrls[0] ?? null,
       ...location,
     };
   }

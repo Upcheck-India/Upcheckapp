@@ -63,6 +63,9 @@ describe('FarmsService', () => {
     repository.manager = {
       getRepository: jest.fn(() => cropsRepo),
       transaction: jest.fn(async (cb: (m: any) => unknown) => cb(txManager)),
+      // F5 read side: findOne signs the identity photo via a raw query on
+      // the repository's manager (entity-photo-paths.util.ts).
+      query: jest.fn().mockResolvedValue([]),
     };
     photoDeletions = { enqueue: jest.fn().mockResolvedValue(true) };
 
@@ -93,7 +96,15 @@ describe('FarmsService', () => {
           },
         },
         { provide: PhotoDeletionService, useValue: photoDeletions },
-        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), applySinglePhoto: jest.fn() } },
+        {
+          provide: HealthPhotoStorageService,
+          useValue: {
+            assertFarmPaths: jest.fn(),
+            applySinglePhoto: jest.fn(),
+            signOne: jest.fn().mockResolvedValue({ full: [], thumb: [] }),
+            signMany: jest.fn().mockImplementation((paths: unknown[]) => Promise.resolve(paths.map(() => ({ full: [], thumb: [] })))),
+          },
+        },
       ],
     }).compile();
 
@@ -294,6 +305,10 @@ describe('FarmsService', () => {
         caaRegistrationNo: null,
         stateCode: null,
         districtCode: null,
+        // F5 identity photo: signed for display (previously write-only).
+        photoPath: null,
+        photoUrl: null,
+        photoThumbUrl: null,
       });
     });
 
