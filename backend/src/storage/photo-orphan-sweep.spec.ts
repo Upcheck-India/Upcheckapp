@@ -40,16 +40,16 @@ function sweeper(ledger: { path: string; uploaded_at: string }[], refs: Record<s
 }
 
 describe('F1 orphan sweep — what may be deleted', () => {
-  it('a 25 h-old unreferenced upload is queued as an orphan', async () => {
-    const { svc, queued, query } = sweeper([{ path: path(1), uploaded_at: hoursAgo(25) }]);
+  it('a 73 h-old unreferenced upload is queued as an orphan', async () => {
+    const { svc, queued, query } = sweeper([{ path: path(1), uploaded_at: hoursAgo(73) }]);
     expect(await svc.sweepOrphans(100, NOW)).toBe(1);
     expect(queued()).toEqual([path(1)]);
     const insert = query.mock.calls.find(([q]) => /^INSERT INTO photo_deletions/.test(q))!;
     expect((insert[1] as any[])[2]).toBe('orphan');
   });
 
-  it('a 23 h-old unreferenced upload is NOT selected', async () => {
-    const { svc, queued } = sweeper([{ path: path(1), uploaded_at: hoursAgo(23) }]);
+  it('a 71 h-old unreferenced upload is NOT selected', async () => {
+    const { svc, queued } = sweeper([{ path: path(1), uploaded_at: hoursAgo(71) }]);
     expect(await svc.sweepOrphans(100, NOW)).toBe(0);
     expect(queued()).toEqual([]);
   });
@@ -60,7 +60,7 @@ describe('F1 orphan sweep — what may be deleted', () => {
       const { svc, queued } = sweeper(
         [
           { path: path(1), uploaded_at: hoursAgo(24 * 30) },
-          { path: path(2), uploaded_at: hoursAgo(25) },
+          { path: path(2), uploaded_at: hoursAgo(73) },
         ],
         { [col]: [path(1)] },
       );
@@ -70,7 +70,7 @@ describe('F1 orphan sweep — what may be deleted', () => {
   );
 
   it('a farm photo reported in feedback (`health/<path>`) is never selected', async () => {
-    const { svc, queued } = sweeper([{ path: path(1), uploaded_at: hoursAgo(48) }], {
+    const { svc, queued } = sweeper([{ path: path(1), uploaded_at: hoursAgo(96) }], {
       'feedback_reports.attachment_paths': [`health/${path(1)}`],
     });
     expect(await svc.sweepOrphans(100, NOW)).toBe(0);
@@ -78,7 +78,7 @@ describe('F1 orphan sweep — what may be deleted', () => {
   });
 
   it('if the reference check fails, nothing is queued', async () => {
-    const { svc, query, queued } = sweeper([{ path: path(1), uploaded_at: hoursAgo(48) }]);
+    const { svc, query, queued } = sweeper([{ path: path(1), uploaded_at: hoursAgo(96) }]);
     const base = query.getMockImplementation()!;
     query.mockImplementation(async (q: string, p?: any[]) => {
       if (/FROM unnest/.test(q)) throw Object.assign(new Error('column "photo_paths" does not exist'), { code: '42703' });
@@ -96,7 +96,7 @@ describe('F1 orphan sweep — what may be deleted', () => {
     expect(sql).toMatch(/o.uploaded_at < \$1::timestamptz/);
     expect(sql).toMatch(/NOT EXISTS \(SELECT 1 FROM photo_deletions d/);
     expect(sql).toMatch(/LIMIT \$2/);
-    expect(params).toEqual([hoursAgo(24), 50]);
+    expect(params).toEqual([hoursAgo(72), 50]);
   });
 
   it('the reference list covers every photo column in the codebase', () => {

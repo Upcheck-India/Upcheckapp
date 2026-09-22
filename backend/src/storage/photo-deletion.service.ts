@@ -28,7 +28,7 @@ const LAZY_DRAIN_EVERY_MS = 60_000;
 /** F3: the retention pass rides the same lazy hook, at most daily per instance. */
 const RETENTION_EVERY_MS = 24 * 3_600_000;
 /** An upload still on no record after this long was abandoned (F1 orphans). */
-export const ORPHAN_AFTER_HOURS = 24;
+export const ORPHAN_AFTER_HOURS = 72;
 /** C6: a done row is the proof a deletion happened; kept this long, then pruned. */
 export const DONE_RETENTION_MONTHS = 24;
 const PRUNE_EVERY_MS = 24 * 3600_000;
