@@ -27,6 +27,8 @@ export interface BriefingItem {
   /** Lunar molt alerts: i18n keys beside topTitle / steps (M1.6). */
   titleKey?: TextKey;
   stepKeys?: TextKey[];
+  /** Live alerts: what POST /alert-center/dismiss takes to mark this done. */
+  dismissKey?: string;
 }
 
 /** One unread persisted alert, uncollapsed (GET /alert-center/all). */
@@ -107,6 +109,7 @@ export class AlertCenterService {
         source: data.source ?? top.type ?? 'unknown',
         steps: data.steps ?? [],
         alertCount: list.length,
+        ...(data.dismissKey ? { dismissKey: data.dismissKey } : {}),
         // The top alert's own actions only — never another alert's.
         ...(data.actions ? { actions: data.actions } : {}),
         ...(data.titleKey ? { titleKey: data.titleKey, stepKeys: data.stepKeys } : {}),
@@ -137,6 +140,16 @@ export class AlertCenterService {
         ? { titleKey: a.data.titleKey, bodyKey: a.data.bodyKey }
         : {}),
     }));
+  }
+
+  /** Live alerts the user marked done (see AlertsService.dismiss). */
+  dismissedKeys(userId: string): Promise<Set<string>> {
+    return this.alerts.dismissedKeys(userId).catch(() => new Set<string>());
+  }
+
+  /** Mark live alerts done for this user. */
+  dismiss(userId: string, dismissKeys: string[]) {
+    return this.alerts.dismiss(userId, dismissKeys);
   }
 
   /** Morning briefing from the user's unread alerts. */

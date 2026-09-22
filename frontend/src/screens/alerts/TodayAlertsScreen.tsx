@@ -55,6 +55,8 @@ interface Row {
     actions?: BriefingActions;
     /** Persisted alerts only — what "Mark as read" marks. */
     savedId?: string;
+    /** Live alerts only — what "Done" hides until the reading changes. */
+    dismissKey?: string;
 }
 
 const loadAll = async (): Promise<Row[]> => {
@@ -96,10 +98,11 @@ export const TodayAlertsScreen = ({ navigation }: any) => {
         return [pondName, farm].filter(Boolean).join(' · ');
     };
 
-    const markRead = async (id: string) => {
+    const markRead = async (id: string, live = false) => {
         setMarking(id);
         try {
-            await alertsApi.markAsRead(id);
+            if (live) await alertCenterApi.dismiss([id]);
+            else await alertsApi.markAsRead(id);
             await queryClient.invalidateQueries({ queryKey: qk.briefing() });
         } catch (e) {
             Alert.alert(t('common.error'), apiErrorMessage(e, t('alerts.markReadFailed')));
@@ -171,14 +174,14 @@ export const TodayAlertsScreen = ({ navigation }: any) => {
                                         style={styles.btn}
                                         labelStyle={styles.btnLabel}
                                     />
-                                    {!!r.savedId && (
+                                    {!!(r.savedId ?? r.dismissKey) && (
                                         <TouchableOpacity
                                             accessibilityRole="button"
                                             style={styles.btn}
-                                            disabled={marking === r.savedId}
-                                            onPress={() => markRead(r.savedId!)}
+                                            disabled={marking === (r.savedId ?? r.dismissKey)}
+                                            onPress={() => (r.savedId ? markRead(r.savedId) : markRead(r.dismissKey!, true))}
                                         >
-                                            <Text style={styles.btnLabel}>{t('alerts.markRead')}</Text>
+                                            <Text style={styles.btnLabel}>{t(r.savedId ? 'alerts.markRead' : 'home.markDone')}</Text>
                                         </TouchableOpacity>
                                     )}
                                 </View>

@@ -680,6 +680,13 @@ describe('DailyBriefService — the day story', () => {
     ]));
   });
 
+  it('a mortality spike stops asking for a health check once one is logged', async () => {
+    const base = { ponds: [pondRow('p1')], mortality_days: [{ pond_id: 'p1', day: D, qty: 40 }] };
+    const spike = async (rows: any) => (await get(rows, D)).story!.find((x: any) => x.code === 'mortality_spike')!;
+    expect((await spike(base)).resolvedAt).toBeNull();
+    expect((await spike({ ...base, spike_checks: [{ pond_id: 'p1', at: '2026-09-01T05:00:00Z' }] })).resolvedAt).toBe('2026-09-01T05:00:00.000Z');
+  });
+
   it('coverage: all done vs behind — watch on a past day, info (so far) today', async () => {
     const task = (status: string, due: string) => ({ id: `t-${status}`, title: 'x', status, due_date: due, pond_id: null, completed_at: null, assignee_ids: [] });
     const good = await get({

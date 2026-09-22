@@ -25,7 +25,7 @@ jest.mock('../../../api/farmMembers', () => ({
     farmMembersApi: { listMembers: jest.fn(), listMyPending: jest.fn() },
 }));
 jest.mock('../../../api/alertCenter', () => ({
-    alertCenterApi: { today: jest.fn(), liveBriefing: jest.fn(), briefing: jest.fn() },
+    alertCenterApi: { today: jest.fn(), liveBriefing: jest.fn(), briefing: jest.fn(), dismiss: jest.fn(() => Promise.resolve()) },
 }));
 // Only the HTTP surface is faked. `splitTasks` and the due/repeat helpers next
 // to it are pure rules about what the farmer sees — stubbing those would test

@@ -87,6 +87,15 @@ describe('EngineAlertService.evaluate', () => {
     ).toBeUndefined();
   });
 
+  it('ignores readings too old to be now: DO/pH over 2 days, ammonia over 7', () => {
+    const old = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
+    const src = (ctx: any) => svc.evaluate(ctx).map((d) => d.source);
+    expect(src({ ...baseCtx, waterQuality: { dissolvedOxygen: 2.5, dissolvedOxygenAsOf: old(3) } })).not.toContain('aeration');
+    expect(src({ ...baseCtx, waterQuality: { dissolvedOxygen: 2.5, dissolvedOxygenAsOf: old(1) } })).toContain('aeration');
+    expect(src({ ...baseCtx, freeAmmoniaMgL: 0.5, waterQuality: { chemistryAsOf: old(8) } })).not.toContain('water');
+    expect(src({ ...baseCtx, freeAmmoniaMgL: 0.5, waterQuality: { chemistryAsOf: old(5) } })).toContain('water');
+  });
+
   it('emits nothing when everything is healthy', () => {
     expect(svc.evaluate(baseCtx)).toEqual([]);
   });
@@ -205,7 +214,7 @@ const buildSvc = (over: any = {}) => {
     pondRepo as any,
     { buildContextsFor } as any,
     moltSvc as any,
-    { buildBriefing: jest.fn((drafts) => drafts) } as any,
+    { buildBriefing: jest.fn((drafts) => drafts), dismissedKeys: jest.fn(async () => over.dismissed ?? new Set()) } as any,
     farmAccess as any,
     diseaseIndicators as any,
     diseaseAlerts as any,
@@ -323,6 +332,17 @@ describe('EngineAlertService.all', () => {
     expect(live.every((a) => a.pondId === 'p1' && a.farmId === 'farm-1')).toBe(true);
     expect(new Set(live.map((a) => a.key)).size).toBe(2);
     expect(live[0].steps.length).toBeGreaterThan(1);
+  });
+
+  it('a live alert marked done stays hidden until its reading changes', async () => {
+    const ctx = (nh3: number) => jest.fn(async (ids: string[]) =>
+      ids.map((pondId) => ({ ...baseCtx, pondId, farmId: 'farm-1', freeAmmoniaMgL: nh3 })));
+    const first = await withSaved({ readablePonds: ['p1'], buildContextsFor: ctx(0.5) }).svc.all('u');
+    const key = first.live[0].dismissKey!;
+    const same = await withSaved({ readablePonds: ['p1'], buildContextsFor: ctx(0.5), dismissed: new Set([key]) }).svc.all('u');
+    expect(same.live).toHaveLength(0);
+    const changed = await withSaved({ readablePonds: ['p1'], buildContextsFor: ctx(0.6), dismissed: new Set([key]) }).svc.all('u');
+    expect(changed.live).toHaveLength(1);
   });
 
   it('orders critical → watch → info, then by pond', async () => {

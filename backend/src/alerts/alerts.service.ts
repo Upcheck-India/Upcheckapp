@@ -4,10 +4,18 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, Not, Repository } from 'typeorm';
 import { Alert } from './alert.entity';
 import { CreateAlertDto } from './dto/create-alert.dto';
 import { PushService } from '../push/push.service';
+
+/**
+ * A live engine alert the user marked done. Stored as a read row in the same
+ * table (no migration) and hidden from every alert list; it only silences the
+ * live alert whose `dismissKey` (finding + reading) it names.
+ */
+export const DISMISSED_TYPE = 'dismissed';
+const DISMISS_DAYS = 30;
 
 @Injectable()
 export class AlertsService {
@@ -138,8 +146,38 @@ export class AlertsService {
     return result.affected ?? 0;
   }
 
+  /** Mark live alerts done for this user until their reading changes. */
+  async dismiss(userId: string, dismissKeys: string[]) {
+    if (!dismissKeys.length) return { dismissed: 0 };
+    await this.alertsRepository.save(
+      dismissKeys.map((k) =>
+        this.alertsRepository.create({
+          userId,
+          type: DISMISSED_TYPE,
+          title: 'Marked done',
+          message: k,
+          isRead: true,
+        }),
+      ),
+    );
+    return { dismissed: dismissKeys.length };
+  }
+
+  /** The user's recent "done" marks, as dismissKeys. */
+  async dismissedKeys(userId: string): Promise<Set<string>> {
+    const rows = await this.alertsRepository.find({
+      select: { message: true },
+      where: {
+        userId,
+        type: DISMISSED_TYPE,
+        createdAt: MoreThan(new Date(Date.now() - DISMISS_DAYS * 86_400_000)),
+      },
+    });
+    return new Set(rows.map((r) => r.message));
+  }
+
   findByUser(userId: string, unreadOnly = false) {
-    const where: any = { userId };
+    const where: any = { userId, type: Not(DISMISSED_TYPE) };
     if (unreadOnly) where.isRead = false;
     return this.alertsRepository.find({
       where,
