@@ -18,7 +18,7 @@ import { HealthPhotoStorageService } from '../health-observations/health-photo-s
  */
 describe('TreatmentsService — banned-substance write-time flag (BANNED-1)', () => {
   let service: TreatmentsService;
-  let repo: { findOne: jest.Mock; findOneBy: jest.Mock; create: jest.Mock; save: jest.Mock; update: jest.Mock };
+  let repo: { findOne: jest.Mock; findOneBy: jest.Mock; create: jest.Mock; save: jest.Mock; update: jest.Mock; manager: { query: jest.Mock } };
 
   beforeEach(async () => {
     repo = {
@@ -27,6 +27,9 @@ describe('TreatmentsService — banned-substance write-time flag (BANNED-1)', ()
       create: jest.fn().mockImplementation((e) => e),
       save: jest.fn().mockImplementation((e) => Promise.resolve({ ...e })),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
+      // F5 read side: findOne signs `photoPaths` via a raw query on the
+      // repository's manager (entity-photo-paths.util.ts).
+      manager: { query: jest.fn().mockResolvedValue([]) },
     };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -35,7 +38,15 @@ describe('TreatmentsService — banned-substance write-time flag (BANNED-1)', ()
         { provide: FarmAccessService, useValue: {} },
         { provide: ComplianceService, useValue: { escalate: jest.fn() } },
         { provide: InventoryService, useValue: {} },
-        { provide: HealthPhotoStorageService, useValue: { assertFarmPaths: jest.fn(), applyRecordPhotos: jest.fn() } },
+        {
+          provide: HealthPhotoStorageService,
+          useValue: {
+            assertFarmPaths: jest.fn(),
+            applyRecordPhotos: jest.fn(),
+            signOne: jest.fn().mockResolvedValue({ full: [], thumb: [] }),
+            signMany: jest.fn().mockImplementation((paths: unknown[]) => Promise.resolve(paths.map(() => ({ full: [], thumb: [] })))),
+          },
+        },
       ],
     }).compile();
     service = module.get(TreatmentsService);

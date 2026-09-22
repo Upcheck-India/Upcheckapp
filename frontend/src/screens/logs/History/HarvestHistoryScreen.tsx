@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
+import { PhotoStrip } from '../../../components/ui/PhotoStrip';
 import { StaleNotice } from '../../../components/ui/CacheNotice';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
@@ -126,6 +127,11 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
                         </View>
                     )}
                     {item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
+                    {!!item.photoSignedUrls?.length && (
+                        <View style={styles.photos}>
+                            <PhotoStrip full={item.photoSignedUrls} thumbs={item.photoThumbUrls} size={56} />
+                        </View>
+                    )}
                 </Card>
             </>
         );
@@ -217,6 +223,7 @@ const styles = StyleSheet.create({
     detailRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3], marginTop: theme.spacing[2] },
     detailText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
     notesText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: theme.spacing[2] },
+    photos: { marginTop: theme.spacing[2] },
     emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
     emptyTitle: { ...theme.typeScale.h4, color: theme.roles.light.textPrimary, marginTop: theme.spacing[4], marginBottom: theme.spacing[2] },
     emptyText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },

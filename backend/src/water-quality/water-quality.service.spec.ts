@@ -59,14 +59,21 @@ function makeService(records: any[]) {
   const repo = {
     find: jest.fn().mockResolvedValue(records),
     findAndCount: jest.fn().mockResolvedValue([records, records.length]),
+    // F5 read side: findAll/findOne sign each row's photo_paths via a raw
+    // query on the repository's manager (entity-photo-paths.util.ts).
+    manager: { query: jest.fn().mockResolvedValue([]) },
   };
   const ponds = { verifyAccess: jest.fn().mockResolvedValue(undefined) };
+  const healthPhotoStorage = {
+    signOne: jest.fn().mockResolvedValue({ full: [], thumb: [] }),
+    signMany: jest.fn().mockImplementation((paths: unknown[]) => Promise.resolve(paths.map(() => ({ full: [], thumb: [] })))),
+  };
   const service = new WaterQualityService(
     repo as any,
     ponds as any,
     {} as any,
     {} as any,
-    {} as any,
+    healthPhotoStorage as any,
   );
   return { service, repo, ponds };
 }

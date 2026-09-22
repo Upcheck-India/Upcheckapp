@@ -908,11 +908,25 @@ export class DailyBriefService {
       if (!staleBefore.some((b) => b.pondId === s.pondId)) story.push({ code: 'stale_pond', tone: s.severity, pondId: s.pondId, count: worstDays(s) });
     }
 
+    // A spike asks for a health check; once one is logged for that pond on or
+    // after the day, the ask is answered and the client drops the button.
+    const spikeIds = pondDays
+      .filter((p) => p.health.mortality != null && isMortalitySpike(p.health.mortality, p.health.mortality7DayAvg))
+      .map((p) => p.pondId);
+    const checkedAt = new Map<string, string>();
+    if (spikeIds.length) {
+      const rows = await q_('spike_checks',
+        `SELECT pond_id, min(created_at) AS at FROM health_observations
+          WHERE pond_id = ANY($1::uuid[]) AND observed_on >= $2 GROUP BY pond_id`,
+        [spikeIds, D]).catch((err) => { if (isMissingSchema(err)) return [] as any[]; throw err; });
+      for (const r of rows) checkedAt.set(r.pond_id, new Date(r.at).toISOString());
+    }
+
     // Events of the day, per listed pond.
     for (const p of pondDays) {
       const id = p.pondId;
-      if (p.health.mortality != null && isMortalitySpike(p.health.mortality, p.health.mortality7DayAvg)) {
-        story.push({ code: 'mortality_spike', tone: 'watch', pondId: id, count: p.health.mortality });
+      if (spikeIds.includes(id)) {
+        story.push({ code: 'mortality_spike', tone: 'watch', pondId: id, count: p.health.mortality!, resolvedAt: checkedAt.get(id) ?? null });
       }
       const hv = harvests.filter((h: any) => h.pond_id === id && h.day === D);
       if (hv.length) story.push({ code: 'harvest_done', tone: 'good', pondId: id, value: r2(sum(hv, 'kg')) });

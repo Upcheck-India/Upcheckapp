@@ -5,6 +5,7 @@ import { useCachedFetch } from '../../../query/hooks';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
+import { PhotoStrip } from '../../../components/ui/PhotoStrip';
 import { StaleNotice } from '../../../components/ui/CacheNotice';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
@@ -54,6 +55,11 @@ export const FeedHistoryScreen = ({ route, navigation }: any) => {
             {item.feedType && <Text style={styles.typeText}>{t('history.feedTypeLabel', { type: item.feedType })}</Text>}
             {item.feedingMethod && <Text style={styles.methodText}>{t('history.feedMethodLabel', { method: item.feedingMethod })}</Text>}
             {item.notes && <Text style={styles.notesText}>{item.notes}</Text>}
+            {!!item.photoSignedUrls?.length && (
+                <View style={styles.photos}>
+                    <PhotoStrip full={item.photoSignedUrls} thumbs={item.photoThumbUrls} size={56} />
+                </View>
+            )}
         </Card>
     );
 
@@ -115,6 +121,7 @@ const styles = StyleSheet.create({
     summaryValue: { fontWeight: '700', color: theme.roles.light.infoText },
     listContent: { padding: theme.spacing[4], paddingBottom: 100 },
     card: { padding: theme.spacing[4], marginBottom: theme.spacing[3] },
+    photos: { marginTop: theme.spacing[2] },
     rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing[2] },
     cardActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
     dateText: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },

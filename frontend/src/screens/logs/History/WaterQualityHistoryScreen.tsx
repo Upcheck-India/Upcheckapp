@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../../components/layout/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
+import { PhotoStrip } from '../../../components/ui/PhotoStrip';
 import { StaleNotice } from '../../../components/ui/CacheNotice';
 import { ErrorState } from '../../../components/ui/ErrorState';
 import { FAB } from '../../../components/ui/FAB';
@@ -244,6 +245,11 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
                     );
                 })}
             </View>
+            {!!item.photoSignedUrls?.length && (
+                <View style={styles.photos}>
+                    <PhotoStrip full={item.photoSignedUrls} thumbs={item.photoThumbUrls} size={56} />
+                </View>
+            )}
         </Card>
         );
     };
@@ -311,6 +317,7 @@ const styles = StyleSheet.create({
     valRow: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
     metricVal: { ...theme.typeScale.bodyLarge, color: theme.roles.light.textPrimary, fontWeight: '600' },
     dot: { width: 8, height: 8, borderRadius: 4 },
+    photos: { marginTop: theme.spacing[3] },
     emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
     emptyTitle: { ...theme.typeScale.h4, color: theme.roles.light.textPrimary, marginTop: theme.spacing[4], marginBottom: theme.spacing[2] },
     emptyText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },

@@ -1,7 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { AlertsService } from './alerts.service';
 import { Alert } from './alert.entity';
 import { CreateAlertDto } from './dto/create-alert.dto';
@@ -95,7 +95,7 @@ describe('AlertsService', () => {
       const result = await service.findByUser(userId);
 
       expect(repository.find).toHaveBeenCalledWith({
-        where: { userId },
+        where: { userId, type: Not('dismissed') },
         order: { createdAt: 'DESC' },
       });
       expect(result).toEqual(alerts);
@@ -110,7 +110,7 @@ describe('AlertsService', () => {
       const result = await service.findByUser(userId, true);
 
       expect(repository.find).toHaveBeenCalledWith({
-        where: { userId, isRead: false },
+        where: { userId, type: Not('dismissed'), isRead: false },
         order: { createdAt: 'DESC' },
       });
       expect(result).toEqual(alerts);

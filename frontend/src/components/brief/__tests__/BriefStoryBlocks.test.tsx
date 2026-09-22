@@ -45,6 +45,11 @@ describe('DayStory', () => {
         expect(render(<DayStory brief={b} />).queryByTestId('story-health-check-p1')).toBeNull();
     });
 
+    it('D6: no health-check button once one is logged for the spike', () => {
+        const b = makeBrief({ story: [{ code: 'mortality_spike', tone: 'watch', pondId: 'p1', count: 140, resolvedAt: '2026-09-22T05:00:00Z' }] });
+        expect(render(<DayStory brief={b} onHealthCheck={jest.fn()} />).queryByTestId('story-health-check-p1')).toBeNull();
+    });
+
     it('D6: an ongoing disease reads as one watch line', () => {
         const b = makeBrief({ story: [{ code: 'disease_ongoing', tone: 'watch', pondId: 'p1', title: 'WFD', count: 20 }] });
         const utils = render(<DayStory brief={b} />);
