@@ -354,13 +354,28 @@ export class EngineAlertService {
     );
   }
 
+  /**
+   * Mark live alerts done for the whole farm. Only keys for ponds the caller
+   * can read are kept (the pond id is the key's second part).
+   */
+  async dismiss(userId: string, dismissKeys: string[]) {
+    const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+    const readable = new Set(
+      farmIds.length ? await this.farmAccess.getAccessiblePondIdsForFarms(userId, farmIds, 'READ') : [],
+    );
+    const items = dismissKeys
+      .map((dismissKey) => ({ pondId: dismissKey.split(':')[1], dismissKey }))
+      .filter((i) => readable.has(i.pondId));
+    return this.alertCenter.dismiss(userId, items);
+  }
+
   /** Live per-pond briefing across all of a user's active ponds. */
   async liveBriefing(userId: string): Promise<BriefingItem[]> {
     const contexts = await this.activeContexts(userId);
     const [molts, disease, dismissed] = await Promise.all([
       this.moltFor(contexts),
       this.diseaseFor(contexts),
-      this.alertCenter.dismissedKeys(userId),
+      this.alertCenter.dismissedKeys(contexts.map((c) => c.pondId)),
     ]);
     return this.briefingFrom(contexts, molts, disease, dismissed);
   }
@@ -378,7 +393,7 @@ export class EngineAlertService {
     const [molts, disease, dismissed] = await Promise.all([
       contexts.length ? this.moltFor(contexts) : new Map<string, PondMolt>(),
       this.diseaseFor(contexts),
-      this.alertCenter.dismissedKeys(userId),
+      this.alertCenter.dismissedKeys(contexts.map((c) => c.pondId)),
     ]);
     const live: LiveAlert[] = this.openDrafts(contexts, molts, disease, dismissed).map((d) => ({
       ...d,
@@ -411,7 +426,7 @@ export class EngineAlertService {
     const [molts, disease, dismissed] = await Promise.all([
       contexts.length ? this.moltFor(contexts) : new Map<string, PondMolt>(),
       this.diseaseFor(contexts),
-      this.alertCenter.dismissedKeys(userId),
+      this.alertCenter.dismissedKeys(contexts.map((c) => c.pondId)),
     ]);
     const { window, phase, next } = currentMoltWindow(new Date());
     const all = [...molts.values()];

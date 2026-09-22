@@ -4,15 +4,17 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThan, Not, Repository } from 'typeorm';
+import { In, MoreThan, Not, Repository } from 'typeorm';
 import { Alert } from './alert.entity';
 import { CreateAlertDto } from './dto/create-alert.dto';
 import { PushService } from '../push/push.service';
 
 /**
- * A live engine alert the user marked done. Stored as a read row in the same
- * table (no migration) and hidden from every alert list; it only silences the
- * live alert whose `dismissKey` (finding + reading) it names.
+ * A live engine alert someone marked done. Stored as a read row in the same
+ * table (no migration), tied to the pond, and hidden from every alert list. It
+ * silences that pond's alert whose `dismissKey` (finding + reading) it names
+ * for EVERYONE who sees the pond: a teammate must not keep acting on a problem
+ * already handled.
  */
 export const DISMISSED_TYPE = 'dismissed';
 const DISMISS_DAYS = 30;
@@ -146,13 +148,14 @@ export class AlertsService {
     return result.affected ?? 0;
   }
 
-  /** Mark live alerts done for this user until their reading changes. */
-  async dismiss(userId: string, dismissKeys: string[]) {
-    if (!dismissKeys.length) return { dismissed: 0 };
+  /** Mark ponds' live alerts done until their reading changes. Caller checks access. */
+  async dismiss(userId: string, items: { pondId: string; dismissKey: string }[]) {
+    if (!items.length) return { dismissed: 0 };
     await this.alertsRepository.save(
-      dismissKeys.map((k) =>
+      items.map(({ pondId, dismissKey: k }) =>
         this.alertsRepository.create({
           userId,
+          pondId,
           type: DISMISSED_TYPE,
           title: 'Marked done',
           message: k,
@@ -160,15 +163,16 @@ export class AlertsService {
         }),
       ),
     );
-    return { dismissed: dismissKeys.length };
+    return { dismissed: items.length };
   }
 
-  /** The user's recent "done" marks, as dismissKeys. */
-  async dismissedKeys(userId: string): Promise<Set<string>> {
+  /** Recent "done" marks on these ponds, by anyone, as dismissKeys. */
+  async dismissedKeys(pondIds: string[]): Promise<Set<string>> {
+    if (!pondIds.length) return new Set();
     const rows = await this.alertsRepository.find({
       select: { message: true },
       where: {
-        userId,
+        pondId: In(pondIds),
         type: DISMISSED_TYPE,
         createdAt: MoreThan(new Date(Date.now() - DISMISS_DAYS * 86_400_000)),
       },

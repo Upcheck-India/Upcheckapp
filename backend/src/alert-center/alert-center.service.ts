@@ -142,14 +142,14 @@ export class AlertCenterService {
     }));
   }
 
-  /** Live alerts the user marked done (see AlertsService.dismiss). */
-  dismissedKeys(userId: string): Promise<Set<string>> {
-    return this.alerts.dismissedKeys(userId).catch(() => new Set<string>());
+  /** Live alerts on these ponds someone marked done (see AlertsService.dismiss). */
+  dismissedKeys(pondIds: string[]): Promise<Set<string>> {
+    return this.alerts.dismissedKeys(pondIds).catch(() => new Set<string>());
   }
 
-  /** Mark live alerts done for this user. */
-  dismiss(userId: string, dismissKeys: string[]) {
-    return this.alerts.dismiss(userId, dismissKeys);
+  /** Mark ponds' live alerts done. Caller has checked pond access. */
+  dismiss(userId: string, items: { pondId: string; dismissKey: string }[]) {
+    return this.alerts.dismiss(userId, items);
   }
 
   /** Morning briefing from the user's unread alerts. */

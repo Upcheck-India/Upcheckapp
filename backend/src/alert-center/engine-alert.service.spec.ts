@@ -345,6 +345,14 @@ describe('EngineAlertService.all', () => {
     expect(changed.live).toHaveLength(1);
   });
 
+  it('done is saved per pond, for the farm, and only for ponds the caller can read', async () => {
+    const { svc } = withSaved({ readablePonds: ['p1'] });
+    const dismiss = jest.fn(async () => ({ dismissed: 1 }));
+    (svc as any).alertCenter.dismiss = dismiss;
+    await svc.dismiss('u', ['water:p1:Toxic ammonia|Free NH₃ 0.5 mg/L', 'water:p9:Toxic ammonia|x']);
+    expect(dismiss).toHaveBeenCalledWith('u', [{ pondId: 'p1', dismissKey: 'water:p1:Toxic ammonia|Free NH₃ 0.5 mg/L' }]);
+  });
+
   it('orders critical → watch → info, then by pond', async () => {
     const { svc } = withSaved({
       buildContextsFor: jest.fn(async () => [

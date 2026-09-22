@@ -66,15 +66,15 @@ export class AlertCenterController {
   }
 
   /**
-   * "Mark done" on live engine alerts: hidden for the caller until the reading
-   * behind each one changes. Keys come from the briefing / all responses.
+   * "Mark done" on live engine alerts: hidden for everyone on the farm until the
+   * reading behind each one changes. Keys come from the briefing / all responses.
    */
   @Post('dismiss')
   dismiss(@Body() body: { dismissKeys?: unknown }, @CurrentUser() user) {
     const keys = (Array.isArray(body?.dismissKeys) ? body.dismissKeys : [])
       .filter((k): k is string => typeof k === 'string' && k.length > 0 && k.length <= 500)
       .slice(0, 50);
-    return this.service.dismiss(user.id, keys);
+    return this.engineAlerts.dismiss(user.id, keys);
   }
 
   /** Emit an alert into the unified stream. */

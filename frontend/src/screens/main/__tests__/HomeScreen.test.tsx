@@ -554,21 +554,22 @@ describe('HomeScreen — the hero before there is any data', () => {
         expect(queryByText('Add your ponds')).toBeNull();
     });
 
-    // R7: a molt step is cleared on its checklist; Quick Log never shows it.
-    it('sends a lunar alert to that pond\'s molt checklist, not Quick Log', async () => {
+    // Done it closes the alert for the farm (saved on the server) and opens nothing.
+    it('Done it closes the alert and saves it; no jump to a log', async () => {
         mockedLiveBriefing.mockResolvedValue({
             data: [{
                 pondId: 'p1', source: 'lunar', topTitle: 'Post-molt — 1 action pending', topSeverity: 'watch',
-                alertCount: 1, steps: ['Restore feed'],
+                alertCount: 1, steps: ['Restore feed'], dismissKey: 'lunar:p1:Post-molt — # action pending|x',
             }],
         });
 
-        const { findByText, getByText } = renderScreen();
+        const { findByText, getByText, queryByText } = renderScreen();
         expect(await findByText('Post-molt — 1 action pending')).toBeTruthy();
 
         fireEvent.press(getByText('Done it'));
-        expect(navigation.navigate).toHaveBeenCalledWith('Lunar', { pondId: 'p1' });
-        expect(navigation.navigate).not.toHaveBeenCalledWith('QuickLog', expect.anything());
+        expect(alertCenterApi.dismiss).toHaveBeenCalledWith(['lunar:p1:Post-molt — # action pending|x']);
+        expect(navigation.navigate).not.toHaveBeenCalled();
+        expect(queryByText('Post-molt — 1 action pending')).toBeNull();
     });
 
     // Founder bug: "View all" under Then opened the Daily Brief, not the alerts.
