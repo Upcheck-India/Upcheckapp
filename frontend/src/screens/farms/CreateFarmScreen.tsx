@@ -101,8 +101,9 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
     const [loadedCaa, setLoadedCaa] = useState('');
     // F5 farm identity photo (cap 1) — owner only, matching FarmsService.update()
     // (every non-shift field is owner-only). Edit-only: needs a farmId to scope
-    // the upload to. `undefined` = leave unchanged.
-    const [photoPath, setPhotoPath] = useState<string | undefined>(undefined);
+    // the upload to. `undefined` = leave unchanged, `null` = explicitly cleared.
+    const [photoPath, setPhotoPath] = useState<string | null | undefined>(undefined);
+    const [existingPhoto, setExistingPhoto] = useState<{ url?: string | null; thumbUrl?: string | null }>({});
     const [shiftHours, setShiftHours] = useState(DEFAULT_SHIFT_HOURS);
     /** As loaded, so only a CHANGE is sent — an older backend never sees the fields. */
     const [loadedShift, setLoadedShift] = useState<{ end: string; hours: number }>({ end: '', hours: DEFAULT_SHIFT_HOURS });
@@ -137,6 +138,8 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                 setLoadedShift(loaded);
                 setCaaNo(data.caaRegistrationNo ?? '');
                 setLoadedCaa(data.caaRegistrationNo ?? '');
+                setPhotoPath(data.photoPath ?? undefined);
+                setExistingPhoto({ url: data.photoUrl, thumbUrl: data.photoThumbUrl });
             })
             .catch(() => {
                 Alert.alert(t('common.error'), t('farms.errorLoadFarm'));
@@ -355,7 +358,9 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
                         surface="farm_identity"
                         scope={{ farmId: editFarmId! }}
                         value={photoPath ? [photoPath] : []}
-                        onChange={(paths) => setPhotoPath(paths[paths.length - 1])}
+                        onChange={(paths) => setPhotoPath(paths.length ? paths[paths.length - 1] : null)}
+                        existingUrls={existingPhoto.url ? [existingPhoto.url] : undefined}
+                        existingThumbs={existingPhoto.thumbUrl ? [existingPhoto.thumbUrl] : undefined}
                     />
                 )}
 

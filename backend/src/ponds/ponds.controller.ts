@@ -70,7 +70,7 @@ export class PondsController {
   @UseGuards(OwnershipGuard)
   @OwnsResource('Pond', 'id', 'farm.userId', 'READ')
   findOne(@Param('id') id: string, @CurrentUser() user) {
-    return this.pondsService.findOneAccessible(id, user.id, 'READ');
+    return this.pondsService.findOneWithPhoto(id, user.id, 'READ');
   }
 
   @Patch(':id')

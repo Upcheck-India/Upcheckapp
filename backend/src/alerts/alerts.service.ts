@@ -4,10 +4,20 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, MoreThan, Not, Repository } from 'typeorm';
 import { Alert } from './alert.entity';
 import { CreateAlertDto } from './dto/create-alert.dto';
 import { PushService } from '../push/push.service';
+
+/**
+ * A live engine alert someone marked done. Stored as a read row in the same
+ * table (no migration), tied to the pond, and hidden from every alert list. It
+ * silences that pond's alert whose `dismissKey` (finding + reading) it names
+ * for EVERYONE who sees the pond: a teammate must not keep acting on a problem
+ * already handled.
+ */
+export const DISMISSED_TYPE = 'dismissed';
+const DISMISS_DAYS = 30;
 
 @Injectable()
 export class AlertsService {
@@ -138,8 +148,40 @@ export class AlertsService {
     return result.affected ?? 0;
   }
 
+  /** Mark ponds' live alerts done until their reading changes. Caller checks access. */
+  async dismiss(userId: string, items: { pondId: string; dismissKey: string }[]) {
+    if (!items.length) return { dismissed: 0 };
+    await this.alertsRepository.save(
+      items.map(({ pondId, dismissKey: k }) =>
+        this.alertsRepository.create({
+          userId,
+          pondId,
+          type: DISMISSED_TYPE,
+          title: 'Marked done',
+          message: k,
+          isRead: true,
+        }),
+      ),
+    );
+    return { dismissed: items.length };
+  }
+
+  /** Recent "done" marks on these ponds, by anyone, as dismissKeys. */
+  async dismissedKeys(pondIds: string[]): Promise<Set<string>> {
+    if (!pondIds.length) return new Set();
+    const rows = await this.alertsRepository.find({
+      select: { message: true },
+      where: {
+        pondId: In(pondIds),
+        type: DISMISSED_TYPE,
+        createdAt: MoreThan(new Date(Date.now() - DISMISS_DAYS * 86_400_000)),
+      },
+    });
+    return new Set(rows.map((r) => r.message));
+  }
+
   findByUser(userId: string, unreadOnly = false) {
-    const where: any = { userId };
+    const where: any = { userId, type: Not(DISMISSED_TYPE) };
     if (unreadOnly) where.isRead = false;
     return this.alertsRepository.find({
       where,

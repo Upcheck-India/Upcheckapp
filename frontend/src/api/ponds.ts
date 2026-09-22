@@ -35,6 +35,10 @@ export interface Pond {
      * confirmed" rather than presented as an answer nobody gave.
      */
     assumedFields?: string[];
+    /** F5 identity photo (cap 1). `GET /ponds/:id` only; raw + signed. */
+    photoPath?: string | null;
+    photoUrl?: string | null;
+    photoThumbUrl?: string | null;
 }
 
 export interface CreatePondDto {

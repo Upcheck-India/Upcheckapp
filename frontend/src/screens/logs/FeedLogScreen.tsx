@@ -273,6 +273,8 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                         scope={{ pondId }}
                         value={photoPaths}
                         onChange={setPhotoPaths}
+                        existingUrls={editRecord?.photoSignedUrls}
+                        existingThumbs={editRecord?.photoThumbUrls}
                     />
                 </Card>
 

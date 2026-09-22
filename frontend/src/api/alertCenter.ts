@@ -25,6 +25,8 @@ export interface BriefingItem {
   /** Lunar only, absent on an older backend: keys for topTitle / steps. */
   titleKey?: TextKey;
   stepKeys?: TextKey[];
+  /** Live alerts: pass to alertCenterApi.dismiss to mark done. Absent on an older backend. */
+  dismissKey?: string;
 }
 
 export interface BriefingActions {
@@ -47,6 +49,7 @@ export interface LiveAlert {
   titleKey?: TextKey;
   bodyKey?: TextKey;
   stepKeys?: TextKey[];
+  dismissKey?: string;
 }
 
 /** One unread persisted alert (GET /alert-center/all). */
@@ -159,6 +162,17 @@ export const alertCenterApi = {
       .get<BriefingItem[]>('/alert-center/live-briefing')
       .then((r) => (reportBriefing(r.data), r))
       .then((r) => ({ ...r, data: (r.data ?? []).map(localizeBriefing) })),
+
+  /**
+   * Mark live alerts done: hidden for this user until the reading behind them
+   * changes. Refreshes every alert view (all under the briefing root).
+   */
+  dismiss: async (dismissKeys: string[]) => {
+    const keys = dismissKeys.filter(Boolean);
+    if (!keys.length) return;
+    await apiClient.post('/alert-center/dismiss', { dismissKeys: keys });
+    await queryClient.invalidateQueries({ queryKey: ['briefing'] });
+  },
 
   /** Emit an alert into the unified stream. */
   emit: (body: {

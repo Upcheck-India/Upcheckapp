@@ -260,6 +260,8 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
                             scope={{ pondId }}
                             value={photoPaths}
                             onChange={setPhotoPaths}
+                            existingUrls={editRecord?.photoSignedUrls}
+                            existingThumbs={editRecord?.photoThumbUrls}
                         />
                     )}
                 </Card>

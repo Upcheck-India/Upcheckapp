@@ -40,7 +40,8 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
 
     const [notes, setNotes] = useState(editRecord?.notes ?? '');
     // F5: water colour (cap 2). Evidence only — no colour-analysis claim.
-    const [photoPaths, setPhotoPaths] = useState<string[]>([]);
+    // `undefined` = leave unchanged (nothing edited yet); `[]` = explicitly cleared.
+    const [photoPaths, setPhotoPaths] = useState<string[] | undefined>(editRecord?.photoPaths ?? undefined);
     const [isLoading, setIsLoading] = useState(false);
     // Quick-mode: only pH/DO/temperature show by default (the readings a
     // farmer logs every visit); the rest are one tap away, not a wall of
@@ -165,7 +166,8 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
             hardness: hardness ? parseFloat(hardness) : undefined,
             transparency: transparency ? parseFloat(transparency) : undefined,
             notes: notes.trim() || undefined,
-            ...(photoPaths.length ? { photoPaths } : {}),
+            // Touched only: an edit that clears every photo sends [] to remove them.
+            ...(photoPaths !== undefined ? { photoPaths } : {}),
         };
 
         try {
@@ -327,8 +329,10 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                     <PhotoAttach
                         surface="water_colour"
                         scope={{ pondId }}
-                        value={photoPaths}
+                        value={photoPaths ?? []}
                         onChange={setPhotoPaths}
+                        existingUrls={editRecord?.photoSignedUrls}
+                        existingThumbs={editRecord?.photoThumbUrls}
                     />
                 </Card>
 

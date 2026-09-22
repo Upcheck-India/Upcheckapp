@@ -77,8 +77,9 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
     const [aeratorCount, setAeratorCount] = useState('');
     const [displayName, setDisplayName] = useState('');
     // F5 pond identity photo (cap 1) — edit-only, the picker needs a pondId
-    // to scope the upload to. `undefined` = leave unchanged on save.
-    const [photoPath, setPhotoPath] = useState<string | undefined>(undefined);
+    // to scope the upload to. `undefined` = leave unchanged, `null` = explicitly cleared.
+    const [photoPath, setPhotoPath] = useState<string | null | undefined>(undefined);
+    const [existingPhoto, setExistingPhoto] = useState<{ url?: string | null; thumbUrl?: string | null }>({});
 
     const [overrideAreaM2, setOverrideAreaM2] = useState('');
     const [showOverride, setShowOverride] = useState(false);
@@ -119,6 +120,8 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 if (data.overrideAreaM2) setShowOverride(true);
                 setHasActiveCycle(!!data.activeCycleId);
                 setIsArchived(data.status === 'archived');
+                setPhotoPath(data.photoPath ?? undefined);
+                setExistingPhoto({ url: data.photoUrl, thumbUrl: data.photoThumbUrl });
                 setOriginal({
                     lengthM: num(data.lengthM),
                     widthM: num(data.widthM),
@@ -389,7 +392,9 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                         surface="pond_identity"
                         scope={{ pondId: editPondId }}
                         value={photoPath ? [photoPath] : []}
-                        onChange={(paths) => setPhotoPath(paths[paths.length - 1])}
+                        onChange={(paths) => setPhotoPath(paths.length ? paths[paths.length - 1] : null)}
+                        existingUrls={existingPhoto.url ? [existingPhoto.url] : undefined}
+                        existingThumbs={existingPhoto.thumbUrl ? [existingPhoto.thumbUrl] : undefined}
                     />
                 )}
 

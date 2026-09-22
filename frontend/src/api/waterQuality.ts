@@ -15,6 +15,12 @@ export interface WaterQualityRecord {
     transparency?: number;
     notes?: string;
     recordedAt?: string;
+    /** F5: water colour (cap 1). Storage paths; write side. */
+    photoPaths?: string[];
+    /** Signed, short-lived; read side (list/get). */
+    photoSignedUrls?: string[];
+    /** 400px thumbnails of `photoSignedUrls`, same order. */
+    photoThumbUrls?: string[];
 }
 
 export interface CreateWaterQualityRecordDto {

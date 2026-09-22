@@ -26,6 +26,29 @@ export async function readPhotoPaths(
   }
 }
 
+/**
+ * Batch read `photo_paths` for many rows in one query — the list/detail read
+ * side of the same F5 columns (`readPhotoPaths` above is the single-row form).
+ * Degrades to {} pre-migration, same as `readPhotoPaths`.
+ */
+export async function readPhotoPathsMany(
+  m: EntityManager,
+  table: string,
+  ids: string[],
+): Promise<Record<string, string[]>> {
+  if (!ids.length) return {};
+  try {
+    const rows: { id: string; photo_paths: string[] | null }[] = await m.query(
+      `SELECT id, photo_paths FROM ${table} WHERE id = ANY($1::uuid[])`,
+      [ids],
+    );
+    return Object.fromEntries(rows.map((r) => [r.id, r.photo_paths ?? []]));
+  } catch (err) {
+    if (isMissingSchema(err)) return {};
+    throw err;
+  }
+}
+
 /** Returns false (logged by the caller) when the column isn't migrated yet. */
 export async function writePhotoPaths(
   m: EntityManager,
